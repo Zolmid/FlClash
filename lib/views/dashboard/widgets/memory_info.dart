@@ -61,8 +61,13 @@ class MemorySnapshot {
 
 class MemoryInfo extends ConsumerStatefulWidget {
   final Future<MemorySnapshot> Function()? memoryReader;
+  final Future<CoreMemoryInfo?> Function()? runtimeReader;
 
-  const MemoryInfo({super.key, @visibleForTesting this.memoryReader});
+  const MemoryInfo({
+    super.key,
+    @visibleForTesting this.memoryReader,
+    @visibleForTesting this.runtimeReader,
+  });
 
   @override
   ConsumerState<MemoryInfo> createState() => _MemoryInfoState();
@@ -135,6 +140,15 @@ class _MemoryInfoState extends ConsumerState<MemoryInfo>
     return max(0, before - memory.total);
   }
 
+  Future<CoreMemoryInfo?> _readRuntime() async {
+    if (ref.read(coreStatusProvider) != CoreStatus.connected ||
+        (system.isIOS &&
+            ref.read(tunnelStateProvider) != TunnelState.connected)) {
+      return null;
+    }
+    return _core.getMemory();
+  }
+
   void _showDetail() {
     showSheet(
       context: context,
@@ -142,6 +156,9 @@ class _MemoryInfoState extends ConsumerState<MemoryInfo>
         return MemoryDetailSheet(
           snapshot: _memoryStateNotifier,
           onRelease: _releaseMemory,
+          runtimeReader:
+              widget.runtimeReader ??
+              (widget.memoryReader == null ? _readRuntime : null),
         );
       },
     );
@@ -207,26 +224,75 @@ class _MemoryInfoState extends ConsumerState<MemoryInfo>
   }
 }
 
-class MemoryDetailSheet extends StatefulWidget {
+class MemoryDetailSheet extends ConsumerStatefulWidget {
   const MemoryDetailSheet({
     super.key,
     required this.snapshot,
     required this.onRelease,
+    this.runtimeReader,
   });
 
   final ValueListenable<MemorySnapshot> snapshot;
 
   /// Resolves to the bytes freed.
   final Future<int> Function() onRelease;
+  final Future<CoreMemoryInfo?> Function()? runtimeReader;
 
   @override
-  State<MemoryDetailSheet> createState() => _MemoryDetailSheetState();
+  ConsumerState<MemoryDetailSheet> createState() => _MemoryDetailSheetState();
 }
 
-class _MemoryDetailSheetState extends State<MemoryDetailSheet> {
+class _MemoryDetailSheetState extends ConsumerState<MemoryDetailSheet>
+    with WidgetsBindingObserver, ActivePollingMixin<MemoryDetailSheet> {
   static const _minReleaseFeedback = Duration(milliseconds: 500);
 
   bool _isReleasing = false;
+  bool _showReleased = true;
+  AsyncSnapshot<CoreMemoryInfo?> _runtime = const AsyncSnapshot.nothing();
+
+  @override
+  Duration get pollInterval => const Duration(seconds: 2);
+
+  @override
+  bool get canPoll => widget.runtimeReader != null && super.canPoll;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(coreStatusProvider, (_, _) => _resetRuntime());
+    if (system.isIOS) {
+      ref.listenManual(tunnelStateProvider, (_, _) => _resetRuntime());
+    }
+  }
+
+  void _resetRuntime() {
+    setState(() => _runtime = const AsyncSnapshot.nothing());
+    restartPolling();
+  }
+
+  @override
+  Future<void> poll(PollGuard isCurrent) async {
+    try {
+      final runtime = await widget.runtimeReader!();
+      if (!isCurrent()) return;
+      setState(() {
+        _runtime = AsyncSnapshot.withData(ConnectionState.done, runtime);
+      });
+    } catch (error, stackTrace) {
+      commonPrint.log(
+        'updateRuntimeMemory error: $error',
+        logLevel: coreFailureLogLevel(error),
+      );
+      if (!isCurrent()) return;
+      setState(() {
+        _runtime = AsyncSnapshot.withError(
+          ConnectionState.done,
+          error,
+          stackTrace,
+        );
+      });
+    }
+  }
 
   Future<void> _handleRelease() async {
     if (_isReleasing) {
@@ -256,6 +322,7 @@ class _MemoryDetailSheetState extends State<MemoryDetailSheet> {
       return;
     }
     setState(() => _isReleasing = false);
+    if (widget.runtimeReader != null) restartPolling();
     context.showNotifier(message, level: level);
   }
 
@@ -354,10 +421,110 @@ class _MemoryDetailSheetState extends State<MemoryDetailSheet> {
                 contentKey: ValueKey(snapshot.core != null),
                 items: _coreItems(appLocalizations, snapshot),
               ),
+              if (widget.runtimeReader != null) _runtimeSection(context),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _runtimeSection(BuildContext context) {
+    final l10n = context.appLocalizations;
+    final data = _runtime.data;
+    if (data == null) {
+      return _MemorySection(
+        title: l10n.memoryTotal,
+        bytes: 0,
+        items: [
+          ListItem(
+            title: Text(
+              _runtime.hasError
+                  ? l10n.memoryReadFailed
+                  : _runtime.connectionState == ConnectionState.done
+                  ? l10n.memoryCoreNotRunning
+                  : l10n.loading,
+            ),
+          ),
+        ],
+      );
+    }
+    final colors = context.colorScheme;
+    final items = <({String label, int bytes, Color color})>[
+      (
+        label: l10n.memoryHeapObjects,
+        bytes: data.heapObjects,
+        color: colors.primary,
+      ),
+      (
+        label: l10n.memoryHeapUnused,
+        bytes: data.heapUnused,
+        color: colors.primaryContainer,
+      ),
+      (
+        label: l10n.memoryHeapIdle,
+        bytes: data.heapIdle,
+        color: colors.secondaryContainer,
+      ),
+      (label: l10n.memoryStacks, bytes: data.stacks, color: colors.secondary),
+      (
+        label: l10n.memoryMetadata,
+        bytes: data.metadata,
+        color: colors.tertiary,
+      ),
+      (label: l10n.memoryGC, bytes: data.gc, color: colors.tertiaryContainer),
+      (label: l10n.memoryOther, bytes: data.other, color: colors.outline),
+      (
+        label: l10n.memoryHeapReleased,
+        bytes: data.heapReleased,
+        color: colors.onSurfaceVariant,
+      ),
+    ];
+    final total = max(0, _showReleased ? data.sys : data.total);
+    final visible = _showReleased ? items : items.take(items.length - 1);
+    return _MemorySection(
+      title: l10n.memoryTotal,
+      bytes: total,
+      items: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox.square(
+            dimension: 120,
+            child: DonutChart(
+              data: [
+                for (final item in visible)
+                  DonutChartData(
+                    value: max(0, item.bytes).toDouble(),
+                    color: item.color,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        for (final (index, item) in items.indexed)
+          ListItem(
+            title: Text(item.label),
+            subtitle: Text(max(0, item.bytes).traffic.show),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_showReleased || index < items.length - 1)
+                  Text(
+                    '${(total == 0 ? 0 : max(0, item.bytes) * 100 / total).fixed(decimals: 1)}%',
+                  ),
+                if (index == items.length - 1)
+                  IconButton(
+                    tooltip: _showReleased ? l10n.hide : l10n.show,
+                    onPressed: () =>
+                        setState(() => _showReleased = !_showReleased),
+                    icon: GlyphIcon(
+                      _showReleased ? AppGlyphs.eye : AppGlyphs.eyeOff,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

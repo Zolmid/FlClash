@@ -38,3 +38,23 @@ iOS `CoreMessageRouter.sendRoutedCoreMessage` 仅调用选定 route，没有 NE 
 本次做了源码集合核对、调用链/数据形状和并发分支审查、基线 diff 比较、原生 staging 窄 JVM 回归；iOS 工程静态检查确认 153 PBX 对象/5 targets 和 plist/JSON/XML 引用有效。没有 Android SDK/Xcode，因此 Android 系统安装授权/最终验签、Widget/Tile 真机行为和 iOS 编译/NE XCTest 未执行。根 Flutter/analyze/codegen、Dart focused tests 与 Go 测试由对应 owner/root 统一执行；审查不以它们尚未运行来推断通过。
 
 最终新增 `test/views/runtime_rules_test.dart`，复用现有 TestApp、MockCore 和 provider overrides，覆盖真实 RulesView 的 runtime 规则/统计/added 来源标签、成功禁用后的旧会话 mutation 隔离，以及断开时清空/禁操作和迟到 refresh 不恢复旧控件。没有改生产 UI、模型或扩大功能；该文件交由 root 统一运行，不计入上述原生 117 项 JVM 测试。
+
+## 后续 UI 批次交叉审查
+
+本节审查基线为 `88476f4641da39e1dd24c84f065aa06054ab2200`，覆盖网格键盘编辑、
+原始 YAML 创建、运行时卡片、输入与 TV 焦点及原生语言资源。根任务统一执行门禁，结果见
+[验证记录](validation.md)。只读结构复核未发现尚未解决的责任边界或重复 owner 问题。
+
+- `SuperGrid` 持有本地重排预览和焦点资源，只向既有 dashboard settings 提交最终变更；
+  `Grid`/`MotionGrid` 只负责布局、绘制和退出动画。`CardPressOverride` 保持正常与编辑状态的
+  wrapper/子树结构稳定，防止保留中的 PageView 瞬时挂到同一 PageController 两次。
+- `BackLayerScope` 仍拥有编辑返回层；持起取消只恢复同一层。Flutter 在 onRemove 中暂时将 route
+  标记为 popping，不能以该瞬间的 isActive 判断是否可重挂。取消、退出编辑、返回路由的顺序有回归覆盖。
+- TV 弹窗使用自己的 `PopScope` 释放输入焦点，不增加会吞掉显式提交结果的 LocalHistoryEntry；
+  模态遍历边界仅临时修改，始终在 finally 恢复。叠层弹窗不会释放其他弹窗的焦点。
+- 原始 YAML 草稿直到严格校验及文件保存成功后才进入原 profile store；typed custom 继续使用自己的
+  编辑器，两者共享既有 origin 导航规则。异步文件/弹窗测试等待真实完成条件，保留失败重试和返回断言。
+- 内存类别与 returned-heap 切换仅影响 Go 分类图，不改变 RSS、Android 进程分摊或 iOS footprint。
+  协程数采用 active Core 语义；iOS NE 失败仍传播错误，不回退 App。
+- 安装器配置用 `setup.dart` 固定的真实 provider/Liquid 验证，纠正被忽略的 publisher 字段；
+  作者和支持链接保留上游，更新链接独立指向 Zolmid。静态或模板验证不冒充 ISCC/Xcode 编译。

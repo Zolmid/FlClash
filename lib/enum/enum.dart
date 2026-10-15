@@ -509,7 +509,8 @@ enum DashboardWidget {
   connections,
   runTime,
   proxyGroups,
-  profiles;
+  profiles,
+  goroutineInfo;
 
   final List<SupportPlatform> platforms;
 

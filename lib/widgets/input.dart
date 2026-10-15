@@ -211,6 +211,30 @@ class _NamedUrlDialogState extends State<NamedUrlDialog> {
     return _validateUrl(url);
   }
 
+  Future<void> _pasteUrl() async {
+    ClipboardData? data;
+    try {
+      data = await Clipboard.getData(Clipboard.kTextPlain);
+    } on PlatformException {
+      return;
+    } on MissingPluginException {
+      return;
+    }
+    final text = data?.text?.trim() ?? '';
+    if (!mounted || text.isEmpty) return;
+    _urlController.value =
+        LengthLimitingTextInputFormatter(
+          TextInputLimits.url,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+        ).formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(
+            text: text,
+            selection: TextSelection.collapsed(offset: text.length),
+          ),
+        );
+  }
+
   void _toggleBatch() {
     setState(() {
       _isBatch = !_isBatch;
@@ -328,7 +352,14 @@ class _NamedUrlDialogState extends State<NamedUrlDialog> {
                 _handleSubmit();
               }
             },
-            decoration: InputDecoration(labelText: _urlLabel),
+            decoration: InputDecoration(
+              labelText: _urlLabel,
+              suffixIcon: IconButton(
+                tooltip: appLocalizations.paste,
+                onPressed: _pasteUrl,
+                icon: const GlyphIcon(AppGlyphs.paste),
+              ),
+            ),
           ),
           if (widget.withAgeSecretKey)
             SecretTextFormField(
@@ -429,6 +460,7 @@ class InputDialog extends StatefulWidget {
   final int? maxLength;
   final List<TextInputFormatter>? inputFormatters;
   final TextInputType? keyboardType;
+  final bool autofocus;
   final bool selectAll;
   final List<Widget> Function(
     TextEditingController controller,
@@ -449,6 +481,7 @@ class InputDialog extends StatefulWidget {
     this.maxLength,
     this.inputFormatters,
     this.keyboardType,
+    this.autofocus = false,
     this.selectAll = false,
     this.actionsBuilder,
     this.autovalidateMode = AutovalidateMode.onUserInteraction,
@@ -539,7 +572,7 @@ class _InputDialogState extends State<InputDialog> {
           children: [
             if (widget.obscureText == true)
               SecretTextFormField(
-                autofocus: widget.selectAll,
+                autofocus: widget.autofocus || widget.selectAll,
                 maxLength: widget.maxLength,
                 inputFormatters: widget.inputFormatters,
                 maxLines: 5,
@@ -552,7 +585,7 @@ class _InputDialogState extends State<InputDialog> {
               )
             else
               TextFormField(
-                autofocus: widget.selectAll,
+                autofocus: widget.autofocus || widget.selectAll,
                 maxLength: widget.maxLength,
                 inputFormatters: widget.inputFormatters,
                 keyboardType: widget.keyboardType ?? TextInputType.url,

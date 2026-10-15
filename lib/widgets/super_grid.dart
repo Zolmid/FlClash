@@ -5,13 +5,16 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/widgets/activate_box.dart';
 import 'package:fl_clash/widgets/button.dart';
+import 'package:fl_clash/widgets/card.dart';
 import 'package:fl_clash/widgets/defer_pointer.dart';
 import 'package:fl_clash/widgets/motion_grid.dart';
 import 'package:fl_clash/widgets/navigation_dock.dart';
 import 'package:fl_clash/widgets/grid.dart';
+import 'package:fl_clash/widgets/focus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Keeps its own order while the user edits and reports each committed change
@@ -66,6 +69,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   static const _shakeReach = 2.5;
   static const _hoverDelay = Duration(milliseconds: 120);
   static const _revealDuration = Duration(milliseconds: 300);
+  static const _keyboardMotionDuration = Duration(milliseconds: 420);
   static const _flightSpring = SpringDescription(
     mass: 1,
     stiffness: 180,
@@ -79,6 +83,12 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   List<GridItem> _items = [];
 
   final Map<Key, GlobalKey> _contentKeys = {};
+  final Map<Key, FocusNode> _itemFocusNodes = {};
+  Key? _heldKey;
+  List<Key>? _heldOrigin;
+  bool _heldMoved = false;
+  Key? _keyboardTopKey;
+  Timer? _keyboardSettleTimer;
 
   /// A null flight hides a slot that has not been laid out yet.
   final Map<Key, _Flight?> _flights = {};
@@ -92,13 +102,20 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   Rect _dragRect = Rect.zero;
 
   late final AnimationController _shakeController;
+  late final AnimationController _keyboardLiftController;
 
   List<GridItem> get items => List<GridItem>.unmodifiable(_items);
+  bool get isHolding => _heldKey != null;
 
   @override
   void initState() {
     super.initState();
     _items = List<GridItem>.of(widget.children);
+    _syncFocusNodes();
+    _keyboardLiftController = AnimationController(
+      vsync: this,
+      duration: kThemeAnimationDuration,
+    );
     _shakeController = AnimationController(
       vsync: this,
       duration: _shakeDuration,
@@ -110,6 +127,8 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   void didUpdateWidget(SuperGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_sameKeys(oldWidget.children, widget.children)) {
+      _clearHold();
+      _resetKeyboardLift();
       _items = List<GridItem>.of(widget.children);
       if (_dragKey != null && _indexOf(_dragKey!) < 0) {
         _dragKey = null;
@@ -119,11 +138,15 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
       _items = [for (final item in _items) latest[item.key] ?? item];
     }
     if (oldWidget.editing != widget.editing) {
+      _restoreHeldOrder();
+      _clearHold();
+      _resetKeyboardLift();
       _dragKey = null;
       _hoverTimer?.cancel();
       _autoScroller?.stopAutoScroll();
       _syncShake();
     }
+    _syncFocusNodes();
   }
 
   @override
@@ -156,11 +179,17 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   void dispose() {
     _autoScroller?.stopAutoScroll();
     _hoverTimer?.cancel();
+    _keyboardSettleTimer?.cancel();
+    for (final node in _itemFocusNodes.values) {
+      node.dispose();
+    }
+    _itemFocusNodes.clear();
     for (final flight in _flights.values) {
       flight?.dispose();
     }
     _flights.clear();
     _shakeController.dispose();
+    _keyboardLiftController.dispose();
     _dragSize.dispose();
     super.dispose();
   }
@@ -179,6 +208,193 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
 
   int _indexOf(Key key) => _items.indexWhere((item) => item.key == key);
 
+  void _syncFocusNodes() {
+    final keys = {for (final item in _items) item.key!};
+    for (final key
+        in _itemFocusNodes.keys.where((key) => !keys.contains(key)).toList()) {
+      _itemFocusNodes.remove(key)!.dispose();
+    }
+    for (final key in keys) {
+      _itemFocusNodes.putIfAbsent(
+        key,
+        () => FocusNode(debugLabel: 'super_grid_$key'),
+      );
+    }
+  }
+
+  void _clearHold() {
+    _heldKey = null;
+    _heldOrigin = null;
+    _heldMoved = false;
+  }
+
+  void _restoreHeldOrder() {
+    final origin = _heldOrigin;
+    if (origin == null) return;
+    final latest = {for (final item in _items) item.key!: item};
+    _items = [for (final key in origin) ?latest[key]];
+  }
+
+  void _resetKeyboardLift() {
+    _keyboardSettleTimer?.cancel();
+    _keyboardTopKey = null;
+    _keyboardLiftController.value = 0;
+  }
+
+  void _settleKeyboardLift() {
+    _keyboardLiftController.reverse();
+    _keyboardSettleTimer?.cancel();
+    _keyboardSettleTimer = Timer(_keyboardMotionDuration, () {
+      if (mounted && _heldKey == null) setState(() => _keyboardTopKey = null);
+    });
+  }
+
+  void _requestItemFocus(Key key) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.editing) return;
+      _itemFocusNodes[key]?.requestFocus();
+      _revealSlot(key);
+    });
+  }
+
+  bool cancelHeldMove() {
+    final key = _heldKey;
+    if (key == null) return false;
+    setState(() {
+      _restoreHeldOrder();
+      _clearHold();
+    });
+    _settleKeyboardLift();
+    _requestItemFocus(key);
+    return true;
+  }
+
+  void _toggleHold(Key key) {
+    if (_dragKey != null || _flights.containsKey(key) || _indexOf(key) < 0) {
+      return;
+    }
+    final held = _heldKey;
+    if (held == null) {
+      _keyboardSettleTimer?.cancel();
+      setState(() {
+        _heldKey = key;
+        _heldOrigin = [for (final item in _items) item.key!];
+        _heldMoved = false;
+        _keyboardTopKey = key;
+      });
+      _keyboardLiftController.forward();
+      _requestItemFocus(key);
+    } else if (held == key) {
+      final moved = _heldMoved;
+      _clearHold();
+      if (moved) {
+        _commit(_items);
+        _settleKeyboardLift();
+      } else {
+        _resetKeyboardLift();
+        _deleteItem(key);
+      }
+    }
+  }
+
+  KeyEventResult _onGridKey(FocusNode node, KeyEvent event) {
+    if (!widget.editing || event is KeyUpEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (remoteSelectKeys.contains(event.logicalKey) ||
+        event.logicalKey == LogicalKeyboardKey.space) {
+      final focused = _itemFocusNodes.entries
+          .where((entry) => entry.value.hasFocus)
+          .firstOrNull;
+      if (focused == null) return KeyEventResult.ignored;
+      if (event is KeyDownEvent) _toggleHold(focused.key);
+      return KeyEventResult.handled;
+    }
+    if (_heldKey == null) return KeyEventResult.ignored;
+    final direction = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowLeft => TraversalDirection.left,
+      LogicalKeyboardKey.arrowRight => TraversalDirection.right,
+      LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+      LogicalKeyboardKey.arrowDown => TraversalDirection.down,
+      _ => null,
+    };
+    if (direction != null) {
+      _moveHeld(direction);
+      return KeyEventResult.handled;
+    }
+    return event.logicalKey == LogicalKeyboardKey.tab
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
+  }
+
+  void _moveHeld(TraversalDirection direction) {
+    final key = _heldKey;
+    if (key == null) return;
+    final from = _indexOf(key);
+    final target = _neighborIndex(from, direction);
+    if (target == null) return;
+    setState(() {
+      final item = _items[from];
+      _items = List.of(_items)
+        ..[from] = _items[target]
+        ..[target] = item;
+      _heldMoved = true;
+    });
+    _requestItemFocus(key);
+  }
+
+  int? _neighborIndex(int from, TraversalDirection direction) {
+    final box = context.findRenderObject();
+    if (from < 0 || box is! RenderBox || !box.hasSize) return null;
+    final sizes = [for (final item in _items) _slotBoxOf(item.key!)?.size];
+    if (sizes.any((size) => size == null)) return null;
+    final geometry = packGridSlots(
+      crossAxisCellCounts: [for (final item in _items) item.crossAxisCellCount],
+      mainAxisExtents: [for (final size in sizes) size!.height],
+      crossAxisCount: widget.crossAxisCount,
+      crossAxisExtent: box.size.width,
+      crossAxisSpacing: widget.crossAxisSpacing,
+      mainAxisSpacing: widget.mainAxisSpacing,
+    );
+    Rect rectOf(int index) {
+      final slot = geometry.slots[index];
+      return Offset(
+            slot.crossAxisIndex * geometry.stride,
+            slot.mainAxisOffset,
+          ) &
+          sizes[index]!;
+    }
+
+    final held = rectOf(from);
+    int? best;
+    var bestPrimary = double.infinity;
+    var bestSecondary = double.infinity;
+    for (var index = 0; index < _items.length; index++) {
+      if (index == from) continue;
+      final rect = rectOf(index);
+      final primary = switch (direction) {
+        TraversalDirection.left => held.left - rect.right,
+        TraversalDirection.right => rect.left - held.right,
+        TraversalDirection.up => held.top - rect.bottom,
+        TraversalDirection.down => rect.top - held.bottom,
+      };
+      if (primary < -0.5) continue;
+      final secondary = switch (direction) {
+        TraversalDirection.left ||
+        TraversalDirection.right => (rect.center.dy - held.center.dy).abs(),
+        TraversalDirection.up ||
+        TraversalDirection.down => (rect.center.dx - held.center.dx).abs(),
+      };
+      if (primary < bestPrimary - 0.5 ||
+          primary <= bestPrimary + 0.5 && secondary < bestSecondary) {
+        best = index;
+        bestPrimary = primary;
+        bestSecondary = secondary;
+      }
+    }
+    return best;
+  }
+
   void _syncShake() {
     if (widget.editing) {
       _shakeController.repeat();
@@ -190,12 +406,14 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   void _commit(List<GridItem> items) {
     setState(() {
       _items = items;
+      _syncFocusNodes();
     });
     widget.onChanged?.call(List<GridItem>.unmodifiable(items));
   }
 
   /// Completes once a copy of [item] has flown from the global [from] rect.
   Future<void> addItem(GridItem item, {Rect? from}) {
+    cancelHeldMove();
     final key = item.key!;
     if (_indexOf(key) >= 0) {
       return Future.value();
@@ -218,11 +436,18 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     if (_dragKey != null) {
       return;
     }
+    final index = _indexOf(key);
+    if (index < 0) return;
+    _clearHold();
+    _resetKeyboardLift();
     _contentKeys.remove(key);
     _commit([
       for (final item in _items)
         if (item.key != key) item,
     ]);
+    if (_items.isNotEmpty) {
+      _requestItemFocus(_items[min(index, _items.length - 1)].key!);
+    }
   }
 
   RenderBox? _slotBoxOf(Key key) {
@@ -296,7 +521,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
         builder: _buildLiftedSurface,
         child: InheritedTheme.captureAll(
           context,
-          ActivateBox(child: item.child),
+          ExcludeFocus(child: ActivateBox(child: item.child)),
         ),
       ),
     );
@@ -326,6 +551,8 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   }
 
   void _handleDragStarted(Key key) {
+    cancelHeldMove();
+    _resetKeyboardLift();
     final box = _slotBoxOf(key);
     if (box == null) {
       return;
@@ -448,12 +675,27 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
         return false;
       },
     );
+    final showDelete =
+        _dragKey == null &&
+        _flights.isEmpty &&
+        (_heldKey == null || _heldKey == key && !_heldMoved);
     final decorated = _dragKey == key
         ? ActivateBox(child: Opacity(opacity: 0.4, child: content))
         : _buildShake(
             _DeletableContainer(
+              focusNode: _itemFocusNodes[key]!,
+              onActivate: () => _toggleHold(key),
+              showDelete: showDelete,
+              deleteArmed: _heldKey == key && !_heldMoved,
               onDelete: () => _deleteItem(key),
-              child: target,
+              child: AnimatedBuilder(
+                animation: _keyboardLiftController,
+                builder: (_, child) => _buildLiftedSurface(
+                  child!,
+                  _keyboardTopKey == key ? _keyboardLiftController.value : 0,
+                ),
+                child: target,
+              ),
             ),
             index,
           );
@@ -465,7 +707,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
           builder: (_, size, child) {
             return SizedBox.fromSize(size: size, child: child);
           },
-          child: _buildLiftedSurface(item.child, 1),
+          child: ExcludeFocus(child: _buildLiftedSurface(item.child, 1)),
         ),
       ),
     );
@@ -505,9 +747,14 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
       key: key,
       crossAxisCellCount: item.crossAxisCellCount,
       mainAxisCellCount: item.mainAxisCellCount,
-      child: Visibility.maintain(
-        visible: !_flights.containsKey(key),
-        child: widget.editing ? _buildEditable(item, content, index) : content,
+      child: ExcludeFocus(
+        excluding: _flights.containsKey(key),
+        child: Visibility.maintain(
+          visible: !_flights.containsKey(key),
+          child: widget.editing
+              ? _buildEditable(item, content, index)
+              : content,
+        ),
       ),
     );
   }
@@ -518,11 +765,18 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
       crossAxisCount: widget.crossAxisCount,
       crossAxisSpacing: widget.crossAxisSpacing,
       mainAxisSpacing: widget.mainAxisSpacing,
+      duration: _keyboardMotionDuration,
+      foregroundKey: _keyboardTopKey,
       children: [
         for (var i = 0; i < _items.length; i++) _buildItem(_items[i], i),
       ],
     );
-    return DeferredPointerHandler(child: grid);
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: _onGridKey,
+      child: DeferredPointerHandler(child: grid),
+    );
   }
 }
 
@@ -577,28 +831,55 @@ class _FlightView extends StatelessWidget {
 class _DeletableContainer extends StatelessWidget {
   final Widget child;
   final VoidCallback onDelete;
+  final VoidCallback onActivate;
+  final FocusNode focusNode;
+  final bool showDelete;
+  final bool deleteArmed;
 
-  const _DeletableContainer({required this.child, required this.onDelete});
+  const _DeletableContainer({
+    required this.onDelete,
+    required this.onActivate,
+    required this.focusNode,
+    required this.showDelete,
+    required this.deleteArmed,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        child,
-        Positioned(
-          top: -8,
-          right: -8,
-          child: DeferPointer(
-            child: ElasticButton(
-              child: CornerBadgeButton(
-                glyph: AppGlyphs.removeCircle,
-                tooltip: context.appLocalizations.remove,
-                onPressed: onDelete,
+        CardPressOverride(
+          onPressed: onActivate,
+          focusNode: focusNode,
+          child: child,
+        ),
+        if (showDelete)
+          Positioned(
+            top: -8,
+            right: -8,
+            child: DeferPointer(
+              child: ExcludeFocus(
+                child: Theme(
+                  data: deleteArmed
+                      ? Theme.of(context).copyWith(
+                          colorScheme: context.colorScheme.copyWith(
+                            primary: context.colorScheme.error,
+                          ),
+                        )
+                      : Theme.of(context),
+                  child: ElasticButton(
+                    child: CornerBadgeButton(
+                      glyph: AppGlyphs.removeCircle,
+                      tooltip: context.appLocalizations.remove,
+                      onPressed: onDelete,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

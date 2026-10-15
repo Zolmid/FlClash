@@ -1,0 +1,17 @@
+name: flclash_installer_validation
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter_app_packager:
+    git:
+      url: https://github.com/chen08209/flutter_distributor.git
+      ref: 1e640ce6199c02fdf30e5e26ab70a213564db74a
+      path: packages/flutter_app_packager
+
+dev_dependencies:
+  path: ^1.9.1
+  test: ^1.31.1
+  yaml: ^3.1.4

@@ -50,6 +50,11 @@ extension DashboardWidgetView on DashboardWidget {
       crossAxisCellCount: 4,
       child: MemoryInfo(),
     ),
+    DashboardWidget.goroutineInfo => const GridItem(
+      key: ValueKey(DashboardWidget.goroutineInfo),
+      crossAxisCellCount: 4,
+      child: GoroutineInfo(),
+    ),
     DashboardWidget.serviceStatus => const GridItem(
       key: ValueKey(DashboardWidget.serviceStatus),
       crossAxisCellCount: 8,

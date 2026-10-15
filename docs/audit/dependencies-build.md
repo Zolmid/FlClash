@@ -32,6 +32,12 @@
 | `5c12cb08cd3f6625a289e419c8b9da60678ec234` | 主线替代 | Material Symbols/SVG等UI依赖由实际调用决定；不为复制参考资源新增整套未使用字体。 |
 | `8012efc6fcf06515c11d9da1dc0ddca205fe46be` | 迁入并加固 | Windows scheduled autostart 已接入，保留 SAFE_MODE/debug，使用当前用户 LeastPrivilege、安装路径归属与串行最新意图收敛；失败保留有效方式。完整证据见 [windows-autostart.md](windows-autostart.md)。 |
 | `38b8e3d912537f416d45ebdedca765acca7451d6` | 已迁入其他域 | Linux 独立托盘资源及 pubspec/tool 输出已改为 tray/linux；保留主线 macOS template tray 资源，原生行为由 desktop 审计覆盖。 |
+| `323f678d2f4fed3aa08a409cdfbb2e06a32e95b0` | 迁入原生补充 | Windows 安装器启用繁中、日语、俄语，本地 ISL 路径加引号；Android common 补已有键的繁中；macOS 接入来源字符串目录及匹配当前 XIB 的资源引用。Flutter 与 iOS 繁中已在首批整合，边界和验证见 [native-localization.md](native-localization.md)。 |
+
+安装器字段另以当前固定 distributor 的实际 provider 验证：主线 `publisher` 未被解析，
+渲染产生空 `AppPublisher=`；已最小改为受支持的 `publisher_name: chen08209`。
+发布者与支持链接保留上游，更新链接独立对齐本仓库 Zolmid releases；
+真实 provider/Liquid 回归测试位于独立的 `windows/packaging/exe/test/`，不改变根依赖或发布 guard。
 
 ## 保留的依赖与安全边界
 

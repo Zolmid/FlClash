@@ -5,6 +5,7 @@ import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/profiles/add.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,7 +58,7 @@ ProviderContainer _containerFor(
 }
 
 void main() {
-  testWidgets('lists the QR code, file, link, and custom entries', (
+  testWidgets('lists new, QR code, file, link, and custom entries', (
     tester,
   ) async {
     final container = _containerFor(tester);
@@ -78,6 +79,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final l10n = currentAppLocalizations;
+    expect(find.text(l10n.newProfile), findsOne);
     expect(find.text(l10n.qrcode), findsOne);
     expect(find.text(l10n.file), findsOne);
     expect(find.text(l10n.link), findsOne);
@@ -129,39 +131,51 @@ void main() {
     expect(tester.takeException(), null);
   });
 
-  testWidgets('the link import takes a proxy share link', (tester) async {
-    final action = _RecordingProfilesAction();
-    final container = _containerFor(tester, profilesAction: action);
+  testWidgets(
+    'the link import pastes a proxy share link with spaces unchanged',
+    (tester) async {
+      const link = 'trojan://pass@example.com:443#Hong Kong 01';
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async =>
+            call.method == 'Clipboard.getData' ? {'text': '  $link\n'} : null,
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final action = _RecordingProfilesAction();
+      final container = _containerFor(tester, profilesAction: action);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: TestApp(
-          child: Scaffold(
-            body: Builder(
-              builder: (context) =>
-                  AddProfileView(context: context, origin: context),
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: TestApp(
+            child: Scaffold(
+              body: Builder(
+                builder: (context) =>
+                    AddProfileView(context: context, origin: context),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final l10n = currentAppLocalizations;
-    await tester.tap(find.text(l10n.link));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextFormField, l10n.link),
-      'trojan://pass@example.com:443#HK',
-    );
-    await tester.pump();
-    await tester.tap(find.text(l10n.submit));
-    await tester.pumpAndSettle();
+      final l10n = currentAppLocalizations;
+      await tester.tap(find.text(l10n.link));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(l10n.paste));
+      await tester.pump();
+      await tester.tap(find.text(l10n.submit));
+      await tester.pumpAndSettle();
 
-    expect(action.singles, ['trojan://pass@example.com:443#HK']);
-    expect(tester.takeException(), null);
-  });
+      expect(action.singles, [link]);
+      expect(tester.takeException(), null);
+    },
+  );
 
   testWidgets('the link import passes the age secret key along', (
     tester,

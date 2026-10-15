@@ -221,6 +221,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                 child: isEdit
                                     ? BackLayerScope(
                                         onBack: _handleExitEdit,
+                                        onBackIntercept: () =>
+                                            key.currentState
+                                                ?.cancelHeldMove() ??
+                                            false,
                                         child: grid,
                                       )
                                     : grid,
@@ -284,18 +288,32 @@ class _AddDashboardWidgetModal extends StatelessWidget {
   }
 }
 
-class _AddedContainer extends StatelessWidget {
+class _AddedContainer extends StatefulWidget {
   final Widget child;
   final ValueChanged<Rect> onAdd;
 
   const _AddedContainer({required this.child, required this.onAdd});
 
-  void _handleAdd(BuildContext context) {
+  @override
+  State<_AddedContainer> createState() => _AddedContainerState();
+}
+
+class _AddedContainerState extends State<_AddedContainer> {
+  bool _adding = false;
+
+  void _handleAdd() {
+    if (_adding) return;
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) {
       return;
     }
-    onAdd(box.localToGlobal(Offset.zero) & box.size);
+    _adding = true;
+    try {
+      widget.onAdd(box.localToGlobal(Offset.zero) & box.size);
+    } catch (_) {
+      _adding = false;
+      rethrow;
+    }
   }
 
   @override
@@ -303,16 +321,21 @@ class _AddedContainer extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        ActivateBox(child: child),
+        CardPressOverride(
+          onPressed: _handleAdd,
+          child: ActivateBox(child: widget.child),
+        ),
         Positioned(
           top: -8,
           right: -8,
           child: DeferPointer(
-            child: ElasticButton(
-              child: CornerBadgeButton(
-                glyph: AppGlyphs.addCircle,
-                tooltip: context.appLocalizations.add,
-                onPressed: () => _handleAdd(context),
+            child: ExcludeFocus(
+              child: ElasticButton(
+                child: CornerBadgeButton(
+                  glyph: AppGlyphs.addCircle,
+                  tooltip: context.appLocalizations.add,
+                  onPressed: _handleAdd,
+                ),
               ),
             ),
           ),

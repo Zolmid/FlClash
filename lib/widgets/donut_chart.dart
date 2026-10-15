@@ -163,6 +163,14 @@ class _DonutChartPainter extends CustomPainter {
     }
     final center = size.center(Offset.zero);
     final fractions = _lerp(from, to, progress.value);
+    final fullRing = fractions.indexWhere((fraction) => fraction == 1);
+    if (fullRing != -1) {
+      _arcPaint
+        ..color = colors[fullRing]
+        ..strokeWidth = strokeWidth;
+      canvas.drawCircle(center, radius, _arcPaint);
+      return;
+    }
     final covered = fractions.fold(0.0, (sum, fraction) => sum + fraction);
     final trackAlpha = trackColor.a * (1 - covered);
     if (trackAlpha * 255 >= 1) {

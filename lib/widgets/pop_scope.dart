@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 
 import 'inherited.dart';
 
@@ -48,6 +49,7 @@ class CommonPopScope extends StatelessWidget {
 class BackLayerScope extends StatefulWidget {
   final Widget child;
   final VoidCallback onBack;
+  final bool Function()? onBackIntercept;
   @visibleForTesting
   final void Function(void Function(Duration) callback)?
   schedulePostFrameCallback;
@@ -55,6 +57,7 @@ class BackLayerScope extends StatefulWidget {
   const BackLayerScope({
     super.key,
     required this.onBack,
+    this.onBackIntercept,
     required this.child,
     @visibleForTesting this.schedulePostFrameCallback,
   });
@@ -96,19 +99,34 @@ class _BackLayerScopeState extends State<BackLayerScope> {
       if (route == null) {
         return;
       }
-      final entry = LocalHistoryEntry(
-        impliesAppBarDismissal: false,
-        onRemove: _handleRemove,
-      );
-      _entry = entry;
-      route.addLocalHistoryEntry(entry);
+      _installEntry(route);
     });
+  }
+
+  void _installEntry(ModalRoute<dynamic> route) {
+    if (_entry != null) return;
+    final entry = LocalHistoryEntry(
+      impliesAppBarDismissal: false,
+      onRemove: _handleRemove,
+    );
+    _entry = entry;
+    route.addLocalHistoryEntry(entry);
   }
 
   void _handleRemove() {
     _entry = null;
     if (!_isDetaching && mounted) {
-      widget.onBack();
+      if (widget.onBackIntercept?.call() == true) {
+        final route = _route;
+        if (mounted &&
+            _isPageActive &&
+            route != null &&
+            route.navigator != null) {
+          _installEntry(route);
+        }
+      } else {
+        widget.onBack();
+      }
     }
   }
 
@@ -133,6 +151,24 @@ class _BackLayerScopeState extends State<BackLayerScope> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.escape): _BackLayerIntent(),
+        SingleActivator(LogicalKeyboardKey.goBack): _BackLayerIntent(),
+        SingleActivator(LogicalKeyboardKey.gameButtonB): _BackLayerIntent(),
+      },
+      child: Actions(
+        actions: {
+          _BackLayerIntent: CallbackAction<_BackLayerIntent>(
+            onInvoke: (_) => Navigator.of(context).maybePop(),
+          ),
+        },
+        child: widget.child,
+      ),
+    );
   }
+}
+
+class _BackLayerIntent extends Intent {
+  const _BackLayerIntent();
 }

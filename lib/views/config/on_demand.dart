@@ -102,6 +102,7 @@ class _OnDemandViewState extends ConsumerState<OnDemandView>
             ? appLocalizations.addSsid
             : appLocalizations.editSsid,
         value: ssid ?? '',
+        autofocus: ssid == null,
         maxLength: 32,
         validator: (value) {
           if (value == null || value.isEmpty) {

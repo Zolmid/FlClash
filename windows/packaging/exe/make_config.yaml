@@ -1,7 +1,7 @@
 script_template: inno_setup.iss
 app_id: 728B3532-C74B-4870-9068-BE70FE12A3E6
 app_name: FlClash
-publisher: chen08209
+publisher_name: chen08209
 publisher_url: https://github.com/chen08209/FlClash
 display_name: FlClash
 executable_name: FlClash.exe
@@ -10,9 +10,13 @@ output_base_file_name: FlClash.exe
 # absolute path via Directory.current.
 setup_icon_file: windows\runner\resources\app_icon.ico
 locales:
+  - lang: en
+  - lang: ja
+  - lang: ru
   # Written into the .iss verbatim, so this one stays relative to the generated
   # script in dist/.
   - lang: zh
     file: ..\windows\packaging\exe\ChineseSimplified.isl
-  - lang: en
+  - lang: zh_TW
+    file: ..\windows\packaging\exe\ChineseTraditional.isl
 privileges_required: admin

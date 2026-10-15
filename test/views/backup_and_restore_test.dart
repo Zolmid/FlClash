@@ -163,6 +163,15 @@ void main() {
     ) async {
       await pumpDialog(tester, const WebDAVFormDialog());
 
+      final address = tester.widget<EditableText>(
+        find.descendant(
+          of: find.widgetWithGlyph(TextFormField, AppGlyphs.link),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(address.keyboardType, TextInputType.url);
+      expect(address.textInputAction, TextInputAction.next);
+
       await tester.enterText(
         find.widgetWithGlyph(TextFormField, AppGlyphs.link),
         'https://dav.example.com/remote',

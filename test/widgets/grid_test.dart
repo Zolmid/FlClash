@@ -1,4 +1,5 @@
 import 'package:fl_clash/widgets/grid.dart';
+import 'package:fl_clash/widgets/motion_grid.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -35,7 +36,117 @@ Widget _buildGrid() {
   );
 }
 
+class _PaintRecorder extends CustomPainter {
+  const _PaintRecorder(this.label, this.painted);
+
+  final String label;
+  final List<String> painted;
+
+  @override
+  void paint(Canvas canvas, Size size) => painted.add(label);
+
+  @override
+  bool shouldRepaint(_PaintRecorder oldDelegate) => true;
+}
+
 void main() {
+  testWidgets('foreground paints and receives overlapping hits first', (
+    tester,
+  ) async {
+    final painted = <String>[];
+    final tapped = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 400,
+            child: Grid(
+              crossAxisCount: 2,
+              children: [
+                for (final label in ['A', 'B'])
+                  GridItem(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => tapped.add(label),
+                      child: CustomPaint(
+                        painter: _PaintRecorder(label, painted),
+                        child: const SizedBox(height: 100),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final grid = tester.renderObject<RenderGrid>(find.byType(Grid));
+    (grid.lastChild!.parentData! as GridParentData).offset = Offset.zero;
+    final position =
+        tester.getTopLeft(find.byType(Grid)) + const Offset(50, 50);
+    for (final (foreground, order, hit) in [
+      (null, ['A', 'B'], 'B'),
+      (0, ['B', 'A'], 'A'),
+      (99, ['A', 'B'], 'B'),
+    ]) {
+      painted.clear();
+      grid
+        ..foregroundIndex = foreground
+        ..markNeedsPaint();
+      await tester.pump();
+      expect(painted, order);
+      await tester.tapAt(position);
+      expect(tapped.last, hit);
+    }
+  });
+
+  testWidgets('MotionGrid resolves the foreground key past exiting slots', (
+    tester,
+  ) async {
+    var labels = ['A', 'B'];
+    late StateSetter update;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 400,
+                child: MotionGrid(
+                  crossAxisCount: 2,
+                  foregroundKey: const ValueKey('B'),
+                  children: [
+                    for (final label in labels)
+                      GridItem(
+                        key: ValueKey(label),
+                        child: SizedBox(height: 100, child: Text(label)),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    RenderGrid render() => tester.renderObject<RenderGrid>(
+      find.byWidgetPredicate((widget) => widget is Grid),
+    );
+    expect(render().foregroundIndex, 1);
+    update(() => labels = ['B']);
+    await tester.pump();
+    expect(render().foregroundIndex, 1);
+    await tester.pumpAndSettle();
+    expect(render().foregroundIndex, 0);
+    update(() => labels = []);
+    await tester.pump();
+    expect(render().foregroundIndex, isNull);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Grid sizes children from their cell count', (tester) async {
     await tester.pumpWidget(_buildGrid());
 

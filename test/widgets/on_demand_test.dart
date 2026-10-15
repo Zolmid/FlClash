@@ -73,6 +73,7 @@ void main() {
 
     container = ProviderContainer(
       overrides: [
+        viewSizeProvider.overrideWithBuild((_, _) => size),
         excludeSSIDsProvider.overrideWith(() => _TestExcludeSSIDs(ssids)),
         locationPermissionsProvider.overrideWith(
           () => _TestLocationPermissions(permission),
@@ -116,6 +117,22 @@ void main() {
     expect(find.text('Office'), findsOneWidget);
     expect(find.text('SSIDs are empty'), findsNothing);
   });
+
+  testWidgets(
+    'creating an SSID focuses its name and stores the submitted value',
+    (tester) async {
+      await pumpView(tester);
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      final input = tester.widget<EditableText>(find.byType(EditableText));
+      expect(input.focusNode.hasPrimaryFocus, isTrue);
+      await tester.enterText(find.byType(TextFormField), 'Guest');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.byType(InputDialog), findsNothing);
+      expect(container.read(excludeSSIDsProvider), ['Guest']);
+    },
+  );
 
   testWidgets('selecting an item swaps the header into selection mode', (
     tester,

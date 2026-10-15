@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/pages/editor.dart';
 import 'package:fl_clash/pages/scan.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -10,7 +13,7 @@ import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const _customOpenPause = Duration(milliseconds: 150);
+const _editorOpenPause = Duration(milliseconds: 150);
 
 void showAddProfilePage(BuildContext origin) {
   final context = globalState.navigatorKey.currentState!.context;
@@ -102,6 +105,78 @@ class AddProfileView extends ConsumerWidget {
       profileId: profilesAction.addCustomProfile(label),
       isNew: true,
     );
+    await _openEditor(context, editor);
+  }
+
+  Future<void> _createProfile(BuildContext context, WidgetRef ref) async {
+    final appLocalizations = context.appLocalizations;
+    final profilesAction = ref.read(profilesActionProvider.notifier);
+    final core = ref.read(coreHandlerProvider);
+    final name = await dialogs.showCommonDialog<String>(
+      child: InputDialog(
+        title: appLocalizations.newProfile,
+        value: '',
+        labelText: appLocalizations.name,
+        autofocus: true,
+        keyboardType: TextInputType.text,
+        inputFormatters: TextInputLimits.limit(TextInputLimits.name),
+        validator: (value) => value == null || value.trim().isEmpty
+            ? appLocalizations.profileNameNullValidationDesc
+            : null,
+      ),
+    );
+    if (name == null || !context.mounted) return;
+    final profile = Profile.normal(label: name.trim());
+    var saving = false;
+
+    Future<void> save(BuildContext editorContext, String content) async {
+      if (saving) return;
+      saving = true;
+      try {
+        final saved = await globalState.safeRun(
+          () => profile.saveFile(
+            utf8.encode(content),
+            validate: (path, _) => core.validateConfig(path),
+          ),
+          title: appLocalizations.newProfile,
+        );
+        if (saved == null) return;
+        profilesAction.putProfile(saved);
+        if (editorContext.mounted) {
+          Navigator.of(editorContext).pop();
+        }
+      } finally {
+        saving = false;
+      }
+    }
+
+    await _openEditor(
+      context,
+      () => EditorPage(
+        title: profile.label,
+        content: '',
+        onSave: (context, _, content) => save(context, content),
+        onPop: (context, _, content) async {
+          if (saving) return false;
+          if (content.isEmpty) return true;
+          final result = await dialogs.showMessage(
+            title: profile.label,
+            message: TextSpan(text: appLocalizations.hasCacheChange),
+          );
+          if (result == false) return true;
+          if (result == true && context.mounted) {
+            await save(context, content);
+          }
+          return false;
+        },
+      ),
+    );
+  }
+
+  Future<void> _openEditor(
+    BuildContext context,
+    Widget Function() editor,
+  ) async {
     final navigator = Navigator.of(context);
     if (!origin.mounted || Navigator.of(origin) == navigator) {
       unawaited(BaseNavigator.pushReplacement(context, editor()));
@@ -111,7 +186,7 @@ class AddProfileView extends ConsumerWidget {
     // sheet has gone fades in beneath it.
     navigator.pop();
     await whenRouteSettled(context);
-    await Future<void>.delayed(_customOpenPause);
+    await Future<void>.delayed(_editorOpenPause);
     if (origin.mounted) {
       unawaited(BaseNavigator.push(origin, editor()));
     }
@@ -128,6 +203,12 @@ class AddProfileView extends ConsumerWidget {
           title: Text(appLocalizations.qrcode),
           subtitle: Text(appLocalizations.qrcodeDesc),
           onTap: () => _toScan(ref),
+        ),
+        ListItem(
+          leading: const GlyphIcon(AppGlyphs.add),
+          title: Text(appLocalizations.newProfile),
+          subtitle: Text(appLocalizations.newProfileDesc),
+          onTap: () => _createProfile(context, ref),
         ),
         ListItem(
           leading: const GlyphIcon(AppGlyphs.importFile),

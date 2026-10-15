@@ -36,8 +36,86 @@ class _PageFocusScopeState extends State<PageFocusScope> {
 /// nodes outside the page (sidebar, navigation bar) from the focused control's
 /// own rect, so left lands on the sidebar item beside it instead of wrapping.
 class PageTraversalPolicy extends ReadingOrderTraversalPolicy {
+  FocusScopeNode? _modalBoundary(FocusNode node) {
+    for (
+      var scope = node.nearestScope;
+      scope != null && scope != FocusManager.instance.rootScope;
+      scope = scope.enclosingScope
+    ) {
+      final route = _routeOf(scope);
+      if (route != null &&
+          !route.opaque &&
+          route.requestFocus &&
+          !identical(route, _routeOf(scope.enclosingScope))) {
+        return scope;
+      }
+    }
+    return null;
+  }
+
+  ModalRoute<dynamic>? _routeOf(FocusScopeNode? scope) {
+    final context = scope?.context;
+    return context == null ? null : ModalRoute.of(context);
+  }
+
+  bool _insideBoundary(
+    FocusScopeNode boundary, {
+    required bool directional,
+    required bool Function() move,
+  }) {
+    final previous = directional
+        ? boundary.directionalTraversalEdgeBehavior
+        : boundary.traversalEdgeBehavior;
+    if (directional) {
+      boundary.directionalTraversalEdgeBehavior = TraversalEdgeBehavior.stop;
+    } else {
+      boundary.traversalEdgeBehavior = TraversalEdgeBehavior.stop;
+    }
+    try {
+      return move();
+    } finally {
+      if (directional) {
+        boundary.directionalTraversalEdgeBehavior = previous;
+      } else {
+        boundary.traversalEdgeBehavior = previous;
+      }
+    }
+  }
+
+  @override
+  bool next(FocusNode currentNode) {
+    final boundary = _modalBoundary(currentNode);
+    return boundary == null
+        ? super.next(currentNode)
+        : _insideBoundary(
+            boundary,
+            directional: false,
+            move: () => super.next(currentNode),
+          );
+  }
+
+  @override
+  bool previous(FocusNode currentNode) {
+    final boundary = _modalBoundary(currentNode);
+    return boundary == null
+        ? super.previous(currentNode)
+        : _insideBoundary(
+            boundary,
+            directional: false,
+            move: () => super.previous(currentNode),
+          );
+  }
+
   @override
   bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    final boundary = _modalBoundary(currentNode);
+    if (boundary != null) {
+      return _insideBoundary(
+        boundary,
+        directional: true,
+        move: () => super.inDirection(currentNode, direction),
+      );
+    }
     final scope = currentNode.nearestScope;
     if (super.inDirection(currentNode, direction)) {
       return true;

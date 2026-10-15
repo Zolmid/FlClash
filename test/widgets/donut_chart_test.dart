@@ -60,6 +60,25 @@ void main() {
     expect(_painter(tester), isNot(paints..circle()));
   });
 
+  testWidgets('a single positive share closes the ring without a gap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_chart(0, 12));
+    expect(
+      _painter(tester),
+      paints..circle(color: _down, style: PaintingStyle.stroke),
+    );
+    expect(_painter(tester), isNot(paints..arc()));
+
+    await tester.pumpWidget(_chart(12, 0));
+    await tester.pumpAndSettle();
+    expect(
+      _painter(tester),
+      paints..circle(color: _up, style: PaintingStyle.stroke),
+    );
+    expect(_painter(tester), isNot(paints..arc()));
+  });
+
   testWidgets('a changed share animates and a negligible one snaps', (
     tester,
   ) async {

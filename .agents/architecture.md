@@ -542,6 +542,12 @@ animates at once. A page that only reorders, such as the profiles sort sheet or 
 `SortHandle`s without a mode. A handle drags on press, and with focus a select key lifts its row for the up and down
 keys to move through the enclosing `SliverReorderableList`'s own `onReorderItem`, which is how a remote sorts.
 
+Dashboard editing stays with `SuperGrid` and its keyed `MotionGrid`. A card's select key lifts it for directional
+reordering; held moves are local previews until confirmation. Back first restores the held order, then leaves edit
+mode, then reaches the route. `BackLayerScope.onBackIntercept` consumes that first step while retaining the edit
+layer. `CardPressOverride` gives edit/add cards their activation and focus node without replacing their child tree;
+replacing wrappers would briefly attach a retained PageController to both old and new views.
+
 ## Quick Edit
 
 Quick edit, the compose button that opens what a page edits as text in an `EditorPage`, appears only where that text is
@@ -580,6 +586,14 @@ the one exception. `addProfileFormFile`, `addProfileFromLink` and `addProfilesFr
 close it with a root `popUntil` before switching to the profiles tab, so `showAddProfilePage` opens it on the root and
 takes the caller's context as `origin`; a page the sheet leads to opens from `origin`, as `AddProfileView._toAddCustom`
 does.
+
+Raw YAML creation uses the same origin rule. It keeps a draft outside the profile store until strict configuration
+validation and the existing file save succeed; typed custom-profile creation keeps its own editor.
+
+On TV, `CommonDialog` uses a local `PopScope` to release its own input or slider focus on the first back request.
+Explicit submit/cancel results still close it once. It does not add a LocalHistoryEntry, which would consume an
+explicit `Navigator.pop(result)` too. `PageTraversalPolicy` keeps traversal inside nonopaque routes requesting focus;
+nonmodal editor menus retain their existing focus behavior.
 
 A root push visibly covers the rail on desktop and escapes the destination stack at either layout size. `TestApp`
 has nothing but the root navigator. A test that guards where a route opens hosts the page in a nested `Navigator`,

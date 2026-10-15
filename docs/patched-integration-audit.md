@@ -25,11 +25,12 @@ iOS 基线至 Patched 的树差异涉及 **1325 个路径、94333 行新增、20
 
 本轮开发分支为 `codex/patched-integration`。首批可审查提交为 `0713ff79`（proxy/统一构建）和
 `11406fa0`（持久化 old+pending ownership 与实际 C++ 状态测试）；后续功能在同分支分批整合。
+`88476f4641da39e1dd24c84f065aa06054ab2200` 是首个完整应用层检查点，后续 UI 批次在它之上补齐。
 `main` 在外层独立 review 与同 SHA 全平台验证前不合入。
 
 ## 已整合的应用层增量
 
-以下说明最终实现目标与对应领域证据；主任务验证结果以本报告末尾和同 SHA 云构建结果为准。
+以下能力已经在整合分支实现；验证范围以本报告末尾、领域记录和同 SHA 云构建结果为准。
 
 | 功能 | 实际实现及保留边界 | 来源 / 详细审计 |
 | --- | --- | --- |
@@ -48,13 +49,18 @@ iOS 基线至 Patched 的树差异涉及 **1325 个路径、94333 行新增、20
 | AGE / 内存 / core 版本 | 原核现有 AGE 能力的应用工具、Go 内存分项/协程数、iOS footprint、移动端 core 状态与实际 bundled 版本；不伪造节点累计统计 | `0dff1719`、`e16e4c6a`、`a84e5710`、`7ea4597c`；[Core](audit/core.md) |
 | 精准连接关闭 | 按选择组和旧节点只关闭受影响连接，同一节点重选仍执行用户意图；不以全局 closeConnections 冒充精准行为 | `e36bbc9f`、`eddc23ee`；[Core](audit/core.md)、[Dart](audit/dart-domain.md) |
 | 繁中 / TV / 编辑器 | 繁中与 native 控件翻译、TV 手动模式/焦点/IME 返回、记录筛选、链条折叠、搜索开关/动画/行高/mobile 返回；保留主线新布局、AppGlyphs、superellipse、clash_schema/relaxed_yaml | `323f678d`、`df67e126`、`1756a65c` 等；[产品 UI](audit/product-ui.md) |
+| 仪表盘键盘编辑 | 聚焦增删、确认持起、方向键预览换位、确认一次提交、Back 取消后再退出编辑；保留 keyed MotionGrid、指针拖动和卡片状态 | `160bd35a`、`438353c4`、`998317cb`、`caf3a069`；[键盘编辑](audit/dashboard-keyboard.md) |
+| 原始 YAML 新建 | 独立文件配置草稿、命名后打开原编辑器、严格 core 校验成功才保存和入库；保留 typed custom 与导入路径 | `6af97066`；[配置创建](audit/profile-creation.md) |
+| 协程与内存明细 | 可选协程卡片、Go 内存分类和 returned heap 百分比切换；不改变 RSS、Android 进程归属或 iOS footprint 总量 | `5d3ba8b4`、`e16e4c6a`、`f9a47b8a`；[运行时 UI](audit/runtime-ui.md) |
+| 粘贴与输入焦点 | 显式 URL 粘贴、WebDAV URL 键盘、新建名称自动聚焦；TV 弹窗先释放本地输入焦点再返回，模态遍历不逃逸 | `dec59305`、`d6a032d8`、`38d6e1c8`、`e65a054b`、`dd1fcfba`；[输入交互](audit/dialog-inputs.md) |
+| 原生繁中资源 | Android 通知渠道、macOS 字符串目录和安装器语言；真实固定 provider 渲染验证，同时纠正 publisher 字段并分离作者与更新地址 | `323f678d`；[原生语言](audit/native-localization.md) |
 | Windows 自启 | 当前用户及安装专属 scheduled task，InteractiveToken/LeastPrivilege，不提权；普通自启与 task 迁移失败保留有效方式，保留 debug/SAFE_MODE 门与串行收敛 | `8012efc6`；[自启](audit/windows-autostart.md) |
 | 构建适配 | macOS Rust strip=none、Windows libclang/PATH、当前 NDK 的 API triple、APP_ARCH/GOAMD64 缓存与失败恢复；保留较新工具链 | `ab86dadb`、`4512b1d7`、`38f781a7`；[构建](audit/dependencies-build.md) |
 | 统一主项目云构建 | main/整合分支 push 自动 all/project；iOS 分支仍 ios/project；手动入口全部选项保留，Patched 仅固定参考 | [云构建说明](cloud-build.md) |
 
-本检查点仍有已确认的应用层净增量在下一批实现：仪表盘键盘重排/聚焦增删、直接新建原始 YAML、
-URL 显式粘贴、协程卡片/更细的 Go 内存分项和部分原生繁中资源。它们不依赖新内核，
-不归入“因内核维护成本延后”；准确证据见[产品 UI 审计](audit/product-ui.md)。
+上述后续 UI 批次补齐首个应用层检查点遗漏的净增量。完整取舍仍逐项保留在
+[146 项产品 UI 来源矩阵](audit/product-ui.md)，包括由主线现有组件替代的表现设计，
+不能把这些应用层能力归入“因内核维护成本延后”。
 
 ## 主线已有或由较新架构替代
 
@@ -100,9 +106,12 @@ SHA256 来自同一发布源，只证明传输/包一致性，不是独立签名
 
 ## 验证与设备限制
 
-本检查点统一生成、格式、分析与全量 Flutter 回归通过：**4252 passed / 2 skipped，覆盖率 86.37%**，
-全部分组门槛保留并通过。提交前本地 `dart run tool/changelog.dart verify` 通过；主任务在交接 SHA
-提交后复跑该 main/tag 专有检查。详细结果与范围见[验证记录](audit/validation.md)。
+首个完整应用层检查点 `88476f46` 的全量结果为 **4252 passed / 2 skipped，覆盖率 86.37%**。
+本批格式、分析和生成完成；全量运行得到 **4313 passed / 2 skipped / 1 个新增测试夹具失败**，
+仅修正该夹具的尺寸 provider 后，整个受影响 suite **16 项通过**，生产代码保持全量检查时的版本。
+本批覆盖率 **86.52%**，全部既有分组门槛保留并通过。提交前本地 `dart run tool/changelog.dart verify`
+通过；交接 SHA 提交后复跑该 main/tag 专有检查并报告。完整执行记录与证据范围见
+[验证记录](audit/validation.md)。
 只有同一整合 SHA 的全平台云构建完成并经外层独立 review 后才合入 main。
 
 历史基线 `3222b8d` 已由外层核验 iOS 自动构建 `38703895573` 和全部 9 项 CI `38703895671` 成功：

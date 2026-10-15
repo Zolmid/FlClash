@@ -27,29 +27,63 @@ class CommonDialog extends ConsumerWidget {
     this.backgroundColor,
   });
 
+  FocusScopeNode? _inputFocusScope(BuildContext dialogContext) {
+    final node = FocusManager.instance.primaryFocus;
+    final focusContext = node?.context;
+    if (focusContext == null) return null;
+    var isInsideDialog = false;
+    focusContext.visitAncestorElements((element) {
+      if (element.widget is! CommonDialog) return true;
+      isInsideDialog = identical(element, dialogContext);
+      return false;
+    });
+    if (!isInsideDialog) return null;
+    final isInput =
+        focusContext.widget is EditableText ||
+        focusContext.findAncestorWidgetOfExactType<EditableText>() != null ||
+        focusContext.widget is Slider ||
+        focusContext.findAncestorWidgetOfExactType<Slider>() != null;
+    return isInput ? node?.enclosingScope : null;
+  }
+
   @override
-  Widget build(BuildContext context, ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = ref.watch(viewSizeProvider);
-    return AlertDialog(
-      title: trailing == null
-          ? Text(title)
-          : Row(
-              children: [
-                Expanded(child: Text(title)),
-                trailing!,
-              ],
-            ),
-      actions: actions,
-      actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-      contentPadding: padding,
-      backgroundColor: backgroundColor,
-      content: Container(
-        constraints: BoxConstraints(
-          maxHeight: min(size.height - 40, 500),
-          maxWidth: maxWidth,
+    final isTV = ref.watch(tvLayoutProvider);
+    return ListenableBuilder(
+      listenable: FocusManager.instance,
+      builder: (backContext, child) => PopScope(
+        canPop: !isTV || _inputFocusScope(context) == null,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop &&
+              isTV &&
+              ModalRoute.of(backContext)?.isCurrent == true) {
+            _inputFocusScope(context)?.requestScopeFocus();
+          }
+        },
+        child: child!,
+      ),
+      child: AlertDialog(
+        title: trailing == null
+            ? Text(title)
+            : Row(
+                children: [
+                  Expanded(child: Text(title)),
+                  trailing!,
+                ],
+              ),
+        actions: actions,
+        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+        contentPadding: padding,
+        backgroundColor: backgroundColor,
+        content: Container(
+          constraints: BoxConstraints(
+            maxHeight: min(size.height - 40, 500),
+            maxWidth: maxWidth,
+          ),
+          width: size.width - 40,
+          child: !overrideScroll ? SingleChildScrollView(child: child) : child,
         ),
-        width: size.width - 40,
-        child: !overrideScroll ? SingleChildScrollView(child: child) : child,
       ),
     );
   }

@@ -192,6 +192,7 @@ class _ScriptsViewState extends ConsumerState<ScriptsView> {
       child: InputDialog(
         title: appLocalizations.save,
         value: '',
+        autofocus: script == null,
         hintText: appLocalizations.pleaseEnterScriptName,
         inputFormatters: TextInputLimits.limit(TextInputLimits.name),
         validator: (value) => _validateName(value, script: script),

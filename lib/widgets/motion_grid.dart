@@ -14,6 +14,7 @@ class MotionGrid extends StatefulWidget {
   final double crossAxisSpacing;
   final Duration duration;
   final Curve curve;
+  final Key? foregroundKey;
 
   const MotionGrid({
     super.key,
@@ -23,6 +24,7 @@ class MotionGrid extends StatefulWidget {
     this.crossAxisSpacing = 0,
     this.duration = const Duration(milliseconds: 420),
     this.curve = const Cubic(0.22, 0.72, 0.24, 1.08),
+    this.foregroundKey,
   });
 
   @override
@@ -119,13 +121,16 @@ class _MotionGridState extends State<MotionGrid> with TickerProviderStateMixin {
       mainAxisCellCount: item.mainAxisCellCount,
       // The same widgets wrap a child whether or not it is leaving, so the
       // exit never remounts it.
-      child: IgnorePointer(
-        ignoring: exit != null,
-        child: FadeTransition(
-          opacity: exit?.opacity ?? kAlwaysCompleteAnimation,
-          child: ScaleTransition(
-            scale: exit?.scale ?? kAlwaysCompleteAnimation,
-            child: item.child,
+      child: ExcludeFocus(
+        excluding: exit != null,
+        child: IgnorePointer(
+          ignoring: exit != null,
+          child: FadeTransition(
+            opacity: exit?.opacity ?? kAlwaysCompleteAnimation,
+            child: ScaleTransition(
+              scale: exit?.scale ?? kAlwaysCompleteAnimation,
+              child: item.child,
+            ),
           ),
         ),
       ),
@@ -134,6 +139,9 @@ class _MotionGridState extends State<MotionGrid> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final foreground = widget.children.indexWhere(
+      (item) => item.key == widget.foregroundKey,
+    );
     return _MotionGridLayout(
       vsync: this,
       duration: widget.duration,
@@ -141,6 +149,7 @@ class _MotionGridState extends State<MotionGrid> with TickerProviderStateMixin {
       crossAxisCount: widget.crossAxisCount,
       mainAxisSpacing: widget.mainAxisSpacing,
       crossAxisSpacing: widget.crossAxisSpacing,
+      foregroundIndex: foreground < 0 ? null : _exits.length + foreground,
       children: [
         // Leaving children come first so the ones sliding in paint over them.
         for (final exit in _exits.values) _buildSlot(exit.item, exit),
@@ -188,6 +197,7 @@ class _MotionGridLayout extends Grid {
     super.mainAxisSpacing,
     super.crossAxisSpacing,
     super.children,
+    super.foregroundIndex,
   });
 
   @override
@@ -202,6 +212,7 @@ class _MotionGridLayout extends Grid {
       crossAxisSpacing: crossAxisSpacing,
       axisDirection: axisDirection,
       mainAxisExtent: mainAxisExtent,
+      foregroundIndex: foregroundIndex,
     );
   }
 
@@ -238,6 +249,7 @@ class _RenderMotionGrid extends RenderGrid {
     required super.axisDirection,
     required super.textDirection,
     super.mainAxisExtent,
+    super.foregroundIndex,
   }) : _vsync = vsync,
        _curve = curve {
     _controller = AnimationController(vsync: vsync, duration: duration)

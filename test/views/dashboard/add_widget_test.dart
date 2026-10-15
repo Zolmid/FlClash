@@ -6,6 +6,7 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/dashboard/dashboard.dart';
 import 'package:fl_clash/views/dashboard/widget_registry.dart';
 import 'package:fl_clash/widgets/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -170,4 +171,58 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 10));
   });
+
+  for (final size in [const Size(400, 900), const Size(1200, 900)]) {
+    testWidgets('focused add card closes the sheet at $size', (tester) async {
+      final added = await openWithTwoLeft(tester, size);
+      final badge = tester.element(addBadges.first);
+      final container = badge.findAncestorWidgetOfExactType<Stack>()!;
+      final card = find
+          .descendant(
+            of: find.byWidget(container),
+            matching: find.byType(CommonCard),
+          )
+          .first;
+      final cardElement = tester.element(card);
+      final button = find
+          .descendant(
+            of: card,
+            matching: find.byWidgetPredicate(
+              (widget) => widget is ButtonStyleButton,
+            ),
+          )
+          .first;
+      var focused = false;
+      for (var i = 0; i < 40; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        final focusContext = FocusManager.instance.primaryFocus?.context;
+        focused = false;
+        focusContext?.visitAncestorElements((element) {
+          if (identical(element, cardElement)) focused = true;
+          return !focused;
+        });
+        if (focused) break;
+      }
+      expect(focused, isTrue);
+      expect(
+        FocusManager.instance.primaryFocus!.descendants.where(
+          (node) => node.canRequestFocus,
+        ),
+        isEmpty,
+      );
+      final activate = tester.widget<ButtonStyleButton>(button).onPressed!;
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      activate();
+      await pumpFor(tester, 1500);
+      expect(find.byType(SheetDragHandle), findsNothing);
+      expect(find.byType(SideSheet), findsNothing);
+      final grid = tester.state<SuperGridState>(find.byType(SuperGrid));
+      expect(grid.items.where((item) => item.key == added.key), hasLength(1));
+      expect(grid.items.last, added);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 10));
+    });
+  }
 }

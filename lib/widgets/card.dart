@@ -87,6 +87,25 @@ class InfoHeader extends StatelessWidget {
 
 const commonCardIconSize = 20.0;
 
+class CardPressOverride extends InheritedWidget {
+  const CardPressOverride({
+    super.key,
+    required this.onPressed,
+    this.focusNode,
+    required super.child,
+  });
+
+  final VoidCallback? onPressed;
+  final FocusNode? focusNode;
+
+  static CardPressOverride? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CardPressOverride>();
+
+  @override
+  bool updateShouldNotify(CardPressOverride oldWidget) =>
+      onPressed != oldWidget.onPressed || focusNode != oldWidget.focusNode;
+}
+
 class CommonCard extends StatelessWidget {
   const CommonCard({
     super.key,
@@ -209,12 +228,14 @@ class CommonCard extends StatelessWidget {
     BuildContext context,
     Widget childWidget,
     FocusNode? focusNode,
-  ) {
+    VoidCallback? pressed, {
+    required bool overridden,
+  }) {
     return switch (type == CommonCardType.filled) {
       true => FilledButton(
         focusNode: focusNode,
         statesController: statesController,
-        onLongPress: inert ? null : onLongPress,
+        onLongPress: inert || overridden ? null : onLongPress,
         clipBehavior: Clip.antiAlias,
         style:
             FilledButton.styleFrom(
@@ -237,13 +258,13 @@ class CommonCard extends StatelessWidget {
                 (states) => _buildBorderSide(context, states),
               ),
             ),
-        onPressed: inert ? null : onPressed,
+        onPressed: pressed,
         child: childWidget,
       ),
       false => OutlinedButton(
         focusNode: focusNode,
         statesController: statesController,
-        onLongPress: inert ? null : onLongPress,
+        onLongPress: inert || overridden ? null : onLongPress,
         clipBehavior: Clip.antiAlias,
         style:
             OutlinedButton.styleFrom(
@@ -266,7 +287,7 @@ class CommonCard extends StatelessWidget {
                 (states) => _buildBorderSide(context, states),
               ),
             ),
-        onPressed: inert ? null : onPressed,
+        onPressed: pressed,
         child: childWidget,
       ),
     };
@@ -296,18 +317,41 @@ class CommonCard extends StatelessWidget {
       childWidget = Stack(children: children);
     }
 
+    final pressOverride = CardPressOverride.maybeOf(context);
+    final overridden = pressOverride?.onPressed != null;
+    final pressed = overridden
+        ? pressOverride!.onPressed
+        : inert
+        ? null
+        : onPressed;
+    childWidget = CardPressOverride(
+      onPressed: null,
+      child: ExcludeFocus(excluding: overridden, child: childWidget),
+    );
     final button = skipTraversal
         ? _SkipTraversalScope(
-            builder: (focusNode) =>
-                _buildButton(context, childWidget, focusNode),
+            builder: (focusNode) => _buildButton(
+              context,
+              childWidget,
+              overridden ? pressOverride!.focusNode : focusNode,
+              pressed,
+              overridden: overridden,
+            ),
           )
-        : _buildButton(context, childWidget, null);
+        : _buildButton(
+            context,
+            childWidget,
+            overridden ? pressOverride!.focusNode : null,
+            pressed,
+            overridden: overridden,
+          );
     final card = !enterActionsOnRight
         ? button
         : Focus(
             canRequestFocus: false,
             onKeyEvent: (_, event) {
-              if (event is! KeyDownEvent ||
+              if (overridden ||
+                  event is! KeyDownEvent ||
                   event.logicalKey != LogicalKeyboardKey.arrowRight) {
                 return KeyEventResult.ignored;
               }
