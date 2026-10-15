@@ -240,48 +240,42 @@ void main() {
       controller.dispose();
       CoreController.resetInstance();
 
-      expect(
-        () => changes.addListener(() {}),
-        throwsA(isA<FlutterError>()),
-      );
+      expect(() => changes.addListener(() {}), throwsA(isA<FlutterError>()));
       verifyNever(() => mock.close());
     });
 
     for (final fails in [false, true]) {
-      test(
-        'dispose ignores late apply completion (failure: $fails)',
-        () async {
-          const params = SetupParams(selectedMap: {}, testUrl: 'http://x.com');
-          final completer = Completer<String>();
-          when(
-            () => mock.setupConfig(params),
-          ).thenAnswer((_) => completer.future);
-          var notifications = 0;
-          controller.configurationChanges.addListener(() => notifications++);
+      test('dispose ignores late apply completion (failure: $fails)', () async {
+        const params = SetupParams(selectedMap: {}, testUrl: 'http://x.com');
+        final completer = Completer<String>();
+        when(
+          () => mock.setupConfig(params),
+        ).thenAnswer((_) => completer.future);
+        var notifications = 0;
+        controller.configurationChanges.addListener(() => notifications++);
 
-          final pending = controller.setupConfig(params: params);
-          controller.dispose();
-          controller.dispose();
-          final result = expectLater(
-            pending,
-            fails ? throwsStateError : completion('ok'),
-          );
-          if (fails) {
-            completer.completeError(StateError('failed profile'));
-          } else {
-            completer.complete('ok');
-          }
-          await result;
+        final pending = controller.setupConfig(params: params);
+        controller.dispose();
+        controller.dispose();
+        final result = expectLater(
+          pending,
+          fails ? throwsStateError : completion('ok'),
+        );
+        if (fails) {
+          completer.completeError(StateError('failed profile'));
+        } else {
+          completer.complete('ok');
+        }
+        await result;
 
-          expect(notifications, 1);
-          expect(controller.isApplyingConfiguration, isFalse);
-          await expectLater(
-            controller.setupConfig(params: params),
-            throwsStateError,
-          );
-          verify(() => mock.setupConfig(params)).called(1);
-        },
-      );
+        expect(notifications, 1);
+        expect(controller.isApplyingConfiguration, isFalse);
+        await expectLater(
+          controller.setupConfig(params: params),
+          throwsStateError,
+        );
+        verify(() => mock.setupConfig(params)).called(1);
+      });
     }
   });
 
