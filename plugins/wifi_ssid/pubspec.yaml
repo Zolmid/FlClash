@@ -23,6 +23,8 @@ flutter:
         pluginClass: WifiSsidPlugin
       macos:
         pluginClass: WifiSsidPlugin
+      ios:
+        pluginClass: WifiSsidPlugin
       windows:
         pluginClass: WifiSsidPluginCApi
       linux:

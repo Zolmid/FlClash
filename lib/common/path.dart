@@ -3,8 +3,39 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+
+@visibleForTesting
+Future<Directory> migrateIOSDataDirectory({
+  required Directory supportDirectory,
+  required String appGroupPath,
+}) async {
+  if (appGroupPath.isEmpty) {
+    throw StateError('The iOS App Group container is unavailable');
+  }
+  final appGroupDirectory = Directory(appGroupPath);
+  await appGroupDirectory.create(recursive: true);
+  if (!await supportDirectory.exists() ||
+      equals(supportDirectory.path, appGroupDirectory.path)) {
+    return appGroupDirectory;
+  }
+  await for (final entity in supportDirectory.list(recursive: true)) {
+    final targetPath = join(
+      appGroupDirectory.path,
+      relative(entity.path, from: supportDirectory.path),
+    );
+    if (entity is Directory) {
+      await Directory(targetPath).create(recursive: true);
+    } else if (entity is File && !await File(targetPath).exists()) {
+      await File(targetPath).parent.create(recursive: true);
+      await entity.copy(targetPath);
+    }
+  }
+  return appGroupDirectory;
+}
 
 class AppPath {
   static AppPath? _instance;
@@ -32,9 +63,7 @@ class AppPath {
 
   AppPath._internal() {
     appDirPath = join(dirname(Platform.resolvedExecutable));
-    supportDirectory().then((value) {
-      dataDir.complete(value);
-    });
+    dataDir.complete(_resolveDataDirectory());
     temporaryDirectory().then((value) {
       tempDir.complete(value);
     });
@@ -46,6 +75,21 @@ class AppPath {
   factory AppPath() {
     _instance ??= AppPath._internal();
     return _instance!;
+  }
+
+  Future<Directory> _resolveDataDirectory() async {
+    final supportDir = await supportDirectory();
+    if (!system.isIOS) {
+      return supportDir;
+    }
+    final packageInfo = await PackageInfo.fromPlatform();
+    final appGroupPath = await PathProviderFoundation().getContainerPath(
+      appGroupIdentifier: 'group.${packageInfo.packageName}',
+    );
+    return migrateIOSDataDirectory(
+      supportDirectory: supportDir,
+      appGroupPath: appGroupPath ?? '',
+    );
   }
 
   String get executableExtension {

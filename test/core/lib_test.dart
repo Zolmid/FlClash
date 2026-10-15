@@ -22,9 +22,11 @@ class _FakeService implements Service {
   bool shutdownResult = true;
   bool startResult = true;
   bool stopResult = true;
+  bool disposed = false;
   CoreMethodResponse? Function(CoreMethodCall call)? onInvokeMethod;
 
   final invokedCalls = <CoreMethodCall>[];
+  SharedState? startState;
 
   @override
   Future<String> init() async {
@@ -45,8 +47,9 @@ class _FakeService implements Service {
   }
 
   @override
-  Future<bool> start() async {
+  Future<bool> start([SharedState? state]) async {
     calls.add('start');
+    startState = state;
     return startResult;
   }
 
@@ -65,6 +68,9 @@ class _FakeService implements Service {
 
   @override
   Future<DateTime?> getRunTime() async => null;
+
+  @override
+  void dispose() => disposed = true;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -198,6 +204,8 @@ void main() {
       final result = await lib.close();
       expect(result.outcome, CoreLifecycleOutcome.applied);
 
+      expect(service.disposed, isTrue);
+
       await expectLater(lib.start(), throwsA(isA<StateError>()));
       await expectLater(lib.stop(), throwsA(isA<StateError>()));
     });
@@ -218,6 +226,31 @@ void main() {
   });
 
   group('listeners', () {
+    test('iOS delegates listener ownership to the native tunnel', () async {
+      lib = CoreLib.scoped(service, listenerManagedByService: true);
+      await lib.start();
+      service.calls.clear();
+
+      expect(await lib.startListener(), isTrue);
+      expect(service.calls, ['start']);
+      expect(service.startState?.vpnOptions, isNotNull);
+
+      service.calls.clear();
+      expect(await lib.stopListener(), isTrue);
+      expect(service.calls, ['stop']);
+      expect(service.invokedCalls, isEmpty);
+    });
+
+    test('iOS propagates a rejected tunnel request', () async {
+      lib = CoreLib.scoped(service, listenerManagedByService: true);
+      service.startResult = false;
+      service.stopResult = false;
+
+      expect(await lib.startListener(), isFalse);
+      expect(await lib.stopListener(), isFalse);
+      expect(service.invokedCalls, isEmpty);
+    });
+
     test('a listener is started only when both sides agree', () async {
       await lib.start();
       service.onInvokeMethod = (_) =>

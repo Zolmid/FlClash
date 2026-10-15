@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 void main() {
   group('resolve', () {
     test('finds the target for a platform and GOARCH', () {
+      expect(Target.resolve(platform: 'ios', goarch: 'arm64'), Target.iosArm64);
       expect(
         Target.resolve(platform: 'linux', goarch: 'arm64'),
         Target.linuxArm64,
@@ -25,7 +26,7 @@ void main() {
         throwsA(isA<BuildException>()),
       );
       expect(
-        () => Target.resolve(platform: 'ios', goarch: 'arm64'),
+        () => Target.resolve(platform: 'ios', goarch: 'amd64'),
         throwsA(isA<BuildException>()),
       );
     });

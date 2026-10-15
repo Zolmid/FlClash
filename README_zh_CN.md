@@ -109,6 +109,7 @@ dart setup.dart android   # 或 windows、macos、linux
 | Android | 带 NDK 的 Android SDK。加上 `--arch arm64` 可以只构建单个 ABI。 |
 | Windows | 编译内核用的 GCC（MinGW-w64），以及打包安装程序用的 [Inno Setup](https://jrsoftware.org/isinfo.php) 6。 |
 | macOS | Xcode 与 Node.js。脚本会通过 npm 安装 `appdmg`。 |
+| iOS（实验性） | macOS、Xcode 26+ 与 Rust `aarch64-apple-ios` target。仅 arm64 真机；参见 [iOS 构建说明](docs/cloud-build.md#本地-ios-构建)。 |
 | Linux | Debian 或 Ubuntu。脚本会用 apt 安装构建所需的软件包，并下载 `appimagetool`。 |
 
 其余选项可以运行 `dart setup.dart --help` 查看，例如用 `--targets` 只构建部分安装包格式。

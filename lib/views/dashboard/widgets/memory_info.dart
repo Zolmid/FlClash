@@ -8,6 +8,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/state.dart';
@@ -111,7 +112,11 @@ class _MemoryInfoState extends ConsumerState<MemoryInfo>
   Future<MemorySnapshot> _readSnapshot() async {
     final rss = ProcessInfo.currentRss;
     final coreConnected = ref.read(coreStatusProvider) == CoreStatus.connected;
-    final core = coreConnected ? await _core.getMemoryStats() : null;
+    final separateCore =
+        !system.isIOS || ref.read(tunnelStateProvider) == TunnelState.connected;
+    final core = coreConnected && separateCore
+        ? await _core.getMemoryStats()
+        : null;
     return MemorySnapshot.resolve(
       rss: rss,
       core: core,

@@ -482,28 +482,32 @@ List<Widget> networkOptionsItems({
 }
 
 class VpnSections extends ConsumerWidget {
-  const VpnSections({super.key});
+  const VpnSections({super.key, this.isAndroid});
+
+  final bool? isAndroid;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
+    final isAndroid = this.isAndroid ?? system.isAndroid;
     final authenticationEnable = ref.watch(
       networkSettingProvider.select((state) => state.authentication.enable),
     );
     return Column(
       children: [
-        generateSectionV3(
-          items: const [VPNItem()],
-          footer: appLocalizations.vpnEnableDesc,
-        ),
+        if (isAndroid)
+          generateSectionV3(
+            items: const [VPNItem()],
+            footer: appLocalizations.vpnEnableDesc,
+          ),
         generateSectionV3(
           title: 'VPN',
-          items: const [
-            VpnSystemProxyItem(),
-            BypassDomainItem(),
-            AllowBypassItem(),
-            Ipv6Item(),
-            DNSHijackingItem(),
+          items: [
+            const VpnSystemProxyItem(),
+            const BypassDomainItem(),
+            if (isAndroid) const AllowBypassItem(),
+            const Ipv6Item(),
+            const DNSHijackingItem(),
           ],
           footer: [
             if (authenticationEnable)
@@ -574,7 +578,7 @@ class NetworkListView extends StatelessWidget {
         horizontal: 16,
       ).copyWith(top: context.contentTopPadding, bottom: 16),
       children: [
-        if (system.isAndroid) const VpnSections(),
+        if (system.isMobile) const VpnSections(),
         if (system.isDesktop) const SystemProxySection(),
         const NetworkOptionsSection(),
         const TunSection(),

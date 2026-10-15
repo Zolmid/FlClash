@@ -124,7 +124,7 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
   final profileId = data.profileId;
   final overrides = data.overrides;
   final addedRules = data.addedRules;
-  final appendSystemDns = data.appendSystemDns;
+  final appendSystemDns = data.appendSystemDns && !system.isIOS;
   final defaultUA = data.defaultUA;
   String getProvidersFilePathInner(String type, String key) {
     return join(
@@ -218,6 +218,9 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
     ...realPatchConfig.tun.toJson(),
   };
   rawConfig['geodata-loader'] = realPatchConfig.geodataLoader.name;
+  if (system.isIOS) {
+    rawConfig['geosite-matcher'] = 'succinct';
+  }
   rawConfig['geo-auto-update'] = realPatchConfig.geoAutoUpdate;
   rawConfig['geo-update-interval'] = realPatchConfig.geoUpdateInterval;
   final snifferOverride = overrides.sniffer.overrideJson(

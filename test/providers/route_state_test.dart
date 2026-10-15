@@ -4,6 +4,7 @@ import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/providers/route_state.dart';
@@ -128,6 +129,7 @@ void main() {
       CoreStatus status = CoreStatus.connected,
       bool running = true,
       bool watched = true,
+      ValueNotifier<TunnelState?>? tunnel,
     }) {
       final container = ProviderContainer(
         overrides: [
@@ -136,6 +138,12 @@ void main() {
           runTimeProvider.overrideWithBuild((_, _) => running ? 1 : null),
           suspendProvider.overrideWithValue(false),
           coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+          if (tunnel != null)
+            tunnelStateProvider.overrideWith((ref) {
+              tunnel.addListener(ref.invalidateSelf);
+              ref.onDispose(() => tunnel.removeListener(ref.invalidateSelf));
+              return tunnel.value;
+            }),
         ],
       );
       addTearDown(container.dispose);
@@ -160,6 +168,46 @@ void main() {
 
       expect(stateOf(container).proxied, isTrue);
     });
+
+    test(
+      'resubscribes across app and extension cores with matching counters',
+      () async {
+        final tunnel = ValueNotifier<TunnelState?>(TunnelState.disconnected);
+        addTearDown(tunnel.dispose);
+        final container = build(running: false, tunnel: tunnel);
+        trackerOf(container).attach();
+        await pumpEventQueue();
+        verify(() => core.watchRoute(true)).called(1);
+        final previous = stateOf(container);
+
+        tunnel.value = TunnelState.pending;
+        await pumpEventQueue();
+        expect(stateOf(container).synced, isFalse);
+        expect(stateOf(container).proxied, isFalse);
+        verifyNever(() => core.watchRoute(true));
+
+        tunnel.value = TunnelState.connected;
+        await pumpEventQueue();
+
+        verify(() => core.watchRoute(true)).called(1);
+        final current = stateOf(container);
+        expect(current.synced, isTrue);
+        expect(current.proxied, isTrue);
+        expect(current.coreEpoch, previous.coreEpoch);
+        expect(current.hostEpoch, greaterThan(previous.hostEpoch));
+        expect(
+          current.isFresh(
+            RouteStamp(
+              coreEpoch: previous.coreEpoch,
+              picksVersion: previous.picksVersion,
+              hostEpoch: previous.hostEpoch,
+              proxied: previous.proxied,
+            ),
+          ),
+          isFalse,
+        );
+      },
+    );
 
     testWidgets(
       'a widget reading a run state the unwatched tracker missed mounts cleanly',

@@ -441,6 +441,39 @@ func TestReconcileGeoUpdaterRegistersWhenTheSettingIsOn(t *testing.T) {
 	}
 }
 
+func TestSyncGeoUpdaterRejectsEnablingFromANonOwner(t *testing.T) {
+	calls := stubGeoUpdater(t)
+	previous := geoUpdaterAllowed
+	geoUpdaterAllowed = false
+	t.Cleanup(func() { geoUpdaterAllowed = previous })
+	updater.SetGeoAutoUpdate(true)
+	enabled := true
+	interval := 6
+
+	syncGeoUpdater(&enabled, &interval)
+
+	if updater.GeoAutoUpdate() || calls.registered != 0 || calls.stopped != 1 {
+		t.Errorf("non-owner started an updater: auto=%v, calls=%+v", updater.GeoAutoUpdate(), calls)
+	}
+	if !enabled || updater.GeoUpdateInterval() != interval {
+		t.Error("the ownership gate changed caller arguments or dropped the update interval")
+	}
+}
+
+func TestReconcileGeoUpdaterCancelsAnUpdaterFromANonOwner(t *testing.T) {
+	calls := stubGeoUpdater(t)
+	previous := geoUpdaterAllowed
+	geoUpdaterAllowed = false
+	t.Cleanup(func() { geoUpdaterAllowed = previous })
+	updater.SetGeoAutoUpdate(true)
+
+	reconcileGeoUpdater()
+
+	if updater.GeoAutoUpdate() || calls.registered != 0 || calls.stopped != 1 {
+		t.Errorf("non-owner kept an updater: auto=%v, calls=%+v", updater.GeoAutoUpdate(), calls)
+	}
+}
+
 func TestCurrentTestURLFallsBackToTheBuiltInProbe(t *testing.T) {
 	previous := testURL.Load()
 	t.Cleanup(func() { testURL.Store(previous) })

@@ -24,15 +24,42 @@
 
 ## iOS 源码选择
 
-默认 `ios_source=patched-reference` 构建独立参考项目
+默认 `ios_source=project` 构建本仓库所选分支的实验性 iOS 移植。
+实现包含 Runner、Packet Tunnel 扩展、Widget、Flutter 服务桥，以及普通和低内存 Go 静态库。
+它保留当前 FlClash 的 `core/Clash.Meta` 子模块和 `com.follow.clash` 应用标识。
+本地共享代码检查不能证明 Xcode 编译通过或真机 VPN 可用。
+
+`ios_source=patched-reference` 构建独立参考项目
 [`chenx-dust/FlClash-Patched`](https://github.com/chenx-dust/FlClash-Patched)，固定提交
 `7ea4597c9182d40cd57da9fc2f2d5cc0a5f84c2f`。
-产物名称包含 `patched-reference`。**这不表示当前 FlClash 主线已经实现 iOS 支持。**
+产物名称包含 `patched-reference`，用于与移植版本比较，不是本仓库的构建产物。
 同一次 `all` 运行中，其他四个平台仍构建当前所选的 FlClash 分支。
 
-`ios_source=project` 构建本仓库所选分支。完成 iOS 移植前，它会明确失败，不会自动退回参考项目。
-移植完成后选择此项，才是五个平台均来自同一条开发分支的构建。
-若迁移后的原生目录结构或构建命令与 Patched 不同，应同步调整工作流的 iOS 检查及命令。
+`project` 模式在原生工程或构建失败时会明确失败，不会自动退回参考项目。
+选择 `platform=all`、`ios_source=project` 时，五个平台均来自同一条开发分支。
+
+## 本地 iOS 构建
+
+在安装 Xcode、Flutter、Go、Rust 和 `aarch64-apple-ios` Rust target 的 Mac 上运行：
+
+```bash
+git submodule update --init --recursive
+flutter pub get --enforce-lockfile
+rustup target add aarch64-apple-ios
+dart setup.dart ios --env dev --no-codesign -v
+```
+
+产物为 `dist/*-ios-arm64-unsigned.ipa`。Xcode 构建阶段调用
+`plugins/setup/setup_hooks/bin/build_ios.dart`，生成 `libclash/ios/arm64/` 下的
+`libclash.a` 和 `libclash_lowmem.a`，分别供主应用和 Packet Tunnel 使用。
+只构建 Go 静态库可在仓库根目录执行：
+
+```bash
+PLATFORM_NAME=iphoneos ARCHS=arm64 SRCROOT="$PWD/ios" \
+  dart run plugins/setup/setup_hooks/bin/build_ios.dart
+```
+
+Simulator 和非 arm64 slice 会明确失败。
 
 ## 工具链
 
@@ -54,11 +81,22 @@ macOS 产物为 ad hoc 签名，未经公证；Windows 产物没有生产签名�
 iOS 的 `--no-codesign` 打包流程执行 ad hoc 签名，但不含可供普通设备安装的 provisioning。
 真机运行需要匹配的证书、描述文件、Network Extension entitlement 和 App Group。
 
-当前 Patched 明确只接受 **iOS arm64 真机目标**，拒绝 Simulator 构建。
+当前移植与 Patched 均只接受 **iOS arm64 真机目标**，拒绝 Simulator 构建。
 Linux 云环境可编辑 Swift/Dart/Go/Rust 源码、分析差异和测试共享代码，不能运行 Xcode 或 iOS。
 GitHub Actions 的 macOS 执行器用于编译；交互式断点、热重载、Network Extension 日志和 VPN 实测
 需要可连接的 Mac 与 iPhone。编译通过不等于运行可靠。
 
-后续移植应覆盖 `ios/`、Dart 服务桥、Go iOS/TUN 适配、构建 hooks 和对应 mihomo 修改。
-Patched 已转为独立演进的分叉，不能只复制 `ios/` 或直接整体合并。
-至少验证 VPN 启停与竞态、后台/锁屏、Wi-Fi/蜂窝切换、DNS/IPv6、低内存，以及已有四平台回归。
+当前阶段迁入 `ios/`、Dart 服务桥、Go iOS/TUN 适配及构建 hooks，未整体合并 Patched 或替换 mihomo。
+首次 Xcode 构建后，仍需在真机验证 VPN 启停与竞态、后台/锁屏、Wi-Fi/蜂窝切换、DNS/IPv6、
+低内存、Widget，以及已有四平台回归。主应用最低 iOS 15，Widget 最低 iOS 18。
+
+## 首轮移植验证（2026-10-15）
+
+- 依赖解析、代码生成、格式检查和 Flutter 分析通过。
+- 448 项 Flutter 回归、47 项 setup hooks 测试、55 项 Rust 测试、9 项 Wi-Fi 插件测试通过。
+- Go 单元测试、host/Android vet 与使用 Darwin+iOS tags 的纯 Go 检查通过；这不能代替 Apple SDK 链接。
+- Linux Release safe mode 构建成功，真实 Go/Rust hooks 保持开启。现有托盘的
+  `app_indicator_new` 在云环境 Clang 下触发弃用错误，本地生成目录设置
+  `CMAKE_CXX_FLAGS=-Wno-error=deprecated-declarations` 后完成构建，未改托盘源码。
+- iOS plist、资源及工程引用已静态检查；新增的 Swift 原生测试尚未运行。
+- 当前 Linux 环境无 Xcode，GitHub Actions API 访问受限，未触发远端构建，尚无 iOS IPA 产物。

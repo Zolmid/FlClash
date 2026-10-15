@@ -1,4 +1,4 @@
-//go:build android
+//go:build android || ios
 
 package core
 
@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -17,7 +17,6 @@ import (
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/dns"
 	"github.com/metacubex/mihomo/listener/sing_tun"
 	"github.com/metacubex/mihomo/log"
 )
@@ -212,31 +211,6 @@ func handleStartTun(callbacks TunCallbacks, fd int, stack, address, dns, options
 	return false
 }
 
-var (
-	dnsUpdateMu  sync.Mutex
-	dnsUpdateSeq atomic.Uint64
-)
-
-func handleUpdateDns(value string) {
-	// mihomo turns the [""] that Split returns for no servers into a "udp://:"
-	// nameserver, which keeps the system resolver off its default fallback.
-	var addr []string
-	if value != "" {
-		addr = strings.Split(value, ",")
-	}
-	seq := dnsUpdateSeq.Add(1)
-	safeGo("updateDns", func() {
-		dnsUpdateMu.Lock()
-		defer dnsUpdateMu.Unlock()
-		if seq != dnsUpdateSeq.Load() {
-			return
-		}
-		log.Infoln("[DNS] updateDns %s", value)
-		dns.UpdateSystemDNS(addr)
-		dns.FlushCacheWithDefaultResolver()
-	})
-}
-
 func init() {
 	registerMethod(updateDnsMethod, withArguments(func(value string) bool {
 		handleUpdateDns(value)
@@ -292,7 +266,10 @@ func QuickSetup(initParamsString, setupParamsString string, answer func(string))
 			answer("init failed")
 			return
 		}
-		handleInitClash(&initParams)
+		if !handleInitClash(&initParams) {
+			answer("init failed")
+			return
+		}
 		setupParams := &SetupParams{}
 		if err := json.Unmarshal([]byte(setupParamsString), setupParams); err != nil {
 			answer(err.Error())
@@ -345,11 +322,17 @@ func marshalResult(value any) string {
 
 func deliverEvent(data []byte) {
 	eventListenerLock.RLock()
-	defer eventListenerLock.RUnlock()
-	if eventListener == nil {
+	listener := eventListener
+	if listener == nil {
+		eventListenerLock.RUnlock()
 		return
 	}
-	eventListener(data)
+	if runtime.GOOS == "ios" {
+		eventListenerLock.RUnlock()
+	} else {
+		defer eventListenerLock.RUnlock()
+	}
+	listener(data)
 }
 
 func StopTun() {

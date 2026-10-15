@@ -37,6 +37,25 @@ Desktop core mode:
 
 `lib/core/controller.dart` (`CoreController`) selects the implementation based on platform. `lib/core/interface.dart` defines the shared `CoreHandlerInterface`.
 
+Experimental iOS mode:
+
+- `CoreLib` and `lib/plugins/service.dart` share the mobile facade with Android. iOS sends String JSON
+  envelopes; Android keeps byte envelopes and revision-stamped optimistic service commands.
+- `ios/Runner/Tunnel/TunnelCoordinator.swift` owns VPN intent and transitions. Flutter observes native
+  `tunnelState` and does not create a second tunnel owner. AppIntent and Widget actions reach the same owner.
+- Runner hosts a regular Go core for disconnected editing and utility work; NECore hosts the low-memory core
+  while the VPN runs. `ios/Runner/Core/` routes methods and moves event subscriptions between them.
+- App and extensions share `group.com.follow.clash`, derived from the overridable app bundle ID. The Dart
+  path owner migrates sandbox data into that container and rejects a missing container.
+- Each Go process opens its own `.ios-cache/{app,ne}/cache.db` before configuring shared resources. App HTTP
+  providers use seeded `.ios-app/` caches; NE keeps the original paths, and file providers remain shared readers.
+  GEO automatic updates belong to App so two processes cannot update the shared databases concurrently.
+- `core/ios/` supplies the C ABI without adding cgo to the shared Go package. The extension retains ownership
+  of its packet-tunnel descriptor. Native quick actions and tunnel startup also enforce safe mode.
+- `Shared/CoreEventBacklog.swift` preserves loaded, GEO and route state independently of transient traffic.
+  Backpressure pauses only transient events; state merges by key under bounded capacity. Each atomic publication
+  uses a new path so an older App acknowledgment cannot remove a newer state generation.
+
 Key Go core files:
 
 - `core/protocol.go`: method names, event types, and the parameter and result shapes shared with Dart.
@@ -1032,6 +1051,10 @@ Platform projects copy the artifacts out of `libclash/`; application code must n
 
 - Android: nothing. The hook returns without building, because it runs once per architecture while gomobile packs
   every ABI and one set of Java classes into a single AAR.
+- iOS: arm64 device builds produce regular and low-memory C archives plus their headers under
+  `libclash/ios/arm64/`. Xcode invokes `setup_hooks/bin/build_ios.dart` before compiling Objective-C bridges.
+  Simulator slices are rejected. `setup.dart ios --no-codesign` packages an ad hoc signed IPA without provisioning;
+  macOS/Xcode and device validation are required separately.
 - macOS: a standalone `FlClashCore`. `Release.xcconfig` pins release and profile `ARCHS` to the host because
   flutter_tools otherwise builds a universal binary and every artifact ships one slice; the hook skips a non-host slice
   for the same reason. The `Stage Core` phase copies the Core after the hook may have rewritten it and fails when it is

@@ -158,6 +158,122 @@ void main() {
     });
   });
 
+  group('iOS service bridge', () {
+    late Service iosService;
+
+    setUp(() {
+      iosService = Service.forTesting(isIOS: true);
+    });
+
+    tearDown(() {
+      iosService.dispose();
+      Service.resetInstance();
+      Service();
+    });
+
+    test(
+      'initialization tells the native owner whether safe mode is active',
+      () async {
+        mockChannel((_) async => '');
+
+        expect(await iosService.init(), isEmpty);
+        expect(calls.single.arguments, safeModeBuild);
+      },
+    );
+
+    test(
+      'starts with shared state and stops without Android revisions',
+      () async {
+        mockChannel((_) async => true);
+        const state = SharedState(
+          stopTip: 'stopTip',
+          startTip: 'startTip',
+          localNetworkTip: 'localNetworkTip',
+          currentProfileName: 'profile',
+          stopText: 'stop',
+          onlyStatisticsProxy: false,
+          crashlytics: false,
+          excludeSSIDs: ['Home'],
+        );
+
+        expect(await iosService.start(state), isTrue);
+        expect(await iosService.stop(), isTrue);
+
+        final sent = json.decode(calls.first.arguments as String) as Map;
+        expect(sent['currentProfileName'], 'profile');
+        expect(sent['excludeSSIDs'], ['Home']);
+        expect(sent['alwaysOn'], isFalse);
+        expect(calls.last.arguments, isNull);
+      },
+    );
+
+    test(
+      'decodes structured response envelopes transported as strings',
+      () async {
+        mockChannel(
+          (_) async => json.encode(
+            const CoreMethodResponse(id: '7', result: {'up': 1}).toJson(),
+          ),
+        );
+
+        final response = await iosService.invokeMethod(
+          const CoreMethodCall(id: '7', method: CoreMethod.getTraffic),
+        );
+
+        expect(response?.id, '7');
+        expect(response?.result, {'up': 1});
+      },
+    );
+
+    test(
+      'publishes native tunnel transitions independently of app core',
+      () async {
+        final states = <TunnelState>[];
+        iosService.tunnelState.addListener(() {
+          states.add(iosService.tunnelState.value);
+        });
+
+        for (final state in ['connected', 'pending', 'disconnected']) {
+          await TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .handlePlatformMessage(
+                channelName,
+                codec.encodeMethodCall(MethodCall('tunnelState', state)),
+                null,
+              );
+        }
+
+        expect(states, [
+          TunnelState.connected,
+          TunnelState.pending,
+          TunnelState.disconnected,
+        ]);
+      },
+    );
+
+    test(
+      'reads the full options snapshot from the running extension',
+      () async {
+        const options = VpnOptions(
+          enable: true,
+          port: 7890,
+          ipv6: true,
+          dnsHijacking: true,
+          accessControlProps: AccessControlProps(),
+          allowBypass: false,
+          systemProxy: false,
+          bypassDomain: [],
+          stack: 'gvisor',
+        );
+        mockChannel((_) async => json.encode(options));
+
+        expect(await iosService.getActiveVpnOptions(), options);
+        expect(calls.single.method, 'getActiveVpnOptions');
+      },
+    );
+  });
+
   group('stop reports', () {
     late _RecordingStopListener listener;
 

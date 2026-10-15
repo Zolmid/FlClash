@@ -34,6 +34,7 @@ void main() {
     required OS os,
     required Architecture architecture,
     bool codeAssets = true,
+    IOSSdk iosSdk = IOSSdk.iPhoneOS,
     Uri? compiler,
     Directory? package,
     Map<String, Object?> userDefines = const {},
@@ -66,13 +67,16 @@ void main() {
                 linker: compiler.resolve('ld.lld'),
               ),
         android: os == OS.android ? AndroidCodeConfig(targetNdkApi: 23) : null,
+        iOS: os == OS.iOS
+            ? IOSCodeConfig(targetSdk: iosSdk, targetVersion: 15)
+            : null,
       ).setupBuildInput(builder);
     }
     return builder.build();
   }
 
   group('requestFor', () {
-    test('has nothing to build without code assets or on iOS', () {
+    test('has nothing to build without code assets', () {
       const builder = CoreBuilder();
 
       expect(
@@ -85,11 +89,33 @@ void main() {
         ),
         isNull,
       );
+    });
+
+    test('resolves an arm64 iOS device but rejects simulators and x64', () {
+      const builder = CoreBuilder();
       expect(
-        builder.requestFor(
-          buildInput(os: OS.iOS, architecture: Architecture.arm64),
+        builder
+            .requestFor(
+              buildInput(os: OS.iOS, architecture: Architecture.arm64),
+            )!
+            .target,
+        Target.iosArm64,
+      );
+      expect(
+        () => builder.requestFor(
+          buildInput(
+            os: OS.iOS,
+            architecture: Architecture.arm64,
+            iosSdk: IOSSdk.iPhoneSimulator,
+          ),
         ),
-        isNull,
+        throwsA(isA<BuildException>()),
+      );
+      expect(
+        () => builder.requestFor(
+          buildInput(os: OS.iOS, architecture: Architecture.x64),
+        ),
+        throwsA(isA<BuildException>()),
       );
     });
 
@@ -210,7 +236,7 @@ void main() {
       final output = BuildOutputBuilder();
 
       await builder.run(
-        input: buildInput(os: OS.iOS, architecture: Architecture.arm64),
+        input: buildInput(os: OS.android, architecture: Architecture.arm64),
         output: output,
       );
 

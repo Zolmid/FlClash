@@ -1,5 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -160,14 +161,25 @@ class _StartButtonState extends ConsumerState<StartButton>
         24;
   }
 
-  Widget _buildIcon(bool isStart, {required bool suspended}) {
+  Widget _buildIcon(
+    bool isStart, {
+    required bool suspended,
+    required bool pending,
+  }) {
     return AnimatedSwitcher(
       duration: context.motionDuration(commonDuration),
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: ScaleTransition(scale: animation, child: child),
       ),
-      child: suspended
+      child: pending
+          ? SizedBox.square(
+              dimension: 24,
+              child: CommonCircleLoading(
+                color: context.colorScheme.onPrimaryContainer,
+              ),
+            )
+          : suspended
           ? const GlyphIcon(AppGlyphs.wifiOff, fill: 1)
           : TweenAnimationBuilder<double>(
               tween: Tween(end: isStart ? 1 : 0),
@@ -188,15 +200,20 @@ class _StartButtonState extends ConsumerState<StartButton>
       return Container();
     }
     final isStart = ref.watch(isStartProvider);
+    final pending = ref.watch(tunnelStateProvider) == TunnelState.pending;
     final suspend = ref.watch(suspendProvider);
     final appLocalizations = context.appLocalizations;
     final suspended = isStart && suspend;
     if (NavigationDock.isDocked(context)) {
       return FloatingActionButton(
         heroTag: null,
-        tooltip: suspended ? appLocalizations.suspended : null,
-        onPressed: handleSwitchStart,
-        child: _buildIcon(isStart, suspended: suspended),
+        tooltip: pending
+            ? appLocalizations.connecting
+            : suspended
+            ? appLocalizations.suspended
+            : null,
+        onPressed: pending ? null : handleSwitchStart,
+        child: _buildIcon(isStart, suspended: suspended, pending: pending),
       );
     }
     final hasThreeDigitHours =
@@ -222,9 +239,8 @@ class _StartButtonState extends ConsumerState<StartButton>
             clipBehavior: Clip.antiAlias,
             materialTapTargetSize: MaterialTapTargetSize.padded,
             heroTag: null,
-            onPressed: () {
-              handleSwitchStart();
-            },
+            tooltip: pending ? appLocalizations.connecting : null,
+            onPressed: pending ? null : handleSwitchStart,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -241,7 +257,11 @@ class _StartButtonState extends ConsumerState<StartButton>
                       child: child,
                     );
                   },
-                  child: _buildIcon(isStart, suspended: suspended),
+                  child: _buildIcon(
+                    isStart,
+                    suspended: suspended,
+                    pending: pending,
+                  ),
                 ),
                 SizeTransition(
                   axis: Axis.horizontal,

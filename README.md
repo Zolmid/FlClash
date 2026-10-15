@@ -116,6 +116,7 @@ Packages land in `dist/`. The Go core and the Rust libraries are compiled as par
 | Android | Android SDK with the NDK. Add `--arch arm64` to build a single ABI. |
 | Windows | GCC (MinGW-w64) for the core and [Inno Setup](https://jrsoftware.org/isinfo.php) 6 for the installer. |
 | macOS | Xcode and Node.js. The script installs `appdmg` through npm. |
+| iOS (experimental) | macOS, Xcode 26+ and the Rust `aarch64-apple-ios` target. Arm64 devices only; see [iOS build notes](docs/cloud-build.md#本地-ios-构建). |
 | Linux | Debian or Ubuntu. The script installs the build packages with apt and downloads `appimagetool`. |
 
 Run `dart setup.dart --help` for the remaining options, such as `--targets` to build only some package formats.

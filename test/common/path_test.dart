@@ -38,6 +38,54 @@ void main() {
     }
   });
 
+  group('iOS App Group migration', () {
+    test('copies nested app data without replacing shared files', () async {
+      final support = Directory(join(root.path, 'ios-support'));
+      final group = Directory(join(root.path, 'ios-app-group'));
+      await Directory(join(support.path, 'profiles')).create(recursive: true);
+      await File(join(support.path, 'profiles', '1.yaml')).writeAsString('old');
+      await File(join(support.path, 'config.yaml')).writeAsString('config');
+      await Directory(join(group.path, 'profiles')).create(recursive: true);
+      await File(join(group.path, 'profiles', '1.yaml')).writeAsString('new');
+
+      final migrated = await migrateIOSDataDirectory(
+        supportDirectory: support,
+        appGroupPath: group.path,
+      );
+
+      expect(migrated.path, group.path);
+      expect(
+        await File(join(group.path, 'config.yaml')).readAsString(),
+        'config',
+      );
+      expect(
+        await File(join(group.path, 'profiles', '1.yaml')).readAsString(),
+        'new',
+      );
+      expect(
+        await File(join(support.path, 'profiles', '1.yaml')).readAsString(),
+        'old',
+      );
+      await expectLater(
+        migrateIOSDataDirectory(
+          supportDirectory: support,
+          appGroupPath: group.path,
+        ),
+        completes,
+      );
+    });
+
+    test(
+      'requires the shared container used by the Network Extension',
+      () async {
+        await expectLater(
+          migrateIOSDataDirectory(supportDirectory: root, appGroupPath: ''),
+          throwsStateError,
+        );
+      },
+    );
+  });
+
   test('provider directories match the paths handed to the core', () async {
     const proxiesUrl = 'https://example.com/a.yaml';
     const rulesUrl = 'https://example.com/b.yaml';

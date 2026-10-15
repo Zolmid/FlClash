@@ -53,6 +53,46 @@ void main() {
 
   tearDown(() => container.dispose());
 
+  group('native shared state updates', () {
+    const initial = SharedState(
+      setupParams: SetupParams(
+        selectedMap: {'Proxy': 'A'},
+        testUrl: 'http://old.test',
+      ),
+      stopTip: '',
+      startTip: '',
+      localNetworkTip: '',
+      currentProfileName: 'profile',
+      stopText: '',
+      onlyStatisticsProxy: false,
+      crashlytics: false,
+    );
+
+    test('iOS persists setup-only changes for external tunnel starts', () {
+      final changes = [
+        initial.copyWith.setupParams!(selectedMap: {'Proxy': 'B'}),
+        initial.copyWith.setupParams!(testUrl: 'http://new.test'),
+        initial.copyWith.setupParams!(skipCertVerify: true),
+      ];
+
+      for (final changed in changes) {
+        expect(serviceStateUpdate(initial, changed, isIOS: true), changed);
+        expect(serviceStateUpdate(initial, changed, isIOS: false), isNull);
+      }
+    });
+
+    test('Android state updates retain their existing partial payload', () {
+      final changed = initial.copyWith(onlyStatisticsProxy: true);
+
+      expect(serviceStateUpdate(initial, changed, isIOS: true), changed);
+      expect(
+        serviceStateUpdate(initial, changed, isIOS: false),
+        changed.copyWith(setupParams: null),
+      );
+      expect(serviceStateUpdate(initial, initial, isIOS: true), isNull);
+    });
+  });
+
   Future<void> pumpAndroidManager(WidgetTester tester) async {
     await container.read(vpnOptionsProvider.future);
     await tester.pumpWidget(

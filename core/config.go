@@ -17,6 +17,7 @@ import (
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/hub/route"
@@ -89,19 +90,31 @@ func handleDecryptConfig(params DecryptConfigParams) (string, error) {
 
 // mihomo writes the NTP time with settimeofday, which Android's app seccomp
 // policy answers by killing the process rather than with EPERM.
-var systemTimeWritable = runtime.GOOS != "android"
+var systemTimeWritable = runtime.GOOS != "android" && runtime.GOOS != "ios"
 
 func loadConfig(path string) (*config.Config, error) {
 	buf, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := executor.ParseWithBytes(buf)
+	var cfg *config.Config
+	if runtime.GOOS == "ios" && !features.WithLowMemory {
+		raw, parseErr := config.UnmarshalRawConfig(buf)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		if err := isolateHTTPProviders(raw, constant.Path.HomeDir()); err != nil {
+			return nil, err
+		}
+		cfg, err = config.ParseRawConfig(raw)
+	} else {
+		cfg, err = executor.ParseWithBytes(buf)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if cfg.NTP.WriteToSystem && !systemTimeWritable {
-		log.Warnln("ntp write-to-system ignored: Android does not let apps set the system time")
+		log.Warnln("ntp write-to-system ignored: %s does not let apps set the system time", runtime.GOOS)
 		cfg.NTP.WriteToSystem = false
 	}
 	return cfg, nil
@@ -132,6 +145,12 @@ func applyConfig(params *SetupParams) error {
 		cfg = fallback
 	}
 
+	if runtime.GOOS == "ios" && !isRunning.Load() {
+		disableStandaloneListeners(cfg)
+	}
+	if !geoUpdaterAllowed {
+		cfg.General.GeoAutoUpdate = false
+	}
 	currentConfig = cfg
 	hub.ApplyConfig(cfg)
 	patchSelectGroup(params.SelectedMap)
@@ -260,7 +279,19 @@ func routeConfig(cfg *config.Config) *route.Config {
 		routeCfg.ClientAuthCert = cfg.TLS.ClientAuthCert
 		routeCfg.EchKey = cfg.TLS.EchKey
 	}
+	if runtime.GOOS == "ios" && !isRunning.Load() {
+		routeCfg.Addr, routeCfg.TLSAddr, routeCfg.UnixAddr, routeCfg.PipeAddr = "", "", "", ""
+	}
 	return routeCfg
+}
+
+func disableStandaloneListeners(cfg *config.Config) {
+	cfg.Controller.ExternalController = ""
+	cfg.Controller.ExternalControllerTLS = ""
+	cfg.Controller.ExternalControllerUnix = ""
+	cfg.Controller.ExternalControllerPipe = ""
+	cfg.DNS.Listen = ""
+	cfg.Tunnels = nil
 }
 
 func patchController(params *UpdateParams) {

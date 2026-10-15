@@ -49,6 +49,47 @@ final class SafeModeProvider extends $FunctionalProvider<bool, bool, bool>
 
 String _$safeModeHash() => r'3ef07344f5a8dbf775ccf0a4861c0317ec8b2266';
 
+@ProviderFor(tunnelState)
+final tunnelStateProvider = TunnelStateProvider._();
+
+final class TunnelStateProvider
+    extends $FunctionalProvider<TunnelState?, TunnelState?, TunnelState?>
+    with $Provider<TunnelState?> {
+  TunnelStateProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'tunnelStateProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$tunnelStateHash();
+
+  @$internal
+  @override
+  $ProviderElement<TunnelState?> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  TunnelState? create(Ref ref) {
+    return tunnelState(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TunnelState? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TunnelState?>(value),
+    );
+  }
+}
+
+String _$tunnelStateHash() => r'ee8cebd111275876956af3eb7e7906496949e6f2';
+
 @ProviderFor(AuthorizedTunEnable)
 final authorizedTunEnableProvider = AuthorizedTunEnableProvider._();
 

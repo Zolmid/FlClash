@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/state.dart';
@@ -16,10 +19,27 @@ class VpnManager extends ConsumerStatefulWidget {
   ConsumerState<VpnManager> createState() => _VpnContainerState();
 }
 
-class _VpnContainerState extends ConsumerState<VpnManager> {
+class _VpnContainerState extends ConsumerState<VpnManager>
+    with WidgetsBindingObserver {
+  var _checkRevision = 0;
+  VpnOptions? _lastNotifiedOptions;
+
   @override
   void initState() {
     super.initState();
+    if (system.isIOS) {
+      WidgetsBinding.instance.addObserver(this);
+      service?.tunnelState.addListener(_checkActiveOptions);
+      ref.listenManual(isStartProvider, (_, next) {
+        if (!next) {
+          _lastNotifiedOptions = null;
+        }
+        _checkActiveOptions();
+      });
+      ref.listenManual(vpnOptionsProvider, (_, _) => _checkActiveOptions());
+      _checkActiveOptions();
+      return;
+    }
     ref.listenManual(
       vpnOptionsProvider.select((state) => state.value?.effective),
       (prev, next) {
@@ -32,6 +52,58 @@ class _VpnContainerState extends ConsumerState<VpnManager> {
         }
       },
     );
+  }
+
+  void _checkActiveOptions() {
+    unawaited(_refreshActiveOptions());
+  }
+
+  Future<void> _refreshActiveOptions() async {
+    final revision = ++_checkRevision;
+    if (!mounted ||
+        !ref.read(isStartProvider) ||
+        ref.read(safeModeProvider) ||
+        service?.tunnelState.value != TunnelState.connected) {
+      return;
+    }
+    try {
+      final active = await service?.getActiveVpnOptions();
+      if (!mounted ||
+          revision != _checkRevision ||
+          !ref.read(isStartProvider) ||
+          active == null) {
+        return;
+      }
+      ref.read(runningVpnOptionsProvider.notifier).value = active;
+      final options = ref.read(vpnOptionsProvider).value?.effective;
+      if (options == null || options == active.effective) {
+        _lastNotifiedOptions = null;
+        return;
+      }
+      if (options != _lastNotifiedOptions) {
+        _lastNotifiedOptions = options;
+        _showRestartTip();
+      }
+    } catch (error) {
+      commonPrint.log('Unable to read active VPN options: $error');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkActiveOptions();
+    }
+  }
+
+  @override
+  void dispose() {
+    _checkRevision++;
+    if (system.isIOS) {
+      service?.tunnelState.removeListener(_checkActiveOptions);
+      WidgetsBinding.instance.removeObserver(this);
+    }
+    super.dispose();
   }
 
   void _showRestartTip() {

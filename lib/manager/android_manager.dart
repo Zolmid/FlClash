@@ -10,6 +10,17 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+@visibleForTesting
+SharedState? serviceStateUpdate(
+  SharedState? previous,
+  SharedState next, {
+  required bool isIOS,
+}) {
+  final previousState = isIOS ? previous : previous?.needSyncSharedState;
+  final nextState = isIOS ? next : next.needSyncSharedState;
+  return previousState == nextState ? null : nextState;
+}
+
 class AndroidManager extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -24,12 +35,14 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
   @override
   void initState() {
     super.initState();
-    ref.listenManual(appSettingProvider.select((state) => state.hidden), (
-      prev,
-      next,
-    ) {
-      app?.updateExcludeFromRecents(next);
-    }, fireImmediately: true);
+    if (system.isAndroid) {
+      ref.listenManual(appSettingProvider.select((state) => state.hidden), (
+        prev,
+        next,
+      ) {
+        app?.updateExcludeFromRecents(next);
+      }, fireImmediately: true);
+    }
     ref.listenManual(loadedLocaleProvider, (prev, next) {
       if (prev != null && prev != next && !safeModeBuild) {
         app?.initShortcuts();
@@ -40,8 +53,9 @@ class _AndroidContainerState extends ConsumerState<AndroidManager>
         debouncer.call(FunctionTag.saveSharedFile, () async {
           await preferences.saveShareState(next);
         }, duration: const Duration(seconds: 1));
-        if (prev?.needSyncSharedState != next.needSyncSharedState) {
-          service?.syncState(next.needSyncSharedState);
+        final state = serviceStateUpdate(prev, next, isIOS: system.isIOS);
+        if (state != null) {
+          service?.syncState(state);
         }
       }
     });

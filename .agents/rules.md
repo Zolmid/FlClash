@@ -246,8 +246,9 @@ leaving a repo-wide policy as a comment reaches only the reader of that one file
 - Package `init` in the Android library runs while the `.so` is being loaded, so a panic there takes the application
   down before it can report anything. `platform/limit.go` arms an fd-pressure probe and degrades to never blocking when
   it cannot; keep that shape for anything else `init` sets up that correctness does not depend on.
-- No file in `core/` uses cgo: the only C in the Android library is the glue gobind generates during `gomobile bind`.
-  Android-only files take `//go:build android` and desktop-only ones `!android`, so `GOOS=android CGO_ENABLED=0 go vet`
+- Shared files at the root of `core/` do not use cgo: the only C in the Android library is the glue gobind generates during `gomobile bind`.
+  The iOS C ABI lives separately under `core/ios/`; keep the shared `core` package pure Go.
+  Android-only files take `//go:build android` and desktop-only ones `!android && !ios`, so `GOOS=android CGO_ENABLED=0 go vet`
   checks the Android side without an NDK. Keep it that way; cgo in `core/` puts the NDK back in front of that vet and of
   `go build ./...` on every developer machine.
 

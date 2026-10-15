@@ -28,6 +28,10 @@ var (
 func handleInitClash(params *InitParams) bool {
 	configMu.Lock()
 	defer configMu.Unlock()
+	if err := initializePlatformCache(params.HomeDir); err != nil {
+		logError("initialize core cache: %v", err)
+		return false
+	}
 	sdkVersion.Store(int32(params.Version))
 	constant.SetHomeDir(params.HomeDir)
 	initOwnership(params.HomeDir)
@@ -79,7 +83,7 @@ func updateListeners(cfg *config.Config) {
 	listener.ReCreateShadowSocks(general.ShadowSocksConfig, tunnel.Tunnel)
 	listener.ReCreateVmess(general.VmessConfig, tunnel.Tunnel)
 	listener.ReCreateTuic(general.TuicServer, tunnel.Tunnel)
-	if !features.Android {
+	if !features.Android && runtime.GOOS != "ios" {
 		listener.ReCreateTun(general.Tun, tunnel.Tunnel)
 	}
 }

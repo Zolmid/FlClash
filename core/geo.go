@@ -2,10 +2,12 @@ package core
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/metacubex/mihomo/component/geodata"
 	"github.com/metacubex/mihomo/component/updater"
+	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/log"
 )
 
@@ -80,9 +82,14 @@ func onGeoUpdate(geoType string, updating bool, skipped bool, updateErr error) {
 var (
 	registerGeoUpdater = updater.RegisterGeoUpdaterWithCancel
 	stopGeoUpdater     = updater.StopGeoUpdater
+	geoUpdaterAllowed  = runtime.GOOS != "ios" || !features.WithLowMemory
 )
 
 func syncGeoUpdater(autoUpdate *bool, interval *int) {
+	if !geoUpdaterAllowed {
+		disabled := false
+		autoUpdate = &disabled
+	}
 	changed := false
 	if autoUpdate != nil && *autoUpdate != updater.GeoAutoUpdate() {
 		updater.SetGeoAutoUpdate(*autoUpdate)
@@ -98,6 +105,11 @@ func syncGeoUpdater(autoUpdate *bool, interval *int) {
 }
 
 func reconcileGeoUpdater() {
+	if !geoUpdaterAllowed {
+		updater.SetGeoAutoUpdate(false)
+		stopGeoUpdater()
+		return
+	}
 	if updater.GeoAutoUpdate() {
 		registerGeoUpdater()
 		return

@@ -1,10 +1,22 @@
 import 'error.dart';
 
 class Target {
-  const Target({required this.goos, required this.goarch});
+  const Target({
+    required this.goos,
+    required this.goarch,
+    this.lowMemory = false,
+  });
 
   final String goos;
   final String goarch;
+  final bool lowMemory;
+
+  static const iosArm64 = Target(goos: 'ios', goarch: 'arm64');
+  static const iosArm64LowMem = Target(
+    goos: 'ios',
+    goarch: 'arm64',
+    lowMemory: true,
+  );
 
   static const macosArm64 = Target(goos: 'darwin', goarch: 'arm64');
   static const macosAmd64 = Target(goos: 'darwin', goarch: 'amd64');
@@ -16,6 +28,7 @@ class Target {
   static const windowsArm64 = Target(goos: 'windows', goarch: 'arm64');
 
   static const all = [
+    iosArm64,
     macosArm64,
     macosAmd64,
     linuxArm64,
@@ -54,5 +67,5 @@ class Target {
   }
 
   @override
-  String toString() => '$goos/$goarch';
+  String toString() => '$goos/$goarch${lowMemory ? ' (low memory)' : ''}';
 }

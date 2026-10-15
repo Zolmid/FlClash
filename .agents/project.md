@@ -2,6 +2,10 @@
 
 FlClash is a multi-platform proxy client based on ClashMeta (mihomo), built with Flutter. It supports Android, Windows, macOS, and Linux, using Material You from `material_ui` as the base with Apple's Human Interface interaction conventions layered on top.
 
+The experimental iOS port targets arm64 physical devices (iOS 15+, Widget iOS 18+).
+`docs/cloud-build.md` documents unsigned packaging and its verification limits.
+Keep the current `core/Clash.Meta` submodule when using FlClash-Patched as an iOS reference.
+
 ## Version Notes
 
 - Flutter stays on the 3.47.x line. Release CI pins 3.47.6 and is the source

@@ -128,11 +128,38 @@ class SetupAction extends _$SetupAction {
     _startTime = await service?.getRunTime();
   }
 
+  void syncRunningState(bool running, {DateTime? startTime}) {
+    if (running && startTime != null) {
+      _startTime = startTime;
+    }
+    _setLocalRunning(running);
+    if (!running) {
+      ref.read(runningVpnOptionsProvider.notifier).value = null;
+    }
+  }
+
+  Future<void> restoreServiceState() async {
+    if (!system.isIOS ||
+        !ref.read(initProvider) ||
+        service?.tunnelState.value == TunnelState.pending) {
+      return;
+    }
+    final request = _latestRunRequest;
+    final tunnelState = service?.tunnelState.value;
+    final startTime = await service?.getRunTime();
+    if (!ref.mounted ||
+        !identical(request, _latestRunRequest) ||
+        tunnelState != service?.tunnelState.value) {
+      return;
+    }
+    syncRunningState(startTime != null, startTime: startTime);
+  }
+
   Future<void> initStatus() async {
     if (!globalState.needInitStatus) {
       return;
     }
-    if (system.isAndroid) {
+    if (system.isMobile) {
       await _updateStartTime();
     }
     final shouldRun = _isRunning || ref.read(appSettingProvider).autoRun;
@@ -211,7 +238,7 @@ class SetupAction extends _$SetupAction {
       if (!_isCurrent(request)) {
         return;
       }
-      if (request.running && ref.read(suspendProvider)) {
+      if (request.running && !system.isIOS && ref.read(suspendProvider)) {
         return;
       }
       if (ref.read(safeModeProvider)) {
@@ -223,7 +250,12 @@ class SetupAction extends _$SetupAction {
 
   Future<void> _setListening(bool running) async {
     final vpnOptions = await ref.read(vpnOptionsProvider.future);
-    await setCoreRunning(running);
+    final accepted = await setCoreRunning(running);
+    if (system.isIOS && !accepted) {
+      throw StateError(
+        'Core rejected the ${running ? 'start' : 'stop'} request',
+      );
+    }
     ref.read(runningVpnOptionsProvider.notifier).value = running
         ? vpnOptions
         : null;
@@ -231,6 +263,9 @@ class SetupAction extends _$SetupAction {
 
   /// An excluded SSID parks the listener without ending the run.
   void syncSuspend() {
+    if (system.isIOS) {
+      return;
+    }
     debouncer.call(FunctionTag.suspend, () {
       return _listenerScheduler.run(() async {
         if (!ref.read(isStartProvider) || ref.read(safeModeProvider)) {
@@ -659,7 +694,7 @@ class SetupAction extends _$SetupAction {
     // has no proxies, so until this push succeeds no applied config is known.
     _appliedInputs = null;
     globalState.lastConfigMd5 = null;
-    if (system.isAndroid) {
+    if (system.isMobile) {
       await ref.read(vpnOptionsProvider.future);
       await preferences.saveShareState(ref.read(sharedStateProvider));
     }

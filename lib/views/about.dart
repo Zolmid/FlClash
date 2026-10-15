@@ -19,7 +19,9 @@ class Contributor {
 }
 
 class AboutView extends ConsumerWidget {
-  const AboutView({super.key});
+  const AboutView({super.key, this.platform});
+
+  final SupportPlatform? platform;
 
   static const _contributors = [
     Contributor(avatar: 'assets/images/avatar/june2.jpg', name: 'June2'),
@@ -61,6 +63,8 @@ class AboutView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
     final isLoading = ref.watch(loadingProvider(LoadingTag.checkUpdate));
+    final canCheckUpdate =
+        (platform ?? SupportPlatform.currentPlatform) != SupportPlatform.IOS;
     return CommonScaffold(
       isLoading: isLoading,
       title: appLocalizations.about,
@@ -71,9 +75,11 @@ class AboutView extends ConsumerWidget {
         children: [
           _AboutHero(
             isCheckingUpdate: isLoading,
-            onCheckUpdate: () {
-              _checkUpdate(context, ref);
-            },
+            onCheckUpdate: canCheckUpdate
+                ? () {
+                    _checkUpdate(context, ref);
+                  }
+                : null,
             onEnterDeveloperMode: () {
               ref
                   .read(appSettingProvider.notifier)
@@ -129,7 +135,7 @@ class AboutView extends ConsumerWidget {
 
 class _AboutHero extends StatelessWidget {
   final bool isCheckingUpdate;
-  final VoidCallback onCheckUpdate;
+  final VoidCallback? onCheckUpdate;
   final VoidCallback onEnterDeveloperMode;
 
   const _AboutHero({
@@ -204,12 +210,14 @@ class _AboutHero extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          FilledButton.tonalIcon(
-            onPressed: isCheckingUpdate ? null : onCheckUpdate,
-            icon: const GlyphIcon(AppGlyphs.sync, fill: 1),
-            label: Text(appLocalizations.checkUpdate),
-          ),
+          if (onCheckUpdate != null) ...[
+            const SizedBox(height: 20),
+            FilledButton.tonalIcon(
+              onPressed: isCheckingUpdate ? null : onCheckUpdate,
+              icon: const GlyphIcon(AppGlyphs.sync, fill: 1),
+              label: Text(appLocalizations.checkUpdate),
+            ),
+          ],
         ],
       ),
     );

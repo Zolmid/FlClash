@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -318,10 +319,16 @@ func handleClearEffect(profileId int64) error {
 	if profileId <= 0 {
 		return errors.New("invalid profile id")
 	}
-	providersRoot, providersPath := providerPaths(constant.Path.HomeDir(), profileId)
-	if err := os.RemoveAll(providersPath); err != nil {
-		return err
+	homes := []string{constant.Path.HomeDir()}
+	if runtime.GOOS == "ios" {
+		homes = append(homes, filepath.Join(constant.Path.HomeDir(), iosAppStorageDir))
 	}
-	_ = os.Remove(providersRoot)
+	for _, homeDir := range homes {
+		providersRoot, providersPath := providerPaths(homeDir, profileId)
+		if err := os.RemoveAll(providersPath); err != nil {
+			return err
+		}
+		_ = os.Remove(providersRoot)
+	}
 	return nil
 }

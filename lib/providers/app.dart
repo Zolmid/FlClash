@@ -6,6 +6,7 @@ import 'dart:ui' show Locale;
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/core.dart';
 import 'package:flutter/services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -14,6 +15,17 @@ part 'generated/app.g.dart';
 
 @Riverpod(keepAlive: true)
 bool safeMode(Ref ref) => safeModeBuild;
+
+@Riverpod(keepAlive: true)
+TunnelState? tunnelState(Ref ref) {
+  if (!system.isIOS) {
+    return null;
+  }
+  final source = Service().tunnelState;
+  source.addListener(ref.invalidateSelf);
+  ref.onDispose(() => source.removeListener(ref.invalidateSelf));
+  return source.value;
+}
 
 @Riverpod(keepAlive: true)
 class AuthorizedTunEnable extends _$AuthorizedTunEnable

@@ -249,11 +249,21 @@ ConfigToggleItem _appSettingToggle({
 }
 
 class GeneralView extends ConsumerWidget {
-  const GeneralView({super.key});
+  const GeneralView({super.key, this.platform});
+
+  final SupportPlatform? platform;
+
+  SupportPlatform get _platform => platform ?? SupportPlatform.currentPlatform;
+
+  bool get _isIOS => _platform == SupportPlatform.IOS;
+
+  bool get _isAndroid => _platform == SupportPlatform.Android;
+
+  bool get _isDesktop => desktopPlatforms.contains(_platform);
 
   List<Widget> _startupItems(AppLocalizations appLocalizations) {
     return [
-      if (system.isDesktop) ...[
+      if (_isDesktop) ...[
         _appSettingToggle(
           title: (l) => l.autoLaunch,
           select: (state) => state.autoLaunch,
@@ -274,12 +284,13 @@ class GeneralView extends ConsumerWidget {
         title: Text(appLocalizations.onDemand),
         widget: const OnDemandView(),
       ),
-      _appSettingToggle(
-        title: (l) => l.minimizeOnExit,
-        select: (state) => state.minimizeOnExit,
-        update: (state, value) => state.copyWith(minimizeOnExit: value),
-      ),
-      if (system.isAndroid) ...[
+      if (!_isIOS)
+        _appSettingToggle(
+          title: (l) => l.minimizeOnExit,
+          select: (state) => state.minimizeOnExit,
+          update: (state, value) => state.copyWith(minimizeOnExit: value),
+        ),
+      if (_isAndroid) ...[
         _appSettingToggle(
           title: (l) => l.exclude,
           select: (state) => state.hidden,
@@ -340,13 +351,16 @@ class GeneralView extends ConsumerWidget {
         select: (state) => state.tcpConcurrent,
         update: (state, value) => state.copyWith(tcpConcurrent: value),
       ),
-      _clashToggle(
-        title: (l) => l.findProcessMode,
-        select: (state) => state.findProcessMode == FindProcessMode.always,
-        update: (state, value) => state.copyWith(
-          findProcessMode: value ? FindProcessMode.always : FindProcessMode.off,
+      if (!_isIOS)
+        _clashToggle(
+          title: (l) => l.findProcessMode,
+          select: (state) => state.findProcessMode == FindProcessMode.always,
+          update: (state, value) => state.copyWith(
+            findProcessMode: value
+                ? FindProcessMode.always
+                : FindProcessMode.off,
+          ),
         ),
-      ),
       _appSettingToggle(
         title: (l) => l.autoCloseConnections,
         select: (state) => state.closeConnections,
@@ -368,11 +382,12 @@ class GeneralView extends ConsumerWidget {
         select: (state) => state.checkCertificate,
         update: (state, value) => state.copyWith(checkCertificate: value),
       ),
-      _appSettingToggle(
-        title: (l) => l.autoCheckUpdate,
-        select: (state) => state.autoCheckUpdate,
-        update: (state, value) => state.copyWith(autoCheckUpdate: value),
-      ),
+      if (!_isIOS)
+        _appSettingToggle(
+          title: (l) => l.autoCheckUpdate,
+          select: (state) => state.autoCheckUpdate,
+          update: (state, value) => state.copyWith(autoCheckUpdate: value),
+        ),
     ];
   }
 
@@ -384,15 +399,16 @@ class GeneralView extends ConsumerWidget {
         update: (state, value) => state.copyWith(ipv6: value),
       ),
       const HostsItem(),
-      ConfigToggleItem(
-        title: (l) => l.appendSystemDns,
-        selector: networkSettingProvider.select(
-          (state) => state.appendSystemDns,
+      if (!_isIOS)
+        ConfigToggleItem(
+          title: (l) => l.appendSystemDns,
+          selector: networkSettingProvider.select(
+            (state) => state.appendSystemDns,
+          ),
+          onChanged: (ref, value) => ref
+              .read(networkSettingProvider.notifier)
+              .update((state) => state.copyWith(appendSystemDns: value)),
         ),
-        onChanged: (ref, value) => ref
-            .read(networkSettingProvider.notifier)
-            .update((state) => state.copyWith(appendSystemDns: value)),
-      ),
       _clashToggle(
         title: (l) => l.geodataLoader,
         select: (state) => state.geodataLoader == GeodataLoader.memconservative,
@@ -413,7 +429,7 @@ class GeneralView extends ConsumerWidget {
         select: (state) => state.openLogs,
         update: (state, value) => state.copyWith(openLogs: value),
       ),
-      if (system.isAndroid)
+      if (_isAndroid)
         _appSettingToggle(
           title: (l) => l.crashlytics,
           select: (state) => state.crashlytics,
@@ -444,7 +460,7 @@ class GeneralView extends ConsumerWidget {
             title: appLocalizations.startupAndBackground,
             items: _startupItems(appLocalizations),
             footer: [
-              if (system.isDesktop) appLocalizations.silentLaunchDesc,
+              if (_isDesktop) appLocalizations.silentLaunchDesc,
               appLocalizations.autoRunDesc,
               appLocalizations.onDemandDesc,
             ].join('\n'),
@@ -480,7 +496,7 @@ class GeneralView extends ConsumerWidget {
             items: _logItems(),
             footer: [
               appLocalizations.logcatDesc,
-              if (system.isAndroid) appLocalizations.crashlyticsTip,
+              if (_isAndroid) appLocalizations.crashlyticsTip,
             ].join('\n'),
           ),
         ],

@@ -96,8 +96,12 @@ final class CoreBuilder implements Builder {
   BuildRequest? requestFor(BuildInput input) {
     if (!input.config.buildCodeAssets) return null;
     final code = input.config.code;
+    if (code.targetOS == OS.iOS && code.iOS.targetSdk != IOSSdk.iPhoneOS) {
+      throw BuildException('The iOS VPN Core requires an arm64 device build');
+    }
     // Android's Core is the gomobile AAR the :core Gradle module builds.
     final platform = switch (code.targetOS) {
+      OS.iOS => 'ios',
       OS.linux => 'linux',
       OS.macOS => 'macos',
       OS.windows => 'windows',

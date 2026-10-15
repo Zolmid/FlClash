@@ -28,7 +28,7 @@ bool _hasSelection(Proxy proxy) => proxy.now?.isNotEmpty ?? false;
 
 @riverpod
 ProxyState proxyState(Ref ref) {
-  final suspend = ref.watch(suspendProvider);
+  final suspend = !system.isIOS && ref.watch(suspendProvider);
   final isStart = ref.watch(runTimeProvider.select((state) => state != null));
   final systemProxySelector = ref.watch(
     networkSettingProvider.select(

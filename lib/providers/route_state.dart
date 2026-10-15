@@ -4,6 +4,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -173,6 +174,17 @@ class RouteTracker extends _$RouteTracker {
     ref.onDispose(_cancelRetry);
     ref.listen(isStartProvider, (_, _) => _scheduleSyncProxied());
     ref.listen(suspendProvider, (_, _) => _scheduleSyncProxied());
+    ref.listen(tunnelStateProvider, (previous, next) {
+      if (previous == next) {
+        return;
+      }
+      bumpHostEpoch();
+      _dropSync();
+      _scheduleSyncProxied();
+      if (next != TunnelState.pending) {
+        unawaited(_subscribe());
+      }
+    });
     ref.listen(initProvider, (_, _) => _subscribe());
     ref.listen(appVisibleProvider, (_, visible) {
       if (visible) {
@@ -191,11 +203,17 @@ class RouteTracker extends _$RouteTracker {
     return RouteState(proxied: _proxied);
   }
 
-  bool get _proxied => ref.read(isStartProvider) && !ref.read(suspendProvider);
+  bool get _proxied {
+    final tunnelState = ref.read(tunnelStateProvider);
+    return tunnelState == null
+        ? ref.read(isStartProvider) && !ref.read(suspendProvider)
+        : tunnelState == TunnelState.connected;
+  }
 
   bool get _ready =>
       _watchers > 0 &&
       ref.read(appVisibleProvider) &&
+      ref.read(tunnelStateProvider) != TunnelState.pending &&
       ref.read(initProvider) &&
       ref.read(coreStatusProvider) == CoreStatus.connected;
 

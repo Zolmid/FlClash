@@ -26,25 +26,60 @@ abstract mixin class ServiceListener {
   void onServiceStopped() {}
 }
 
+enum TunnelState { pending, connected, disconnected }
+
 class Service {
   static Service? _instance;
   late MethodChannel methodChannel;
+  final bool _isIOS;
+  final _tunnelState = ValueNotifier(TunnelState.pending);
+
+  ValueListenable<TunnelState> get tunnelState => _tunnelState;
 
   final ObserverList<ServiceListener> _listeners =
       ObserverList<ServiceListener>();
 
   int _commandRevision = 0;
   bool _startRequested = false;
+  bool _disposed = false;
 
   factory Service() {
     _instance ??= Service._internal();
     return _instance!;
   }
 
-  Service._internal() {
+  @visibleForTesting
+  static void resetInstance() {
+    _instance?.dispose();
+    _instance = null;
+  }
+
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    methodChannel.setMethodCallHandler(null);
+    for (final listener in List.of(_listeners)) {
+      _listeners.remove(listener);
+    }
+    _tunnelState.dispose();
+  }
+
+  Service._internal() : this._(isIOS: system.isIOS);
+
+  @visibleForTesting
+  Service.forTesting({required bool isIOS}) : this._(isIOS: isIOS);
+
+  Service._({required bool isIOS}) : _isIOS = isIOS {
     methodChannel = const MethodChannel('$packageName/service');
     methodChannel.setMethodCallHandler((call) async {
       switch (call.method) {
+        case 'tunnelState':
+          _tunnelState.value = TunnelState.values.byName(
+            call.arguments as String,
+          );
+          break;
         case 'event':
           final data = call.arguments as String? ?? '';
           final methodCall = CoreMethodCall.fromJson(
@@ -72,14 +107,16 @@ class Service {
   }
 
   Future<CoreMethodResponse?> invokeMethod(CoreMethodCall call) async {
-    final data = await methodChannel.invokeMethod<Uint8List>(
+    final data = await methodChannel.invokeMethod<Object>(
       'invokeMethod',
       json.encode(call),
     );
     if (data == null) {
       return null;
     }
-    final dataJson = await _decodeResponse(data);
+    final dataJson = _isIOS
+        ? await (data as String).decodeJson<Object?>()
+        : await _decodeResponse(data as Uint8List);
     return CoreMethodResponse.fromJson(dataJson as Map<String, dynamic>);
   }
 
@@ -89,30 +126,42 @@ class Service {
         deliver(listener);
       } catch (error) {
         commonPrint.log(
-          'Unable to dispatch Android $label: $error',
+          'Unable to dispatch $label: $error',
           logLevel: LogLevel.error,
         );
       }
     }
   }
 
-  Future<bool> start() async {
+  Future<bool> start([SharedState? state]) async {
     _startRequested = true;
+    final revision = ++_commandRevision;
+    if (_isIOS && state == null) {
+      throw ArgumentError.notNull('state');
+    }
     return await methodChannel.invokeMethod<bool>(
           'start',
-          ++_commandRevision,
+          _isIOS ? json.encode(state) : revision,
         ) ??
         false;
   }
 
   Future<bool> stop() async {
     _startRequested = false;
-    return await methodChannel.invokeMethod<bool>('stop', ++_commandRevision) ??
+    final revision = ++_commandRevision;
+    return await methodChannel.invokeMethod<bool>(
+          'stop',
+          _isIOS ? null : revision,
+        ) ??
         false;
   }
 
   Future<String> init() async {
-    return await methodChannel.invokeMethod<String>('init') ?? '';
+    return await methodChannel.invokeMethod<String>(
+          'init',
+          _isIOS ? safeModeBuild : null,
+        ) ??
+        '';
   }
 
   Future<String> syncState(SharedState state) async {
@@ -135,6 +184,21 @@ class Service {
     return DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
+  Future<VpnOptions?> getActiveVpnOptions() async {
+    if (!_isIOS) {
+      return null;
+    }
+    final data = await methodChannel.invokeMethod<String>(
+      'getActiveVpnOptions',
+    );
+    if (data == null) {
+      return null;
+    }
+    return VpnOptions.fromJson(
+      Map<String, Object?>.from(json.decode(data) as Map),
+    );
+  }
+
   bool get hasListeners {
     return _listeners.isNotEmpty;
   }
@@ -148,4 +212,4 @@ class Service {
   }
 }
 
-Service? get service => system.isAndroid ? Service() : null;
+Service? get service => system.isMobile ? Service() : null;

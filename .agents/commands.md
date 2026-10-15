@@ -15,7 +15,13 @@ dart setup.dart macos
 dart setup.dart linux
 dart setup.dart windows
 dart setup.dart android
+dart setup.dart ios --env dev --no-codesign
 ```
+
+The iOS command requires macOS and Xcode, targets arm64 physical devices only,
+and writes an unsigned IPA under `dist/`. Install Rust's `aarch64-apple-ios`
+target first. `docs/cloud-build.md` describes the matching cloud build job and
+the signing requirements for device testing.
 
 The desktop Go core and the Rust helper build automatically: Flutter runs
 `plugins/setup/hook/build.dart` on every `flutter build` and `flutter test`,

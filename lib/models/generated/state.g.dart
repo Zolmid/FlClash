@@ -21,6 +21,12 @@ _SharedState _$SharedStateFromJson(Map<String, dynamic> json) => _SharedState(
   onlyStatisticsProxy: json['onlyStatisticsProxy'] as bool,
   showStopAction: json['showStopAction'] as bool? ?? true,
   crashlytics: json['crashlytics'] as bool,
+  alwaysOn: json['alwaysOn'] as bool? ?? false,
+  excludeSSIDs:
+      (json['excludeSSIDs'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$SharedStateToJson(_SharedState instance) =>
@@ -35,4 +41,6 @@ Map<String, dynamic> _$SharedStateToJson(_SharedState instance) =>
       'onlyStatisticsProxy': instance.onlyStatisticsProxy,
       'showStopAction': instance.showStopAction,
       'crashlytics': instance.crashlytics,
+      'alwaysOn': instance.alwaysOn,
+      'excludeSSIDs': instance.excludeSSIDs,
     };

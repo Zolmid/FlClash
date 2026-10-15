@@ -11,11 +11,11 @@ on:
         default: all
         options: [all, macos, windows, android, ios, linux]
       ios_source:
-        description: iOS source (reference is not the main project)
+        description: iOS source (project builds this branch)
         type: choice
         required: true
-        default: patched-reference
-        options: [patched-reference, project]
+        default: project
+        options: [project, patched-reference]
 
 permissions:
   contents: read
@@ -235,7 +235,7 @@ jobs:
       - name: Check iOS implementation
         run: |
           if [[ ! -f ios/Runner.xcodeproj/project.pbxproj || ! -f ios/NECore/PacketTunnelProvider.swift ]]; then
-            echo '::error::This project has no complete iOS port yet. Select patched-reference to build the separate baseline. No automatic fallback is performed.'
+            echo '::error::The selected source is missing the iOS Runner or Packet Tunnel target.'
             exit 1
           fi
           if [[ "$IOS_SOURCE" == patched-reference ]]; then
