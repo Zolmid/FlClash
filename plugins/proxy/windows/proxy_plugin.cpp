@@ -4,6 +4,7 @@
 #include <ws2ipdef.h>
 
 #include "proxy_plugin.h"
+#include "proxy_ownership.h"
 
 // This must be included before many other Windows headers.
 #include <windows.h>
@@ -37,39 +38,71 @@ constexpr int kMaxProxyPort = 65535;
 constexpr wchar_t kProxyServerPrefix[] = L"127.0.0.1:";
 constexpr wchar_t kOwnershipKey[] = L"Software\\FlClash";
 constexpr wchar_t kOwnedProxyServerValue[] = L"SystemProxyServer";
+constexpr wchar_t kOwnedProxyServersValue[] = L"SystemProxyServers";
 
-bool RecordOwnedProxyServer(const std::wstring& server)
-{
-  return RegSetKeyValueW(
-      HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue, REG_SZ,
-      server.c_str(),
-      static_cast<DWORD>((server.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
-}
-
-std::optional<std::wstring> OwnedProxyServer()
+std::optional<std::vector<wchar_t>> ReadOwnedValue(
+    const wchar_t* name, DWORD flags)
 {
   DWORD size = 0;
-  if (RegGetValueW(
-          HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue,
-          RRF_RT_REG_SZ, nullptr, nullptr, &size) != ERROR_SUCCESS ||
-      size < sizeof(wchar_t))
+  auto result = RegGetValueW(
+      HKEY_CURRENT_USER, kOwnershipKey, name, flags, nullptr, nullptr, &size);
+  if (result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND)
+  {
+    return std::vector<wchar_t>{};
+  }
+  if (result != ERROR_SUCCESS || size % sizeof(wchar_t) != 0)
   {
     return std::nullopt;
   }
-  std::wstring server(size / sizeof(wchar_t), L'\0');
+  std::vector<wchar_t> value(size / sizeof(wchar_t) + 2, L'\0');
   if (RegGetValueW(
-          HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue,
-          RRF_RT_REG_SZ, nullptr, server.data(), &size) != ERROR_SUCCESS)
+          HKEY_CURRENT_USER, kOwnershipKey, name, flags, nullptr,
+          value.data(), &size) != ERROR_SUCCESS)
   {
     return std::nullopt;
   }
-  server.resize(wcsnlen(server.c_str(), server.size()));
-  return server;
+  return value;
 }
 
-void ForgetOwnedProxyServer()
+std::optional<proxy::OwnedProxyServers> ReadOwnedProxyServers()
 {
-  RegDeleteKeyValueW(HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue);
+  const auto values = ReadOwnedValue(kOwnedProxyServersValue, RRF_RT_REG_MULTI_SZ);
+  const auto legacy = ReadOwnedValue(kOwnedProxyServerValue, RRF_RT_REG_SZ);
+  if (!values || !legacy) return std::nullopt;
+  proxy::OwnedProxyServers servers;
+  for (size_t offset = 0; offset < values->size() && (*values)[offset] != L'\0';)
+  {
+    const auto length = wcsnlen(values->data() + offset, values->size() - offset);
+    servers.emplace(values->data() + offset, length);
+    offset += length + 1;
+  }
+  if (!legacy->empty() && legacy->front() != L'\0')
+  {
+    servers.emplace(legacy->data());
+  }
+  return servers;
+}
+
+bool RecordOwnedProxyServers(const proxy::OwnedProxyServers& servers)
+{
+  std::vector<wchar_t> value;
+  for (const auto& server : servers)
+  {
+    value.insert(value.end(), server.begin(), server.end());
+    value.push_back(L'\0');
+  }
+  if (value.empty()) value.push_back(L'\0');
+  value.push_back(L'\0');
+  if (RegSetKeyValueW(
+          HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServersValue, REG_MULTI_SZ,
+          value.data(), static_cast<DWORD>(value.size() * sizeof(wchar_t))) !=
+      ERROR_SUCCESS)
+  {
+    return false;
+  }
+  const auto removed = RegDeleteKeyValueW(
+      HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue);
+  return removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND;
 }
 
 std::wstring Utf8ToWide(const std::string& value)
@@ -199,11 +232,11 @@ bool startProxy(const int port, const flutter::EncodableList& bypassDomain)
   options[2].dwOption = INTERNET_PER_CONN_PROXY_BYPASS;
   options[2].Value.pszValue = bypassList.data();
 
-  if (!RecordOwnedProxyServer(url))
-  {
-    return false;
-  }
-  const bool optionsApplied = ApplyOptionsToConnections(list);
+  const auto owned = ReadOwnedProxyServers();
+  if (!owned) return false;
+  const bool optionsApplied = proxy::ApplyOwnedProxy(
+      *owned, url, [&list]() { return ApplyOptionsToConnections(list); },
+      RecordOwnedProxyServers);
   const bool settingsNotified = NotifySettingsChanged();
   return optionsApplied && settingsNotified;
 }
@@ -224,7 +257,7 @@ bool stopProxy()
   const bool settingsNotified = NotifySettingsChanged();
   if (optionsApplied)
   {
-    ForgetOwnedProxyServer();
+    RecordOwnedProxyServers({});
   }
   return optionsApplied && settingsNotified;
 }
@@ -368,31 +401,25 @@ namespace proxy
 
   bool ClearStaleProxy()
   {
-    const auto owned = OwnedProxyServer();
-    if (!owned)
-    {
-      return true;
-    }
-    const auto port = ProxyPort(*owned);
-    if (!port)
-    {
-      ForgetOwnedProxyServer();
-      return true;
-    }
-    if (!IsPortReleased(*port))
-    {
-      return true;
-    }
-    const bool cleared = ForEachConnection(
-        [&owned](LPTSTR connection)
+    const auto owned = ReadOwnedProxyServers();
+    if (!owned) return false;
+    if (owned->empty()) return true;
+    const bool cleared = ReclaimOwnedProxies(
+        *owned,
+        [](const std::wstring& server)
         {
-          return ClearStaleProxyForConnection(connection, *owned);
-        });
+          const auto port = ProxyPort(server);
+          return !port || IsPortReleased(*port);
+        },
+        [](const std::wstring& server)
+        {
+          return ForEachConnection([&server](LPTSTR connection)
+          {
+            return ClearStaleProxyForConnection(connection, server);
+          });
+        },
+        RecordOwnedProxyServers);
     const bool settingsNotified = NotifySettingsChanged();
-    if (cleared)
-    {
-      ForgetOwnedProxyServer();
-    }
     return cleared && settingsNotified;
   }
 

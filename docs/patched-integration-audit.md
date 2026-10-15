@@ -17,12 +17,13 @@
 
 | 类别 | 取舍 | 依据与实现 |
 | --- | --- | --- |
-| Windows stale system proxy | 迁入并收紧 | 参考 `bd7da00c`；仅清理 HKCU 中记录为本项目设置、与当前系统代理完全相同且 IPv4/IPv6 均无监听的地址；查询失败视为仍在使用。记录写入失败拒绝修改代理，避免产生无所有权记录的修改。 |
+| Windows stale system proxy | 迁入并收紧 | 参考 `bd7da00c`；仅清理 HKCU 中记录为本项目设置、与当前系统代理完全相同且 IPv4/IPv6 均无监听的地址；查询失败视为仍在使用。以持久化集合保留旧目标和待应用目标，只有全部连接切换成功才收敛为新目标；兼容旧单值记录。记录写入失败拒绝修改代理，避免产生无所有权记录的修改。 |
 | Windows IPv6 bypass | 迁入并保留主线语义 | 参考 `9d8c15a2`；支持 IPv6 CIDR、去除 zone，兼容已带括号的地址，去重，保留主线 `<local>`。 |
 | KDE bypass | 迁入净增量 | `ReversedException=false` 防止旧的反向例外配置将 bypass 含义倒置；HTTPS 使用 HTTP transport、DBus KIO 刷新已由主线实现，保留。 |
 | 统一构建 | 适配主项目 | main 和整合分支 push 自动 `all/project`，iOS 分支维持 `ios/project`；保留手动全部选项、只读 contents 权限、未签名 IPA、固定 Patched 对照和现有 CI/覆盖率门槛。 |
 
-第一批配置经 actionlint 及事件/参数组合检查；proxy Dart 插件 27 项测试通过。
+第一批配置经 actionlint 及 17 组事件/参数组合检查；proxy Dart 插件 27 项测试通过。
+后续 proxy 所有权状态测试独立于 Windows/Flutter 编译并实际运行，覆盖端口切换失败、部分 RAS 失败、中断、成功收敛及清理失败重试；Windows 的完整 gtest 目标也包含这组测试。
 Windows 原生注册表、系统代理与多连接清理仍须 Windows 执行器/真实会话验证；本地 Linux 未声称已验证 Windows API。
 
 ## 保留的主线保证

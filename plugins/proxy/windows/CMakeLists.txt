@@ -20,6 +20,7 @@ set(PLUGIN_NAME "proxy_plugin")
 list(APPEND PLUGIN_SOURCES
   "proxy_plugin.cpp"
   "proxy_plugin.h"
+  "proxy_ownership.h"
 )
 
 # Define the plugin library target. Its name must not be changed (see comment
@@ -82,6 +83,7 @@ FetchContent_MakeAvailable(googletest)
 # directly into the test binary rather than using the DLL.
 add_executable(${TEST_RUNNER}
   test/proxy_plugin_test.cpp
+  test/proxy_ownership_test.cpp
   ${PLUGIN_SOURCES}
 )
 apply_standard_settings(${TEST_RUNNER})

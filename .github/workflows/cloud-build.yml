@@ -156,6 +156,13 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
         run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev
 
+      - name: Test system proxy ownership
+        if: matrix.platform == 'windows'
+        run: |
+          cmake -S plugins/proxy/test/native -B build/proxy-ownership-tests
+          cmake --build build/proxy-ownership-tests --config Release
+          ctest --test-dir build/proxy-ownership-tests -C Release --output-on-failure
+
       - name: Archive Linux bundle
         if: matrix.platform == 'linux'
         run: |
