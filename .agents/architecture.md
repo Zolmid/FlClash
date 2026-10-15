@@ -285,6 +285,9 @@ Android deliberately keeps Flutter requests optimistic and the native layer auth
   flight, the latest intent, and `ServiceController.runtime`. A service that is up under a stop intent reads `STOPPING`, a
   start still waiting on a permission reads `STOPPED`, and `STARTED` needs both a running intent and a runtime. The tile
   and `getRunTime` both read this one value, so they cannot disagree with the service.
+- While attached, `ServicePlugin` collects that same `runState` on Main and sends `tunnelState` to Flutter.
+  The engine scope cancels observation on detach. `VpnManager` re-reads actual/requested start snapshots on connection;
+  a null snapshot during permission handling is not the final running configuration.
 - `ServiceController` owns exactly one `ManagedServiceBinding`, selects `VpnService` or `ProxyService` from `VpnOptions`,
   binds with a five-second connection timeout, and invokes `ManagedService.start()`/`stop()` off the main thread. The
   binding and `runtime` (which service runs, and since when) are set and cleared together, by a stop, a failed start, or

@@ -206,6 +206,23 @@ void main() {
       );
     });
 
+    test('macOS baseline package architectures match update targets', () async {
+      for (final (abi, arch) in [
+        (Abi.macosX64, 'x64'),
+        (Abi.macosArm64, 'arm64'),
+      ]) {
+        expect(
+          await _detect(
+            os: 'macos',
+            abi: abi,
+            buildArch: arch,
+            executable: '/Applications/FlClash.app/Contents/MacOS/FlClash',
+          ),
+          UpdateTarget(UpdatePackage.macosDmg, arch),
+        );
+      }
+    });
+
     test('an AppImage wins over every other Linux layout', () async {
       final target = await _detect(
         os: 'linux',

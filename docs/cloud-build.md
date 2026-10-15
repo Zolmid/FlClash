@@ -38,6 +38,9 @@
 上游已有的 `build.yaml` 保持原样，继续负责已有检查。
 Windows 云任务在编译后实际运行代理归属状态 gtest 和托盘菜单原生 CTest；
 只编译桌面 bundle 不计作这些测试已经执行。
+Windows 还执行自启任务清理的原生 CTest，并在 Compile desktop 后通过固定 provider 调用实际
+Inno Setup 6 编译安装器。该步骤复用刚生成的 Release bundle，不重编 Flutter、不运行安装器，
+只清理本次唯一的验证 EXE、ISS 和 staging，发布 artifact 仍是桌面 zip。
 
 ## iOS 源码选择
 
@@ -144,6 +147,10 @@ iOS 首轮迁入了 `ios/`、Dart 服务桥、Go iOS/TUN 适配及构建 hooks�
   [标准 CI 38711463436](https://github.com/Zolmid/FlClash/actions/runs/38711463436)
   九项全部成功；[Cloud 38711463348](https://github.com/Zolmid/FlClash/actions/runs/38711463348)
   的结果仍由外层监控核验。
+- `b9af3521528a49a9edd98dd8be27b065324dbb11` 的
+  [标准 CI 38724531295](https://github.com/Zolmid/FlClash/actions/runs/38724531295)
+  和 [Cloud all/project 38724531398](https://github.com/Zolmid/FlClash/actions/runs/38724531398)
+  已由外层 fetch 源码并独立核验全部成功；该结果覆盖首个应用层检查点及后续 UI 补齐。
 
 上述结果只覆盖对应 SHA，不包含后续整合提交。后续仍需同 SHA 全平台构建和独立 review 才合入 main。
 保留原 `8380d0e` core 与依赖锁；长期同步策略及 iOS TUN FD 升级复核边界见

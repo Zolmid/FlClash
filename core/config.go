@@ -153,6 +153,7 @@ func applyConfig(params *SetupParams) error {
 	}
 	currentConfig = cfg
 	hub.ApplyConfig(cfg)
+	replaceRulesGenerationLocked(tunnel.Rules())
 	patchSelectGroup(params.SelectedMap)
 	bumpRouteEpoch()
 	updateListeners(cfg)

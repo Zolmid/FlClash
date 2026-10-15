@@ -6,13 +6,20 @@ import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, ValueNotifier, visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 
 class CoreController {
   static CoreController? _instance;
   late CoreHandlerInterface _interface;
+  final _configurationChanges = ValueNotifier<Object>(Object());
+  int _configurationOperations = 0;
+
+  ValueListenable<Object> get configurationChanges => _configurationChanges;
+
+  bool get isApplyingConfiguration => _configurationOperations > 0;
 
   CoreController._internal() {
     if (system.isMobile) {
@@ -86,7 +93,7 @@ class CoreController {
 
   Future<int> getGoroutineCount() => _interface.getGoroutineCount();
 
-  Future<List<CoreRule>> getRules() => _interface.getRules();
+  Future<CoreRulesSnapshot> getRules() => _interface.getRules();
 
   Future<bool> setRuleDisabled(SetRuleDisabledParams params) =>
       _interface.setRuleDisabled(params);
@@ -193,14 +200,21 @@ class CoreController {
     required SetupParams params,
     Future<void> Function()? preloadInvoke,
   }) async {
-    if (preloadInvoke == null) {
-      return _interface.setupConfig(params);
+    _configurationOperations++;
+    _configurationChanges.value = Object();
+    try {
+      if (preloadInvoke == null) {
+        return await _interface.setupConfig(params);
+      }
+      final (result, _) = await (
+        _interface.setupConfig(params),
+        preloadInvoke(),
+      ).wait;
+      return result;
+    } finally {
+      _configurationOperations--;
+      _configurationChanges.value = Object();
     }
-    final (result, _) = await (
-      _interface.setupConfig(params),
-      preloadInvoke(),
-    ).wait;
-    return result;
   }
 
   Future<List<Group>> getProxiesGroups({

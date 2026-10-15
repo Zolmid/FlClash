@@ -199,6 +199,36 @@ void main() {
       preloadCompleter.complete();
       expect(await setupFuture, 'ok');
     });
+
+    test(
+      'configuration observation brackets overlapping and failed applies',
+      () async {
+        const params = SetupParams(selectedMap: {}, testUrl: 'http://x.com');
+        final first = Completer<String>();
+        final second = Completer<String>();
+        var calls = 0;
+        when(() => mock.setupConfig(params)).thenAnswer((_) {
+          return ++calls == 1 ? first.future : second.future;
+        });
+        final applying = <bool>[];
+        controller.configurationChanges.addListener(() {
+          applying.add(controller.isApplyingConfiguration);
+        });
+
+        final firstApply = controller.setupConfig(params: params);
+        final secondApply = controller.setupConfig(params: params);
+        expect(controller.isApplyingConfiguration, isTrue);
+        first.complete('');
+        await firstApply;
+        expect(controller.isApplyingConfiguration, isTrue);
+        final failed = expectLater(secondApply, throwsStateError);
+        second.completeError(StateError('failed profile'));
+        await failed;
+
+        expect(controller.isApplyingConfiguration, isFalse);
+        expect(applying, [true, true, true, false]);
+      },
+    );
   });
 
   group('proxy methods', () {

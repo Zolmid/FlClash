@@ -109,12 +109,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       profilesAction.putProfile(profile);
     } else {
       unawaited(
-        globalState.safeRun(() async {
-          await Future.delayed(commonDuration);
-          if (hasUpdate) {
-            await profilesAction.updateProfile(profile);
-          }
-        }),
+        globalState.safeRun(() => profilesAction.updateProfileSource(profile)),
       );
     }
     if (mounted) {

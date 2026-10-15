@@ -24,6 +24,9 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         channel = MethodChannel(binding.binaryMessenger, "${Components.PACKAGE_NAME}/service")
         channel.setMethodCallHandler(this)
+        scope.observeTunnelState(ServiceState.runState) { state ->
+            channel.invokeMethod("tunnelState", state)
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

@@ -12,8 +12,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class VpnManager extends ConsumerStatefulWidget {
   final Widget child;
+  final Service? _service;
+  final bool? _isAndroid;
 
-  const VpnManager({super.key, required this.child});
+  const VpnManager({super.key, required this.child})
+    : _service = null,
+      _isAndroid = null;
+
+  @visibleForTesting
+  const VpnManager.forTesting({
+    super.key,
+    required Service mobileService,
+    required bool isAndroid,
+    required this.child,
+  }) : _service = mobileService,
+       _isAndroid = isAndroid;
 
   @override
   ConsumerState<VpnManager> createState() => _VpnContainerState();
@@ -23,13 +36,19 @@ class _VpnContainerState extends ConsumerState<VpnManager>
     with WidgetsBindingObserver {
   var _checkRevision = 0;
   VpnOptions? _lastNotifiedOptions;
+  late final Service? _service;
+  late final bool _isMobile;
+  late final bool _isAndroid;
 
   @override
   void initState() {
     super.initState();
-    if (system.isMobile) {
+    _service = widget._service ?? service;
+    _isMobile = widget._service != null || system.isMobile;
+    _isAndroid = widget._isAndroid ?? system.isAndroid;
+    if (_isMobile) {
       WidgetsBinding.instance.addObserver(this);
-      service?.tunnelState.addListener(_checkActiveOptions);
+      _service?.tunnelState.addListener(_checkActiveOptions);
       ref.listenManual(isStartProvider, (_, next) {
         if (!next) {
           _lastNotifiedOptions = null;
@@ -63,13 +82,14 @@ class _VpnContainerState extends ConsumerState<VpnManager>
     if (!mounted ||
         !ref.read(isStartProvider) ||
         ref.read(safeModeProvider) ||
-        (system.isIOS && service?.tunnelState.value != TunnelState.connected)) {
+        (!_isAndroid && _service?.tunnelState.value != TunnelState.connected)) {
       return;
     }
     try {
-      final active = await (system.isAndroid
-          ? service?.getRequestedVpnOptions()
-          : service?.getActiveVpnOptions());
+      final active = await _service?.getActiveVpnOptions();
+      final requested = _isAndroid
+          ? await _service?.getRequestedVpnOptions()
+          : active;
       if (!mounted ||
           revision != _checkRevision ||
           !ref.read(isStartProvider) ||
@@ -78,7 +98,7 @@ class _VpnContainerState extends ConsumerState<VpnManager>
       }
       ref.read(runningVpnOptionsProvider.notifier).value = active;
       final options = ref.read(vpnOptionsProvider).value?.effective;
-      if (options == null || options == active.effective) {
+      if (options == null || options == (requested ?? active).effective) {
         _lastNotifiedOptions = null;
         return;
       }
@@ -101,8 +121,8 @@ class _VpnContainerState extends ConsumerState<VpnManager>
   @override
   void dispose() {
     _checkRevision++;
-    if (system.isMobile) {
-      service?.tunnelState.removeListener(_checkActiveOptions);
+    if (_isMobile) {
+      _service?.tunnelState.removeListener(_checkActiveOptions);
       WidgetsBinding.instance.removeObserver(this);
     }
     super.dispose();

@@ -362,7 +362,13 @@ static bool apply_menu_item_update(TrayPlugin* self, FlValue* args) {
   bool checked = false;
   if (GTK_IS_CHECK_MENU_ITEM(item) &&
       bool_value_if_present(args, "checked", &checked)) {
+    g_signal_handlers_block_matched(
+        item, G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
+        reinterpret_cast<gpointer>(on_menu_item_activate), nullptr);
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), checked);
+    g_signal_handlers_unblock_matched(
+        item, G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
+        reinterpret_cast<gpointer>(on_menu_item_activate), nullptr);
   }
   return true;
 }

@@ -315,6 +315,30 @@ hooks:
       );
     });
 
+    test('macOS packaging accepts only baseline architectures', () {
+      for (final arch in ['arm64', 'x64']) {
+        final target = setup.resolvePackageArchitecture(
+          platform: 'macos',
+          requested: arch,
+          hostArch: arch,
+        );
+        expect(target.name, arch);
+        expect(target.goamd64, isNull);
+      }
+      for (final prefix in ['x64', 'amd64']) {
+        for (final level in ['v1', 'v2', 'v3']) {
+          expect(
+            () => setup.resolvePackageArchitecture(
+              platform: 'macos',
+              requested: '$prefix-$level',
+              hostArch: 'x64',
+            ),
+            throwsArgumentError,
+          );
+        }
+      }
+    });
+
     test(
       'GOAMD64 overrides preserve CRLF and restore pubspec after failure',
       () async {

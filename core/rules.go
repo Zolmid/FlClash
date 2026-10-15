@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/rand"
 	"time"
 
 	"github.com/metacubex/mihomo/constant"
@@ -22,22 +23,51 @@ type CoreRule struct {
 }
 
 type SetRuleDisabledParams struct {
-	Index    int    `json:"index"`
-	Type     string `json:"type"`
-	Payload  string `json:"payload"`
-	Disabled bool   `json:"disabled"`
+	Generation string `json:"generation"`
+	Index      int    `json:"index"`
+	Type       string `json:"type"`
+	Payload    string `json:"payload"`
+	Disabled   bool   `json:"disabled"`
 }
 
-func handleGetRules() []CoreRule {
-	return newCoreRules(tunnel.Rules(), tunnel.RuleProvidersSnapshot())
+type CoreRulesSnapshot struct {
+	Generation string     `json:"generation"`
+	Rules      []CoreRule `json:"rules"`
 }
 
-// The index alone may name a different rule once a config apply has replaced
-// the list, so the caller's type and payload must still match.
+var (
+	rulesGeneration string
+	rulesSnapshot   []constant.Rule
+)
+
+func replaceRulesGenerationLocked(rules []constant.Rule) {
+	rulesSnapshot = rules
+	rulesGeneration = rand.Text()
+}
+
+func rulesGenerationLocked(rules []constant.Rule) string {
+	if rulesGeneration == "" || len(rules) != len(rulesSnapshot) ||
+		(len(rules) > 0 && &rules[0] != &rulesSnapshot[0]) {
+		replaceRulesGenerationLocked(rules)
+	}
+	return rulesGeneration
+}
+
+func handleGetRules() CoreRulesSnapshot {
+	configMu.Lock()
+	defer configMu.Unlock()
+	rules := tunnel.Rules()
+	return CoreRulesSnapshot{
+		Generation: rulesGenerationLocked(rules),
+		Rules:      newCoreRules(rules, tunnel.RuleProvidersSnapshot()),
+	}
+}
+
 func handleSetRuleDisabled(params *SetRuleDisabledParams) bool {
 	configMu.Lock()
 	defer configMu.Unlock()
-	if !setRuleDisabled(tunnel.Rules(), params) {
+	rules := tunnel.Rules()
+	if params.Generation != rulesGenerationLocked(rules) || !setRuleDisabled(rules, params) {
 		return false
 	}
 	bumpRouteEpoch()

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "autostart_cleanup.h"
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -18,6 +19,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+  if (std::find(command_line_arguments.begin(), command_line_arguments.end(),
+                "--remove-user-registrations") != command_line_arguments.end()) {
+    return autostart::RemoveOriginalUserTask(WindowPluginFindRunningWindow())
+        ? EXIT_SUCCESS : EXIT_FAILURE;
+  }
   if (std::find(command_line_arguments.begin(), command_line_arguments.end(),
                 kClearStaleProxyArgument) != command_line_arguments.end()) {
     if (HWND running = WindowPluginFindRunningWindow()) {

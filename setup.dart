@@ -182,7 +182,8 @@ ArgParser createSetupArgParser() {
         'amd64-v2',
         'amd64-v3',
       ],
-      help: 'Target architecture; x64-v2/v3 select desktop Go CPU features',
+      help:
+          'Target architecture; x64-v2/v3 select Windows/Linux Go CPU features',
     )
     ..addOption(
       'ipa-export-method',
@@ -315,12 +316,9 @@ PackageArchitecture resolvePackageArchitecture({
   final explicitMicroarch =
       requested != null &&
       (requested.startsWith('x64-') || requested.startsWith('amd64-'));
-  if (explicitMicroarch &&
-      platform != 'linux' &&
-      platform != 'windows' &&
-      platform != 'macos') {
+  if (explicitMicroarch && platform != 'linux' && platform != 'windows') {
     throw ArgumentError(
-      '--arch $requested is only supported for Linux, Windows, and macOS.',
+      '--arch $requested is only supported for Linux and Windows.',
     );
   }
   if (platform == 'macos' && parsed.flutterArch == 'arm') {

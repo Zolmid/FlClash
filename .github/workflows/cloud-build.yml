@@ -150,6 +150,13 @@ jobs:
         if: matrix.platform != 'android'
         run: flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev
 
+      - name: Compile Windows installer for validation
+        if: matrix.platform == 'windows'
+        working-directory: windows/packaging/exe/test
+        run: |
+          dart pub get --enforce-lockfile
+          dart run bin/compile_installer.dart
+
       - name: Compile Android
         if: matrix.platform == 'android'
         env:
@@ -169,6 +176,13 @@ jobs:
           cmake -S plugins/tray/test/native -B build/tray-menu-tests
           cmake --build build/tray-menu-tests --config Release
           ctest --test-dir build/tray-menu-tests -C Release --output-on-failure
+
+      - name: Test Windows autostart cleanup ownership
+        if: matrix.platform == 'windows'
+        run: |
+          cmake -S windows/runner/test -B build/autostart-cleanup-tests
+          cmake --build build/autostart-cleanup-tests --config Release
+          ctest --test-dir build/autostart-cleanup-tests -C Release --output-on-failure
 
       - name: Archive Linux bundle
         if: matrix.platform == 'linux'

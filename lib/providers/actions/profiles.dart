@@ -3,7 +3,7 @@ part of '../action.dart';
 @Riverpod(keepAlive: true)
 class ProfilesAction extends _$ProfilesAction {
   CoreController get _core => ref.read(coreHandlerProvider);
-  final _profileUpdates = <int, ({Profile profile, Future<void> future})>{};
+  final _profileUpdates = <int, Future<void>>{};
   final _lastUpdateAttempts = <int, DateTime>{};
 
   DateTime? lastUpdateAttempt(int id) => _lastUpdateAttempts[id];
@@ -53,7 +53,7 @@ class ProfilesAction extends _$ProfilesAction {
         continue;
       }
       try {
-        await updateProfile(profile);
+        await updateProfile(profile.id);
       } catch (e) {
         commonPrint.log(compactError(e), logLevel: LogLevel.warning);
       }
@@ -129,20 +129,31 @@ class ProfilesAction extends _$ProfilesAction {
   Future<void> updateProfiles() async {
     for (final profile in ref.read(profilesProvider)) {
       if (profile.type != ProfileType.url) continue;
-      await updateProfile(profile, showLoading: true);
+      await updateProfile(profile.id, showLoading: true);
     }
   }
 
-  Future<void> updateProfile(Profile profile, {bool showLoading = false}) {
-    final active = _profileUpdates[profile.id];
-    if (active != null &&
-        active.profile.url == profile.url &&
-        active.profile.ageSecretKey == profile.ageSecretKey) {
-      return active.future;
+  Future<void> updateProfile(int id, {bool showLoading = false}) {
+    final active = _profileUpdates[id];
+    if (active != null) return active;
+    final profile = ref.read(profilesProvider).getProfile(id);
+    if (profile == null || profile.type != ProfileType.url) {
+      return Future.value();
     }
+    return _queueProfileUpdate(profile, showLoading: showLoading);
+  }
+
+  Future<void> updateProfileSource(Profile profile) =>
+      _queueProfileUpdate(profile);
+
+  Future<void> _queueProfileUpdate(
+    Profile profile, {
+    bool showLoading = false,
+  }) {
+    final active = _profileUpdates[profile.id];
     final update = active == null
         ? _updateProfile(profile, showLoading: showLoading)
-        : active.future.then<void>(
+        : active.then<void>(
             (_) => _updateProfile(profile, showLoading: showLoading),
             onError: (Object error) =>
                 _updateProfile(profile, showLoading: showLoading),
@@ -150,11 +161,11 @@ class ProfilesAction extends _$ProfilesAction {
     late final Future<void> operation;
     operation = update.whenComplete(() {
       _lastUpdateAttempts[profile.id] = DateTime.now();
-      if (identical(_profileUpdates[profile.id]?.future, operation)) {
+      if (identical(_profileUpdates[profile.id], operation)) {
         _profileUpdates.remove(profile.id);
       }
     });
-    _profileUpdates[profile.id] = (profile: profile, future: operation);
+    _profileUpdates[profile.id] = operation;
     return operation;
   }
 
@@ -165,15 +176,15 @@ class ProfilesAction extends _$ProfilesAction {
     if (await file.exists()) return;
     final latest = ref.read(profilesProvider).getProfile(id);
     if (latest == null || latest.type != ProfileType.url) return;
-    var operation = _profileUpdates[id]?.future ?? updateProfile(latest);
+    var operation = _profileUpdates[id] ?? updateProfile(id);
     while (true) {
       try {
         await operation;
       } catch (_) {
-        final pending = _profileUpdates[id]?.future;
+        final pending = _profileUpdates[id];
         if (pending == null || identical(pending, operation)) rethrow;
       }
-      final pending = _profileUpdates[id]?.future;
+      final pending = _profileUpdates[id];
       if (pending == null) return;
       operation = pending;
     }
@@ -322,7 +333,7 @@ class ProfilesAction extends _$ProfilesAction {
       loads.add((
         label: label,
         load: url.isNotEmpty
-            ? () => updateProfile(profile, showLoading: true)
+            ? () => updateProfile(profile.id, showLoading: true)
             : () async => profiles.put(
                 await profile.saveFile(
                   utf8.encode(content),

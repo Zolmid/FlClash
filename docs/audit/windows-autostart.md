@@ -41,6 +41,27 @@
 快速切换/关闭不会让较早完成的任务注册成为最终状态。无效配置或删除失败可留下明确报告的未收敛状态，
 不会无期限重试或删除未经验证的注册。
 
+## 卸载清理
+
+Inno 在用户确认后的 `usUninstall`、文件删除及进程停止之前执行同安装的
+`FlClash.exe --remove-user-registrations`。此命令在 Windows runner 启动 Flutter 之前返回，
+不会重新启动 Core 或创建普通应用实例。原 `InitializeUninstall` 的 helper/proxy/process 操作也移到
+这个阶段，避免尚未确认卸载就停止程序，同时给原用户实例保留清理机会。
+
+如果找到同一可执行路径的运行窗口，命令向该窗口发送安装路径哈希限定的注册消息，
+由现有进程用自己的 SID 清理；跨管理员卸载优先走这个原用户上下文。收到失败或超时后不改删另一个
+用户的任务，不改变 UIPI、令牌或权限。Inno 的 `ExecAsOriginalUser` 不支持卸载期，因而没有用它伪装
+卸载身份。没有可用的同安装实例时，仅使用清理进程当前 token 的 SID。
+
+原生实现通过 Task Scheduler COM 查询唯一的 SID + 路径哈希任务名，并核对 Source、principal SID、
+trigger SID、单一 LogonTrigger/Exec、InteractiveToken、LeastPrivilege、命令完整路径和空参数后
+才精确删除。不存在视为完成；归属或访问失败只记录日志，保留未知任务，不枚举任务或按前缀批量删除。
+路径哈希与 Dart 注册端同为规范化小写 UTF-8 路径的 SHA256 前16位，Windows 测试包含 ASCII/中文
+路径的一致性断言。普通用户/其他安装的任务不会因共享 FlClash 前缀而被删除。
+
+当另一管理员卸载、原用户实例已经退出且无法取得该用户上下文时，不越权删除其任务；日志记录
+清理失败的情况。真实跨账户 UAC、窗口消息、Task Scheduler 服务及 Inno 执行顺序仍需 Windows 验证。
+
 ## 验证与平台限制
 
 - 独立纯 Dart 临时包运行同一 `windows_autostart.dart` 与 fake ProcessRunner 测试，19项通过。
@@ -49,5 +70,17 @@
 - 更新了 `test/common/launch_test.dart` 的命名参数和 safe-mode 验证；根 Flutter/manager 回归由主任务统一运行。
 - Linux 未执行真实 `schtasks` 注册/注销或登录自启；仍需 Windows 普通用户验证 Task Scheduler 服务不可用、
   拒绝权限、快速切换、重启登录，以及现有 Run entry 的迁移。测试没有注册宿主任务或更改登录项。
+- 新增 `windows/runner/test` 独立 CMake 测试：Linux 编译并执行8项，全部通过，覆盖精确归属、其他用户、
+  其他安装、Source/命令伪装、额外 action/trigger、不同权限和额外参数。Windows 会同时编译真实 COM
+  实现，并执行第9项哈希一致性检查；无需 Flutter 或宿主 Task Scheduler 修改。
+- `windows/packaging/exe/test` 实际 pinned provider 渲染测试2项、compile-only 入口契约测试3项通过、
+  analyze 无问题，核对卸载期调用、确认后阶段和清理先于进程停止；既有 updater nonce/ready/ACK 协议
+  和安装权限保持不变。测试包以单文件并发运行，因为 provider API 和 fixture 都使用进程全局 cwd。
+- `bin/compile_installer.dart` 使用该包固定 provider 依赖、真实 `configLoader.load`/`maker.make` 和
+  runner 已安装的 Inno Setup 6，对 `build/windows/x64/runner/Release` 已有 bundle 仅打包编译。
+  cwd 定位主仓库根、输出在 `dist`，因此两种中文 ISL 的相对路径与正式模板一致。唯一文件名隔离验证
+  EXE/ISS/staging，成功或失败后只清本次产物，保留其他 artifacts 和 Flutter bundle，不执行安装器、
+  不重复 Flutter 编译、不发布。Linux 契约测试覆盖成功/编译失败清理与缺少 bundle 提前失败；实际
+  ISCC/Pascal 编译需由 Windows Cloud job 执行。
 
-没有修改 `system.dart`、Helper、模型/codegen、根项目依赖、CI或应用身份，也没有提交或推送。
+`system.dart`、Helper、模型/codegen、根项目依赖与应用身份保持不变。

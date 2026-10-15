@@ -7,6 +7,17 @@ part 'generated/core.freezed.dart';
 part 'generated/core.g.dart';
 
 @freezed
+abstract class CoreRulesSnapshot with _$CoreRulesSnapshot {
+  const factory CoreRulesSnapshot({
+    required String generation,
+    @Default([]) List<CoreRule> rules,
+  }) = _CoreRulesSnapshot;
+
+  factory CoreRulesSnapshot.fromJson(Map<String, Object?> json) =>
+      _$CoreRulesSnapshotFromJson(json);
+}
+
+@freezed
 abstract class CoreRule with _$CoreRule {
   const factory CoreRule({
     required int index,
@@ -28,8 +39,12 @@ abstract class CoreRule with _$CoreRule {
 extension CoreRuleExt on CoreRule {
   List<String> get searchFields => [type, payload, proxy];
 
-  SetRuleDisabledParams toDisabledParams(bool disabled) {
+  SetRuleDisabledParams toDisabledParams(
+    bool disabled, {
+    required String generation,
+  }) {
     return SetRuleDisabledParams(
+      generation: generation,
       index: index,
       type: type,
       payload: payload,
@@ -41,6 +56,7 @@ extension CoreRuleExt on CoreRule {
 @freezed
 abstract class SetRuleDisabledParams with _$SetRuleDisabledParams {
   const factory SetRuleDisabledParams({
+    required String generation,
     required int index,
     required String type,
     required String payload,

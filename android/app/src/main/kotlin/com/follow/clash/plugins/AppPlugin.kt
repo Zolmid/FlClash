@@ -526,8 +526,12 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     }
 
     private fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode == INSTALL_PERMISSION_REQUEST_CODE) {
-            invokeInstallPermissionCallback()
+        if (consumeActivityResult(
+                requestCode,
+                INSTALL_PERMISSION_REQUEST_CODE,
+                ::invokeInstallPermissionCallback,
+            )
+        ) {
             return true
         }
         if (requestCode != VPN_PERMISSION_REQUEST_CODE) {
@@ -574,6 +578,5 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
         const val INSTALLED_APPS_PERMISSION_REQUEST_CODE = 1003
         const val LOCAL_NETWORK_PERMISSION_REQUEST_CODE = 1004
-        const val INSTALL_PERMISSION_REQUEST_CODE = 1005
     }
 }

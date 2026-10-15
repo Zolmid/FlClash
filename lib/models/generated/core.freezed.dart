@@ -14,6 +14,285 @@ part of '../core.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$CoreRulesSnapshot {
+
+ String get generation; List<CoreRule> get rules;
+/// Create a copy of CoreRulesSnapshot
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoreRulesSnapshotCopyWith<CoreRulesSnapshot> get copyWith => _$CoreRulesSnapshotCopyWithImpl<CoreRulesSnapshot>(this as CoreRulesSnapshot, _$identity);
+
+  /// Serializes this CoreRulesSnapshot to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CoreRulesSnapshot;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreRulesSnapshot&&(identical(other.generation, _this.generation) || other.generation == _this.generation)&&const DeepCollectionEquality().equals(other.rules, _this.rules));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as CoreRulesSnapshot;
+  return Object.hash(runtimeType,_this.generation,const DeepCollectionEquality().hash(_this.rules));
+}
+
+@override
+String toString() {
+  final _this = this as CoreRulesSnapshot;
+  return 'CoreRulesSnapshot(generation: ${_this.generation}, rules: ${_this.rules})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoreRulesSnapshotCopyWith<$Res>  {
+  factory $CoreRulesSnapshotCopyWith(CoreRulesSnapshot value, $Res Function(CoreRulesSnapshot) _then) = _$CoreRulesSnapshotCopyWithImpl;
+@useResult
+$Res call({
+ String generation, List<CoreRule> rules
+});
+
+
+
+
+}
+/// @nodoc
+class _$CoreRulesSnapshotCopyWithImpl<$Res>
+    implements $CoreRulesSnapshotCopyWith<$Res> {
+  _$CoreRulesSnapshotCopyWithImpl(this._self, this._then);
+
+  final CoreRulesSnapshot _self;
+  final $Res Function(CoreRulesSnapshot) _then;
+
+/// Create a copy of CoreRulesSnapshot
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? generation = null,Object? rules = null,}) {
+  return _then(CoreRulesSnapshot(
+generation: null == generation ? _self.generation : generation // ignore: cast_nullable_to_non_nullable
+as String,rules: null == rules ? _self.rules : rules // ignore: cast_nullable_to_non_nullable
+as List<CoreRule>,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CoreRulesSnapshot].
+extension CoreRulesSnapshotPatterns on CoreRulesSnapshot {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CoreRulesSnapshot value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CoreRulesSnapshot() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CoreRulesSnapshot value)  $default,){
+final _that = this;
+switch (_that) {
+case _CoreRulesSnapshot():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CoreRulesSnapshot value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CoreRulesSnapshot() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String generation,  List<CoreRule> rules)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CoreRulesSnapshot() when $default != null:
+return $default(_that.generation,_that.rules);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String generation,  List<CoreRule> rules)  $default,) {final _that = this;
+switch (_that) {
+case _CoreRulesSnapshot():
+return $default(_that.generation,_that.rules);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String generation,  List<CoreRule> rules)?  $default,) {final _that = this;
+switch (_that) {
+case _CoreRulesSnapshot() when $default != null:
+return $default(_that.generation,_that.rules);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _CoreRulesSnapshot implements CoreRulesSnapshot {
+  const _CoreRulesSnapshot({required this.generation,  List<CoreRule> rules = const []}): _rules = rules;
+  factory _CoreRulesSnapshot.fromJson(Map<String, dynamic> json) => _$CoreRulesSnapshotFromJson(json);
+
+@override final  String generation;
+ final  List<CoreRule> _rules;
+@override@JsonKey() List<CoreRule> get rules {
+  if (_rules is EqualUnmodifiableListView) return _rules;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_rules);
+}
+
+
+/// Create a copy of CoreRulesSnapshot
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CoreRulesSnapshotCopyWith<_CoreRulesSnapshot> get copyWith => __$CoreRulesSnapshotCopyWithImpl<_CoreRulesSnapshot>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$CoreRulesSnapshotToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoreRulesSnapshot&&(identical(other.generation, generation) || other.generation == generation)&&const DeepCollectionEquality().equals(other.rules, _rules));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,generation,const DeepCollectionEquality().hash(_rules));
+}
+
+@override
+String toString() {
+    return 'CoreRulesSnapshot(generation: $generation, rules: $rules)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CoreRulesSnapshotCopyWith<$Res> implements $CoreRulesSnapshotCopyWith<$Res> {
+  factory _$CoreRulesSnapshotCopyWith(_CoreRulesSnapshot value, $Res Function(_CoreRulesSnapshot) _then) = __$CoreRulesSnapshotCopyWithImpl;
+@override @useResult
+$Res call({
+ String generation, List<CoreRule> rules
+});
+
+
+
+
+}
+/// @nodoc
+class __$CoreRulesSnapshotCopyWithImpl<$Res>
+    implements _$CoreRulesSnapshotCopyWith<$Res> {
+  __$CoreRulesSnapshotCopyWithImpl(this._self, this._then);
+
+  final _CoreRulesSnapshot _self;
+  final $Res Function(_CoreRulesSnapshot) _then;
+
+/// Create a copy of CoreRulesSnapshot
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? generation = null,Object? rules = null,}) {
+  return _then(_CoreRulesSnapshot(
+generation: null == generation ? _self.generation : generation // ignore: cast_nullable_to_non_nullable
+as String,rules: null == rules ? _self._rules : rules // ignore: cast_nullable_to_non_nullable
+as List<CoreRule>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$CoreRule {
 
  int get index; String get type; String get payload; String get proxy; int get size; bool get disabled; int get hitCount; DateTime? get hitAt; int get missCount; DateTime? get missAt;
@@ -313,7 +592,7 @@ as DateTime?,
 /// @nodoc
 mixin _$SetRuleDisabledParams {
 
- int get index; String get type; String get payload; bool get disabled;
+ String get generation; int get index; String get type; String get payload; bool get disabled;
 /// Create a copy of SetRuleDisabledParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -327,20 +606,20 @@ $SetRuleDisabledParamsCopyWith<SetRuleDisabledParams> get copyWith => _$SetRuleD
 @override
 bool operator ==(Object other) {
   final _this = this as SetRuleDisabledParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetRuleDisabledParams&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.payload, _this.payload) || other.payload == _this.payload)&&(identical(other.disabled, _this.disabled) || other.disabled == _this.disabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetRuleDisabledParams&&(identical(other.generation, _this.generation) || other.generation == _this.generation)&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.payload, _this.payload) || other.payload == _this.payload)&&(identical(other.disabled, _this.disabled) || other.disabled == _this.disabled));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as SetRuleDisabledParams;
-  return Object.hash(runtimeType,_this.index,_this.type,_this.payload,_this.disabled);
+  return Object.hash(runtimeType,_this.generation,_this.index,_this.type,_this.payload,_this.disabled);
 }
 
 @override
 String toString() {
   final _this = this as SetRuleDisabledParams;
-  return 'SetRuleDisabledParams(index: ${_this.index}, type: ${_this.type}, payload: ${_this.payload}, disabled: ${_this.disabled})';
+  return 'SetRuleDisabledParams(generation: ${_this.generation}, index: ${_this.index}, type: ${_this.type}, payload: ${_this.payload}, disabled: ${_this.disabled})';
 }
 
 
@@ -351,7 +630,7 @@ abstract mixin class $SetRuleDisabledParamsCopyWith<$Res>  {
   factory $SetRuleDisabledParamsCopyWith(SetRuleDisabledParams value, $Res Function(SetRuleDisabledParams) _then) = _$SetRuleDisabledParamsCopyWithImpl;
 @useResult
 $Res call({
- int index, String type, String payload, bool disabled
+ String generation, int index, String type, String payload, bool disabled
 });
 
 
@@ -368,9 +647,10 @@ class _$SetRuleDisabledParamsCopyWithImpl<$Res>
 
 /// Create a copy of SetRuleDisabledParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? generation = null,Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
   return _then(SetRuleDisabledParams(
-index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+generation: null == generation ? _self.generation : generation // ignore: cast_nullable_to_non_nullable
+as String,index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
 as String,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
@@ -459,10 +739,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  bool disabled)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String generation,  int index,  String type,  String payload,  bool disabled)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SetRuleDisabledParams() when $default != null:
-return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+return $default(_that.generation,_that.index,_that.type,_that.payload,_that.disabled);case _:
   return orElse();
 
 }
@@ -480,10 +760,10 @@ return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  bool disabled)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String generation,  int index,  String type,  String payload,  bool disabled)  $default,) {final _that = this;
 switch (_that) {
 case _SetRuleDisabledParams():
-return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+return $default(_that.generation,_that.index,_that.type,_that.payload,_that.disabled);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -500,10 +780,10 @@ return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  String type,  String payload,  bool disabled)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String generation,  int index,  String type,  String payload,  bool disabled)?  $default,) {final _that = this;
 switch (_that) {
 case _SetRuleDisabledParams() when $default != null:
-return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+return $default(_that.generation,_that.index,_that.type,_that.payload,_that.disabled);case _:
   return null;
 
 }
@@ -515,9 +795,10 @@ return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
 @JsonSerializable()
 
 class _SetRuleDisabledParams implements SetRuleDisabledParams {
-  const _SetRuleDisabledParams({required this.index, required this.type, required this.payload, required this.disabled});
+  const _SetRuleDisabledParams({required this.generation, required this.index, required this.type, required this.payload, required this.disabled});
   factory _SetRuleDisabledParams.fromJson(Map<String, dynamic> json) => _$SetRuleDisabledParamsFromJson(json);
 
+@override final  String generation;
 @override final  int index;
 @override final  String type;
 @override final  String payload;
@@ -536,18 +817,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetRuleDisabledParams&&(identical(other.index, index) || other.index == index)&&(identical(other.type, type) || other.type == type)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.disabled, disabled) || other.disabled == disabled));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetRuleDisabledParams&&(identical(other.generation, generation) || other.generation == generation)&&(identical(other.index, index) || other.index == index)&&(identical(other.type, type) || other.type == type)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.disabled, disabled) || other.disabled == disabled));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,index,type,payload,disabled);
+    return Object.hash(runtimeType,generation,index,type,payload,disabled);
 }
 
 @override
 String toString() {
-    return 'SetRuleDisabledParams(index: $index, type: $type, payload: $payload, disabled: $disabled)';
+    return 'SetRuleDisabledParams(generation: $generation, index: $index, type: $type, payload: $payload, disabled: $disabled)';
 }
 
 
@@ -558,7 +839,7 @@ abstract mixin class _$SetRuleDisabledParamsCopyWith<$Res> implements $SetRuleDi
   factory _$SetRuleDisabledParamsCopyWith(_SetRuleDisabledParams value, $Res Function(_SetRuleDisabledParams) _then) = __$SetRuleDisabledParamsCopyWithImpl;
 @override @useResult
 $Res call({
- int index, String type, String payload, bool disabled
+ String generation, int index, String type, String payload, bool disabled
 });
 
 
@@ -575,9 +856,10 @@ class __$SetRuleDisabledParamsCopyWithImpl<$Res>
 
 /// Create a copy of SetRuleDisabledParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? generation = null,Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
   return _then(_SetRuleDisabledParams(
-index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+generation: null == generation ? _self.generation : generation // ignore: cast_nullable_to_non_nullable
+as String,index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
 as String,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable

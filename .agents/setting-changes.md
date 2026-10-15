@@ -108,8 +108,10 @@ To add a VPN option:
    `ServiceController.start` and `VpnService.handleStart`.
 
 The notifier stays off while nothing runs, during on-demand suspension, in safe mode, and on desktop, where
-`VpnManager` is not mounted. When Flutter reattaches to a service that is already running, it records the current
-options, because the service does not report the options it was started with.
+`VpnManager` is not mounted. Mobile checks observe native `tunnelState`; Android re-reads the running service's
+actual and requested snapshots after it connects, including a start which initially returned no snapshot during
+permission handling. It records actual options, but compares desired against requested `.effective` options so the
+existing gvisor permission fallback does not repeatedly ask for a restart. Engine detach cancels native observation.
 
 ## One Setting, Several Paths
 

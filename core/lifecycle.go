@@ -97,6 +97,7 @@ func handleShutdown() bool {
 	listener.StopListener()
 	updater.StopGeoUpdater()
 	executor.Shutdown()
+	replaceRulesGenerationLocked(tunnel.Rules())
 	currentConfig = nil
 	isInit.Store(false)
 	configMu.Unlock()

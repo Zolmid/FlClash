@@ -96,9 +96,17 @@ end;
 procedure RemoveUserRegistrations;
 var
   Schemes: TArrayOfString;
-  Value: String;
-  i: Integer;
+  AppPath, Value: String;
+  i, ResultCode: Integer;
 begin
+  AppPath := ExpandConstant('{app}\{{EXECUTABLE_NAME}}');
+  if FileExists(AppPath) then
+  begin
+    ResultCode := -1;
+    if not Exec(AppPath, '--remove-user-registrations', '', SW_HIDE,
+      ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+      Log('Unable to remove the verified current-user autostart task.');
+  end;
   if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{{APP_NAME}}', Value) and PointsIntoApp(Value) then
   begin
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{{APP_NAME}}');
@@ -237,20 +245,15 @@ begin
   end;
 end;
 
-function InitializeUninstall(): Boolean;
-begin
-  UnregisterHelperService;
-  ClearStaleProxy(False);
-  KillProcesses;
-  ClearStaleProxy(False);
-  Result := True;
-end;
-
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usPostUninstall then
+  if CurUninstallStep = usUninstall then
   begin
     RemoveUserRegistrations;
+    UnregisterHelperService;
+    ClearStaleProxy(False);
+    KillProcesses;
+    ClearStaleProxy(False);
   end;
 end;
 

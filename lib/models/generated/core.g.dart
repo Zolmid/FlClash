@@ -6,6 +6,22 @@ part of '../core.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_CoreRulesSnapshot _$CoreRulesSnapshotFromJson(Map<String, dynamic> json) =>
+    _CoreRulesSnapshot(
+      generation: json['generation'] as String,
+      rules:
+          (json['rules'] as List<dynamic>?)
+              ?.map((e) => CoreRule.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+
+Map<String, dynamic> _$CoreRulesSnapshotToJson(_CoreRulesSnapshot instance) =>
+    <String, dynamic>{
+      'generation': instance.generation,
+      'rules': instance.rules,
+    };
+
 _CoreRule _$CoreRuleFromJson(Map<String, dynamic> json) => _CoreRule(
   index: (json['index'] as num).toInt(),
   type: json['type'] as String,
@@ -37,6 +53,7 @@ Map<String, dynamic> _$CoreRuleToJson(_CoreRule instance) => <String, dynamic>{
 _SetRuleDisabledParams _$SetRuleDisabledParamsFromJson(
   Map<String, dynamic> json,
 ) => _SetRuleDisabledParams(
+  generation: json['generation'] as String,
   index: (json['index'] as num).toInt(),
   type: json['type'] as String,
   payload: json['payload'] as String,
@@ -46,6 +63,7 @@ _SetRuleDisabledParams _$SetRuleDisabledParamsFromJson(
 Map<String, dynamic> _$SetRuleDisabledParamsToJson(
   _SetRuleDisabledParams instance,
 ) => <String, dynamic>{
+  'generation': instance.generation,
   'index': instance.index,
   'type': instance.type,
   'payload': instance.payload,

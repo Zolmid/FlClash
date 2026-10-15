@@ -4,6 +4,7 @@
 
 #include <window/window_plugin_runner.h>
 
+#include "autostart_cleanup.h"
 #include "flutter/generated_plugin_registrant.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -53,6 +54,10 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  static const UINT cleanup = autostart::CleanupMessage();
+  if (cleanup != 0 && message == cleanup) {
+    return autostart::RemoveCurrentUserTask() ? 1 : 0;
+  }
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     WindowPluginForwardVisibility(*flutter_controller_, message, wparam,

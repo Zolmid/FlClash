@@ -120,6 +120,24 @@ void main() {
       );
       expect(content, contains('if not WaitForParentAcknowledgement then'));
       expect(content, contains("ExpandConstant('{app}\\FlClash.exe')"));
+      final cleanup = content.substring(
+        content.indexOf('procedure RemoveUserRegistrations;'),
+        content.indexOf('function IsAppUpdate: Boolean;'),
+      );
+      expect(cleanup, contains("Exec(AppPath, '--remove-user-registrations'"));
+      expect(cleanup, contains('ewWaitUntilTerminated, ResultCode)'));
+      expect(cleanup, isNot(contains('ExecAsOriginalUser')));
+      expect(cleanup, isNot(contains('/Delete')));
+      final uninstall = content.substring(
+        content.indexOf('procedure CurUninstallStepChanged('),
+        content.indexOf('[Languages]'),
+      );
+      expect(uninstall, contains('if CurUninstallStep = usUninstall then'));
+      expect(
+        uninstall.indexOf('RemoveUserRegistrations;'),
+        lessThan(uninstall.indexOf('KillProcesses;')),
+      );
+      expect(content, isNot(contains('function InitializeUninstall()')));
     },
   );
 }

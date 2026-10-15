@@ -5,6 +5,7 @@ import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/rules/rules.dart';
@@ -27,13 +28,21 @@ const _rule = CoreRule(
   missCount: 3,
 );
 
+CoreRulesSnapshot _snapshot(
+  List<CoreRule> rules, {
+  String generation = 'instance-a/config-a',
+}) => CoreRulesSnapshot(generation: generation, rules: rules);
+
 void main() {
   late _MockCore core;
   late ProviderContainer container;
+  late CoreController controller;
+  late ValueNotifier<TunnelState?> tunnelState;
 
   setUpAll(() {
     registerFallbackValue(
       const SetRuleDisabledParams(
+        generation: 'instance-a/config-a',
         index: 0,
         type: 'Domain',
         payload: '',
@@ -42,7 +51,11 @@ void main() {
     );
   });
 
-  setUp(() => core = _MockCore());
+  setUp(() {
+    core = _MockCore();
+    tunnelState = ValueNotifier(null);
+    addTearDown(tunnelState.dispose);
+  });
 
   Future<void> pumpRules(
     WidgetTester tester, {
@@ -53,9 +66,15 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    controller = CoreController.scoped(core);
     container = ProviderContainer(
       overrides: [
-        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        coreHandlerProvider.overrideWithValue(controller),
+        tunnelStateProvider.overrideWith((ref) {
+          tunnelState.addListener(ref.invalidateSelf);
+          ref.onDispose(() => tunnelState.removeListener(ref.invalidateSelf));
+          return tunnelState.value;
+        }),
         currentProfileProvider.overrideWithValue(_profile),
         selectedMapProvider.overrideWithValue(const {}),
         addedRulesStreamProvider(
@@ -86,7 +105,7 @@ void main() {
     tester,
   ) async {
     when(core.getRules).thenAnswer(
-      (_) async => [
+      (_) async => _snapshot([
         _rule,
         const CoreRule(
           index: 1,
@@ -96,7 +115,7 @@ void main() {
           hitCount: 7,
           missCount: 2,
         ),
-      ],
+      ]),
     );
     await pumpRules(
       tester,
@@ -139,7 +158,7 @@ void main() {
       final oldMutation = Completer<bool>();
       when(core.getRules).thenAnswer((_) async {
         reads++;
-        return rules;
+        return _snapshot(rules);
       });
       when(() => core.setRuleDisabled(any())).thenAnswer((invocation) async {
         final params =
@@ -159,6 +178,7 @@ void main() {
       expect(
         mutations.single,
         const SetRuleDisabledParams(
+          generation: 'instance-a/config-a',
           index: 0,
           type: 'Domain',
           payload: 'example.com',
@@ -199,11 +219,13 @@ void main() {
   testWidgets(
     'disconnect clears rules and a late refresh cannot restore controls',
     (tester) async {
-      final lateRefresh = Completer<List<CoreRule>>();
+      final lateRefresh = Completer<CoreRulesSnapshot>();
       var reads = 0;
       when(core.getRules).thenAnswer((_) {
         reads++;
-        return reads == 1 ? Future.value([_rule]) : lateRefresh.future;
+        return reads == 1
+            ? Future.value(_snapshot([_rule]))
+            : lateRefresh.future;
       });
       await pumpRules(tester);
       expect(find.byType(Switch), findsOneWidget);
@@ -221,7 +243,7 @@ void main() {
         findsNothing,
       );
 
-      lateRefresh.complete([_rule.copyWith(hitCount: 99)]);
+      lateRefresh.complete(_snapshot([_rule.copyWith(hitCount: 99)]));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 2));
       expect(reads, 2);
@@ -235,4 +257,164 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('connected profile apply rejects an old read and debounce', (
+    tester,
+  ) async {
+    const params = SetupParams(selectedMap: {}, testUrl: 'https://example.com');
+    final oldRead = Completer<CoreRulesSnapshot>();
+    final apply = Completer<String>();
+    var reads = 0;
+    when(core.getRules).thenAnswer((_) {
+      reads++;
+      return switch (reads) {
+        1 => Future.value(_snapshot([_rule])),
+        2 => oldRead.future,
+        _ => Future.value(
+          _snapshot([
+            _rule.copyWith(payload: 'new-config.example'),
+          ], generation: 'instance-a/config-b'),
+        ),
+      };
+    });
+    when(() => core.setupConfig(params)).thenAnswer((_) => apply.future);
+    await pumpRules(tester);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(reads, 2);
+    await tester.tap(find.byType(Switch));
+
+    final setup = controller.setupConfig(params: params);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.byType(Switch), findsNothing);
+    expect(reads, 2);
+    verifyNever(() => core.setRuleDisabled(any()));
+    expect(container.read(coreStatusProvider), CoreStatus.connected);
+
+    apply.complete('');
+    await setup;
+    await tester.pumpAndSettle();
+    oldRead.complete(_snapshot([_rule.copyWith(hitCount: 99)]));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Domain(new-config.example)', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Domain(example.com)', findRichText: true), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('connected profile apply ignores a late mutation response', (
+    tester,
+  ) async {
+    const params = SetupParams(selectedMap: {}, testUrl: 'https://example.com');
+    final mutation = Completer<bool>();
+    var generation = 'instance-a/config-a';
+    var reads = 0;
+    when(core.getRules).thenAnswer((_) async {
+      reads++;
+      return _snapshot([_rule], generation: generation);
+    });
+    when(() => core.setRuleDisabled(any())).thenAnswer((_) => mutation.future);
+    when(() => core.setupConfig(params)).thenAnswer((_) async => '');
+    await pumpRules(tester);
+    await tester.tap(find.byType(Switch));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+
+    generation = 'instance-a/config-b';
+    await controller.setupConfig(params: params);
+    await tester.pumpAndSettle();
+    final readsAfterApply = reads;
+    mutation.complete(false);
+    await tester.pumpAndSettle();
+    expect(reads, readsAfterApply);
+    expect(find.text(currentAppLocalizations.ruleUpdateFailed), findsNothing);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(container.read(coreStatusProvider), CoreStatus.connected);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'App and NE route transitions invalidate reads and pending edits',
+    (tester) async {
+      final oldRead = Completer<CoreRulesSnapshot>();
+      var reads = 0;
+      when(core.getRules).thenAnswer((_) {
+        reads++;
+        return switch (reads) {
+          1 => Future.value(_snapshot([_rule], generation: 'app/config-a')),
+          2 => oldRead.future,
+          _ => Future.value(
+            _snapshot([
+              _rule.copyWith(payload: 'ne.example'),
+            ], generation: 'ne/config-a'),
+          ),
+        };
+      });
+      await pumpRules(tester);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      await tester.tap(find.byType(Switch));
+      tunnelState.value = TunnelState.pending;
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byType(Switch), findsNothing);
+      expect(reads, 2);
+      verifyNever(() => core.setRuleDisabled(any()));
+
+      tunnelState.value = TunnelState.connected;
+      await tester.pumpAndSettle();
+      oldRead.complete(_snapshot([_rule], generation: 'app/config-a'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Domain(ne.example)', findRichText: true),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Domain(example.com)', findRichText: true),
+        findsNothing,
+      );
+      expect(container.read(coreStatusProvider), CoreStatus.connected);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('NE stop ignores a late mutation before App rules are loaded', (
+    tester,
+  ) async {
+    final mutation = Completer<bool>();
+    tunnelState.value = TunnelState.connected;
+    var generation = 'ne/config-a';
+    var reads = 0;
+    when(core.getRules).thenAnswer((_) async {
+      reads++;
+      return _snapshot([_rule], generation: generation);
+    });
+    when(() => core.setRuleDisabled(any())).thenAnswer((_) => mutation.future);
+    await pumpRules(tester);
+    await tester.tap(find.byType(Switch));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+    final params =
+        verify(() => core.setRuleDisabled(captureAny())).captured.single
+            as SetRuleDisabledParams;
+    expect(params.generation, 'ne/config-a');
+
+    tunnelState.value = TunnelState.pending;
+    await tester.pump();
+    expect(find.byType(Switch), findsNothing);
+    final readsWhilePending = reads;
+    await tester.pump(const Duration(seconds: 2));
+    expect(reads, readsWhilePending);
+    generation = 'app/config-a';
+    tunnelState.value = TunnelState.disconnected;
+    await tester.pumpAndSettle();
+    final appReads = reads;
+    mutation.complete(false);
+    await tester.pumpAndSettle();
+    expect(reads, appReads);
+    expect(find.text(currentAppLocalizations.ruleUpdateFailed), findsNothing);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 }

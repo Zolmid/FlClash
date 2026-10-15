@@ -95,14 +95,17 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
         'footprint': 4096,
       },
       CoreMethod.getCoreVersion => 'v1.19.99-test',
-      CoreMethod.getRules => [
-        {
-          'index': 7,
-          'type': 'Domain',
-          'payload': 'example.com',
-          'proxy': 'Auto',
-        },
-      ],
+      CoreMethod.getRules => {
+        'generation': 'core-instance/config-snapshot',
+        'rules': [
+          {
+            'index': 7,
+            'type': 'Domain',
+            'payload': 'example.com',
+            'proxy': 'Auto',
+          },
+        ],
+      },
       CoreMethod.setRuleDisabled => true,
       CoreMethod.queryDns => {
         'domain': 'example.com',
@@ -248,10 +251,17 @@ void main() {
 
   test('runtime rule disabling preserves rule identity', () async {
     final handler = _RecordingCoreHandler();
-    final rule = (await handler.getRules()).single;
+    final snapshot = await handler.getRules();
+    final rule = snapshot.rules.single;
 
-    expect(await handler.setRuleDisabled(rule.toDisabledParams(true)), isTrue);
+    expect(
+      await handler.setRuleDisabled(
+        rule.toDisabledParams(true, generation: snapshot.generation),
+      ),
+      isTrue,
+    );
     expect(handler.calls[CoreMethod.setRuleDisabled], {
+      'generation': 'core-instance/config-snapshot',
       'index': 7,
       'type': 'Domain',
       'payload': 'example.com',

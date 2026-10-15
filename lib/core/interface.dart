@@ -22,7 +22,7 @@ mixin CoreInterface {
 
   Future<int> getGoroutineCount();
 
-  Future<List<CoreRule>> getRules();
+  Future<CoreRulesSnapshot> getRules();
 
   Future<bool> setRuleDisabled(SetRuleDisabledParams params);
 
@@ -593,14 +593,13 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
-  Future<List<CoreRule>> getRules() async {
-    final data = await _invokeMethod<List<dynamic>>(
+  Future<CoreRulesSnapshot> getRules() async {
+    final data = await _invokeMethod<Map<String, dynamic>>(
       method: CoreMethod.getRules,
     );
-    return (data ?? const [])
-        .whereType<Map>()
-        .map((item) => CoreRule.fromJson(Map<String, Object?>.from(item)))
-        .toList();
+    return data == null
+        ? const CoreRulesSnapshot(generation: '')
+        : CoreRulesSnapshot.fromJson(data);
   }
 
   @override

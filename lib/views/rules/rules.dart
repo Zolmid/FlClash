@@ -6,6 +6,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/views/config/rules.dart';
 import 'package:fl_clash/views/profiles/extend/extend.dart';
@@ -32,9 +33,11 @@ class RulesView extends ConsumerStatefulWidget {
 class _RulesViewState extends ConsumerState<RulesView>
     with WidgetsBindingObserver, ActivePollingMixin<RulesView> {
   late final ScrollController _scrollController;
+  late final CoreController _rulesCore;
   final _pendingRules = <int, CoreRule>{};
   final _mutationScheduler = SerialTaskScheduler();
   List<CoreRule>? _rules;
+  String? _generation;
   List<CoreRule> _visibleRules = const [];
   bool _filtering = false;
   int _filterRevision = 0;
@@ -48,34 +51,47 @@ class _RulesViewState extends ConsumerState<RulesView>
 
   bool get _connected => ref.read(coreStatusProvider) == CoreStatus.connected;
 
+  bool get _available =>
+      _connected &&
+      !_rulesCore.isApplyingConfiguration &&
+      ref.read(tunnelStateProvider) != TunnelState.pending;
+
   @override
   Duration get pollInterval => const Duration(seconds: 1);
 
   @override
-  bool get canPoll => super.canPoll && _connected;
+  bool get canPoll => super.canPoll && _available;
 
   @override
   void initState() {
     super.initState();
     _scrollController = sheetScrollController(context);
-    ref.listenManual(coreStatusProvider, (_, _) {
-      _providerSession = Object();
-      _cancelPendingRules();
-      setState(() {
-        _operation = null;
-        _refreshOperation = null;
-        _rules = null;
-        _visibleRules = const [];
-        _filtering = false;
-        _filterRevision++;
-        _error = null;
-      });
-      restartPolling();
+    _rulesCore = _core;
+    _rulesCore.configurationChanges.addListener(_invalidateRules);
+    ref.listenManual(coreStatusProvider, (_, _) => _invalidateRules());
+    ref.listenManual(currentProfileIdProvider, (_, _) => _invalidateRules());
+    ref.listenManual(tunnelStateProvider, (_, _) => _invalidateRules());
+  }
+
+  void _invalidateRules() {
+    _providerSession = Object();
+    _cancelPendingRules();
+    setState(() {
+      _operation = null;
+      _refreshOperation = null;
+      _rules = null;
+      _generation = null;
+      _visibleRules = const [];
+      _filtering = false;
+      _filterRevision++;
+      _error = null;
     });
+    restartPolling();
   }
 
   @override
   void dispose() {
+    _rulesCore.configurationChanges.removeListener(_invalidateRules);
     _cancelPendingRules();
     _scrollController.dispose();
     super.dispose();
@@ -85,7 +101,7 @@ class _RulesViewState extends ConsumerState<RulesView>
   Future<void> poll(PollGuard isCurrent) => _refresh(isCurrent: isCurrent);
 
   Future<void> _updateProvider(ExternalProvider provider) async {
-    if (!_connected || ref.read(isUpdatingProvider(provider.updatingKey))) {
+    if (!_available || ref.read(isUpdatingProvider(provider.updatingKey))) {
       return;
     }
     final session = _providerSession;
@@ -107,7 +123,7 @@ class _RulesViewState extends ConsumerState<RulesView>
   }
 
   Future<void> _refresh({PollGuard? isCurrent}) async {
-    if (!_connected || _operation != null || _pendingRules.isNotEmpty) {
+    if (!_available || _operation != null || _pendingRules.isNotEmpty) {
       return;
     }
 
@@ -126,13 +142,14 @@ class _RulesViewState extends ConsumerState<RulesView>
         (isCurrent?.call() ?? true);
 
     try {
-      final rules = await _core.getRules();
+      final snapshot = await _core.getRules();
       if (!current()) {
         return;
       }
 
       setState(() {
-        _rules = rules;
+        _rules = snapshot.rules;
+        _generation = snapshot.generation.isEmpty ? null : snapshot.generation;
         _refilter();
         _error = null;
       });
@@ -199,6 +216,8 @@ class _RulesViewState extends ConsumerState<RulesView>
   }
 
   void _scheduleEnabled(CoreRule rule, bool enabled) {
+    final generation = _generation;
+    if (!_available || generation == null) return;
     final pending = rule.copyWith(disabled: !enabled);
     setState(() {
       _pendingRules[rule.index] = pending;
@@ -210,7 +229,7 @@ class _RulesViewState extends ConsumerState<RulesView>
           return;
         }
         try {
-          await _setEnabled(rule, enabled);
+          await _setEnabled(rule, enabled, generation);
         } finally {
           if (mounted && identical(_pendingRules[rule.index], pending)) {
             setState(() => _pendingRules.remove(rule.index));
@@ -220,8 +239,12 @@ class _RulesViewState extends ConsumerState<RulesView>
     });
   }
 
-  Future<void> _setEnabled(CoreRule rule, bool enabled) async {
-    if (!_connected) {
+  Future<void> _setEnabled(
+    CoreRule rule,
+    bool enabled,
+    String generation,
+  ) async {
+    if (!_available || _generation != generation) {
       return;
     }
 
@@ -238,7 +261,7 @@ class _RulesViewState extends ConsumerState<RulesView>
 
     try {
       final applied = await _core.setRuleDisabled(
-        rule.toDisabledParams(!enabled),
+        rule.toDisabledParams(!enabled, generation: generation),
       );
       if (!current()) {
         return;
@@ -250,10 +273,14 @@ class _RulesViewState extends ConsumerState<RulesView>
         });
       }
 
-      final rules = await _core.getRules();
+      final snapshot = await _core.getRules();
       if (current()) {
         setState(() {
-          _rules = rules;
+          if (_generation != snapshot.generation) _cancelPendingRules();
+          _rules = snapshot.rules;
+          _generation = snapshot.generation.isEmpty
+              ? null
+              : snapshot.generation;
           _refilter();
         });
       }
@@ -341,7 +368,6 @@ class _RulesViewState extends ConsumerState<RulesView>
                             : const AddedRulesView(),
                       ),
                 connected: connected,
-                busy: busy,
               ),
             ),
           ],
@@ -358,7 +384,6 @@ class _RulesViewState extends ConsumerState<RulesView>
     required String? matchTarget,
     required ValueChanged<Rule>? onOpenAddedRule,
     required bool connected,
-    required bool busy,
   }) {
     final l10n = context.appLocalizations;
 
@@ -369,7 +394,7 @@ class _RulesViewState extends ConsumerState<RulesView>
       );
     }
 
-    if ((_rules == null && busy) || _filtering) {
+    if (_rules == null || _filtering) {
       return const NullStatus(illustration: NullStatusIllustration.rules);
     }
 
@@ -412,7 +437,9 @@ class _RulesViewState extends ConsumerState<RulesView>
               onOpenAddedRule: !isAdded || onOpenAddedRule == null
                   ? null
                   : () => onOpenAddedRule(addedRules[rule.index]),
-              onChanged: (value) => _scheduleEnabled(rule, value),
+              onChanged: _generation == null || !_available
+                  ? null
+                  : (value) => _scheduleEnabled(rule, value),
               onUpdate: _updateProvider,
             );
           },

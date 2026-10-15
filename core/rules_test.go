@@ -9,6 +9,7 @@ import (
 	cp "github.com/metacubex/mihomo/constant/provider"
 	R "github.com/metacubex/mihomo/rules"
 	RW "github.com/metacubex/mihomo/rules/wrapper"
+	"github.com/metacubex/mihomo/tunnel"
 )
 
 func parseTestRule(t *testing.T, tp, payload, target string, wrap bool) constant.Rule {
@@ -100,4 +101,89 @@ func TestSetRuleDisabledRequiresTheSameRule(t *testing.T) {
 	if !suffix.(constant.RuleWrapper).IsDisabled() {
 		t.Fatal("rule was not disabled")
 	}
+}
+
+func TestRuleMutationRejectsAnIdenticalRuleFromAnotherConfig(t *testing.T) {
+	for _, tp := range []string{"DOMAIN", "MATCH"} {
+		t.Run(tp, func(t *testing.T) {
+			payload := ""
+			if tp == "DOMAIN" {
+				payload = "example.com"
+			}
+			first := parseTestRule(t, tp, payload, "DIRECT", true)
+			second := parseTestRule(t, tp, payload, "DIRECT", true)
+			withRuntimeRules(t, []constant.Rule{first})
+			snapshot := handleGetRules()
+			params := SetRuleDisabledParams{
+				Generation: snapshot.Generation,
+				Index:      0,
+				Type:       snapshot.Rules[0].Type,
+				Payload:    payload,
+				Disabled:   true,
+			}
+			if !handleSetRuleDisabled(&params) || !first.(constant.RuleWrapper).IsDisabled() {
+				t.Fatal("same-config request was rejected")
+			}
+			if handleGetRules().Generation != snapshot.Generation {
+				t.Fatal("a runtime switch changed the configuration identity")
+			}
+
+			configMu.Lock()
+			tunnel.UpdateRules([]constant.Rule{second}, nil, nil)
+			configMu.Unlock()
+			if handleSetRuleDisabled(&params) || second.(constant.RuleWrapper).IsDisabled() {
+				t.Fatal("old-config request disabled the identical replacement rule")
+			}
+			replacement := handleGetRules()
+			if replacement.Generation == snapshot.Generation {
+				t.Fatal("replacement retained the old configuration identity")
+			}
+			params.Generation = replacement.Generation
+			if !handleSetRuleDisabled(&params) || !second.(constant.RuleWrapper).IsDisabled() {
+				t.Fatal("replacement's own request was rejected")
+			}
+		})
+	}
+}
+
+func TestRuleMutationRejectsATokenFromAnotherCoreInstance(t *testing.T) {
+	rule := parseTestRule(t, "MATCH", "", "DIRECT", true)
+	withRuntimeRules(t, []constant.Rule{rule})
+	old := handleGetRules()
+	configMu.Lock()
+	rulesGeneration = ""
+	rulesSnapshot = nil
+	configMu.Unlock()
+	current := handleGetRules()
+	if old.Generation == "" || old.Generation == current.Generation {
+		t.Fatal("independent Core instances shared a rules token")
+	}
+	params := SetRuleDisabledParams{
+		Generation: old.Generation,
+		Index:      0,
+		Type:       "Match",
+		Disabled:   true,
+	}
+	if handleSetRuleDisabled(&params) || rule.(constant.RuleWrapper).IsDisabled() {
+		t.Fatal("a token from the previous NE/Core instance remained valid")
+	}
+	params.Generation = current.Generation
+	if !handleSetRuleDisabled(&params) {
+		t.Fatal("the current Core instance rejected its own token")
+	}
+}
+
+func withRuntimeRules(t *testing.T, rules []constant.Rule) {
+	t.Helper()
+	configMu.Lock()
+	previous, providers := tunnel.Rules(), tunnel.RuleProvidersSnapshot()
+	generation, snapshot := rulesGeneration, rulesSnapshot
+	tunnel.UpdateRules(rules, nil, nil)
+	configMu.Unlock()
+	t.Cleanup(func() {
+		configMu.Lock()
+		defer configMu.Unlock()
+		tunnel.UpdateRules(previous, nil, providers)
+		rulesGeneration, rulesSnapshot = generation, snapshot
+	})
 }

@@ -45,11 +45,7 @@ class BatteryPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
 
     private val activityResultListener =
         PluginRegistry.ActivityResultListener { requestCode, _, _ ->
-            if (requestCode != REQUEST_CODE) {
-                return@ActivityResultListener false
-            }
-            resolve()
-            true
+            consumeActivityResult(requestCode, REQUEST_CODE, ::resolve)
         }
 
     private val allowlistReceiver = object : BroadcastReceiver() {
@@ -224,8 +220,7 @@ class BatteryPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
     private companion object {
         val isXiaomi = Build.MANUFACTURER.equals("xiaomi", ignoreCase = true)
 
-        // Every plugin on the activity sees every result; AppPlugin holds 1001-1004.
-        const val REQUEST_CODE = 1005
+        const val REQUEST_CODE = BATTERY_OPTIMIZATION_REQUEST_CODE
 
         // PowerManager keeps this action @hide, yet the system broadcasts it to
         // registered receivers of the system user whenever the allowlist changes.

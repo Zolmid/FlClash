@@ -56,7 +56,7 @@ class _ProfilesViewState extends ConsumerState<ProfilesView> {
     final updateProfiles = profiles.map<Future>((profile) async {
       if (profile.type != ProfileType.url) return;
       try {
-        await profilesAction.updateProfile(profile, showLoading: true);
+        await profilesAction.updateProfile(profile.id, showLoading: true);
       } catch (e) {
         messages.add(
           UpdatingMessage(
@@ -332,7 +332,7 @@ class ProfileItem extends ConsumerWidget {
     await globalState.loadingRun(() async {
       await ref
           .read(profilesActionProvider.notifier)
-          .updateProfile(profile, showLoading: true);
+          .updateProfile(profile.id, showLoading: true);
     }, tag: LoadingTag.profiles);
   }
 

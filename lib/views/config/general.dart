@@ -645,9 +645,9 @@ class _ForegroundTickerIntervalDialogState
           (state) => state.copyWith(
             foregroundTickerInterval: int.parse(_intervalController.text),
             foregroundTickerIdleWhenUnfocused: _idleWhenUnfocused,
-            foregroundTickerIdleInterval: int.parse(
-              _idleIntervalController.text,
-            ),
+            foregroundTickerIdleInterval: _idleWhenUnfocused
+                ? int.parse(_idleIntervalController.text)
+                : state.foregroundTickerIdleInterval,
           ),
         );
     Navigator.of(context).pop();

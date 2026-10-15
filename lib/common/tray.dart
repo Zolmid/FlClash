@@ -368,7 +368,7 @@ class AppTray implements TrayPort {
             await globalState.safeRun(() async {
               await read(
                 profilesActionProvider.notifier,
-              ).updateProfile(profile, showLoading: true);
+              ).updateProfile(profile.id, showLoading: true);
             });
           },
         ),

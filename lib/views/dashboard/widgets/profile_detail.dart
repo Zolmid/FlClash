@@ -19,7 +19,7 @@ Future<void> syncProfile(WidgetRef ref, Profile profile) async {
   await globalState.loadingRun(() async {
     await ref
         .read(profilesActionProvider.notifier)
-        .updateProfile(profile, showLoading: true);
+        .updateProfile(profile.id, showLoading: true);
   }, tag: LoadingTag.profiles);
 }
 

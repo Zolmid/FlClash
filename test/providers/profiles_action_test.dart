@@ -14,6 +14,8 @@ import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/views/profiles/edit.dart';
+import 'package:fl_clash/views/profiles/profiles.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:mocktail/mocktail.dart';
@@ -52,6 +54,9 @@ class _QueuedProfilesAction extends ProfilesAction {
 class _NoProfileApply extends SetupAction {
   @override
   void applyProfileDebounce({bool silence = false, bool force = false}) {}
+
+  @override
+  void autoApplyProfile() {}
 }
 
 void main() {
@@ -68,6 +73,9 @@ void main() {
     AppPath.temporaryDirectory = () async => home;
     AppPath.cacheDirectory = () async => home;
     AppPath.downloadDirectory = () async => home;
+    await appPath.dataDir.future;
+    await appPath.tempDir.future;
+    await appPath.cacheDir.future;
   });
 
   tearDownAll(() {
@@ -134,7 +142,7 @@ void main() {
       scoped.read(profilesActionProvider.notifier);
 
       final automatic = action.autoUpdateProfiles();
-      final manual = action.updateProfile(profile, showLoading: true);
+      final manual = action.updateProfile(profile.id, showLoading: true);
       expect(action.requests, 1);
       final updated = profile.copyWith(lastUpdateDate: DateTime(2026, 10, 15));
       action.response.complete(updated);
@@ -163,7 +171,7 @@ void main() {
     );
     addTearDown(scoped.dispose);
     scoped.read(profilesActionProvider.notifier);
-    final operation = action.updateProfile(profile);
+    final operation = action.updateProfile(profile.id);
     action.response.completeError(StateError('offline'));
 
     await expectLater(operation, throwsStateError);
@@ -196,12 +204,17 @@ void main() {
         );
         addTearDown(scoped.dispose);
         scoped.read(profilesActionProvider.notifier);
-        final active = action.updateProfile(profile);
+        final active = action.updateProfile(profile.id);
         final activeResult = expectLater(
           active,
           fails ? throwsStateError : completes,
         );
-        final saved = action.updateProfile(edited);
+        final saved = action.updateProfileSource(edited);
+        final refreshed = action.updateProfile(
+          scoped.read(profilesProvider).single.id,
+          showLoading: true,
+        );
+        expect(identical(refreshed, saved), isTrue);
         expect(action.requests, [profile]);
         if (fails) {
           action.responses.first.completeError(StateError('old URL offline'));
@@ -216,12 +229,111 @@ void main() {
         action.responses.last.complete(
           edited.copyWith(lastUpdateDate: DateTime(2026, 10, 16)),
         );
-        await saved;
+        await Future.wait([saved, refreshed]);
+        expect(action.requests, [profile, edited]);
         expect(scoped.read(profilesProvider).single.url, edited.url);
         expect(
           scoped.read(profilesProvider).single.ageSecretKey,
           edited.ageSecretKey,
         );
+      },
+    );
+
+    testWidgets(
+      'a list refresh after editing a queued source cannot restore its stale URL ($fails)',
+      (tester) async {
+        const profile = Profile(
+          id: 4201,
+          type: ProfileType.url,
+          label: 'Subscription',
+          url: 'https://old.example.com',
+          autoUpdateDuration: Duration(minutes: 20),
+        );
+        final edited = profile.copyWith(
+          url: 'https://new.example.com',
+          ageSecretKey: 'AGE-SECRET-KEY-NEW',
+        );
+        final action = _QueuedProfilesAction();
+        final scoped = ProviderContainer(
+          overrides: [
+            profilesProvider.overrideWith(() => TestProfiles([profile])),
+            profilesActionProvider.overrideWith(() => action),
+            setupActionProvider.overrideWith(_NoProfileApply.new),
+            currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+          ],
+        );
+        addTearDown(scoped.dispose);
+        addTearDown(() => tester.pumpWidget(const SizedBox()));
+        globalState.container = scoped;
+        scoped.read(profilesActionProvider.notifier);
+        scoped.read(viewSizeProvider.notifier).value = const Size(1200, 1000);
+        tester.view.physicalSize = const Size(1200, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        late WidgetRef listRef;
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: scoped,
+            child: TestApp(
+              withStatusManager: true,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  listRef = ref;
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        );
+        final automatic = action.autoUpdateProfiles();
+        final navigator = globalState.navigatorKey.currentState!;
+        final editor = navigator.push<void>(
+          MaterialPageRoute(
+            builder: (context) =>
+                EditProfileView(context: context, profile: profile),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = currentAppLocalizations;
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.url),
+          edited.url,
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, l10n.ageSecretKey),
+          edited.ageSecretKey,
+        );
+        await tester.tap(find.byTooltip(l10n.save));
+        await tester.pumpAndSettle();
+        await editor;
+        expect(find.byType(EditProfileView), findsNothing);
+        final stale = scoped.read(profilesProvider).single;
+        expect(stale.url, profile.url);
+        final refreshed = ProfileItem(
+          profile: stale,
+          groupValue: profile.id,
+          onChanged: (_) {},
+        ).updateProfile(listRef);
+        expect(action.requests, [profile]);
+        if (fails) {
+          action.responses.first.completeError(StateError('old URL offline'));
+        } else {
+          action.responses.first.complete(
+            profile.copyWith(lastUpdateDate: DateTime(2026, 10, 15)),
+          );
+        }
+        await automatic;
+        await tester.pump();
+        expect(action.requests, [profile, edited]);
+        action.responses.last.complete(
+          edited.copyWith(lastUpdateDate: DateTime(2026, 10, 16)),
+        );
+        await refreshed;
+        await tester.pump(const Duration(seconds: 1));
+        expect(action.requests, [profile, edited]);
+        final result = scoped.read(profilesProvider).single;
+        expect(result.url, edited.url);
+        expect(result.ageSecretKey, edited.ageSecretKey);
       },
     );
 
@@ -252,7 +364,7 @@ void main() {
         final errors = <Object>[];
         final updater = ProfileAutoUpdater(
           profiles: () => scoped.read(profilesProvider),
-          update: action.updateProfile,
+          update: (profile) => action.updateProfile(profile.id),
           onError: errors.add,
         );
         addTearDown(updater.dispose);
@@ -264,7 +376,7 @@ void main() {
             .then((_) => ready = true);
         await pumpEventQueue();
         expect(action.requests, [profile]);
-        final saved = action.updateProfile(edited);
+        final saved = action.updateProfileSource(edited);
         if (fails) {
           action.responses.first.completeError(StateError('old URL offline'));
         } else {

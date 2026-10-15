@@ -107,7 +107,7 @@ class ApplicationState extends ConsumerState<Application>
       lastAttempt: (id) =>
           ref.read(profilesActionProvider.notifier).lastUpdateAttempt(id),
       update: (profile) =>
-          ref.read(profilesActionProvider.notifier).updateProfile(profile),
+          ref.read(profilesActionProvider.notifier).updateProfile(profile.id),
       onError: (error) => commonPrint.log(compactError(error)),
     );
     ref.listenManual(
