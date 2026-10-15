@@ -7,6 +7,7 @@ import 'package:fl_clash/core/desktop/model.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
@@ -229,6 +230,59 @@ void main() {
         expect(applying, [true, true, true, false]);
       },
     );
+  });
+
+  group('configuration observation ownership', () {
+    test('reset releases observations without closing the Core', () {
+      final changes = controller.configurationChanges;
+
+      CoreController.resetInstance();
+      controller.dispose();
+      CoreController.resetInstance();
+
+      expect(
+        () => changes.addListener(() {}),
+        throwsA(isA<FlutterError>()),
+      );
+      verifyNever(() => mock.close());
+    });
+
+    for (final fails in [false, true]) {
+      test(
+        'dispose ignores late apply completion (failure: $fails)',
+        () async {
+          const params = SetupParams(selectedMap: {}, testUrl: 'http://x.com');
+          final completer = Completer<String>();
+          when(
+            () => mock.setupConfig(params),
+          ).thenAnswer((_) => completer.future);
+          var notifications = 0;
+          controller.configurationChanges.addListener(() => notifications++);
+
+          final pending = controller.setupConfig(params: params);
+          controller.dispose();
+          controller.dispose();
+          final result = expectLater(
+            pending,
+            fails ? throwsStateError : completion('ok'),
+          );
+          if (fails) {
+            completer.completeError(StateError('failed profile'));
+          } else {
+            completer.complete('ok');
+          }
+          await result;
+
+          expect(notifications, 1);
+          expect(controller.isApplyingConfiguration, isFalse);
+          await expectLater(
+            controller.setupConfig(params: params),
+            throwsStateError,
+          );
+          verify(() => mock.setupConfig(params)).called(1);
+        },
+      );
+    }
   });
 
   group('proxy methods', () {

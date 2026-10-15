@@ -16,6 +16,7 @@ class CoreController {
   late CoreHandlerInterface _interface;
   final _configurationChanges = ValueNotifier<Object>(Object());
   int _configurationOperations = 0;
+  bool _disposed = false;
 
   ValueListenable<Object> get configurationChanges => _configurationChanges;
 
@@ -39,7 +40,17 @@ class CoreController {
 
   @visibleForTesting
   static void resetInstance() {
+    _instance?.dispose();
     _instance = null;
+  }
+
+  @visibleForTesting
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    _configurationChanges.dispose();
   }
 
   factory CoreController() {
@@ -200,6 +211,9 @@ class CoreController {
     required SetupParams params,
     Future<void> Function()? preloadInvoke,
   }) async {
+    if (_disposed) {
+      throw StateError('Core controller is disposed');
+    }
     _configurationOperations++;
     _configurationChanges.value = Object();
     try {
@@ -213,7 +227,9 @@ class CoreController {
       return result;
     } finally {
       _configurationOperations--;
-      _configurationChanges.value = Object();
+      if (!_disposed) {
+        _configurationChanges.value = Object();
+      }
     }
   }
 

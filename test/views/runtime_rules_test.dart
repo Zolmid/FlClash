@@ -67,6 +67,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     controller = CoreController.scoped(core);
+    addTearDown(controller.dispose);
     container = ProviderContainer(
       overrides: [
         coreHandlerProvider.overrideWithValue(controller),
