@@ -311,6 +311,25 @@ void main() {
       });
     });
 
+    test('keeps KDE bypass entries as exclusions', () {
+      final commands = LinuxProxyCommands.buildStart(
+        port: 7890,
+        bypassDomain: ['*.lan'],
+        desktop: 'KDE',
+        homeDir: '/home/user',
+      );
+
+      expect(
+        commands
+            .singleWhere(
+              (command) => command.args.contains('ReversedException'),
+            )
+            .args
+            .last,
+        'false',
+      );
+    });
+
     test(
       'falls back to kwriteconfig5 for KDE when kwriteconfig6 is missing',
       () {
@@ -446,6 +465,23 @@ USB 10/100/1000 LAN
         ['[::1]', '[fe80::1]', '[fd00::1]', '*.lan', '<local>'],
       );
     });
+
+    test(
+      'normalizes IPv6 CIDR and scoped hosts without losing local bypass',
+      () {
+        expect(
+          windowsBypassList([
+            'fe80::1%eth0/64',
+            '[fe80::1%12]/64',
+            'fd00::/8',
+            '192.168.0.0/16',
+            '*.lan',
+            '<local>',
+          ]),
+          ['[fe80::1]/64', '[fd00::]/8', '192.168.0.0/16', '*.lan', '<local>'],
+        );
+      },
+    );
   });
 
   group('MethodChannelProxy', () {

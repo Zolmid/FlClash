@@ -1,9 +1,9 @@
 name: Cloud build
-run-name: Cloud build · ${{ github.event_name == 'push' && 'ios' || inputs.platform || 'all' }} · iOS ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
+run-name: Cloud build · ${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }} · iOS ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
 
 on:
   push:
-    branches: [codex/ios-support]
+    branches: [main, codex/patched-integration, codex/ios-support]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloud-build-${{ github.ref }}-${{ github.event_name == 'push' && 'ios' || inputs.platform || 'all' }}-${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
+  group: cloud-build-${{ github.ref }}-${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}-${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
   cancel-in-progress: false
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
       platform: ${{ steps.select.outputs.platform }}
       ios_source: ${{ steps.select.outputs.ios_source }}
     env:
-      PLATFORM: ${{ github.event_name == 'push' && 'ios' || inputs.platform || 'all' }}
+      PLATFORM: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}
       IOS_SOURCE: ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
     steps:
       - id: select

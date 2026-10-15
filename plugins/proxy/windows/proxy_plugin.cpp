@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <functional>
-#include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -35,6 +35,42 @@ namespace
 constexpr int kMinProxyPort = 1;
 constexpr int kMaxProxyPort = 65535;
 constexpr wchar_t kProxyServerPrefix[] = L"127.0.0.1:";
+constexpr wchar_t kOwnershipKey[] = L"Software\\FlClash";
+constexpr wchar_t kOwnedProxyServerValue[] = L"SystemProxyServer";
+
+bool RecordOwnedProxyServer(const std::wstring& server)
+{
+  return RegSetKeyValueW(
+      HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue, REG_SZ,
+      server.c_str(),
+      static_cast<DWORD>((server.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
+}
+
+std::optional<std::wstring> OwnedProxyServer()
+{
+  DWORD size = 0;
+  if (RegGetValueW(
+          HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue,
+          RRF_RT_REG_SZ, nullptr, nullptr, &size) != ERROR_SUCCESS ||
+      size < sizeof(wchar_t))
+  {
+    return std::nullopt;
+  }
+  std::wstring server(size / sizeof(wchar_t), L'\0');
+  if (RegGetValueW(
+          HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue,
+          RRF_RT_REG_SZ, nullptr, server.data(), &size) != ERROR_SUCCESS)
+  {
+    return std::nullopt;
+  }
+  server.resize(wcsnlen(server.c_str(), server.size()));
+  return server;
+}
+
+void ForgetOwnedProxyServer()
+{
+  RegDeleteKeyValueW(HKEY_CURRENT_USER, kOwnershipKey, kOwnedProxyServerValue);
+}
 
 std::wstring Utf8ToWide(const std::string& value)
 {
@@ -163,6 +199,10 @@ bool startProxy(const int port, const flutter::EncodableList& bypassDomain)
   options[2].dwOption = INTERNET_PER_CONN_PROXY_BYPASS;
   options[2].Value.pszValue = bypassList.data();
 
+  if (!RecordOwnedProxyServer(url))
+  {
+    return false;
+  }
   const bool optionsApplied = ApplyOptionsToConnections(list);
   const bool settingsNotified = NotifySettingsChanged();
   return optionsApplied && settingsNotified;
@@ -182,6 +222,10 @@ bool stopProxy()
 
   const bool optionsApplied = ApplyOptionsToConnections(list);
   const bool settingsNotified = NotifySettingsChanged();
+  if (optionsApplied)
+  {
+    ForgetOwnedProxyServer();
+  }
   return optionsApplied && settingsNotified;
 }
 
@@ -278,7 +322,7 @@ bool IsPortReleased(int port)
 
 bool ClearStaleProxyForConnection(
     LPTSTR connection,
-    std::map<int, bool>& releasedPorts)
+    const std::wstring& ownedServer)
 {
   std::vector<INTERNET_PER_CONN_OPTION> options(2);
   options[0].dwOption = INTERNET_PER_CONN_FLAGS;
@@ -305,17 +349,7 @@ bool ClearStaleProxyForConnection(
     GlobalFree(options[1].Value.pszValue);
   }
 
-  const auto port = ProxyPort(server);
-  if ((flags & PROXY_TYPE_PROXY) == 0 || !port)
-  {
-    return true;
-  }
-  auto [released, unchecked] = releasedPorts.try_emplace(*port, false);
-  if (unchecked)
-  {
-    released->second = IsPortReleased(*port);
-  }
-  if (!released->second)
+  if ((flags & PROXY_TYPE_PROXY) == 0 || server != ownedServer)
   {
     return true;
   }
@@ -334,13 +368,31 @@ namespace proxy
 
   bool ClearStaleProxy()
   {
-    std::map<int, bool> releasedPorts;
+    const auto owned = OwnedProxyServer();
+    if (!owned)
+    {
+      return true;
+    }
+    const auto port = ProxyPort(*owned);
+    if (!port)
+    {
+      ForgetOwnedProxyServer();
+      return true;
+    }
+    if (!IsPortReleased(*port))
+    {
+      return true;
+    }
     const bool cleared = ForEachConnection(
-        [&releasedPorts](LPTSTR connection)
+        [&owned](LPTSTR connection)
         {
-          return ClearStaleProxyForConnection(connection, releasedPorts);
+          return ClearStaleProxyForConnection(connection, *owned);
         });
     const bool settingsNotified = NotifySettingsChanged();
+    if (cleared)
+    {
+      ForgetOwnedProxyServer();
+    }
     return cleared && settingsNotified;
   }
 

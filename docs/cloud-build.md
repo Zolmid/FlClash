@@ -8,11 +8,19 @@
 也可以只选一个平台；`macos` 同时构建 Apple Silicon 和 Intel 两种架构。
 各任务独立运行，一项失败不会取消其他平台；构建完成后在该次运行的 Artifacts 下载，保留 14 天。
 
-自动构建仅监听 `codex/ios-support` 分支的 push。使用现有 Git 认证执行 `git push` 即可触发，
-无需新增 token 或修改网络配置。自动运行固定为 `platform=ios`、`ios_source=project`，
-不会构建全部平台或 Patched 参考项目；仅修改 Markdown 文件或 `docs/**` 时不触发。
-其他分支不受此自动触发规则影响。
-手动 **Run workflow** 仍保留原有全部平台与 iOS 源码选项。
+使用现有 Git 认证执行 `git push` 即可触发自动构建，无需新增 token 或修改网络配置：
+
+| push 分支 | 构建目标 | iOS 源码 |
+| --- | --- | --- |
+| `main` | 全平台（`all`） | 当前主项目（`project`） |
+| `codex/patched-integration` | 全平台（`all`），供合并前独立 review | 当前主项目（`project`） |
+| `codex/ios-support` | 仅 iOS | 当前主项目（`project`） |
+
+仅修改 Markdown 文件或 `docs/**` 时不自动构建。其他分支不受此规则影响。
+手动 **Run workflow** 仍保留全部平台与 iOS 源码选项；自动构建永远不选择 Patched 对照。
+工作流在统一选择任务中处理 push 事件缺省的 inputs，平台矩阵、iOS 条件、源码 checkout、
+缓存与 artifact 命名均使用该选择结果。并发按分支和目标隔离，`cancel-in-progress: false`
+保留正在运行的任务；新增 push 不会取消现有运行。
 
 | 目标 | 云端执行器 | 当前源码 | 产物 |
 | --- | --- | --- | --- |
@@ -93,7 +101,8 @@ Linux 云环境可编辑 Swift/Dart/Go/Rust 源码、分析差异和测试共享
 GitHub Actions 的 macOS 执行器用于编译；交互式断点、热重载、Network Extension 日志和 VPN 实测
 需要可连接的 Mac 与 iPhone。编译通过不等于运行可靠。
 
-当前阶段迁入 `ios/`、Dart 服务桥、Go iOS/TUN 适配及构建 hooks，未整体合并 Patched 或替换 mihomo。
+iOS 首轮迁入了 `ios/`、Dart 服务桥、Go iOS/TUN 适配及构建 hooks；后续跨平台整合逐项审计，
+不整树覆盖 Patched，具体取舍见[整合审计](patched-integration-audit.md)。
 首次 Xcode 构建后，仍需在真机验证 VPN 启停与竞态、后台/锁屏、Wi-Fi/蜂窝切换、DNS/IPv6、
 低内存、Widget，以及已有四平台回归。主应用最低 iOS 15，Widget 最低 iOS 18。
 
@@ -113,3 +122,13 @@ GitHub Actions 的 macOS 执行器用于编译；交互式断点、热重载、N
 - 产物 [ios-project-arm64-unsigned-2](https://github.com/Zolmid/FlClash/actions/runs/38702052110/artifacts/11956459587)：
   artifact ID `11956459587`，78,734,654 bytes，2026-10-29 到期。
 - 这验证了移植项目可以生成 IPA；证书与 provisioning 配置、签名真机安装、VPN 和后台运行仍待验证。
+
+
+## 已核验的 iOS 自动构建基线
+
+外层独立核验 `3222b8d609caaf74c28f61712c8d654e4937eed9` 的
+[iOS 自动构建 38703895573](https://github.com/Zolmid/FlClash/actions/runs/38703895573)
+及[原有 9 项 CI 38703895671](https://github.com/Zolmid/FlClash/actions/runs/38703895671)
+全部成功：4069 tests passed / 6 skipped，覆盖率 88.13%。
+这组结果属于 iOS 支持分支的基线，不作为后续 Patched 整合提交的验证结果。
+未签名 IPA 生成成功仍不代表签名真机 VPN、后台行为或其他设备交互已经验证。
