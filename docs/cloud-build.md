@@ -8,6 +8,12 @@
 也可以只选一个平台；`macos` 同时构建 Apple Silicon 和 Intel 两种架构。
 各任务独立运行，一项失败不会取消其他平台；构建完成后在该次运行的 Artifacts 下载，保留 14 天。
 
+自动构建仅监听 `codex/ios-support` 分支的 push。使用现有 Git 认证执行 `git push` 即可触发，
+无需新增 token 或修改网络配置。自动运行固定为 `platform=ios`、`ios_source=project`，
+不会构建全部平台或 Patched 参考项目；仅修改 Markdown 文件或 `docs/**` 时不触发。
+其他分支不受此自动触发规则影响。
+手动 **Run workflow** 仍保留原有全部平台与 iOS 源码选项。
+
 | 目标 | 云端执行器 | 当前源码 | 产物 |
 | --- | --- | --- | --- |
 | Linux x64 | Ubuntu 22.04 | 所选 FlClash 分支 | 包含完整运行目录的 tar.gz |
@@ -19,7 +25,8 @@
 
 这些是用于开发验证的构建产物：Android 为 Debug，其余为 Release 模式，桌面产物不是安装器。
 每个下载包含 `source-provenance.txt` 和 `SHA256SUMS`，用于确认源码、子模块、工具链和校验值。
-工作流只响应手动触发，不发布 Release，不上传 TestFlight，不向 Telegram、Homebrew 或 F-Droid 推送。
+工作流仅授予 `contents: read` 权限。自动和手动构建均不使用生产签名，不发布 Release，
+不上传 TestFlight，不向 Telegram、Homebrew 或 F-Droid 推送。
 上游已有的 `build.yaml` 保持原样，继续负责已有检查。
 
 ## iOS 源码选择
@@ -99,4 +106,10 @@ GitHub Actions 的 macOS 执行器用于编译；交互式断点、热重载、N
   `app_indicator_new` 在云环境 Clang 下触发弃用错误，本地生成目录设置
   `CMAKE_CXX_FLAGS=-Wno-error=deprecated-declarations` 后完成构建，未改托盘源码。
 - iOS plist、资源及工程引用已静态检查；新增的 Swift 原生测试尚未运行。
-- 当前 Linux 环境无 Xcode，GitHub Actions API 访问受限，未触发远端构建，尚无 iOS IPA 产物。
+- [iOS 云端构建 38702052110](https://github.com/Zolmid/FlClash/actions/runs/38702052110)
+  的 job `116312342357` 已成功，实际源提交为
+  `2c8c9f8fdba0749832f221431af7cad85ac9a4ed`。Xcode Release 编译、未签名 IPA 打包、
+  provenance 收集、artifact 上传和缓存收尾均通过。
+- 产物 [ios-project-arm64-unsigned-2](https://github.com/Zolmid/FlClash/actions/runs/38702052110/artifacts/11956459587)：
+  artifact ID `11956459587`，78,734,654 bytes，2026-10-29 到期。
+- 这验证了移植项目可以生成 IPA；证书与 provisioning 配置、签名真机安装、VPN 和后台运行仍待验证。

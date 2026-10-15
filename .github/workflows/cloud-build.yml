@@ -1,7 +1,12 @@
 name: Cloud build
-run-name: Cloud build · ${{ inputs.platform }} · iOS ${{ inputs.ios_source }}
+run-name: Cloud build · ${{ github.event_name == 'push' && 'ios' || inputs.platform || 'all' }} · iOS ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
 
 on:
+  push:
+    branches: [codex/ios-support]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       platform:
@@ -21,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloud-build-${{ github.ref }}-${{ inputs.platform }}-${{ inputs.ios_source }}
+  group: cloud-build-${{ github.ref }}-${{ github.event_name == 'push' && 'ios' || inputs.platform || 'all' }}-${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
   cancel-in-progress: false
 
 jobs:
@@ -30,10 +35,13 @@ jobs:
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
       enabled: ${{ steps.select.outputs.enabled }}
+      platform: ${{ steps.select.outputs.platform }}
+      ios_source: ${{ steps.select.outputs.ios_source }}
+    env:
+      PLATFORM: ${{ github.event_name == 'push' && 'ios' || inputs.platform || 'all' }}
+      IOS_SOURCE: ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
     steps:
       - id: select
-        env:
-          PLATFORM: ${{ inputs.platform }}
         run: |
           node <<'JS'
           const fs = require('fs');
@@ -45,7 +53,7 @@ jobs:
             {platform: 'macos', os: 'macos-15-intel', arch: 'x64'},
           ].filter(t => process.env.PLATFORM === 'all' || t.platform === process.env.PLATFORM);
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
-            `matrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
+            `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
           JS
 
   project:
@@ -202,29 +210,30 @@ jobs:
           retention-days: 14
 
   ios:
-    name: iOS · ${{ inputs.ios_source }} · unsigned arm64
-    if: inputs.platform == 'all' || inputs.platform == 'ios'
+    name: iOS · ${{ needs.select.outputs.ios_source }} · unsigned arm64
+    needs: select
+    if: needs.select.outputs.platform == 'all' || needs.select.outputs.platform == 'ios'
     runs-on: macos-26
     timeout-minutes: 90
     defaults:
       run:
         shell: bash
     env:
-      IOS_SOURCE: ${{ inputs.ios_source }}
-      FLUTTER_VERSION: ${{ inputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
-      GO_VERSION: ${{ inputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}
+      IOS_SOURCE: ${{ needs.select.outputs.ios_source }}
+      FLUTTER_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
+      GO_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}
       RUSTUP_TOOLCHAIN: '1.99.0'
       GOTOOLCHAIN: local
     steps:
       - name: Checkout project
-        if: inputs.ios_source == 'project'
+        if: env.IOS_SOURCE == 'project'
         uses: actions/checkout@v4
         with:
           submodules: recursive
           persist-credentials: false
 
       - name: Checkout pinned Patched reference
-        if: inputs.ios_source == 'patched-reference'
+        if: env.IOS_SOURCE == 'patched-reference'
         uses: actions/checkout@v4
         with:
           repository: chenx-dust/FlClash-Patched
@@ -243,7 +252,7 @@ jobs:
           fi
 
       - name: Fetch Patched core version history
-        if: inputs.ios_source == 'patched-reference'
+        if: env.IOS_SOURCE == 'patched-reference'
         run: |
           if [[ "$(git -C core/mihomo rev-parse --is-shallow-repository)" == true ]]; then
             git -C core/mihomo fetch --unshallow --tags origin
@@ -268,7 +277,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cloud-ios-${{ inputs.ios_source }}
+          key: cloud-ios-${{ env.IOS_SOURCE }}
           workspaces: plugins/rust_api/rust
           cache-directories: .dart_tool/hooks_runner
 
@@ -316,7 +325,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ inputs.ios_source }}-arm64-unsigned-${{ github.run_number }}
+          name: ios-${{ env.IOS_SOURCE }}-arm64-unsigned-${{ github.run_number }}
           path: cloud-artifacts/
           if-no-files-found: error
           retention-days: 14
