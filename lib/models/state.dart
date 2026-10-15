@@ -293,10 +293,49 @@ abstract class SelectedProxyState with _$SelectedProxyState {
 }
 
 @freezed
+abstract class WidgetColors with _$WidgetColors {
+  const factory WidgetColors({
+    required int background,
+    required int onBackground,
+    required int onBackgroundVariant,
+    required int primary,
+    required int onPrimary,
+    required int trackOff,
+    required int thumbOff,
+  }) = _WidgetColors;
+
+  factory WidgetColors.fromJson(Map<String, Object?> json) =>
+      _$WidgetColorsFromJson(json);
+
+  factory WidgetColors.fromScheme(ColorScheme scheme) => WidgetColors(
+    background: scheme.surfaceContainer.toARGB32(),
+    onBackground: scheme.onSurface.toARGB32(),
+    onBackgroundVariant: scheme.onSurfaceVariant.toARGB32(),
+    primary: scheme.primary.toARGB32(),
+    onPrimary: scheme.onPrimary.toARGB32(),
+    trackOff: scheme.surfaceContainerHighest.toARGB32(),
+    thumbOff: scheme.outline.toARGB32(),
+  );
+}
+
+@freezed
+abstract class WidgetTheme with _$WidgetTheme {
+  const factory WidgetTheme({
+    required ThemeMode themeMode,
+    required WidgetColors light,
+    required WidgetColors dark,
+  }) = _WidgetTheme;
+
+  factory WidgetTheme.fromJson(Map<String, Object?> json) =>
+      _$WidgetThemeFromJson(json);
+}
+
+@freezed
 abstract class SharedState with _$SharedState {
   const factory SharedState({
     SetupParams? setupParams,
     VpnOptions? vpnOptions,
+    WidgetTheme? widgetTheme,
     required String stopTip,
     required String startTip,
     required String localNetworkTip,
@@ -305,6 +344,9 @@ abstract class SharedState with _$SharedState {
     required bool onlyStatisticsProxy,
     @Default(true) bool showStopAction,
     required bool crashlytics,
+    @Default(false) bool networkSpeedNotification,
+    @Default(true) bool collapseQuickSettingsPanel,
+    @Default(true) bool showQuickSettingsProfileName,
     @Default(false) bool alwaysOn,
     @Default([]) List<String> excludeSSIDs,
   }) = _SharedState;

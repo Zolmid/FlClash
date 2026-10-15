@@ -27,8 +27,8 @@ import '../helpers/test_profiles.dart';
 
 class _MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
 
-// checkAndUpdateAndCopy checks the file system before it refreshes, so its
-// failure tests need appPath to resolve to a real, writable directory.
+// Missing-file recovery checks disk before refreshing, so failure tests need
+// appPath to resolve to a real, writable directory.
 class _FakePathProvider extends PathProviderPlatform {
   final String root;
 

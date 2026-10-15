@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/manager/locale_manager.dart';
 import 'package:fl_clash/manager/tray_manager.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:material_ui/material_ui.dart';
@@ -187,6 +189,34 @@ void main() {
 
     expect(_RecordingSystemAction.updateTrayCount, 0);
   });
+
+  testWidgets(
+    'an automatic group selection refreshes an unchanged tray state',
+    (tester) async {
+      await pumpTrayManager(tester);
+      const group = Group(
+        name: 'Auto',
+        type: GroupType.URLTest,
+        now: 'A',
+        all: [
+          Proxy(name: 'A', type: 'Direct'),
+          Proxy(name: 'B', type: 'Direct'),
+        ],
+      );
+      container.read(groupsProvider.notifier).value = [group];
+      await tester.pumpAndSettle();
+      final previous = container.read(trayStateProvider);
+      _RecordingSystemAction.updateTrayCount = 0;
+
+      container.read(groupsProvider.notifier).value = [
+        group.copyWith(now: 'B'),
+      ];
+      await tester.pumpAndSettle();
+
+      expect(container.read(trayStateProvider), previous);
+      expect(_RecordingSystemAction.updateTrayCount, 1);
+    },
+  );
 
   testWidgets('a failed tray update is reported instead of thrown', (
     tester,

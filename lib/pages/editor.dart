@@ -88,7 +88,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late TextEditingController _titleController;
   late bool readOnly = false;
   String? _loaded;
-  bool _loadStarted = false, _saving = false;
+  bool _loadStarted = false, _saving = false, _findActive = false;
   ({bool isDirty, bool canUndo, bool canRedo}) _barState = (
     isDirty: false,
     canUndo: false,
@@ -210,6 +210,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     _editor?.search(replace: replace);
   }
 
+  void _handleFindActive(bool active) {
+    if (active != _findActive) setState(() => _findActive = active);
+  }
+
+  void _toggleSearch() => _editor?.toggleSearch();
+
   void _commitComposing() {
     _editor?.controller?.commitComposition();
   }
@@ -256,6 +262,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final lineWrap = ref.watch(
       appSettingProvider.select((state) => state.editorLineWrap),
     );
+    final lineHeight = ref.watch(
+      appSettingProvider.select((state) => state.editorLineHeight),
+    );
     final fontSize = ref.watch(
       appSettingProvider.select((state) => state.editorFontSize),
     );
@@ -278,7 +287,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               IconButtonData(
                 glyph: AppGlyphs.search,
                 tooltip: appLocalizations.search,
-                onPressed: isReady ? _handleSearch : null,
+                isSelected: _findActive,
+                onPressed: isReady ? _toggleSearch : null,
               ),
               if (widget.onSave != null)
                 IconButtonData(
@@ -320,6 +330,27 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 ],
               ),
               CommonPopupMenuItem(
+                glyph: AppGlyphs.textSize,
+                label: appLocalizations.lineHeight,
+                subItems: [
+                  for (final spacing in EditorLineHeight.values)
+                    CommonPopupMenuItem(
+                      label: switch (spacing) {
+                        EditorLineHeight.small => appLocalizations.small,
+                        EditorLineHeight.standard => appLocalizations.standard,
+                        EditorLineHeight.large => appLocalizations.large,
+                      },
+                      checked: spacing == lineHeight,
+                      onPressed: () => ref
+                          .read(appSettingProvider.notifier)
+                          .update(
+                            (state) =>
+                                state.copyWith(editorLineHeight: spacing),
+                          ),
+                    ),
+                ],
+              ),
+              CommonPopupMenuItem(
                 glyph: AppGlyphs.wrap,
                 label: appLocalizations.lineWrap,
                 checked: lineWrap,
@@ -340,6 +371,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 readOnly: readOnly,
                 undoController: _undoController,
                 onReady: _handleReady,
+                onFindActive: _handleFindActive,
               ),
             ),
           ),
@@ -359,6 +391,7 @@ class EditorView extends ConsumerStatefulWidget {
   final bool readOnly;
   final UndoRedoController? undoController;
   final VoidCallback? onReady;
+  final ValueChanged<bool>? onFindActive;
 
   const EditorView({
     super.key,
@@ -368,6 +401,7 @@ class EditorView extends ConsumerStatefulWidget {
     this.readOnly = false,
     this.undoController,
     this.onReady,
+    this.onFindActive,
   });
 
   @override
@@ -451,7 +485,8 @@ class EditorViewState extends ConsumerState<EditorView> {
     _loadContent(controller, content);
     setState(() {
       _controller = controller;
-      _findController = FindController(controller);
+      _findController = FindController(controller)
+        ..addListener(_handleFindActive);
     });
     widget.onReady?.call();
   }
@@ -477,6 +512,7 @@ class EditorViewState extends ConsumerState<EditorView> {
 
   @override
   void dispose() {
+    _findController?.removeListener(_handleFindActive);
     _findController?.dispose();
     _controller?.dispose();
     _ownedUndoController?.dispose();
@@ -488,6 +524,17 @@ class EditorViewState extends ConsumerState<EditorView> {
       ..text = content
       ..selection = const TextSelection.collapsed(offset: 0);
     _loadedLength = controller.length;
+  }
+
+  void _handleFindActive() =>
+      widget.onFindActive?.call(_findController?.isActive ?? false);
+
+  void toggleSearch() {
+    if (_findController?.isActive == true) {
+      _findController?.hide();
+    } else {
+      search();
+    }
   }
 
   void search({bool replace = false}) {
@@ -677,7 +724,11 @@ class _CodeEditorState extends ConsumerState<_CodeEditor> {
     }
   }
 
-  void _updateStyles(BuildContext context, EditorFontSize fontSize) {
+  void _updateStyles(
+    BuildContext context,
+    EditorFontSize fontSize,
+    EditorLineHeight lineHeight,
+  ) {
     final colorScheme = context.colorScheme;
     final schemeChanged = colorScheme != _colorScheme;
     if (schemeChanged) {
@@ -691,6 +742,7 @@ class _CodeEditorState extends ConsumerState<_CodeEditor> {
     }
     final textStyle = TextStyle(
       fontSize: fontSize.value,
+      height: lineHeight.value,
       fontFamily: FontFamily.jetBrainsMono.value,
     );
     if (textStyle != _textStyle) {
@@ -795,6 +847,7 @@ class _CodeEditorState extends ConsumerState<_CodeEditor> {
     _updateStyles(
       context,
       ref.watch(appSettingProvider.select((state) => state.editorFontSize)),
+      ref.watch(appSettingProvider.select((state) => state.editorLineHeight)),
     );
     _updateInnerPadding(context);
     final isMobileView = ref.watch(isMobileViewProvider);

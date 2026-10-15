@@ -269,6 +269,13 @@ class GeneralView extends ConsumerWidget {
           select: (state) => state.autoLaunch,
           update: (state, value) => state.copyWith(autoLaunch: value),
         ),
+        if (_platform == SupportPlatform.Windows)
+          _appSettingToggle(
+            title: (l) => l.highPriorityAutoLaunch,
+            select: (state) => state.highPriorityAutoLaunch,
+            update: (state, value) =>
+                state.copyWith(highPriorityAutoLaunch: value),
+          ),
         _appSettingToggle(
           title: (l) => l.silentLaunch,
           select: (state) => state.silentLaunch,
@@ -290,7 +297,41 @@ class GeneralView extends ConsumerWidget {
           select: (state) => state.minimizeOnExit,
           update: (state, value) => state.copyWith(minimizeOnExit: value),
         ),
+      _appSettingToggle(
+        title: (l) => l.backToDashboard,
+        select: (state) => state.backToDashboard,
+        update: (state, value) => state.copyWith(backToDashboard: value),
+      ),
+      _appSettingToggle(
+        title: (l) => l.tvMode,
+        select: (state) => state.tvMode,
+        update: (state, value) => state.copyWith(tvMode: value),
+      ),
+      if (_isAndroid || _isIOS)
+        _appSettingToggle(
+          title: (l) => l.showQuickSettingsProfileName,
+          select: (state) => state.showQuickSettingsProfileName,
+          update: (state, value) =>
+              state.copyWith(showQuickSettingsProfileName: value),
+        ),
       if (_isAndroid) ...[
+        ConfigToggleItem(
+          title: (l) => l.networkSpeedNotification,
+          selector: vpnSettingProvider.select(
+            (state) => state.networkSpeedNotification,
+          ),
+          onChanged: (ref, value) => ref
+              .read(vpnSettingProvider.notifier)
+              .update(
+                (state) => state.copyWith(networkSpeedNotification: value),
+              ),
+        ),
+        _appSettingToggle(
+          title: (l) => l.collapseQuickSettingsPanel,
+          select: (state) => state.collapseQuickSettingsPanel,
+          update: (state, value) =>
+              state.copyWith(collapseQuickSettingsPanel: value),
+        ),
         _appSettingToggle(
           title: (l) => l.exclude,
           select: (state) => state.hidden,
@@ -362,9 +403,19 @@ class GeneralView extends ConsumerWidget {
           ),
         ),
       _appSettingToggle(
+        title: (l) => l.collapseProxyChains,
+        select: (state) => state.collapseProxyChains,
+        update: (state, value) => state.copyWith(collapseProxyChains: value),
+      ),
+      _appSettingToggle(
         title: (l) => l.autoCloseConnections,
         select: (state) => state.closeConnections,
         update: (state, value) => state.copyWith(closeConnections: value),
+      ),
+      _appSettingToggle(
+        title: (l) => l.promptCloseConnections,
+        select: (state) => state.promptCloseConnections,
+        update: (state, value) => state.copyWith(promptCloseConnections: value),
       ),
       _appSettingToggle(
         title: (l) => l.onlyStatisticsProxy,
@@ -423,6 +474,7 @@ class GeneralView extends ConsumerWidget {
 
   List<Widget> _logItems() {
     return [
+      const _ForegroundTickerIntervalItem(),
       const LogLevelItem(),
       _appSettingToggle(
         title: (l) => l.logcat,
@@ -461,6 +513,8 @@ class GeneralView extends ConsumerWidget {
             items: _startupItems(appLocalizations),
             footer: [
               if (_isDesktop) appLocalizations.silentLaunchDesc,
+              if (_platform == SupportPlatform.Windows)
+                appLocalizations.highPriorityAutoLaunchDesc,
               appLocalizations.autoRunDesc,
               appLocalizations.onDemandDesc,
             ].join('\n'),
@@ -500,6 +554,164 @@ class GeneralView extends ConsumerWidget {
             ].join('\n'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ForegroundTickerIntervalItem extends ConsumerWidget {
+  const _ForegroundTickerIntervalItem();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final setting = ref.watch(
+      appSettingProvider.select(
+        (state) => (
+          state.foregroundTickerInterval,
+          state.foregroundTickerIdleWhenUnfocused,
+          state.foregroundTickerIdleInterval,
+        ),
+      ),
+    );
+    final l = context.appLocalizations;
+    final interval = '${setting.$1} ${l.seconds}';
+    final idleInterval = '${setting.$3} ${l.seconds}';
+    return ListItem(
+      title: Text(l.uiUpdateInterval),
+      subtitle: Text(
+        setting.$2
+            ? l.uiUpdateIntervalDesc(interval, idleInterval)
+            : l.uiUpdateIntervalIdleDisabledDesc(interval),
+      ),
+      onTap: () => dialogs.showCommonDialog<void>(
+        child: const _ForegroundTickerIntervalDialog(),
+      ),
+    );
+  }
+}
+
+class _ForegroundTickerIntervalDialog extends ConsumerStatefulWidget {
+  const _ForegroundTickerIntervalDialog();
+
+  @override
+  ConsumerState<_ForegroundTickerIntervalDialog> createState() =>
+      _ForegroundTickerIntervalDialogState();
+}
+
+class _ForegroundTickerIntervalDialogState
+    extends ConsumerState<_ForegroundTickerIntervalDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _intervalController;
+  late final TextEditingController _idleIntervalController;
+  late bool _idleWhenUnfocused;
+
+  @override
+  void initState() {
+    super.initState();
+    final setting = ref.read(appSettingProvider);
+    _intervalController = TextEditingController(
+      text: setting.foregroundTickerInterval.toString(),
+    );
+    _idleIntervalController = TextEditingController(
+      text: setting.foregroundTickerIdleInterval.toString(),
+    );
+    _idleWhenUnfocused = setting.foregroundTickerIdleWhenUnfocused;
+  }
+
+  String? _validateSeconds(String? value) {
+    final l = context.appLocalizations;
+    if (value == null || value.isEmpty) return l.emptyTip(l.interval);
+    if (int.tryParse(value) == null) return l.numberTip(l.interval);
+    return int.parse(value) > 0 ? null : l.positiveIntegerTip;
+  }
+
+  void _reset() {
+    setState(() {
+      _intervalController.text = (const AppSettingProps())
+          .foregroundTickerInterval
+          .toString();
+      _idleIntervalController.text = (const AppSettingProps())
+          .foregroundTickerIdleInterval
+          .toString();
+      _idleWhenUnfocused = true;
+    });
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() == false) return;
+    ref
+        .read(appSettingProvider.notifier)
+        .update(
+          (state) => state.copyWith(
+            foregroundTickerInterval: int.parse(_intervalController.text),
+            foregroundTickerIdleWhenUnfocused: _idleWhenUnfocused,
+            foregroundTickerIdleInterval: int.parse(
+              _idleIntervalController.text,
+            ),
+          ),
+        );
+    Navigator.of(context).pop();
+  }
+
+  @override
+  void dispose() {
+    _intervalController.dispose();
+    _idleIntervalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.appLocalizations;
+    return CommonDialog(
+      title: l.uiUpdateInterval,
+      actions: [
+        TextButton(onPressed: _reset, child: Text(l.reset)),
+        TextButton(onPressed: _submit, child: Text(l.submit)),
+      ],
+      child: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 16,
+          children: [
+            TextFormField(
+              controller: _intervalController,
+              keyboardType: TextInputType.number,
+              onFieldSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                labelText: l.uiUpdateInterval,
+                suffixText: l.seconds,
+              ),
+              validator: _validateSeconds,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l.uiUpdateIdleWhenUnfocused),
+              subtitle: Text(l.uiUpdateIdleWhenUnfocusedDesc),
+              value: _idleWhenUnfocused,
+              onChanged: (value) => setState(() => _idleWhenUnfocused = value),
+            ),
+            AnimatedSize(
+              duration: midDuration,
+              curve: Curves.easeOutQuad,
+              alignment: Alignment.topCenter,
+              child: _idleWhenUnfocused
+                  ? TextFormField(
+                      controller: _idleIntervalController,
+                      keyboardType: TextInputType.number,
+                      onFieldSubmitted: (_) => _submit(),
+                      decoration: InputDecoration(
+                        labelText: l.uiUpdateIdleInterval,
+                        suffixText: l.seconds,
+                      ),
+                      validator: _validateSeconds,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
     );
   }

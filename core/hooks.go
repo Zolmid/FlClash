@@ -23,9 +23,12 @@ func init() {
 		sendMessage(RequestMessage, c)
 	}
 	dns.DefaultQueryNotify = func(record dns.QueryRecord) {
-		if hasEventListener() {
-			sendMessage(DnsMessage, newDnsQuery(record))
+		if !hasEventListener() && record.Initiator != dnsInitiatorManual {
+			return
 		}
+		query := newDnsQuery(record)
+		observeManualDnsQuery(record, query)
+		sendMessage(DnsMessage, query)
 	}
 	executor.DefaultProviderLoadedHook = func(providerName string) {
 		scheduleReclaimOwnership()

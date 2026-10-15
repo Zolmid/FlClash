@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="start_vpn">Запуск VPN...</string>
+    <string name="stop_vpn">Остановка VPN...</string>
+    <string name="connected">Подключено</string>
+    <string name="disconnected">Отключено</string>
+    <string name="widget_description">Показывает текущий профиль и переключает VPN</string>
+    <string name="widget_toggle">Переключить VPN</string>
+</resources>

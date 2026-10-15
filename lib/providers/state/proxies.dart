@@ -2,6 +2,10 @@ part of '../state.dart';
 
 @riverpod
 GroupsState currentGroupsState(Ref ref) {
+  final focus = ref.watch(proxyFocusProvider);
+  final showHiddenGroups = ref.watch(
+    proxiesStyleSettingProvider.select((state) => state.showHiddenGroups),
+  );
   final mode = ref.watch(
     patchClashConfigProvider.select((state) => state.mode),
   );
@@ -9,7 +13,12 @@ GroupsState currentGroupsState(Ref ref) {
   final shown = switch (mode) {
     Mode.direct => const <Group>[],
     Mode.global => groups,
-    Mode.rule => groups.where((item) => item.hidden == false),
+    Mode.rule => groups.where(
+      (item) =>
+          showHiddenGroups ||
+          item.hidden != true ||
+          item.name == focus?.groupName,
+    ),
   };
   return GroupsState(value: shown.map(_withoutSelection).toList());
 }
@@ -85,6 +94,7 @@ DelayMap delaysAtLastTestBatch(Ref ref) {
 
 @riverpod
 GroupsState visibleGroupsState(Ref ref) {
+  final focus = ref.watch(proxyFocusProvider);
   final currentGroups = ref.watch(currentGroupsStateProvider);
   final hideTimeoutProxies = ref.watch(
     proxiesStyleSettingProvider.select((state) => state.hideTimeoutProxies),
@@ -92,14 +102,37 @@ GroupsState visibleGroupsState(Ref ref) {
   if (!hideTimeoutProxies) {
     return currentGroups;
   }
+  final visible = computeHideTimeout(
+    groups: currentGroups.value,
+    allGroups: ref.watch(groupsProvider),
+    delayMap: ref.watch(delaysAtLastTestBatchProvider),
+    selectedMap: ref.watch(selectedMapProvider),
+    defaultTestUrl: ref.watch(realTestUrlProvider()),
+  );
+  if (focus == null) {
+    return currentGroups.copyWith(value: visible);
+  }
+  final visibleGroups = {for (final group in visible) group.name: group};
+  final focusedNames = {
+    for (final proxy in visibleGroups[focus.groupName]?.all ?? const <Proxy>[])
+      proxy.name,
+  };
   return currentGroups.copyWith(
-    value: computeHideTimeout(
-      groups: currentGroups.value,
-      allGroups: ref.watch(groupsProvider),
-      delayMap: ref.watch(delaysAtLastTestBatchProvider),
-      selectedMap: ref.watch(selectedMapProvider),
-      defaultTestUrl: ref.watch(realTestUrlProvider()),
-    ),
+    value: [
+      for (final group in currentGroups.value)
+        if (group.name == focus.groupName)
+          group.copyWith(
+            all: [
+              for (final proxy in group.all)
+                if (focus.proxyName == null ||
+                    proxy.name == focus.proxyName ||
+                    focusedNames.contains(proxy.name))
+                  proxy,
+            ],
+          )
+        else
+          ?visibleGroups[group.name],
+    ],
   );
 }
 

@@ -1,7 +1,9 @@
 import 'package:fl_clash/common/fixed.dart';
+import 'package:fl_clash/common/system.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/riverpod.dart';
@@ -16,6 +18,34 @@ void main() {
   tearDown(() {
     container.dispose();
   });
+
+  test(
+    'TV layout rebuilds for its setting rather than unrelated service edits',
+    () {
+      var builds = 0;
+      final scoped = ProviderContainer(
+        overrides: [
+          tvLayoutProvider.overrideWith((ref) {
+            builds++;
+            return tvLayout(ref);
+          }),
+        ],
+      );
+      addTearDown(scoped.dispose);
+      final subscription = scoped.listen(tvLayoutProvider, (_, _) {});
+      addTearDown(subscription.close);
+      expect(scoped.read(tvLayoutProvider), system.isTV);
+      final settings = scoped.read(appSettingProvider.notifier);
+      settings.update((state) => state.copyWith(serviceOrder: ['two', 'one']));
+      expect(scoped.read(tvLayoutProvider), system.isTV);
+      settings.update((state) => state.copyWith(disabledServices: ['one']));
+      expect(scoped.read(tvLayoutProvider), system.isTV);
+      expect(builds, 1);
+      settings.update((state) => state.copyWith(tvMode: true));
+      expect(scoped.read(tvLayoutProvider), isTrue);
+      expect(builds, system.isTV ? 1 : 2);
+    },
+  );
 
   group('AuthorizedTunEnable provider', () {
     test('default is none', () {

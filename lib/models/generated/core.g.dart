@@ -6,6 +6,80 @@ part of '../core.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_CoreRule _$CoreRuleFromJson(Map<String, dynamic> json) => _CoreRule(
+  index: (json['index'] as num).toInt(),
+  type: json['type'] as String,
+  payload: json['payload'] as String? ?? '',
+  proxy: json['proxy'] as String? ?? '',
+  size: (json['size'] as num?)?.toInt() ?? -1,
+  disabled: json['disabled'] as bool? ?? false,
+  hitCount: (json['hitCount'] as num?)?.toInt() ?? 0,
+  hitAt: json['hitAt'] == null ? null : DateTime.parse(json['hitAt'] as String),
+  missCount: (json['missCount'] as num?)?.toInt() ?? 0,
+  missAt: json['missAt'] == null
+      ? null
+      : DateTime.parse(json['missAt'] as String),
+);
+
+Map<String, dynamic> _$CoreRuleToJson(_CoreRule instance) => <String, dynamic>{
+  'index': instance.index,
+  'type': instance.type,
+  'payload': instance.payload,
+  'proxy': instance.proxy,
+  'size': instance.size,
+  'disabled': instance.disabled,
+  'hitCount': instance.hitCount,
+  'hitAt': instance.hitAt?.toIso8601String(),
+  'missCount': instance.missCount,
+  'missAt': instance.missAt?.toIso8601String(),
+};
+
+_SetRuleDisabledParams _$SetRuleDisabledParamsFromJson(
+  Map<String, dynamic> json,
+) => _SetRuleDisabledParams(
+  index: (json['index'] as num).toInt(),
+  type: json['type'] as String,
+  payload: json['payload'] as String,
+  disabled: json['disabled'] as bool,
+);
+
+Map<String, dynamic> _$SetRuleDisabledParamsToJson(
+  _SetRuleDisabledParams instance,
+) => <String, dynamic>{
+  'index': instance.index,
+  'type': instance.type,
+  'payload': instance.payload,
+  'disabled': instance.disabled,
+};
+
+_CoreMemoryInfo _$CoreMemoryInfoFromJson(Map<String, dynamic> json) =>
+    _CoreMemoryInfo(
+      sys: (json['sys'] as num?)?.toInt() ?? 0,
+      heapObjects: (json['heapObjects'] as num?)?.toInt() ?? 0,
+      heapUnused: (json['heapUnused'] as num?)?.toInt() ?? 0,
+      heapIdle: (json['heapIdle'] as num?)?.toInt() ?? 0,
+      heapReleased: (json['heapReleased'] as num?)?.toInt() ?? 0,
+      stacks: (json['stacks'] as num?)?.toInt() ?? 0,
+      metadata: (json['metadata'] as num?)?.toInt() ?? 0,
+      gc: (json['gc'] as num?)?.toInt() ?? 0,
+      other: (json['other'] as num?)?.toInt() ?? 0,
+      footprint: (json['footprint'] as num?)?.toInt() ?? 0,
+    );
+
+Map<String, dynamic> _$CoreMemoryInfoToJson(_CoreMemoryInfo instance) =>
+    <String, dynamic>{
+      'sys': instance.sys,
+      'heapObjects': instance.heapObjects,
+      'heapUnused': instance.heapUnused,
+      'heapIdle': instance.heapIdle,
+      'heapReleased': instance.heapReleased,
+      'stacks': instance.stacks,
+      'metadata': instance.metadata,
+      'gc': instance.gc,
+      'other': instance.other,
+      'footprint': instance.footprint,
+    };
+
 _SetupParams _$SetupParamsFromJson(Map<String, dynamic> json) => _SetupParams(
   selectedMap: Map<String, String>.from(json['selected-map'] as Map),
   testUrl: json['test-url'] as String,
@@ -119,6 +193,17 @@ _VpnOptions _$VpnOptionsFromJson(Map<String, dynamic> json) => _VpnOptions(
       const [],
   mtu: (json['mtu'] as num?)?.toInt() ?? 0,
   congestionController: json['congestionController'] as String? ?? '',
+  disableIcmpForwarding: json['disableIcmpForwarding'] as bool? ?? false,
+  endpointIndependentNat: json['endpointIndependentNat'] as bool? ?? false,
+  recvMsgX: json['recvMsgX'] as bool? ?? true,
+  sendMsgX: json['sendMsgX'] as bool? ?? false,
+  includeAllNetworks: json['includeAllNetworks'] as bool? ?? false,
+  excludeLocalNetworks: json['excludeLocalNetworks'] as bool? ?? true,
+  excludeAPNs: json['excludeAPNs'] as bool? ?? true,
+  excludeCellularServices: json['excludeCellularServices'] as bool? ?? true,
+  enforceRoutes: json['enforceRoutes'] as bool? ?? false,
+  excludeDeviceCommunication:
+      json['excludeDeviceCommunication'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$VpnOptionsToJson(_VpnOptions instance) =>
@@ -135,6 +220,16 @@ Map<String, dynamic> _$VpnOptionsToJson(_VpnOptions instance) =>
       'routeAddress': instance.routeAddress,
       'mtu': instance.mtu,
       'congestionController': instance.congestionController,
+      'disableIcmpForwarding': instance.disableIcmpForwarding,
+      'endpointIndependentNat': instance.endpointIndependentNat,
+      'recvMsgX': instance.recvMsgX,
+      'sendMsgX': instance.sendMsgX,
+      'includeAllNetworks': instance.includeAllNetworks,
+      'excludeLocalNetworks': instance.excludeLocalNetworks,
+      'excludeAPNs': instance.excludeAPNs,
+      'excludeCellularServices': instance.excludeCellularServices,
+      'enforceRoutes': instance.enforceRoutes,
+      'excludeDeviceCommunication': instance.excludeDeviceCommunication,
     };
 
 _InitParams _$InitParamsFromJson(Map<String, dynamic> json) => _InitParams(
@@ -152,12 +247,14 @@ _ChangeProxyParams _$ChangeProxyParamsFromJson(Map<String, dynamic> json) =>
     _ChangeProxyParams(
       groupName: json['group-name'] as String,
       proxyName: json['proxy-name'] as String,
+      closeConnections: json['close-connections'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ChangeProxyParamsToJson(_ChangeProxyParams instance) =>
     <String, dynamic>{
       'group-name': instance.groupName,
       'proxy-name': instance.proxyName,
+      'close-connections': instance.closeConnections,
     };
 
 _ChangeProxyResult _$ChangeProxyResultFromJson(Map<String, dynamic> json) =>
@@ -376,6 +473,7 @@ _CoreMemoryStats _$CoreMemoryStatsFromJson(Map<String, dynamic> json) =>
       heapIdle: (json['heapIdle'] as num?)?.toInt() ?? 0,
       stackInuse: (json['stackInuse'] as num?)?.toInt() ?? 0,
       runtimeOther: (json['runtimeOther'] as num?)?.toInt() ?? 0,
+      footprint: (json['footprint'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$CoreMemoryStatsToJson(_CoreMemoryStats instance) =>
@@ -385,6 +483,7 @@ Map<String, dynamic> _$CoreMemoryStatsToJson(_CoreMemoryStats instance) =>
       'heapIdle': instance.heapIdle,
       'stackInuse': instance.stackInuse,
       'runtimeOther': instance.runtimeOther,
+      'footprint': instance.footprint,
     };
 
 _Now _$NowFromJson(Map<String, dynamic> json) =>

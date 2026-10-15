@@ -17,6 +17,78 @@ Future<Map<String, Object?>> _sentRequest(
 }
 
 void main() {
+  test('decodes a large node response in the background', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    final nodes = List.generate(2000, (i) => {'name': 'node-$i', 'type': 'ss'});
+    final invocation = client.invoke<List<dynamic>>(
+      method: CoreMethod.getProxies,
+    );
+    final request = await _sentRequest(transport);
+
+    transport.addJson({'id': request['id'], 'result': nodes});
+
+    expect(await invocation, nodes);
+  });
+
+  test('small responses cannot overtake a background decode', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    final invocation = client.invoke<bool>(method: CoreMethod.getIsInit);
+    final request = await _sentRequest(transport);
+    transport.addJson({
+      'id': request['id'],
+      'result': true,
+      'padding': 'x' * 51200,
+    });
+    transport.addJson({'id': request['id'], 'result': false});
+    expect(await invocation, isTrue);
+  });
+
+  test('a malformed large frame does not block subsequent responses', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    final invocation = client.invoke<bool>(method: CoreMethod.getIsInit);
+    final request = await _sentRequest(transport);
+    transport.addFrame(Uint8List.fromList(utf8.encode('x' * 51200)));
+    transport.addJson({'id': request['id'], 'result': true});
+
+    expect(await invocation, isTrue);
+  });
+
+  test(
+    'disconnect discards callbacks queued for a background decode',
+    () async {
+      final transport = FakeDesktopCoreTransport.connected();
+      final client = CoreRpcClient(transport);
+      final listener = _LoadedListener();
+      coreEventManager.addListener(listener);
+      addTearDown(() => coreEventManager.removeListener(listener));
+      addTearDown(transport.close);
+      addTearDown(client.close);
+      transport.addJson({
+        'method': 'message',
+        'arguments': {'type': 'loaded', 'data': 'old-provider'},
+        'padding': 'x' * 102400,
+      });
+      transport.disconnect(1);
+      await pumpEventQueue();
+      transport.connect(generation: 2);
+      transport.addJson({
+        'method': 'message',
+        'arguments': {'type': 'loaded', 'data': 'current-provider'},
+      });
+
+      expect(await listener.loaded.future, 'current-provider');
+    },
+  );
+
   test('correlates a response and ignores a late duplicate', () async {
     final transport = FakeDesktopCoreTransport.connected();
     final client = CoreRpcClient(transport);

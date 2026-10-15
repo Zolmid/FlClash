@@ -6,6 +6,21 @@ The experimental iOS port targets arm64 physical devices (iOS 15+, Widget iOS 18
 `docs/cloud-build.md` documents unsigned packaging and its verification limits.
 Keep the current `core/Clash.Meta` submodule when using FlClash-Patched as an iOS reference.
 
+## Upstream Maintenance
+
+Prefer syncing `chen08209/FlClash`, including the Core revision validated by that
+application. Maintain this repository's iOS bridge, platform builds and application
+features on top of it; do not independently chase mihomo/Clash.Meta features or run
+`git submodule update --remote` to advance the dependency. The retained Core is
+`8380d0e7462f061a964323e9bf3129a236fcc5d5` at `core/Clash.Meta`, using the original
+`chen08209/Clash.Meta` FlClash branch. Its unrelated `main` branch is not the source.
+
+The unused `Zolmid/Clash.Meta` fork is not a dependency. The separately preserved
+Core enhancements from the Patched audit are deferred for maintenance cost, not
+queued for integration. Reconsider a Core patch only with concrete iOS device
+evidence that the retained implementation cannot meet its reliability needs.
+See `docs/upstream-maintenance.md` and `docs/patched-integration-audit.md`.
+
 ## Version Notes
 
 - Flutter stays on the 3.47.x line. Release CI pins 3.47.6 and is the source

@@ -114,7 +114,10 @@ final class CoreBuilder implements Builder {
       Architecture.x64 => 'amd64',
       final other => throw BuildException('No Core build for $platform $other'),
     };
-    final target = Target.resolve(platform: platform, goarch: goarch);
+    final target = Target.resolve(
+      platform: platform,
+      goarch: goarch,
+    ).withGoAmd64UserDefine(input.userDefines['goamd64']);
 
     final host = _hostArchitecture ?? Architecture.current;
     if (code.targetOS == OS.macOS && code.targetArchitecture != host) {

@@ -164,11 +164,12 @@ class Bootstrap {
   Future<void> _initApp() async {
     unawaited(_container.read(systemActionProvider.notifier).updateTray());
     unawaited(
-      _container.read(profilesActionProvider.notifier).autoUpdateProfiles(),
-    );
-    unawaited(_container.read(commonActionProvider.notifier).autoCheckUpdate());
-    unawaited(
-      autoLaunch?.updateStatus(_container.read(appSettingProvider).autoLaunch),
+      autoLaunch?.updateStatus(
+        isAutoLaunch: _container.read(appSettingProvider).autoLaunch,
+        isHighPriorityAutoLaunch: _container
+            .read(appSettingProvider)
+            .highPriorityAutoLaunch,
+      ),
     );
     if (!_container.read(appSettingProvider).silentLaunch) {
       unawaited(window?.show());
@@ -188,6 +189,7 @@ class Bootstrap {
     _container.read(initProvider.notifier).value = true;
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
+    unawaited(_container.read(commonActionProvider.notifier).autoCheckUpdate());
     unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
   }
 

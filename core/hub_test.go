@@ -1064,7 +1064,7 @@ func TestProxyViewKeepsWhatTheHostReads(t *testing.T) {
 	}
 
 	node := encode(namedProxy("node-a"))
-	if want := map[string]any{"name": "node-a", "type": "Direct"}; fmt.Sprint(node) != fmt.Sprint(want) {
+	if want := map[string]any{"name": "node-a", "type": "Direct", "udp": true}; fmt.Sprint(node) != fmt.Sprint(want) {
 		t.Errorf("node view = %v, want %v", node, want)
 	}
 

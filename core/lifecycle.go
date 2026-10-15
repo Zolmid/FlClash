@@ -134,11 +134,39 @@ func scheduleLoadMemoryRelease() {
 func handleGetMemoryStats() MemoryStats {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
+	result := memoryStatsFromRuntime(stats)
+	result.Rss = statistic.DefaultManager.Memory()
+	result.Footprint = readMemoryFootprint()
+	return result
+}
+
+var readMemoryFootprint = func() uint64 { return 0 }
+
+func SetMemoryFootprintReader(read func() uint64) {
+	readMemoryFootprint = read
+}
+
+func memoryStatsFromRuntime(stats runtime.MemStats) MemoryStats {
 	return MemoryStats{
-		Rss:          statistic.DefaultManager.Memory(),
 		HeapInuse:    stats.HeapInuse,
 		HeapIdle:     stats.HeapIdle - stats.HeapReleased,
 		StackInuse:   stats.StackInuse,
 		RuntimeOther: stats.MSpanInuse + stats.MCacheInuse + stats.BuckHashSys + stats.GCSys + stats.OtherSys,
+		Sys:          stats.Sys,
+		HeapObjects:  stats.HeapAlloc,
+		HeapUnused:   stats.HeapInuse - stats.HeapAlloc,
+		HeapReleased: stats.HeapReleased,
+		Stacks:       stats.StackSys,
+		Metadata:     stats.MSpanSys + stats.MCacheSys + stats.BuckHashSys,
+		GC:           stats.GCSys,
+		Other:        stats.OtherSys,
 	}
+}
+
+func handleGetGoroutineCount() int {
+	return runtime.NumGoroutine()
+}
+
+func handleGetCoreVersion() string {
+	return constant.Version
 }

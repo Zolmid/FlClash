@@ -18,6 +18,7 @@ const _androidFlutterTarget = {
   'arm': 'android-arm',
   'arm64': 'android-arm64',
   'amd64': 'android-x64',
+  'x64': 'android-x64',
 };
 
 const _hostPlatform = {
@@ -75,9 +76,21 @@ Future<void> main(List<String> args) async {
     );
     exit(1);
   }
-  final arch = _detectArch();
+  final PackageArchitecture packageArch;
+  try {
+    packageArch = resolvePackageArchitecture(
+      platform: platform,
+      requested: results['arch'] as String?,
+      hostArch: _detectArch(),
+    );
+  } on ArgumentError catch (error) {
+    stderr.writeln(error.message ?? error);
+    exit(64);
+  }
   final targets = createPackageTargets(platform, results['targets']);
-  final androidArch = results['arch'] as String?;
+  final androidArch = platform == 'android'
+      ? (results['arch'] as String?)
+      : null;
   final verbose = results['verbose'] as bool;
 
   if (platform == 'ios') {
@@ -125,14 +138,18 @@ Future<void> main(List<String> args) async {
     );
   }
 
-  final exitCode = await _package(
-    platform,
-    env,
-    targets,
+  final exitCode = await withGoAmd64UserDefine(
     rootDir,
-    arch,
-    androidArch: androidArch,
-    verbose: verbose,
+    packageArch.goamd64,
+    () => _package(
+      platform,
+      env,
+      targets,
+      rootDir,
+      packageArch.name,
+      androidArch: androidArch,
+      verbose: verbose,
+    ),
   );
   exit(exitCode);
 }
@@ -152,9 +169,20 @@ ArgParser createSetupArgParser() {
     )
     ..addOption(
       'arch',
-      valueHelp: 'arm,arm64,amd64',
-      allowed: ['arm', 'arm64', 'amd64'],
-      help: 'Target architecture (Android only)',
+      valueHelp: 'arm,arm64,x64,x64-v2,x64-v3',
+      allowed: [
+        'arm',
+        'arm64',
+        'x64',
+        'x64-v1',
+        'x64-v2',
+        'x64-v3',
+        'amd64',
+        'amd64-v1',
+        'amd64-v2',
+        'amd64-v3',
+      ],
+      help: 'Target architecture; x64-v2/v3 select desktop Go CPU features',
     )
     ..addOption(
       'ipa-export-method',
@@ -213,8 +241,9 @@ List<String> createFlutterBuildArgs({
   return flutterBuildArgs;
 }
 
-Map<String, String> createBuildEnvironment(String env) {
-  return {'APP_ENV': env};
+Map<String, String> createBuildEnvironment(String env, {String? arch}) {
+  final packageArch = arch == null ? null : parsePackageArchitecture(arch).name;
+  return {'APP_ENV': env, 'APP_ARCH': ?packageArch};
 }
 
 /// Packages whose build hook `pubspec.yaml` turns into a no-op.
@@ -231,6 +260,124 @@ List<String> packagesNotBuildingAssets(String pubspec) {
 
 String createPackageTargets(String platform, String? customTargets) {
   return customTargets ?? _allTargets[platform]!;
+}
+
+class PackageArchitecture {
+  const PackageArchitecture({
+    required this.name,
+    required this.flutterArch,
+    this.goamd64,
+  });
+
+  /// Suffix passed to flutter_distributor. v1 uses the baseline `x64` name.
+  final String name;
+  final String flutterArch;
+  final String? goamd64;
+}
+
+PackageArchitecture parsePackageArchitecture(String arch) {
+  if (arch.startsWith('amd64')) arch = arch.replaceFirst('amd64', 'x64');
+  switch (arch) {
+    case 'arm':
+    case 'arm64':
+      return PackageArchitecture(name: arch, flutterArch: arch);
+    case 'x64':
+    case 'x64-v1':
+      return const PackageArchitecture(name: 'x64', flutterArch: 'x64');
+    case 'x64-v2':
+    case 'x64-v3':
+      final level = arch.substring('x64-'.length);
+      return PackageArchitecture(
+        name: arch,
+        flutterArch: 'x64',
+        goamd64: level,
+      );
+    default:
+      throw ArgumentError.value(
+        arch,
+        'arch',
+        'Expected arm, arm64, x64, x64-v1, x64-v2, or x64-v3',
+      );
+  }
+}
+
+PackageArchitecture resolvePackageArchitecture({
+  required String platform,
+  required String? requested,
+  required String hostArch,
+}) {
+  if (requested != null && platform == 'ios') {
+    throw ArgumentError('--arch is not used for iOS; the package is arm64.');
+  }
+
+  hostArch = parsePackageArchitecture(hostArch).flutterArch;
+  final parsed = parsePackageArchitecture(requested ?? hostArch);
+  final explicitMicroarch =
+      requested != null &&
+      (requested.startsWith('x64-') || requested.startsWith('amd64-'));
+  if (explicitMicroarch &&
+      platform != 'linux' &&
+      platform != 'windows' &&
+      platform != 'macos') {
+    throw ArgumentError(
+      '--arch $requested is only supported for Linux, Windows, and macOS.',
+    );
+  }
+  if (platform == 'macos' && parsed.flutterArch == 'arm') {
+    throw ArgumentError('--arch supports arm64 and x64 on macOS.');
+  }
+  if ((platform == 'linux' || platform == 'windows' || platform == 'macos') &&
+      parsed.flutterArch != hostArch) {
+    throw ArgumentError(
+      '--arch ${parsed.flutterArch} does not match the $hostArch host. '
+      'Desktop packages are built on a matching machine.',
+    );
+  }
+  return parsed;
+}
+
+String pubspecWithGoAmd64(String pubspec, String level) {
+  if (!goAmd64Levels.contains(level)) {
+    throw ArgumentError.value(level, 'level', 'Expected v1, v2, or v3');
+  }
+  final usesCrLf = pubspec.contains('\r\n');
+  final normalized = pubspec.replaceAll('\r\n', '\n');
+  if (RegExp(r'^\s*goamd64\s*:', multiLine: true).hasMatch(normalized)) {
+    throw ArgumentError('pubspec.yaml already sets hooks.user_defines goamd64');
+  }
+  final setupAssets = RegExp(
+    r'^([ \t]*setup:[ \t]*\n)([ \t]+)build_assets:[ \t]*true[ \t]*\n',
+    multiLine: true,
+  );
+  final match = setupAssets.firstMatch(normalized);
+  if (match == null) {
+    throw ArgumentError(
+      'pubspec.yaml must keep hooks.user_defines.setup.build_assets: true',
+    );
+  }
+  final patched = normalized.replaceFirst(
+    setupAssets,
+    '${match[1]}${match[2]}build_assets: true\n${match[2]}goamd64: $level\n',
+  );
+  return usesCrLf ? patched.replaceAll('\n', '\r\n') : patched;
+}
+
+const goAmd64Levels = ['v1', 'v2', 'v3'];
+
+Future<T> withGoAmd64UserDefine<T>(
+  String rootDir,
+  String? level,
+  Future<T> Function() action,
+) async {
+  if (level == null) return action();
+  final file = File(p.join(rootDir, 'pubspec.yaml'));
+  final original = await file.readAsString();
+  await file.writeAsString(pubspecWithGoAmd64(original, level));
+  try {
+    return await action();
+  } finally {
+    await file.writeAsString(original);
+  }
 }
 
 void _showHelp(ArgParser parser) {
@@ -255,7 +402,11 @@ Future<int> _package(
   required bool verbose,
 }) async {
   final file = File(p.join(rootDir, 'env.json'));
-  await file.writeAsString(jsonEncode(createBuildEnvironment(env)));
+  await file.writeAsString(
+    jsonEncode(
+      createBuildEnvironment(env, arch: platform == 'android' ? null : arch),
+    ),
+  );
 
   final flutterBuildArgs = createFlutterBuildArgs(
     platform: platform,

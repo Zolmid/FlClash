@@ -41,6 +41,31 @@ class _HostAdapter implements HttpClientAdapter {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test(
+    'URL profile labels use a decoded filename and ignore unsafe segments',
+    () {
+      expect(
+        getFileNameFromUrl(
+          'https://example.com/profiles/My%20Proxy.yaml?token=secret',
+        ),
+        'My Proxy.yaml',
+      );
+      for (final url in [
+        null,
+        '',
+        'https://example.com/subscribe?file=proxy.yaml',
+        'https://example.com/',
+        'https://example.com/.yaml',
+        'https://example.com/proxy.',
+        'https://example.com/sub%2Fproxy.yaml',
+        'https://example.com/sub%5Cproxy.yaml',
+        'https://example.com/line%0Abreak.yaml',
+      ]) {
+        expect(getFileNameFromUrl(url), isNull, reason: '$url');
+      }
+    },
+  );
+
   test('getTextResponseForUrl propagates the typed DioException', () async {
     // flutter_test's mocked HttpClient answers every request with HTTP 400,
     // which Dio surfaces as a badResponse DioException.

@@ -25,8 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
@@ -38,12 +36,16 @@ private data class ExtendedNotificationParams(
     val contentText: String,
 )
 
-private val NotificationParams.extended: ExtendedNotificationParams
-    get() = ExtendedNotificationParams(
+private fun NotificationParams.extended(service: Service): ExtendedNotificationParams =
+    ExtendedNotificationParams(
         title,
         stopText,
         showStopAction,
-        Core.getSpeedTrafficText(onlyStatisticsProxy),
+        if (networkSpeedNotification) {
+            Core.getSpeedTrafficText(onlyStatisticsProxy)
+        } else {
+            service.getString(R.string.connected)
+        },
     )
 
 internal class NotificationModule(
@@ -52,13 +54,13 @@ internal class NotificationModule(
 ) : ServiceModule {
     override fun start() {
         service.ensureNotificationChannel()
-        update(ServiceConfig.notificationParams.value.extended)
+        update(ServiceConfig.notificationParams.value.extended(service))
         scope.launch {
             // Some ROMs, vivo's among them, drop updates posted behind the
             // keyguard, so unlocking restarts the loop to post once more.
             // SystemUI, an app, sends USER_PRESENT, which a receiver that is
             // not exported never gets; all three actions are protected.
-            service.receiveBroadcastFlow(exported = true) {
+            val screenFlow = service.receiveBroadcastFlow(exported = true) {
                 addAction(Intent.ACTION_SCREEN_ON)
                 addAction(Intent.ACTION_SCREEN_OFF)
                 addAction(Intent.ACTION_USER_PRESENT)
@@ -66,20 +68,22 @@ internal class NotificationModule(
                 intent.action != Intent.ACTION_SCREEN_OFF
             }.onStart {
                 emit(isScreenOn())
-            }.collectLatest { screenOn ->
+            }
+            combine(screenFlow, ServiceConfig.notificationParams) { screenOn, params ->
+                screenOn to params
+            }.collectLatest { (screenOn, params) ->
                 if (!screenOn) return@collectLatest
-                combine(
-                    flow {
-                        while (true) {
-                            delay(1_000)
-                            emit(Unit)
-                        }
-                    },
-                    ServiceConfig.notificationParams,
-                ) { _, params ->
-                    params.extended
-                }.distinctUntilChanged()
-                    .collect(::update)
+                var displayed = params.extended(service)
+                update(displayed)
+                if (!params.networkSpeedNotification) return@collectLatest
+                while (true) {
+                    delay(1_000)
+                    val next = params.extended(service)
+                    if (next != displayed) {
+                        update(next)
+                        displayed = next
+                    }
+                }
             }
         }
     }

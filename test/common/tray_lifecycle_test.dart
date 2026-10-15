@@ -2,12 +2,15 @@ import 'package:fl_clash/common/tray.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:tray/tray.dart';
+
+import '../helpers/test_profiles.dart';
 
 const _channel = MethodChannel('tray');
 
@@ -39,7 +42,9 @@ void main() {
   setUp(() {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     calls = [];
-    container = ProviderContainer();
+    container = ProviderContainer(
+      overrides: [profilesProvider.overrideWith(TestProfiles.new)],
+    );
     Tray.instance.resetForTesting();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async {

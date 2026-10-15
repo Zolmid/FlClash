@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:fl_clash/common/app_update.dart';
+import 'package:fl_clash/core/desktop/model.dart';
 
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
@@ -15,6 +19,53 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:riverpod/riverpod.dart';
 
 class MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
+
+class _PackageUpdateAction extends CommonAction {
+  final installed = Completer<bool>();
+  final events = <String>[];
+
+  @override
+  Future<bool> installPackage(AppUpdatePlan plan, File file) {
+    events.add('install');
+    return installed.future;
+  }
+
+  @override
+  Future<void> recoverPackageCore(bool running) async {
+    events.add('recover:$running');
+  }
+}
+
+class _RecoveringPackageUpdateAction extends CommonAction {
+  final installed = Completer<bool>();
+
+  @override
+  Future<bool> installPackage(AppUpdatePlan plan, File file) =>
+      installed.future;
+}
+
+class _BlockedStartCoreAction extends CoreAction {
+  final started = Completer<CoreLifecycleResult>();
+
+  @override
+  Future<CoreLifecycleResult> startLifecycle() => started.future;
+
+  @override
+  Future<void> initCore() async {}
+}
+
+class _SingleFlightAppUpdateAction extends CommonAction {
+  final downloaded = Completer<void>();
+  final installed = Completer<void>();
+  var operations = 0;
+
+  @override
+  Future<void> installAppUpdate(AppUpdatePlan plan) async {
+    operations++;
+    await downloaded.future;
+    await installed.future;
+  }
+}
 
 const runningVersion = '0.8.96';
 
@@ -44,6 +95,153 @@ void main() {
     addTearDown(container.dispose);
     return container;
   }
+
+  group('package update Core ownership', () {
+    const plan = AppUpdatePlan(
+      target: UpdateTarget(UpdatePackage.linuxDeb, 'x64'),
+      asset: ReleaseAsset(
+        name: 'update.deb',
+        url: 'https://example.com/update.deb',
+        size: 1,
+        sha256: '',
+      ),
+    );
+
+    test(
+      'update requests share one download-through-install operation',
+      () async {
+        final action = _SingleFlightAppUpdateAction();
+        final first = action.applyAppUpdate(plan);
+        final duringDownload = action.applyAppUpdate(plan);
+        expect(duringDownload, same(first));
+        action.downloaded.complete();
+        await pumpEventQueue();
+        final duringInstall = action.applyAppUpdate(plan);
+        expect(duringInstall, same(first));
+        expect(action.operations, 1);
+        action.installed.complete();
+        await Future.wait([first, duringDownload, duringInstall]);
+        await action.applyAppUpdate(plan);
+        expect(action.operations, 2);
+      },
+    );
+
+    ProviderContainer updaterContainer(_PackageUpdateAction action) {
+      final container = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+          commonActionProvider.overrideWith(() => action),
+          runTimeProvider.overrideWithBuild((_, _) => 1),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(commonActionProvider.notifier);
+      when(core.stop).thenAnswer((_) async {
+        action.events.add('stop');
+        return const CoreLifecycleResult(
+          revision: 1,
+          outcome: CoreLifecycleOutcome.applied,
+        );
+      });
+      return container;
+    }
+
+    for (final fails in [false, true]) {
+      test(
+        'releases the lease before installation and restores on cancellation or failure ($fails)',
+        () async {
+          final action = _PackageUpdateAction();
+          updaterContainer(action);
+          final operation = action.installPackageUpdate(
+            plan,
+            File('/tmp/update.deb'),
+          );
+          await pumpEventQueue();
+          expect(action.events, ['stop', 'install']);
+          if (fails) {
+            action.installed.completeError(StateError('installer failed'));
+            await expectLater(operation, throwsStateError);
+          } else {
+            action.installed.complete(false);
+            expect(await operation, isFalse);
+          }
+          expect(action.events, ['stop', 'install', 'recover:true']);
+        },
+      );
+    }
+
+    test('a newer stop intent prevents stale recovery', () async {
+      final action = _PackageUpdateAction();
+      final container = updaterContainer(action);
+      final operation = action.installPackageUpdate(
+        plan,
+        File('/tmp/update.deb'),
+      );
+      await pumpEventQueue();
+      container.read(runTimeProvider.notifier).value = null;
+      action.installed.complete(false);
+      await operation;
+      expect(action.events, ['stop', 'install']);
+    });
+
+    test('an unconfirmed stop never starts the installer', () async {
+      final action = _PackageUpdateAction();
+      updaterContainer(action);
+      when(core.stop).thenAnswer(
+        (_) async => const CoreLifecycleResult(
+          revision: 1,
+          outcome: CoreLifecycleOutcome.superseded,
+        ),
+      );
+      await expectLater(
+        action.installPackageUpdate(plan, File('/tmp/update.deb')),
+        throwsStateError,
+      );
+      expect(action.events, isEmpty);
+    });
+
+    test('a new stop during Core recovery is never overwritten', () async {
+      final action = _RecoveringPackageUpdateAction();
+      final coreAction = _BlockedStartCoreAction();
+      final scoped = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+          commonActionProvider.overrideWith(() => action),
+          coreActionProvider.overrideWith(() => coreAction),
+          runTimeProvider.overrideWithBuild((_, _) => 1),
+          safeModeProvider.overrideWithValue(true),
+        ],
+      );
+      addTearDown(scoped.dispose);
+      scoped.read(commonActionProvider.notifier);
+      when(core.stop).thenAnswer(
+        (_) async => const CoreLifecycleResult(
+          revision: 1,
+          outcome: CoreLifecycleOutcome.applied,
+        ),
+      );
+
+      final operation = action.installPackageUpdate(
+        plan,
+        File('/tmp/update.deb'),
+      );
+      await pumpEventQueue();
+      action.installed.complete(false);
+      await pumpEventQueue();
+      expect(scoped.read(coreStatusProvider), CoreStatus.connecting);
+      await scoped.read(setupActionProvider.notifier).setRunning(false);
+      coreAction.started.complete(
+        const CoreLifecycleResult(
+          revision: 2,
+          outcome: CoreLifecycleOutcome.applied,
+        ),
+      );
+      expect(await operation, isFalse);
+
+      expect(scoped.read(runTimeProvider), isNull);
+      verifyNever(core.startListener);
+    });
+  });
 
   group('CommonAction.updateMode', () {
     test('advances through every mode and wraps back to the first', () {

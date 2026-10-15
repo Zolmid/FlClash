@@ -1,8 +1,10 @@
 package com.follow.clash
 
 import android.annotation.SuppressLint
+import android.content.SharedPreferences
 import android.os.Build
 import android.service.quicksettings.Tile
+import com.follow.clash.common.GlobalState
 import com.follow.clash.common.QuickAction
 import com.follow.clash.common.quickIntent
 import com.follow.clash.common.toPendingIntent
@@ -14,10 +16,19 @@ import kotlinx.coroutines.launch
 
 class TileService : android.service.quicksettings.TileService() {
     private var scope: CoroutineScope? = null
+    private val preferences by lazy {
+        getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+    }
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "flutter.sharedState") {
+            updateTile(ServiceState.runState.value)
+        }
+    }
 
     override fun onStartListening() {
         super.onStartListening()
         scope?.cancel()
+        preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { scope ->
             scope.launch {
                 ServiceState.runState.collect(::updateTile)
@@ -25,17 +36,19 @@ class TileService : android.service.quicksettings.TileService() {
         }
     }
 
-    // Always route through QuickActionActivity: startActivityAndCollapse is
-    // what closes the shade, so toggling the service in place would leave
-    // the panel open after a tap.
     override fun onClick() {
         super.onClick()
-        openQuickAction()
+        if (application.sharedState.collapseQuickSettingsPanel) {
+            openQuickAction()
+        } else {
+            GlobalState.launch { ServiceState.handleToggleAction() }
+        }
     }
 
     override fun onStopListening() {
         scope?.cancel()
         scope = null
+        preferences.unregisterOnSharedPreferenceChangeListener(preferenceListener)
         super.onStopListening()
     }
 
@@ -45,6 +58,14 @@ class TileService : android.service.quicksettings.TileService() {
                 RunState.STARTED -> Tile.STATE_ACTIVE
                 RunState.STARTING, RunState.STOPPING -> Tile.STATE_UNAVAILABLE
                 RunState.STOPPED -> Tile.STATE_INACTIVE
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val sharedState = application.sharedState
+                subtitle = sharedState.tileSubtitle(
+                    runState,
+                    getString(R.string.connected),
+                    getString(R.string.disconnected),
+                )
             }
             updateTile()
         }

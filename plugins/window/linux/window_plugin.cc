@@ -102,6 +102,18 @@ static bool arg_double(FlValue* args, const char* key, double* out) {
   return false;
 }
 
+static bool arg_int(FlValue* args, const char* key, gint64* out) {
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
+    return false;
+  }
+  FlValue* value = fl_value_lookup_string(args, key);
+  if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_INT) {
+    return false;
+  }
+  *out = fl_value_get_int(value);
+  return true;
+}
+
 static bool arg_string(FlValue* args, const char* key, const char** out) {
   if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
     return false;
@@ -128,12 +140,23 @@ static FlMethodResponse* handle_show(WindowPlugin* self, FlValue* args) {
   if (window == nullptr) {
     return not_ready_response();
   }
+  const char* activation_token = nullptr;
+  arg_string(args, "activationToken", &activation_token);
+  if (!inactive && activation_token != nullptr && *activation_token != '\0') {
+    gtk_window_set_startup_id(window, activation_token);
+  }
   if (inactive) {
     gtk_window_set_focus_on_map(window, FALSE);
     gtk_widget_show(GTK_WIDGET(window));
     gtk_window_set_focus_on_map(window, TRUE);
   } else {
     gtk_widget_show(GTK_WIDGET(window));
+    gint64 activation_timestamp = 0;
+    arg_int(args, "activationTimestamp", &activation_timestamp);
+    if (activation_timestamp > 0 || activation_token != nullptr) {
+      gtk_window_present_with_time(
+          window, static_cast<guint32>(activation_timestamp));
+    }
   }
   return success_null();
 }

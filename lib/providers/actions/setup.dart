@@ -651,15 +651,15 @@ class SetupAction extends _$SetupAction {
     FutureOr Function()? onUpdated,
   }) async {
     var profile = ref.read(currentProfileProvider) ?? recoverMissingProfile();
-    // A refresh failure is surfaced by safeRun; setup keeps the old profile.
-    final nextProfile = await globalState.safeRun(
-      () => profile?.checkAndUpdateAndCopy(
-        validate: (path, key) => _core.validateProfile(path, key),
-      ),
-    );
-    if (nextProfile != null) {
-      profile = nextProfile;
-      ref.read(profilesProvider.notifier).put(nextProfile);
+    // A refresh failure is surfaced by safeRun; setup uses the latest profile.
+    if (profile != null) {
+      final profileId = profile.id;
+      await globalState.safeRun(
+        () => ref
+            .read(profilesActionProvider.notifier)
+            .ensureProfileFile(profileId),
+      );
+      profile = ref.read(currentProfileProvider) ?? recoverMissingProfile();
     }
     commonPrint.log('setup ===> ${profile?.realLabel}');
     final patchConfig = ref.read(patchClashConfigProvider);

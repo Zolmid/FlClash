@@ -122,6 +122,8 @@ enum ViewMode { mobile, laptop, desktop }
 
 enum LogLevel { debug, info, warning, error, silent }
 
+enum LogSource { app, core }
+
 enum RecordTone { muted, neutral, warning, error }
 
 extension RecordToneExt on RecordTone {
@@ -220,6 +222,8 @@ enum NavigationItemMode { mobile, desktop, more, moreFull }
 enum ProxiesSortType { none, delay, name }
 
 enum TunStack { gvisor, system, mixed, mips }
+
+enum CoreRuleSortType { ruleOrder, hitCount, lastHit }
 
 enum AccessControlMode { acceptSelected, rejectSelected }
 
@@ -450,6 +454,15 @@ enum EditorFontSize {
   const EditorFontSize(this.value);
 }
 
+enum EditorLineHeight {
+  small(1.2),
+  standard(1.4),
+  large(1.5);
+
+  final double value;
+  const EditorLineHeight(this.value);
+}
+
 enum AuthorizeCode { none, success, error }
 
 enum TunAuthorizationState { none, authorized, unauthorized }
@@ -503,7 +516,7 @@ enum DashboardWidget {
   const DashboardWidget({this.platforms = SupportPlatform.values});
 }
 
-enum DnsQueryInitiator { app, rule, direct, proxy, other }
+enum DnsQueryInitiator { app, rule, direct, proxy, other, manual }
 
 enum IpType { residential, mobile, business, hosting }
 
@@ -570,6 +583,7 @@ enum PageLabel {
   resources,
   connections,
   dns,
+  rules,
 }
 
 enum RuleAction {

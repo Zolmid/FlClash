@@ -1,15 +1,19 @@
 import 'error.dart';
 
+const _goAmd64Levels = ['v1', 'v2', 'v3'];
+
 class Target {
   const Target({
     required this.goos,
     required this.goarch,
     this.lowMemory = false,
+    this.goamd64,
   });
 
   final String goos;
   final String goarch;
   final bool lowMemory;
+  final String? goamd64;
 
   static const iosArm64 = Target(goos: 'ios', goarch: 'arm64');
   static const iosArm64LowMem = Target(
@@ -47,6 +51,33 @@ class Target {
     throw BuildException('No $platform Core target for GOARCH $goarch');
   }
 
+  Target withGoAmd64UserDefine(Object? value) {
+    if (goarch != 'amd64' || value == null) return this;
+    if (value is! String || !_goAmd64Levels.contains(value)) {
+      throw BuildException(
+        'hooks.user_defines.setup.goamd64 must be ${_goAmd64Levels.join(', ')}',
+      );
+    }
+    return withGoAmd64(value);
+  }
+
+  Target withGoAmd64(String level) {
+    if (goarch != 'amd64') {
+      throw BuildException('GOAMD64 applies to amd64 only: $this');
+    }
+    if (level == 'v1') {
+      if (goamd64 == null) return this;
+      return Target(goos: goos, goarch: goarch, lowMemory: lowMemory);
+    }
+    if (goamd64 == level) return this;
+    return Target(
+      goos: goos,
+      goarch: goarch,
+      lowMemory: lowMemory,
+      goamd64: level,
+    );
+  }
+
   bool get hasHelper => goos == 'linux' || goos == 'windows';
 
   String get executableExtension => goos == 'windows' ? '.exe' : '';
@@ -67,5 +98,7 @@ class Target {
   }
 
   @override
-  String toString() => '$goos/$goarch${lowMemory ? ' (low memory)' : ''}';
+  String toString() =>
+      '$goos/$goarch${lowMemory ? ' (low memory)' : ''}'
+      '${goamd64 == null ? '' : ' goamd64=$goamd64'}';
 }

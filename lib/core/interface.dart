@@ -16,6 +16,22 @@ mixin CoreInterface {
 
   Future<CoreLifecycleResult> close();
 
+  Future<String> getCoreVersion();
+
+  Future<CoreMemoryInfo> getMemory();
+
+  Future<int> getGoroutineCount();
+
+  Future<List<CoreRule>> getRules();
+
+  Future<bool> setRuleDisabled(SetRuleDisabledParams params);
+
+  Future<DnsQuery> queryDns(String domain, String type);
+
+  Future<Map<String, String>> generateAgeKeyPair();
+
+  Future<String> convertAgeSecretKeyToPublicKey(String secretKey);
+
   Future<bool> init(InitParams params);
 
   Future<bool> get isInit;
@@ -574,5 +590,76 @@ abstract class CoreHandlerInterface with CoreInterface {
       method: CoreMethod.getMemoryStats,
     );
     return data == null ? null : CoreMemoryStats.fromJson(data);
+  }
+
+  @override
+  Future<List<CoreRule>> getRules() async {
+    final data = await _invokeMethod<List<dynamic>>(
+      method: CoreMethod.getRules,
+    );
+    return (data ?? const [])
+        .whereType<Map>()
+        .map((item) => CoreRule.fromJson(Map<String, Object?>.from(item)))
+        .toList();
+  }
+
+  @override
+  Future<bool> setRuleDisabled(SetRuleDisabledParams params) async {
+    return await _invokeMethod<bool>(
+          method: CoreMethod.setRuleDisabled,
+          arguments: params.toJson(),
+        ) ??
+        false;
+  }
+
+  @override
+  Future<DnsQuery> queryDns(String domain, String type) async {
+    final data = await _invokeMethod<Map<String, dynamic>>(
+      method: CoreMethod.queryDns,
+      arguments: {'domain': domain, 'type': type},
+    );
+    if (data == null) {
+      throw const CoreMethodException(
+        code: 'invalid_response',
+        message: 'Missing DNS query result',
+      );
+    }
+    return DnsQuery.fromJson(data);
+  }
+
+  @override
+  Future<CoreMemoryInfo> getMemory() async {
+    final data = await _invokeMethod<Map<String, dynamic>>(
+      method: CoreMethod.getMemory,
+    );
+    return data == null
+        ? const CoreMemoryInfo()
+        : CoreMemoryInfo.fromJson(data);
+  }
+
+  @override
+  Future<int> getGoroutineCount() async {
+    return await _invokeMethod<int>(method: CoreMethod.getGoroutineCount) ?? 0;
+  }
+
+  @override
+  Future<String> getCoreVersion() async {
+    return await _invokeMethod<String>(method: CoreMethod.getCoreVersion) ?? '';
+  }
+
+  @override
+  Future<Map<String, String>> generateAgeKeyPair() async {
+    final result = await _invokeMethod<Map<String, dynamic>>(
+      method: CoreMethod.generateAgeKeyPair,
+    );
+    return Map<String, String>.from(result ?? const {});
+  }
+
+  @override
+  Future<String> convertAgeSecretKeyToPublicKey(String secretKey) async {
+    return _invokeMessage(
+      method: CoreMethod.convertAgeSecretKeyToPublicKey,
+      arguments: secretKey,
+    );
   }
 }

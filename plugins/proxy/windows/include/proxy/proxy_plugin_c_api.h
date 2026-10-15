@@ -3,6 +3,8 @@
 
 #include <flutter_plugin_registrar.h>
 
+#define PROXY_PLUGIN_RELEASE_PROXY_MESSAGE L"FlClash.ReleaseSystemProxy"
+
 #ifdef FLUTTER_PLUGIN_IMPL
 #define FLUTTER_PLUGIN_EXPORT __declspec(dllexport)
 #else

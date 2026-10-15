@@ -12,11 +12,64 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef OnSelected = void Function(int index);
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  final Map<PageLabel, _DestinationNavigatorObserver> _observers = {};
+  final Set<PageLabel> _pagesWithSubroutes = {};
+  late final Widget _pages = Consumer(
+    builder: (context, ref, _) {
+      final navigationItems = ref
+          .watch(currentNavigationItemsStateProvider)
+          .value;
+      final isMobile = ref.watch(isMobileViewProvider);
+      final floating = ref.watch(
+        appSettingProvider.select((state) => state.floatingNavigationBar),
+      );
+      return _HomePageView(
+        navigationItems: navigationItems,
+        pageBuilder: (_, index) {
+          final navigationItem = navigationItems[index];
+          return _NavigationPage(
+            key: ValueKey(navigationItem.label),
+            item: navigationItem,
+            observer: _observers.putIfAbsent(
+              navigationItem.label,
+              () => _DestinationNavigatorObserver(
+                onChanged: (hasSubroutes) =>
+                    _handleSubroutesChanged(navigationItem.label, hasSubroutes),
+              ),
+            ),
+            docked: isMobile && floating,
+            view: navigationItem.builder(context),
+          );
+        },
+      );
+    },
+  );
+
+  void _handleSubroutesChanged(PageLabel label, bool hasSubroutes) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _pagesWithSubroutes.contains(label) == hasSubroutes) {
+        return;
+      }
+      setState(() {
+        if (hasSubroutes) {
+          _pagesWithSubroutes.add(label);
+        } else {
+          _pagesWithSubroutes.remove(label);
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final hasViewSize = ref.watch(
       viewSizeProvider.select((size) => !size.isEmpty),
     );
@@ -26,32 +79,8 @@ class HomePage extends ConsumerWidget {
     return HomeBackScopeContainer(
       child: AppSidebarContainer(
         child: _HomeShell(
-          child: Consumer(
-            builder: (_, ref, _) {
-              final navigationItems = ref
-                  .watch(currentNavigationItemsStateProvider)
-                  .value;
-              final isMobile = ref.watch(isMobileViewProvider);
-              final floating = ref.watch(
-                appSettingProvider.select(
-                  (state) => state.floatingNavigationBar,
-                ),
-              );
-              return _HomePageView(
-                navigationItems: navigationItems,
-                pageBuilder: (_, index) {
-                  final navigationItem = navigationItems[index];
-                  return _NavigationPage(
-                    key: ValueKey(navigationItem.label),
-                    item: navigationItem,
-                    isMobile: isMobile,
-                    docked: isMobile && floating,
-                    view: navigationItem.builder(context),
-                  );
-                },
-              );
-            },
-          ),
+          pagesWithSubroutes: _pagesWithSubroutes,
+          child: _pages,
         ),
       ),
     );
@@ -59,8 +88,9 @@ class HomePage extends ConsumerWidget {
 }
 
 class _HomeShell extends ConsumerWidget {
-  const _HomeShell({required this.child});
+  const _HomeShell({required this.pagesWithSubroutes, required this.child});
 
+  final Set<PageLabel> pagesWithSubroutes;
   final Widget child;
 
   void _handleToPage(PageLabel pageLabel, WidgetRef ref) {
@@ -71,6 +101,9 @@ class _HomeShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(navigationStateProvider);
     final isMobile = state.viewMode == ViewMode.mobile;
+    final hasSubroutes = pagesWithSubroutes.contains(
+      ref.watch(shownPageLabelProvider),
+    );
     final navigationItems = state.navigationItems;
     final floating = ref.watch(
       appSettingProvider.select((state) => state.floatingNavigationBar),
@@ -92,7 +125,7 @@ class _HomeShell extends ConsumerWidget {
                   child: FocusTraversalGroup(
                     policy: PageTraversalPolicy(),
                     child: BottomInsetScope(
-                      inset: isMobile && floating
+                      inset: isMobile && floating && !hasSubroutes
                           ? NavigationDock.insetOf(context)
                           : 0,
                       child: _BodyPadding(isMobile: isMobile, child: child),
@@ -104,7 +137,7 @@ class _HomeShell extends ConsumerWidget {
                   end: 0,
                   bottom: 0,
                   child: AnimatedVisibility.bottomNavigation(
-                    visible: isMobile && floating,
+                    visible: isMobile && floating && !hasSubroutes,
                     child: _NavigationPadding(
                       child: NavigationDock(
                         destinations: [
@@ -129,7 +162,7 @@ class _HomeShell extends ConsumerWidget {
             ),
           ),
           AnimatedVisibility.bottomNavigation(
-            visible: isMobile && !floating,
+            visible: isMobile && !floating && !hasSubroutes,
             child: _NavigationPadding(
               child: NavigationBar(
                 destinations: [
@@ -192,17 +225,53 @@ class _NavigationPadding extends StatelessWidget {
   }
 }
 
+class _DestinationNavigatorObserver extends NavigatorObserver {
+  _DestinationNavigatorObserver({required this.onChanged});
+
+  final ValueChanged<bool> onChanged;
+  int _routeCount = 0;
+  bool _hasSubroutes = false;
+
+  void _notify() {
+    final hasSubroutes = _routeCount > 1;
+    if (hasSubroutes == _hasSubroutes) return;
+    _hasSubroutes = hasSubroutes;
+    onChanged(hasSubroutes);
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routeCount = previousRoute == null ? 1 : _routeCount + 1;
+    _notify();
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (_routeCount > 0) _routeCount--;
+    _notify();
+    super.didPop(route, previousRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (_routeCount > 0) _routeCount--;
+    _notify();
+    super.didRemove(route, previousRoute);
+  }
+}
+
 class _NavigationPage extends StatelessWidget {
   const _NavigationPage({
     super.key,
     required this.item,
-    required this.isMobile,
+    required this.observer,
     required this.docked,
     required this.view,
   });
 
   final NavigationItem item;
-  final bool isMobile;
+  final NavigatorObserver observer;
   final bool docked;
   final Widget view;
 
@@ -214,13 +283,14 @@ class _NavigationPage extends StatelessWidget {
     final keptView = KeepScope(
       key: ValueKey(item.label),
       keep: item.keep,
-      child: isMobile
-          ? scopedView
-          : Navigator(
-              key: ValueKey('${item.label.name}_navigator'),
-              pages: [MaterialPage(child: scopedView)],
-              onDidRemovePage: (_) {},
-            ),
+      child: Navigator(
+        key: ValueKey('${item.label.name}_navigator'),
+        observers: [observer],
+        pages: [MaterialPage(key: ValueKey(item.label), child: scopedView)],
+        onDidRemovePage: (_) {},
+        routeDirectionalTraversalEdgeBehavior:
+            TraversalEdgeBehavior.parentScope,
+      ),
     );
     return Consumer(
       builder: (_, ref, child) {
@@ -450,8 +520,9 @@ class HomeBackScopeContainer extends ConsumerWidget {
             GlobalObjectKey(pageLabel).currentContext ?? context;
         final canPop = Navigator.canPop(realContext);
         if (canPop) {
-          Navigator.of(realContext).pop();
-        } else if (system.isTV && pageLabel != PageLabel.dashboard) {
+          await Navigator.of(realContext).maybePop();
+        } else if (ref.read(appSettingProvider).backToDashboard &&
+            pageLabel != PageLabel.dashboard) {
           ref
               .read(currentPageLabelProvider.notifier)
               .toPage(PageLabel.dashboard);

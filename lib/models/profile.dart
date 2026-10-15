@@ -180,6 +180,7 @@ extension ProfileExtension on Profile {
     return copyWith(
       label: label.takeFirstValid([
         getFileNameForDisposition(disposition),
+        getFileNameFromUrl(url),
         defaultLabel,
       ]),
       subscriptionInfo: SubscriptionInfo.formHString(userinfo),

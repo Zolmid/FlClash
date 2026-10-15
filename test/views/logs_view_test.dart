@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/filter_bar.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -50,6 +51,58 @@ void main() {
   const hintKey = ValueKey('scrollbarHintPill');
 
   Finder hintFinder() => find.byKey(hintKey);
+
+  testWidgets(
+    'source and level filters compose and can be removed separately',
+    (tester) async {
+      await pumpLogsView(tester);
+      final notifier = container.read(logsProvider.notifier);
+      for (final log in const [
+        Log(
+          payload: 'core warning',
+          dateTime: '2026-10-15 10:00:00',
+          source: LogSource.core,
+          logLevel: LogLevel.warning,
+        ),
+        Log(
+          payload: 'core error',
+          dateTime: '2026-10-15 10:00:01',
+          source: LogSource.core,
+          logLevel: LogLevel.error,
+        ),
+        Log(
+          payload: 'app error',
+          dateTime: '2026-10-15 10:00:02',
+          logLevel: LogLevel.error,
+        ),
+      ]) {
+        notifier.add(log);
+      }
+      await tester.pump(const Duration(milliseconds: 301));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Filter'));
+      await tester.pumpAndSettle();
+
+      FilterChipBar filters() => tester.widget(find.byType(FilterChipBar));
+      List<String> payloads() => tester
+          .widgetList<LogItem>(find.byType(LogItem))
+          .map((item) => item.log.payload)
+          .toList();
+      filters().groups[0].onToggled('core');
+      await tester.pumpAndSettle();
+      expect(payloads(), unorderedEquals(['core warning', 'core error']));
+      filters().groups[1].onToggled('error');
+      await tester.pumpAndSettle();
+      expect(payloads(), ['core error']);
+      filters().chips.first.onDeleted();
+      await tester.pumpAndSettle();
+      expect(payloads(), unorderedEquals(['core error', 'app error']));
+      filters().chips.single.onDeleted();
+      await tester.pumpAndSettle();
+      expect(filters().active, isFalse);
+      expect(notifier.value.list.length, logCount + 3);
+    },
+  );
 
   testWidgets('holding the scrollbar thumb floats the time hint beside it', (
     tester,

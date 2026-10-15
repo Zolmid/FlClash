@@ -183,11 +183,15 @@ class ProxiesAction extends _$ProxiesAction {
         _pendingSelectedRollback.remove(groupName) ??
         _currentSelectedName(groupName);
     profilesAction.updateCurrentSelectedMap(groupName, proxyName);
+    final closeConnections = ref.read(appSettingProvider).closeConnections;
+    final params = ChangeProxyParams(
+      groupName: groupName,
+      proxyName: proxyName,
+      closeConnections: closeConnections,
+    );
     final ChangeProxyResult result;
     try {
-      result = await _core.changeProxy(
-        ChangeProxyParams(groupName: groupName, proxyName: proxyName),
-      );
+      result = await _core.changeProxy(params);
       if (result.message.isNotEmpty) {
         throw MessageException(result.message);
       }
@@ -203,14 +207,30 @@ class ProxiesAction extends _$ProxiesAction {
       );
       return;
     }
-    if (!result.changed) {
-      return;
-    }
     try {
-      if (ref.read(appSettingProvider).closeConnections) {
-        await _core.closeConnections();
-      } else {
+      if (!closeConnections) {
         await _core.resetConnections();
+        if (ref.read(appSettingProvider).promptCloseConnections) {
+          final context = globalState.navigatorKey.currentContext;
+          if (context != null && context.mounted) {
+            context.showSnackBar(
+              currentAppLocalizations.closeConnectionsPrompt,
+              action: SnackBarAction(
+                label: currentAppLocalizations.closeConnections,
+                onPressed: () {
+                  if (_currentSelectedName(groupName) != proxyName) return;
+                  unawaited(
+                    globalState.safeRun(
+                      () => _core.changeProxy(
+                        params.copyWith(closeConnections: true),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          }
+        }
       }
     } catch (error) {
       commonPrint.log(

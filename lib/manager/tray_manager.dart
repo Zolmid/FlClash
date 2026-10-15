@@ -1,13 +1,15 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/tray.dart';
 import 'package:fl_clash/common/window.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/state.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tray/tray.dart';
@@ -25,11 +27,35 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
   StreamSubscription<TrayEvent>? _subscription;
   bool _isUpdating = false;
   bool _hasPendingUpdate = false;
+  Timer? _delayTimer;
+  bool _isUpdatingDelays = false;
+  bool _hasPendingDelayUpdate = false;
 
   @override
   void initState() {
     super.initState();
     _subscription = Tray.instance.events.listen(_handleTrayEvent);
+    ref.listenManual(profilesProvider, (_, _) => _requestUpdate());
+    ref.listenManual(currentProfileIdProvider, (_, _) => _requestUpdate());
+    ref.listenManual(updatingKeysProvider, (_, _) => _requestUpdate());
+    ref.listenManual(currentBrightnessProvider, (_, _) => _requestUpdate());
+    ref.listenManual(
+      groupsProvider.select(
+        (groups) => {for (final group in groups) group.name: group.now ?? ''},
+      ),
+      (previous, next) {
+        if (!mapEquals(previous, next)) _requestUpdate();
+      },
+    );
+    ref.listenManual(
+      appSettingProvider.select((state) => state.showTrayProxySelection),
+      (_, _) => _requestUpdate(),
+    );
+    ref.listenManual(delayDataSourceProvider, (_, _) => _requestDelayUpdate());
+    ref.listenManual(
+      pendingDelayTestsProvider,
+      (_, _) => _requestDelayUpdate(),
+    );
     ref.listenManual(trayStateProvider, (prev, next) {
       if (prev != next) {
         _requestUpdate();
@@ -41,11 +67,6 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
       }
     });
     if (system.isMacOS) {
-      ref.listenManual(trayDelaysProvider, (prev, next) {
-        if (!const DeepCollectionEquality().equals(prev, next)) {
-          _requestUpdate();
-        }
-      });
       ref.listenManual(trayTitleStateProvider, (prev, next) {
         if (prev != next) {
           _reportFailure(
@@ -56,6 +77,27 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
           );
         }
       });
+    }
+  }
+
+  void _requestDelayUpdate() {
+    _hasPendingDelayUpdate = true;
+    _delayTimer ??= Timer(renderThrottleDuration, () {
+      _delayTimer = null;
+      _reportFailure(_drainDelayUpdates());
+    });
+  }
+
+  Future<void> _drainDelayUpdates() async {
+    if (_isUpdatingDelays) return;
+    _isUpdatingDelays = true;
+    try {
+      while (_hasPendingDelayUpdate && mounted) {
+        _hasPendingDelayUpdate = false;
+        await appTray?.updateDelays(read: ref.read);
+      }
+    } finally {
+      _isUpdatingDelays = false;
     }
   }
 
@@ -99,8 +141,20 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
 
   void _handleTrayEvent(TrayEvent event) {
     switch (event) {
-      case TrayIconActivated():
-        window?.show();
+      case TrayIconActivated(
+        :final activationTimestamp,
+        :final activationToken,
+      ):
+        if (system.isMacOS) {
+          _reportFailure(Tray.instance.openMenu());
+        } else {
+          _reportFailure(
+            window?.show(
+              activationTimestamp: activationTimestamp,
+              activationToken: activationToken,
+            ),
+          );
+        }
       case TrayMenuRequested():
         _reportFailure(Tray.instance.openMenu());
       case TrayMenuItemSelected():
@@ -115,6 +169,7 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _subscription?.cancel();
     super.dispose();
   }

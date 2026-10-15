@@ -248,6 +248,12 @@ func patchTun(target *LC.Tun, params *tunSchema) {
 	if params.CongestionController != nil {
 		target.CongestionController = *params.CongestionController
 	}
+	if params.RecvMsgX != nil {
+		target.RecvMsgX = *params.RecvMsgX
+	}
+	if params.SendMsgX != nil {
+		target.SendMsgX = *params.SendMsgX
+	}
 	if params.StrictRoute != nil {
 		target.StrictRoute = *params.StrictRoute
 	}

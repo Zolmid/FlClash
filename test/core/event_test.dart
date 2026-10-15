@@ -9,6 +9,10 @@ class _RecordingListener with CoreEventListener {
   final void Function()? onLoadedCallback;
   final List<String> loaded = [];
   final List<String> dialerLoops = [];
+  final List<Log> logs = [];
+
+  @override
+  void onLog(Log log) => logs.add(log);
 
   @override
   void onLoaded(String providerName) {
@@ -23,6 +27,31 @@ class _RecordingListener with CoreEventListener {
 }
 
 void main() {
+  test('Core log events stay distinguishable from app logs', () async {
+    final listener = _RecordingListener();
+    coreEventManager.addListener(listener);
+    addTearDown(() => coreEventManager.removeListener(listener));
+    coreEventManager.sendEvent(
+      const CoreEvent(
+        type: CoreEventType.log,
+        data: {'LogLevel': 'warning', 'Payload': 'Core log'},
+      ),
+    );
+    await pumpEventQueue();
+
+    final coreLog = listener.logs.single;
+    final appLog = Log.app('App log');
+    expect(coreLog.source, LogSource.core);
+    expect(appLog.source, LogSource.app);
+    expect(coreLog.logLevel, LogLevel.warning);
+    expect(LogsState(logs: [coreLog, appLog], sources: {LogSource.core}).list, [
+      coreLog,
+    ]);
+    expect(
+      LogsState(logs: [coreLog, appLog], levels: {LogLevel.warning}).list,
+      [coreLog],
+    );
+  });
   test(
     'a listener may unregister itself while an event is dispatched',
     () async {

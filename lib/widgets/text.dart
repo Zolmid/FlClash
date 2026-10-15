@@ -6,6 +6,47 @@ import 'package:material_ui/material_ui.dart';
 import '../state.dart';
 import 'builder.dart';
 
+class OverflowHoverTooltip extends StatelessWidget {
+  const OverflowHoverTooltip({
+    super.key,
+    required this.message,
+    required this.maxWidth,
+    required this.style,
+    this.maxLines = 1,
+    required this.child,
+  });
+
+  final String message;
+  final double maxWidth;
+  final TextStyle? style;
+  final int maxLines;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (message.isEmpty || maxWidth <= 0 || !maxWidth.isFinite) return child;
+    final painter = TextPainter(
+      text: TextSpan(
+        children: EmojiText(message, style: style)._buildTextSpans(message),
+      ),
+      maxLines: maxLines,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+      locale: Localizations.maybeLocaleOf(context),
+      ellipsis: '\u2026',
+    )..layout(maxWidth: maxWidth);
+    final overflow = painter.didExceedMaxLines;
+    painter.dispose();
+    if (!overflow) return child;
+    return Tooltip(
+      message: message,
+      preferBelow: false,
+      waitDuration: const Duration(milliseconds: 500),
+      child: child,
+    );
+  }
+}
+
 class TooltipText extends StatelessWidget {
   final Text text;
 

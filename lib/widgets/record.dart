@@ -30,6 +30,7 @@ class RecordTextStyles {
 class RecordListItem extends StatelessWidget {
   final Widget header;
   final Widget body;
+  final Widget? trailing;
   final RecordTone tone;
   final VoidCallback? onTap;
 
@@ -37,6 +38,7 @@ class RecordListItem extends StatelessWidget {
     super.key,
     required this.header,
     required this.body,
+    this.trailing,
     this.tone = RecordTone.neutral,
     this.onTap,
   });
@@ -52,7 +54,18 @@ class RecordListItem extends StatelessWidget {
       color: tone.tintColor(context),
       onTap: onTap,
       title: header,
-      subtitle: Padding(padding: const EdgeInsets.only(top: 6), child: body),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: trailing == null
+            ? body
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: body),
+                  trailing!,
+                ],
+              ),
+      ),
     );
     final accentColor = tone.accentColor(context);
     if (accentColor == null) {

@@ -14,11 +14,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ConnectionsView extends ConsumerStatefulWidget {
   final ScrollController? scrollController;
+  final TrackerInfoFilter initialFilter;
+  final List<String> initialKeywords;
   final Future<List<TrackerInfo>> Function()? connectionsReader;
 
   const ConnectionsView({
     super.key,
     this.scrollController,
+    this.initialKeywords = const [],
+    this.initialFilter = const TrackerInfoFilter(),
     @visibleForTesting this.connectionsReader,
   });
 
@@ -34,12 +38,21 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
   CoreController get _core => ref.read(coreHandlerProvider);
 
   final _listController = TrackerInfoListController();
+  late TrackerInfoFilter _filter = widget.initialFilter;
+  bool _showFilters = false;
+  final _scaffoldKey = GlobalKey<CommonScaffoldState>();
   final _speedRanker = TrackerSpeedRanker();
   late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final keyword in widget.initialKeywords) {
+        _scaffoldKey.currentState?.addKeyword(keyword);
+      }
+    });
     _scrollController =
         widget.scrollController ?? sheetScrollController(context);
   }
@@ -49,6 +62,12 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
 
   List<IconButtonData> _buildActions() {
     return [
+      IconButtonData(
+        glyph: AppGlyphs.filter,
+        tooltip: context.appLocalizations.filter,
+        isSelected: _showFilters || _filter.isNotEmpty,
+        onPressed: () => setState(() => _showFilters = !_showFilters),
+      ),
       IconButtonData(
         glyph: AppGlyphs.clearAll,
         tooltip: context.appLocalizations.closeConnections,
@@ -119,6 +138,7 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return CommonScaffold(
+      key: _scaffoldKey,
       title: PageLabel.connections.label,
       onKeywordsUpdate: _listController.updateKeywords,
       searchState: AppBarSearchState(onSearch: _listController.search),
@@ -126,31 +146,50 @@ class _ConnectionsViewState extends ConsumerState<ConnectionsView>
       body: ValueListenableBuilder<TrackerInfosState>(
         valueListenable: _listController,
         builder: (context, state, _) {
-          final connections = state.list;
-          return NullStatusSwitcher(
-            isEmpty: connections.isEmpty,
-            isSearching: state.isSearching,
-            holdsArrival: true,
-            nullStatus: NullStatus(
-              label: appLocalizations.nullTip(appLocalizations.connections),
-              illustration: NullStatusIllustration.connections,
-            ),
-            child: TrackerInfoAnimatedList(
-              controller: _scrollController,
-              padding: EdgeInsets.only(
-                top: context.contentTopPadding,
-                bottom: 16 + BottomInsetScope.of(context),
+          final connections = state.list.withTrackerFilter(_filter);
+          final showFilters = _showFilters || _filter.isNotEmpty;
+          return Column(
+            children: [
+              if (showFilters)
+                Padding(
+                  padding: EdgeInsets.only(top: context.contentTopPadding),
+                  child: TrackerInfoFilterBar(
+                    visible: _showFilters,
+                    trackerInfos: state.trackerInfos,
+                    filter: _filter,
+                    onChanged: (value) => setState(() => _filter = value),
+                  ),
+                ),
+              Expanded(
+                child: NullStatusSwitcher(
+                  isEmpty: connections.isEmpty,
+                  isSearching: state.isSearching || _filter.isNotEmpty,
+                  holdsArrival: true,
+                  nullStatus: NullStatus(
+                    label: appLocalizations.nullTip(
+                      appLocalizations.connections,
+                    ),
+                    illustration: NullStatusIllustration.connections,
+                  ),
+                  child: TrackerInfoAnimatedList(
+                    controller: _scrollController,
+                    padding: EdgeInsets.only(
+                      top: showFilters ? 0 : context.contentTopPadding,
+                      bottom: 16 + BottomInsetScope.of(context),
+                    ),
+                    trackerInfos: connections,
+                    detailTitle: appLocalizations.details(
+                      appLocalizations.connection,
+                    ),
+                    actionBuilder: (trackerInfo) => _BlockConnectionButton(
+                      onPressed: () {
+                        _handleBlockConnection(trackerInfo.id);
+                      },
+                    ),
+                  ),
+                ),
               ),
-              trackerInfos: connections,
-              detailTitle: appLocalizations.details(
-                appLocalizations.connection,
-              ),
-              actionBuilder: (trackerInfo) => _BlockConnectionButton(
-                onPressed: () {
-                  _handleBlockConnection(trackerInfo.id);
-                },
-              ),
-            ),
+            ],
           );
         },
       ),

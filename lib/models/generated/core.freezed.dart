@@ -14,6 +14,879 @@ part of '../core.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$CoreRule {
+
+ int get index; String get type; String get payload; String get proxy; int get size; bool get disabled; int get hitCount; DateTime? get hitAt; int get missCount; DateTime? get missAt;
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoreRuleCopyWith<CoreRule> get copyWith => _$CoreRuleCopyWithImpl<CoreRule>(this as CoreRule, _$identity);
+
+  /// Serializes this CoreRule to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CoreRule;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreRule&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.payload, _this.payload) || other.payload == _this.payload)&&(identical(other.proxy, _this.proxy) || other.proxy == _this.proxy)&&(identical(other.size, _this.size) || other.size == _this.size)&&(identical(other.disabled, _this.disabled) || other.disabled == _this.disabled)&&(identical(other.hitCount, _this.hitCount) || other.hitCount == _this.hitCount)&&(identical(other.hitAt, _this.hitAt) || other.hitAt == _this.hitAt)&&(identical(other.missCount, _this.missCount) || other.missCount == _this.missCount)&&(identical(other.missAt, _this.missAt) || other.missAt == _this.missAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as CoreRule;
+  return Object.hash(runtimeType,_this.index,_this.type,_this.payload,_this.proxy,_this.size,_this.disabled,_this.hitCount,_this.hitAt,_this.missCount,_this.missAt);
+}
+
+@override
+String toString() {
+  final _this = this as CoreRule;
+  return 'CoreRule(index: ${_this.index}, type: ${_this.type}, payload: ${_this.payload}, proxy: ${_this.proxy}, size: ${_this.size}, disabled: ${_this.disabled}, hitCount: ${_this.hitCount}, hitAt: ${_this.hitAt}, missCount: ${_this.missCount}, missAt: ${_this.missAt})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoreRuleCopyWith<$Res>  {
+  factory $CoreRuleCopyWith(CoreRule value, $Res Function(CoreRule) _then) = _$CoreRuleCopyWithImpl;
+@useResult
+$Res call({
+ int index, String type, String payload, String proxy, int size, bool disabled, int hitCount, DateTime? hitAt, int missCount, DateTime? missAt
+});
+
+
+
+
+}
+/// @nodoc
+class _$CoreRuleCopyWithImpl<$Res>
+    implements $CoreRuleCopyWith<$Res> {
+  _$CoreRuleCopyWithImpl(this._self, this._then);
+
+  final CoreRule _self;
+  final $Res Function(CoreRule) _then;
+
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? proxy = null,Object? size = null,Object? disabled = null,Object? hitCount = null,Object? hitAt = freezed,Object? missCount = null,Object? missAt = freezed,}) {
+  return _then(CoreRule(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,proxy: null == proxy ? _self.proxy : proxy // ignore: cast_nullable_to_non_nullable
+as String,size: null == size ? _self.size : size // ignore: cast_nullable_to_non_nullable
+as int,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,hitCount: null == hitCount ? _self.hitCount : hitCount // ignore: cast_nullable_to_non_nullable
+as int,hitAt: freezed == hitAt ? _self.hitAt : hitAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,missCount: null == missCount ? _self.missCount : missCount // ignore: cast_nullable_to_non_nullable
+as int,missAt: freezed == missAt ? _self.missAt : missAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CoreRule].
+extension CoreRulePatterns on CoreRule {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CoreRule value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CoreRule value)  $default,){
+final _that = this;
+switch (_that) {
+case _CoreRule():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CoreRule value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  String proxy,  int size,  bool disabled,  int hitCount,  DateTime? hitAt,  int missCount,  DateTime? missAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.proxy,_that.size,_that.disabled,_that.hitCount,_that.hitAt,_that.missCount,_that.missAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  String proxy,  int size,  bool disabled,  int hitCount,  DateTime? hitAt,  int missCount,  DateTime? missAt)  $default,) {final _that = this;
+switch (_that) {
+case _CoreRule():
+return $default(_that.index,_that.type,_that.payload,_that.proxy,_that.size,_that.disabled,_that.hitCount,_that.hitAt,_that.missCount,_that.missAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  String type,  String payload,  String proxy,  int size,  bool disabled,  int hitCount,  DateTime? hitAt,  int missCount,  DateTime? missAt)?  $default,) {final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.proxy,_that.size,_that.disabled,_that.hitCount,_that.hitAt,_that.missCount,_that.missAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _CoreRule implements CoreRule {
+  const _CoreRule({required this.index, required this.type, this.payload = '', this.proxy = '', this.size = -1, this.disabled = false, this.hitCount = 0, this.hitAt, this.missCount = 0, this.missAt});
+  factory _CoreRule.fromJson(Map<String, dynamic> json) => _$CoreRuleFromJson(json);
+
+@override final  int index;
+@override final  String type;
+@override@JsonKey() final  String payload;
+@override@JsonKey() final  String proxy;
+@override@JsonKey() final  int size;
+@override@JsonKey() final  bool disabled;
+@override@JsonKey() final  int hitCount;
+@override final  DateTime? hitAt;
+@override@JsonKey() final  int missCount;
+@override final  DateTime? missAt;
+
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CoreRuleCopyWith<_CoreRule> get copyWith => __$CoreRuleCopyWithImpl<_CoreRule>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$CoreRuleToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoreRule&&(identical(other.index, index) || other.index == index)&&(identical(other.type, type) || other.type == type)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.proxy, proxy) || other.proxy == proxy)&&(identical(other.size, size) || other.size == size)&&(identical(other.disabled, disabled) || other.disabled == disabled)&&(identical(other.hitCount, hitCount) || other.hitCount == hitCount)&&(identical(other.hitAt, hitAt) || other.hitAt == hitAt)&&(identical(other.missCount, missCount) || other.missCount == missCount)&&(identical(other.missAt, missAt) || other.missAt == missAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,index,type,payload,proxy,size,disabled,hitCount,hitAt,missCount,missAt);
+}
+
+@override
+String toString() {
+    return 'CoreRule(index: $index, type: $type, payload: $payload, proxy: $proxy, size: $size, disabled: $disabled, hitCount: $hitCount, hitAt: $hitAt, missCount: $missCount, missAt: $missAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CoreRuleCopyWith<$Res> implements $CoreRuleCopyWith<$Res> {
+  factory _$CoreRuleCopyWith(_CoreRule value, $Res Function(_CoreRule) _then) = __$CoreRuleCopyWithImpl;
+@override @useResult
+$Res call({
+ int index, String type, String payload, String proxy, int size, bool disabled, int hitCount, DateTime? hitAt, int missCount, DateTime? missAt
+});
+
+
+
+
+}
+/// @nodoc
+class __$CoreRuleCopyWithImpl<$Res>
+    implements _$CoreRuleCopyWith<$Res> {
+  __$CoreRuleCopyWithImpl(this._self, this._then);
+
+  final _CoreRule _self;
+  final $Res Function(_CoreRule) _then;
+
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? proxy = null,Object? size = null,Object? disabled = null,Object? hitCount = null,Object? hitAt = freezed,Object? missCount = null,Object? missAt = freezed,}) {
+  return _then(_CoreRule(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,proxy: null == proxy ? _self.proxy : proxy // ignore: cast_nullable_to_non_nullable
+as String,size: null == size ? _self.size : size // ignore: cast_nullable_to_non_nullable
+as int,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,hitCount: null == hitCount ? _self.hitCount : hitCount // ignore: cast_nullable_to_non_nullable
+as int,hitAt: freezed == hitAt ? _self.hitAt : hitAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,missCount: null == missCount ? _self.missCount : missCount // ignore: cast_nullable_to_non_nullable
+as int,missAt: freezed == missAt ? _self.missAt : missAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$SetRuleDisabledParams {
+
+ int get index; String get type; String get payload; bool get disabled;
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SetRuleDisabledParamsCopyWith<SetRuleDisabledParams> get copyWith => _$SetRuleDisabledParamsCopyWithImpl<SetRuleDisabledParams>(this as SetRuleDisabledParams, _$identity);
+
+  /// Serializes this SetRuleDisabledParams to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as SetRuleDisabledParams;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetRuleDisabledParams&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.payload, _this.payload) || other.payload == _this.payload)&&(identical(other.disabled, _this.disabled) || other.disabled == _this.disabled));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as SetRuleDisabledParams;
+  return Object.hash(runtimeType,_this.index,_this.type,_this.payload,_this.disabled);
+}
+
+@override
+String toString() {
+  final _this = this as SetRuleDisabledParams;
+  return 'SetRuleDisabledParams(index: ${_this.index}, type: ${_this.type}, payload: ${_this.payload}, disabled: ${_this.disabled})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SetRuleDisabledParamsCopyWith<$Res>  {
+  factory $SetRuleDisabledParamsCopyWith(SetRuleDisabledParams value, $Res Function(SetRuleDisabledParams) _then) = _$SetRuleDisabledParamsCopyWithImpl;
+@useResult
+$Res call({
+ int index, String type, String payload, bool disabled
+});
+
+
+
+
+}
+/// @nodoc
+class _$SetRuleDisabledParamsCopyWithImpl<$Res>
+    implements $SetRuleDisabledParamsCopyWith<$Res> {
+  _$SetRuleDisabledParamsCopyWithImpl(this._self, this._then);
+
+  final SetRuleDisabledParams _self;
+  final $Res Function(SetRuleDisabledParams) _then;
+
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
+  return _then(SetRuleDisabledParams(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [SetRuleDisabledParams].
+extension SetRuleDisabledParamsPatterns on SetRuleDisabledParams {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _SetRuleDisabledParams value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _SetRuleDisabledParams value)  $default,){
+final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _SetRuleDisabledParams value)?  $default,){
+final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  bool disabled)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  bool disabled)  $default,) {final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams():
+return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  String type,  String payload,  bool disabled)?  $default,) {final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _SetRuleDisabledParams implements SetRuleDisabledParams {
+  const _SetRuleDisabledParams({required this.index, required this.type, required this.payload, required this.disabled});
+  factory _SetRuleDisabledParams.fromJson(Map<String, dynamic> json) => _$SetRuleDisabledParamsFromJson(json);
+
+@override final  int index;
+@override final  String type;
+@override final  String payload;
+@override final  bool disabled;
+
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$SetRuleDisabledParamsCopyWith<_SetRuleDisabledParams> get copyWith => __$SetRuleDisabledParamsCopyWithImpl<_SetRuleDisabledParams>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$SetRuleDisabledParamsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetRuleDisabledParams&&(identical(other.index, index) || other.index == index)&&(identical(other.type, type) || other.type == type)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.disabled, disabled) || other.disabled == disabled));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,index,type,payload,disabled);
+}
+
+@override
+String toString() {
+    return 'SetRuleDisabledParams(index: $index, type: $type, payload: $payload, disabled: $disabled)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$SetRuleDisabledParamsCopyWith<$Res> implements $SetRuleDisabledParamsCopyWith<$Res> {
+  factory _$SetRuleDisabledParamsCopyWith(_SetRuleDisabledParams value, $Res Function(_SetRuleDisabledParams) _then) = __$SetRuleDisabledParamsCopyWithImpl;
+@override @useResult
+$Res call({
+ int index, String type, String payload, bool disabled
+});
+
+
+
+
+}
+/// @nodoc
+class __$SetRuleDisabledParamsCopyWithImpl<$Res>
+    implements _$SetRuleDisabledParamsCopyWith<$Res> {
+  __$SetRuleDisabledParamsCopyWithImpl(this._self, this._then);
+
+  final _SetRuleDisabledParams _self;
+  final $Res Function(_SetRuleDisabledParams) _then;
+
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
+  return _then(_SetRuleDisabledParams(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$CoreMemoryInfo {
+
+ int get sys; int get heapObjects; int get heapUnused; int get heapIdle; int get heapReleased; int get stacks; int get metadata; int get gc; int get other; int get footprint;
+/// Create a copy of CoreMemoryInfo
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoreMemoryInfoCopyWith<CoreMemoryInfo> get copyWith => _$CoreMemoryInfoCopyWithImpl<CoreMemoryInfo>(this as CoreMemoryInfo, _$identity);
+
+  /// Serializes this CoreMemoryInfo to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CoreMemoryInfo;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreMemoryInfo&&(identical(other.sys, _this.sys) || other.sys == _this.sys)&&(identical(other.heapObjects, _this.heapObjects) || other.heapObjects == _this.heapObjects)&&(identical(other.heapUnused, _this.heapUnused) || other.heapUnused == _this.heapUnused)&&(identical(other.heapIdle, _this.heapIdle) || other.heapIdle == _this.heapIdle)&&(identical(other.heapReleased, _this.heapReleased) || other.heapReleased == _this.heapReleased)&&(identical(other.stacks, _this.stacks) || other.stacks == _this.stacks)&&(identical(other.metadata, _this.metadata) || other.metadata == _this.metadata)&&(identical(other.gc, _this.gc) || other.gc == _this.gc)&&(identical(other.other, _this.other) || other.other == _this.other)&&(identical(other.footprint, _this.footprint) || other.footprint == _this.footprint));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as CoreMemoryInfo;
+  return Object.hash(runtimeType,_this.sys,_this.heapObjects,_this.heapUnused,_this.heapIdle,_this.heapReleased,_this.stacks,_this.metadata,_this.gc,_this.other,_this.footprint);
+}
+
+@override
+String toString() {
+  final _this = this as CoreMemoryInfo;
+  return 'CoreMemoryInfo(sys: ${_this.sys}, heapObjects: ${_this.heapObjects}, heapUnused: ${_this.heapUnused}, heapIdle: ${_this.heapIdle}, heapReleased: ${_this.heapReleased}, stacks: ${_this.stacks}, metadata: ${_this.metadata}, gc: ${_this.gc}, other: ${_this.other}, footprint: ${_this.footprint})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoreMemoryInfoCopyWith<$Res>  {
+  factory $CoreMemoryInfoCopyWith(CoreMemoryInfo value, $Res Function(CoreMemoryInfo) _then) = _$CoreMemoryInfoCopyWithImpl;
+@useResult
+$Res call({
+ int sys, int heapObjects, int heapUnused, int heapIdle, int heapReleased, int stacks, int metadata, int gc, int other, int footprint
+});
+
+
+
+
+}
+/// @nodoc
+class _$CoreMemoryInfoCopyWithImpl<$Res>
+    implements $CoreMemoryInfoCopyWith<$Res> {
+  _$CoreMemoryInfoCopyWithImpl(this._self, this._then);
+
+  final CoreMemoryInfo _self;
+  final $Res Function(CoreMemoryInfo) _then;
+
+/// Create a copy of CoreMemoryInfo
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? sys = null,Object? heapObjects = null,Object? heapUnused = null,Object? heapIdle = null,Object? heapReleased = null,Object? stacks = null,Object? metadata = null,Object? gc = null,Object? other = null,Object? footprint = null,}) {
+  return _then(CoreMemoryInfo(
+sys: null == sys ? _self.sys : sys // ignore: cast_nullable_to_non_nullable
+as int,heapObjects: null == heapObjects ? _self.heapObjects : heapObjects // ignore: cast_nullable_to_non_nullable
+as int,heapUnused: null == heapUnused ? _self.heapUnused : heapUnused // ignore: cast_nullable_to_non_nullable
+as int,heapIdle: null == heapIdle ? _self.heapIdle : heapIdle // ignore: cast_nullable_to_non_nullable
+as int,heapReleased: null == heapReleased ? _self.heapReleased : heapReleased // ignore: cast_nullable_to_non_nullable
+as int,stacks: null == stacks ? _self.stacks : stacks // ignore: cast_nullable_to_non_nullable
+as int,metadata: null == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as int,gc: null == gc ? _self.gc : gc // ignore: cast_nullable_to_non_nullable
+as int,other: null == other ? _self.other : other // ignore: cast_nullable_to_non_nullable
+as int,footprint: null == footprint ? _self.footprint : footprint // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CoreMemoryInfo].
+extension CoreMemoryInfoPatterns on CoreMemoryInfo {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CoreMemoryInfo value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CoreMemoryInfo() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CoreMemoryInfo value)  $default,){
+final _that = this;
+switch (_that) {
+case _CoreMemoryInfo():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CoreMemoryInfo value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CoreMemoryInfo() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int sys,  int heapObjects,  int heapUnused,  int heapIdle,  int heapReleased,  int stacks,  int metadata,  int gc,  int other,  int footprint)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CoreMemoryInfo() when $default != null:
+return $default(_that.sys,_that.heapObjects,_that.heapUnused,_that.heapIdle,_that.heapReleased,_that.stacks,_that.metadata,_that.gc,_that.other,_that.footprint);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int sys,  int heapObjects,  int heapUnused,  int heapIdle,  int heapReleased,  int stacks,  int metadata,  int gc,  int other,  int footprint)  $default,) {final _that = this;
+switch (_that) {
+case _CoreMemoryInfo():
+return $default(_that.sys,_that.heapObjects,_that.heapUnused,_that.heapIdle,_that.heapReleased,_that.stacks,_that.metadata,_that.gc,_that.other,_that.footprint);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int sys,  int heapObjects,  int heapUnused,  int heapIdle,  int heapReleased,  int stacks,  int metadata,  int gc,  int other,  int footprint)?  $default,) {final _that = this;
+switch (_that) {
+case _CoreMemoryInfo() when $default != null:
+return $default(_that.sys,_that.heapObjects,_that.heapUnused,_that.heapIdle,_that.heapReleased,_that.stacks,_that.metadata,_that.gc,_that.other,_that.footprint);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _CoreMemoryInfo extends CoreMemoryInfo {
+  const _CoreMemoryInfo({this.sys = 0, this.heapObjects = 0, this.heapUnused = 0, this.heapIdle = 0, this.heapReleased = 0, this.stacks = 0, this.metadata = 0, this.gc = 0, this.other = 0, this.footprint = 0}): super._();
+  factory _CoreMemoryInfo.fromJson(Map<String, dynamic> json) => _$CoreMemoryInfoFromJson(json);
+
+@override@JsonKey() final  int sys;
+@override@JsonKey() final  int heapObjects;
+@override@JsonKey() final  int heapUnused;
+@override@JsonKey() final  int heapIdle;
+@override@JsonKey() final  int heapReleased;
+@override@JsonKey() final  int stacks;
+@override@JsonKey() final  int metadata;
+@override@JsonKey() final  int gc;
+@override@JsonKey() final  int other;
+@override@JsonKey() final  int footprint;
+
+/// Create a copy of CoreMemoryInfo
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CoreMemoryInfoCopyWith<_CoreMemoryInfo> get copyWith => __$CoreMemoryInfoCopyWithImpl<_CoreMemoryInfo>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$CoreMemoryInfoToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoreMemoryInfo&&(identical(other.sys, sys) || other.sys == sys)&&(identical(other.heapObjects, heapObjects) || other.heapObjects == heapObjects)&&(identical(other.heapUnused, heapUnused) || other.heapUnused == heapUnused)&&(identical(other.heapIdle, heapIdle) || other.heapIdle == heapIdle)&&(identical(other.heapReleased, heapReleased) || other.heapReleased == heapReleased)&&(identical(other.stacks, stacks) || other.stacks == stacks)&&(identical(other.metadata, metadata) || other.metadata == metadata)&&(identical(other.gc, gc) || other.gc == gc)&&(identical(other.other, this.other) || other.other == this.other)&&(identical(other.footprint, footprint) || other.footprint == footprint));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,sys,heapObjects,heapUnused,heapIdle,heapReleased,stacks,metadata,gc,other,footprint);
+}
+
+@override
+String toString() {
+    return 'CoreMemoryInfo(sys: $sys, heapObjects: $heapObjects, heapUnused: $heapUnused, heapIdle: $heapIdle, heapReleased: $heapReleased, stacks: $stacks, metadata: $metadata, gc: $gc, other: $other, footprint: $footprint)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CoreMemoryInfoCopyWith<$Res> implements $CoreMemoryInfoCopyWith<$Res> {
+  factory _$CoreMemoryInfoCopyWith(_CoreMemoryInfo value, $Res Function(_CoreMemoryInfo) _then) = __$CoreMemoryInfoCopyWithImpl;
+@override @useResult
+$Res call({
+ int sys, int heapObjects, int heapUnused, int heapIdle, int heapReleased, int stacks, int metadata, int gc, int other, int footprint
+});
+
+
+
+
+}
+/// @nodoc
+class __$CoreMemoryInfoCopyWithImpl<$Res>
+    implements _$CoreMemoryInfoCopyWith<$Res> {
+  __$CoreMemoryInfoCopyWithImpl(this._self, this._then);
+
+  final _CoreMemoryInfo _self;
+  final $Res Function(_CoreMemoryInfo) _then;
+
+/// Create a copy of CoreMemoryInfo
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? sys = null,Object? heapObjects = null,Object? heapUnused = null,Object? heapIdle = null,Object? heapReleased = null,Object? stacks = null,Object? metadata = null,Object? gc = null,Object? other = null,Object? footprint = null,}) {
+  return _then(_CoreMemoryInfo(
+sys: null == sys ? _self.sys : sys // ignore: cast_nullable_to_non_nullable
+as int,heapObjects: null == heapObjects ? _self.heapObjects : heapObjects // ignore: cast_nullable_to_non_nullable
+as int,heapUnused: null == heapUnused ? _self.heapUnused : heapUnused // ignore: cast_nullable_to_non_nullable
+as int,heapIdle: null == heapIdle ? _self.heapIdle : heapIdle // ignore: cast_nullable_to_non_nullable
+as int,heapReleased: null == heapReleased ? _self.heapReleased : heapReleased // ignore: cast_nullable_to_non_nullable
+as int,stacks: null == stacks ? _self.stacks : stacks // ignore: cast_nullable_to_non_nullable
+as int,metadata: null == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as int,gc: null == gc ? _self.gc : gc // ignore: cast_nullable_to_non_nullable
+as int,other: null == other ? _self.other : other // ignore: cast_nullable_to_non_nullable
+as int,footprint: null == footprint ? _self.footprint : footprint // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$SetupParams {
 
 @JsonKey(name: 'selected-map') Map<String, String> get selectedMap;@JsonKey(name: 'test-url') String get testUrl;@JsonKey(name: 'skip-cert-verify') bool get skipCertVerify;
@@ -643,7 +1516,7 @@ $TunCopyWith<$Res> get tun {
 /// @nodoc
 mixin _$VpnOptions {
 
- bool get enable; int get port; bool get ipv6; bool get dnsHijacking; AccessControlProps get accessControlProps; bool get allowBypass; bool get systemProxy; List<String> get bypassDomain; String get stack; List<String> get routeAddress; int get mtu; String get congestionController;
+ bool get enable; int get port; bool get ipv6; bool get dnsHijacking; AccessControlProps get accessControlProps; bool get allowBypass; bool get systemProxy; List<String> get bypassDomain; String get stack; List<String> get routeAddress; int get mtu; String get congestionController; bool get disableIcmpForwarding; bool get endpointIndependentNat; bool get recvMsgX; bool get sendMsgX; bool get includeAllNetworks; bool get excludeLocalNetworks; bool get excludeAPNs; bool get excludeCellularServices; bool get enforceRoutes; bool get excludeDeviceCommunication;
 /// Create a copy of VpnOptions
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -657,20 +1530,20 @@ $VpnOptionsCopyWith<VpnOptions> get copyWith => _$VpnOptionsCopyWithImpl<VpnOpti
 @override
 bool operator ==(Object other) {
   final _this = this as VpnOptions;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VpnOptions&&(identical(other.enable, _this.enable) || other.enable == _this.enable)&&(identical(other.port, _this.port) || other.port == _this.port)&&(identical(other.ipv6, _this.ipv6) || other.ipv6 == _this.ipv6)&&(identical(other.dnsHijacking, _this.dnsHijacking) || other.dnsHijacking == _this.dnsHijacking)&&(identical(other.accessControlProps, _this.accessControlProps) || other.accessControlProps == _this.accessControlProps)&&(identical(other.allowBypass, _this.allowBypass) || other.allowBypass == _this.allowBypass)&&(identical(other.systemProxy, _this.systemProxy) || other.systemProxy == _this.systemProxy)&&const DeepCollectionEquality().equals(other.bypassDomain, _this.bypassDomain)&&(identical(other.stack, _this.stack) || other.stack == _this.stack)&&const DeepCollectionEquality().equals(other.routeAddress, _this.routeAddress)&&(identical(other.mtu, _this.mtu) || other.mtu == _this.mtu)&&(identical(other.congestionController, _this.congestionController) || other.congestionController == _this.congestionController));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VpnOptions&&(identical(other.enable, _this.enable) || other.enable == _this.enable)&&(identical(other.port, _this.port) || other.port == _this.port)&&(identical(other.ipv6, _this.ipv6) || other.ipv6 == _this.ipv6)&&(identical(other.dnsHijacking, _this.dnsHijacking) || other.dnsHijacking == _this.dnsHijacking)&&(identical(other.accessControlProps, _this.accessControlProps) || other.accessControlProps == _this.accessControlProps)&&(identical(other.allowBypass, _this.allowBypass) || other.allowBypass == _this.allowBypass)&&(identical(other.systemProxy, _this.systemProxy) || other.systemProxy == _this.systemProxy)&&const DeepCollectionEquality().equals(other.bypassDomain, _this.bypassDomain)&&(identical(other.stack, _this.stack) || other.stack == _this.stack)&&const DeepCollectionEquality().equals(other.routeAddress, _this.routeAddress)&&(identical(other.mtu, _this.mtu) || other.mtu == _this.mtu)&&(identical(other.congestionController, _this.congestionController) || other.congestionController == _this.congestionController)&&(identical(other.disableIcmpForwarding, _this.disableIcmpForwarding) || other.disableIcmpForwarding == _this.disableIcmpForwarding)&&(identical(other.endpointIndependentNat, _this.endpointIndependentNat) || other.endpointIndependentNat == _this.endpointIndependentNat)&&(identical(other.recvMsgX, _this.recvMsgX) || other.recvMsgX == _this.recvMsgX)&&(identical(other.sendMsgX, _this.sendMsgX) || other.sendMsgX == _this.sendMsgX)&&(identical(other.includeAllNetworks, _this.includeAllNetworks) || other.includeAllNetworks == _this.includeAllNetworks)&&(identical(other.excludeLocalNetworks, _this.excludeLocalNetworks) || other.excludeLocalNetworks == _this.excludeLocalNetworks)&&(identical(other.excludeAPNs, _this.excludeAPNs) || other.excludeAPNs == _this.excludeAPNs)&&(identical(other.excludeCellularServices, _this.excludeCellularServices) || other.excludeCellularServices == _this.excludeCellularServices)&&(identical(other.enforceRoutes, _this.enforceRoutes) || other.enforceRoutes == _this.enforceRoutes)&&(identical(other.excludeDeviceCommunication, _this.excludeDeviceCommunication) || other.excludeDeviceCommunication == _this.excludeDeviceCommunication));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as VpnOptions;
-  return Object.hash(runtimeType,_this.enable,_this.port,_this.ipv6,_this.dnsHijacking,_this.accessControlProps,_this.allowBypass,_this.systemProxy,const DeepCollectionEquality().hash(_this.bypassDomain),_this.stack,const DeepCollectionEquality().hash(_this.routeAddress),_this.mtu,_this.congestionController);
+  return Object.hashAll([runtimeType,_this.enable,_this.port,_this.ipv6,_this.dnsHijacking,_this.accessControlProps,_this.allowBypass,_this.systemProxy,const DeepCollectionEquality().hash(_this.bypassDomain),_this.stack,const DeepCollectionEquality().hash(_this.routeAddress),_this.mtu,_this.congestionController,_this.disableIcmpForwarding,_this.endpointIndependentNat,_this.recvMsgX,_this.sendMsgX,_this.includeAllNetworks,_this.excludeLocalNetworks,_this.excludeAPNs,_this.excludeCellularServices,_this.enforceRoutes,_this.excludeDeviceCommunication]);
 }
 
 @override
 String toString() {
   final _this = this as VpnOptions;
-  return 'VpnOptions(enable: ${_this.enable}, port: ${_this.port}, ipv6: ${_this.ipv6}, dnsHijacking: ${_this.dnsHijacking}, accessControlProps: ${_this.accessControlProps}, allowBypass: ${_this.allowBypass}, systemProxy: ${_this.systemProxy}, bypassDomain: ${_this.bypassDomain}, stack: ${_this.stack}, routeAddress: ${_this.routeAddress}, mtu: ${_this.mtu}, congestionController: ${_this.congestionController})';
+  return 'VpnOptions(enable: ${_this.enable}, port: ${_this.port}, ipv6: ${_this.ipv6}, dnsHijacking: ${_this.dnsHijacking}, accessControlProps: ${_this.accessControlProps}, allowBypass: ${_this.allowBypass}, systemProxy: ${_this.systemProxy}, bypassDomain: ${_this.bypassDomain}, stack: ${_this.stack}, routeAddress: ${_this.routeAddress}, mtu: ${_this.mtu}, congestionController: ${_this.congestionController}, disableIcmpForwarding: ${_this.disableIcmpForwarding}, endpointIndependentNat: ${_this.endpointIndependentNat}, recvMsgX: ${_this.recvMsgX}, sendMsgX: ${_this.sendMsgX}, includeAllNetworks: ${_this.includeAllNetworks}, excludeLocalNetworks: ${_this.excludeLocalNetworks}, excludeAPNs: ${_this.excludeAPNs}, excludeCellularServices: ${_this.excludeCellularServices}, enforceRoutes: ${_this.enforceRoutes}, excludeDeviceCommunication: ${_this.excludeDeviceCommunication})';
 }
 
 
@@ -681,7 +1554,7 @@ abstract mixin class $VpnOptionsCopyWith<$Res>  {
   factory $VpnOptionsCopyWith(VpnOptions value, $Res Function(VpnOptions) _then) = _$VpnOptionsCopyWithImpl;
 @useResult
 $Res call({
- bool enable, int port, bool ipv6, bool dnsHijacking, AccessControlProps accessControlProps, bool allowBypass, bool systemProxy, List<String> bypassDomain, String stack, List<String> routeAddress, int mtu, String congestionController
+ bool enable, int port, bool ipv6, bool dnsHijacking, AccessControlProps accessControlProps, bool allowBypass, bool systemProxy, List<String> bypassDomain, String stack, List<String> routeAddress, int mtu, String congestionController, bool disableIcmpForwarding, bool endpointIndependentNat, bool recvMsgX, bool sendMsgX, bool includeAllNetworks, bool excludeLocalNetworks, bool excludeAPNs, bool excludeCellularServices, bool enforceRoutes, bool excludeDeviceCommunication
 });
 
 
@@ -698,7 +1571,7 @@ class _$VpnOptionsCopyWithImpl<$Res>
 
 /// Create a copy of VpnOptions
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? enable = null,Object? port = null,Object? ipv6 = null,Object? dnsHijacking = null,Object? accessControlProps = null,Object? allowBypass = null,Object? systemProxy = null,Object? bypassDomain = null,Object? stack = null,Object? routeAddress = null,Object? mtu = null,Object? congestionController = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? enable = null,Object? port = null,Object? ipv6 = null,Object? dnsHijacking = null,Object? accessControlProps = null,Object? allowBypass = null,Object? systemProxy = null,Object? bypassDomain = null,Object? stack = null,Object? routeAddress = null,Object? mtu = null,Object? congestionController = null,Object? disableIcmpForwarding = null,Object? endpointIndependentNat = null,Object? recvMsgX = null,Object? sendMsgX = null,Object? includeAllNetworks = null,Object? excludeLocalNetworks = null,Object? excludeAPNs = null,Object? excludeCellularServices = null,Object? enforceRoutes = null,Object? excludeDeviceCommunication = null,}) {
   return _then(VpnOptions(
 enable: null == enable ? _self.enable : enable // ignore: cast_nullable_to_non_nullable
 as bool,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
@@ -712,7 +1585,17 @@ as List<String>,stack: null == stack ? _self.stack : stack // ignore: cast_nulla
 as String,routeAddress: null == routeAddress ? _self.routeAddress : routeAddress // ignore: cast_nullable_to_non_nullable
 as List<String>,mtu: null == mtu ? _self.mtu : mtu // ignore: cast_nullable_to_non_nullable
 as int,congestionController: null == congestionController ? _self.congestionController : congestionController // ignore: cast_nullable_to_non_nullable
-as String,
+as String,disableIcmpForwarding: null == disableIcmpForwarding ? _self.disableIcmpForwarding : disableIcmpForwarding // ignore: cast_nullable_to_non_nullable
+as bool,endpointIndependentNat: null == endpointIndependentNat ? _self.endpointIndependentNat : endpointIndependentNat // ignore: cast_nullable_to_non_nullable
+as bool,recvMsgX: null == recvMsgX ? _self.recvMsgX : recvMsgX // ignore: cast_nullable_to_non_nullable
+as bool,sendMsgX: null == sendMsgX ? _self.sendMsgX : sendMsgX // ignore: cast_nullable_to_non_nullable
+as bool,includeAllNetworks: null == includeAllNetworks ? _self.includeAllNetworks : includeAllNetworks // ignore: cast_nullable_to_non_nullable
+as bool,excludeLocalNetworks: null == excludeLocalNetworks ? _self.excludeLocalNetworks : excludeLocalNetworks // ignore: cast_nullable_to_non_nullable
+as bool,excludeAPNs: null == excludeAPNs ? _self.excludeAPNs : excludeAPNs // ignore: cast_nullable_to_non_nullable
+as bool,excludeCellularServices: null == excludeCellularServices ? _self.excludeCellularServices : excludeCellularServices // ignore: cast_nullable_to_non_nullable
+as bool,enforceRoutes: null == enforceRoutes ? _self.enforceRoutes : enforceRoutes // ignore: cast_nullable_to_non_nullable
+as bool,excludeDeviceCommunication: null == excludeDeviceCommunication ? _self.excludeDeviceCommunication : excludeDeviceCommunication // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 /// Create a copy of VpnOptions
@@ -806,10 +1689,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enable,  int port,  bool ipv6,  bool dnsHijacking,  AccessControlProps accessControlProps,  bool allowBypass,  bool systemProxy,  List<String> bypassDomain,  String stack,  List<String> routeAddress,  int mtu,  String congestionController)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enable,  int port,  bool ipv6,  bool dnsHijacking,  AccessControlProps accessControlProps,  bool allowBypass,  bool systemProxy,  List<String> bypassDomain,  String stack,  List<String> routeAddress,  int mtu,  String congestionController,  bool disableIcmpForwarding,  bool endpointIndependentNat,  bool recvMsgX,  bool sendMsgX,  bool includeAllNetworks,  bool excludeLocalNetworks,  bool excludeAPNs,  bool excludeCellularServices,  bool enforceRoutes,  bool excludeDeviceCommunication)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VpnOptions() when $default != null:
-return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.accessControlProps,_that.allowBypass,_that.systemProxy,_that.bypassDomain,_that.stack,_that.routeAddress,_that.mtu,_that.congestionController);case _:
+return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.accessControlProps,_that.allowBypass,_that.systemProxy,_that.bypassDomain,_that.stack,_that.routeAddress,_that.mtu,_that.congestionController,_that.disableIcmpForwarding,_that.endpointIndependentNat,_that.recvMsgX,_that.sendMsgX,_that.includeAllNetworks,_that.excludeLocalNetworks,_that.excludeAPNs,_that.excludeCellularServices,_that.enforceRoutes,_that.excludeDeviceCommunication);case _:
   return orElse();
 
 }
@@ -827,10 +1710,10 @@ return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.acce
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enable,  int port,  bool ipv6,  bool dnsHijacking,  AccessControlProps accessControlProps,  bool allowBypass,  bool systemProxy,  List<String> bypassDomain,  String stack,  List<String> routeAddress,  int mtu,  String congestionController)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enable,  int port,  bool ipv6,  bool dnsHijacking,  AccessControlProps accessControlProps,  bool allowBypass,  bool systemProxy,  List<String> bypassDomain,  String stack,  List<String> routeAddress,  int mtu,  String congestionController,  bool disableIcmpForwarding,  bool endpointIndependentNat,  bool recvMsgX,  bool sendMsgX,  bool includeAllNetworks,  bool excludeLocalNetworks,  bool excludeAPNs,  bool excludeCellularServices,  bool enforceRoutes,  bool excludeDeviceCommunication)  $default,) {final _that = this;
 switch (_that) {
 case _VpnOptions():
-return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.accessControlProps,_that.allowBypass,_that.systemProxy,_that.bypassDomain,_that.stack,_that.routeAddress,_that.mtu,_that.congestionController);case _:
+return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.accessControlProps,_that.allowBypass,_that.systemProxy,_that.bypassDomain,_that.stack,_that.routeAddress,_that.mtu,_that.congestionController,_that.disableIcmpForwarding,_that.endpointIndependentNat,_that.recvMsgX,_that.sendMsgX,_that.includeAllNetworks,_that.excludeLocalNetworks,_that.excludeAPNs,_that.excludeCellularServices,_that.enforceRoutes,_that.excludeDeviceCommunication);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -847,10 +1730,10 @@ return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.acce
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enable,  int port,  bool ipv6,  bool dnsHijacking,  AccessControlProps accessControlProps,  bool allowBypass,  bool systemProxy,  List<String> bypassDomain,  String stack,  List<String> routeAddress,  int mtu,  String congestionController)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enable,  int port,  bool ipv6,  bool dnsHijacking,  AccessControlProps accessControlProps,  bool allowBypass,  bool systemProxy,  List<String> bypassDomain,  String stack,  List<String> routeAddress,  int mtu,  String congestionController,  bool disableIcmpForwarding,  bool endpointIndependentNat,  bool recvMsgX,  bool sendMsgX,  bool includeAllNetworks,  bool excludeLocalNetworks,  bool excludeAPNs,  bool excludeCellularServices,  bool enforceRoutes,  bool excludeDeviceCommunication)?  $default,) {final _that = this;
 switch (_that) {
 case _VpnOptions() when $default != null:
-return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.accessControlProps,_that.allowBypass,_that.systemProxy,_that.bypassDomain,_that.stack,_that.routeAddress,_that.mtu,_that.congestionController);case _:
+return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.accessControlProps,_that.allowBypass,_that.systemProxy,_that.bypassDomain,_that.stack,_that.routeAddress,_that.mtu,_that.congestionController,_that.disableIcmpForwarding,_that.endpointIndependentNat,_that.recvMsgX,_that.sendMsgX,_that.includeAllNetworks,_that.excludeLocalNetworks,_that.excludeAPNs,_that.excludeCellularServices,_that.enforceRoutes,_that.excludeDeviceCommunication);case _:
   return null;
 
 }
@@ -862,7 +1745,7 @@ return $default(_that.enable,_that.port,_that.ipv6,_that.dnsHijacking,_that.acce
 @JsonSerializable()
 
 class _VpnOptions implements VpnOptions {
-  const _VpnOptions({required this.enable, required this.port, required this.ipv6, required this.dnsHijacking, required this.accessControlProps, required this.allowBypass, required this.systemProxy, required  List<String> bypassDomain, required this.stack,  List<String> routeAddress = const [], this.mtu = 0, this.congestionController = ''}): _bypassDomain = bypassDomain,_routeAddress = routeAddress;
+  const _VpnOptions({required this.enable, required this.port, required this.ipv6, required this.dnsHijacking, required this.accessControlProps, required this.allowBypass, required this.systemProxy, required  List<String> bypassDomain, required this.stack,  List<String> routeAddress = const [], this.mtu = 0, this.congestionController = '', this.disableIcmpForwarding = false, this.endpointIndependentNat = false, this.recvMsgX = true, this.sendMsgX = false, this.includeAllNetworks = false, this.excludeLocalNetworks = true, this.excludeAPNs = true, this.excludeCellularServices = true, this.enforceRoutes = false, this.excludeDeviceCommunication = true}): _bypassDomain = bypassDomain,_routeAddress = routeAddress;
   factory _VpnOptions.fromJson(Map<String, dynamic> json) => _$VpnOptionsFromJson(json);
 
 @override final  bool enable;
@@ -889,6 +1772,16 @@ class _VpnOptions implements VpnOptions {
 
 @override@JsonKey() final  int mtu;
 @override@JsonKey() final  String congestionController;
+@override@JsonKey() final  bool disableIcmpForwarding;
+@override@JsonKey() final  bool endpointIndependentNat;
+@override@JsonKey() final  bool recvMsgX;
+@override@JsonKey() final  bool sendMsgX;
+@override@JsonKey() final  bool includeAllNetworks;
+@override@JsonKey() final  bool excludeLocalNetworks;
+@override@JsonKey() final  bool excludeAPNs;
+@override@JsonKey() final  bool excludeCellularServices;
+@override@JsonKey() final  bool enforceRoutes;
+@override@JsonKey() final  bool excludeDeviceCommunication;
 
 /// Create a copy of VpnOptions
 /// with the given fields replaced by the non-null parameter values.
@@ -903,18 +1796,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _VpnOptions&&(identical(other.enable, enable) || other.enable == enable)&&(identical(other.port, port) || other.port == port)&&(identical(other.ipv6, ipv6) || other.ipv6 == ipv6)&&(identical(other.dnsHijacking, dnsHijacking) || other.dnsHijacking == dnsHijacking)&&(identical(other.accessControlProps, accessControlProps) || other.accessControlProps == accessControlProps)&&(identical(other.allowBypass, allowBypass) || other.allowBypass == allowBypass)&&(identical(other.systemProxy, systemProxy) || other.systemProxy == systemProxy)&&const DeepCollectionEquality().equals(other.bypassDomain, _bypassDomain)&&(identical(other.stack, stack) || other.stack == stack)&&const DeepCollectionEquality().equals(other.routeAddress, _routeAddress)&&(identical(other.mtu, mtu) || other.mtu == mtu)&&(identical(other.congestionController, congestionController) || other.congestionController == congestionController));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _VpnOptions&&(identical(other.enable, enable) || other.enable == enable)&&(identical(other.port, port) || other.port == port)&&(identical(other.ipv6, ipv6) || other.ipv6 == ipv6)&&(identical(other.dnsHijacking, dnsHijacking) || other.dnsHijacking == dnsHijacking)&&(identical(other.accessControlProps, accessControlProps) || other.accessControlProps == accessControlProps)&&(identical(other.allowBypass, allowBypass) || other.allowBypass == allowBypass)&&(identical(other.systemProxy, systemProxy) || other.systemProxy == systemProxy)&&const DeepCollectionEquality().equals(other.bypassDomain, _bypassDomain)&&(identical(other.stack, stack) || other.stack == stack)&&const DeepCollectionEquality().equals(other.routeAddress, _routeAddress)&&(identical(other.mtu, mtu) || other.mtu == mtu)&&(identical(other.congestionController, congestionController) || other.congestionController == congestionController)&&(identical(other.disableIcmpForwarding, disableIcmpForwarding) || other.disableIcmpForwarding == disableIcmpForwarding)&&(identical(other.endpointIndependentNat, endpointIndependentNat) || other.endpointIndependentNat == endpointIndependentNat)&&(identical(other.recvMsgX, recvMsgX) || other.recvMsgX == recvMsgX)&&(identical(other.sendMsgX, sendMsgX) || other.sendMsgX == sendMsgX)&&(identical(other.includeAllNetworks, includeAllNetworks) || other.includeAllNetworks == includeAllNetworks)&&(identical(other.excludeLocalNetworks, excludeLocalNetworks) || other.excludeLocalNetworks == excludeLocalNetworks)&&(identical(other.excludeAPNs, excludeAPNs) || other.excludeAPNs == excludeAPNs)&&(identical(other.excludeCellularServices, excludeCellularServices) || other.excludeCellularServices == excludeCellularServices)&&(identical(other.enforceRoutes, enforceRoutes) || other.enforceRoutes == enforceRoutes)&&(identical(other.excludeDeviceCommunication, excludeDeviceCommunication) || other.excludeDeviceCommunication == excludeDeviceCommunication));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,enable,port,ipv6,dnsHijacking,accessControlProps,allowBypass,systemProxy,const DeepCollectionEquality().hash(_bypassDomain),stack,const DeepCollectionEquality().hash(_routeAddress),mtu,congestionController);
+    return Object.hashAll([runtimeType,enable,port,ipv6,dnsHijacking,accessControlProps,allowBypass,systemProxy,const DeepCollectionEquality().hash(_bypassDomain),stack,const DeepCollectionEquality().hash(_routeAddress),mtu,congestionController,disableIcmpForwarding,endpointIndependentNat,recvMsgX,sendMsgX,includeAllNetworks,excludeLocalNetworks,excludeAPNs,excludeCellularServices,enforceRoutes,excludeDeviceCommunication]);
 }
 
 @override
 String toString() {
-    return 'VpnOptions(enable: $enable, port: $port, ipv6: $ipv6, dnsHijacking: $dnsHijacking, accessControlProps: $accessControlProps, allowBypass: $allowBypass, systemProxy: $systemProxy, bypassDomain: $bypassDomain, stack: $stack, routeAddress: $routeAddress, mtu: $mtu, congestionController: $congestionController)';
+    return 'VpnOptions(enable: $enable, port: $port, ipv6: $ipv6, dnsHijacking: $dnsHijacking, accessControlProps: $accessControlProps, allowBypass: $allowBypass, systemProxy: $systemProxy, bypassDomain: $bypassDomain, stack: $stack, routeAddress: $routeAddress, mtu: $mtu, congestionController: $congestionController, disableIcmpForwarding: $disableIcmpForwarding, endpointIndependentNat: $endpointIndependentNat, recvMsgX: $recvMsgX, sendMsgX: $sendMsgX, includeAllNetworks: $includeAllNetworks, excludeLocalNetworks: $excludeLocalNetworks, excludeAPNs: $excludeAPNs, excludeCellularServices: $excludeCellularServices, enforceRoutes: $enforceRoutes, excludeDeviceCommunication: $excludeDeviceCommunication)';
 }
 
 
@@ -925,7 +1818,7 @@ abstract mixin class _$VpnOptionsCopyWith<$Res> implements $VpnOptionsCopyWith<$
   factory _$VpnOptionsCopyWith(_VpnOptions value, $Res Function(_VpnOptions) _then) = __$VpnOptionsCopyWithImpl;
 @override @useResult
 $Res call({
- bool enable, int port, bool ipv6, bool dnsHijacking, AccessControlProps accessControlProps, bool allowBypass, bool systemProxy, List<String> bypassDomain, String stack, List<String> routeAddress, int mtu, String congestionController
+ bool enable, int port, bool ipv6, bool dnsHijacking, AccessControlProps accessControlProps, bool allowBypass, bool systemProxy, List<String> bypassDomain, String stack, List<String> routeAddress, int mtu, String congestionController, bool disableIcmpForwarding, bool endpointIndependentNat, bool recvMsgX, bool sendMsgX, bool includeAllNetworks, bool excludeLocalNetworks, bool excludeAPNs, bool excludeCellularServices, bool enforceRoutes, bool excludeDeviceCommunication
 });
 
 
@@ -942,7 +1835,7 @@ class __$VpnOptionsCopyWithImpl<$Res>
 
 /// Create a copy of VpnOptions
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? enable = null,Object? port = null,Object? ipv6 = null,Object? dnsHijacking = null,Object? accessControlProps = null,Object? allowBypass = null,Object? systemProxy = null,Object? bypassDomain = null,Object? stack = null,Object? routeAddress = null,Object? mtu = null,Object? congestionController = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? enable = null,Object? port = null,Object? ipv6 = null,Object? dnsHijacking = null,Object? accessControlProps = null,Object? allowBypass = null,Object? systemProxy = null,Object? bypassDomain = null,Object? stack = null,Object? routeAddress = null,Object? mtu = null,Object? congestionController = null,Object? disableIcmpForwarding = null,Object? endpointIndependentNat = null,Object? recvMsgX = null,Object? sendMsgX = null,Object? includeAllNetworks = null,Object? excludeLocalNetworks = null,Object? excludeAPNs = null,Object? excludeCellularServices = null,Object? enforceRoutes = null,Object? excludeDeviceCommunication = null,}) {
   return _then(_VpnOptions(
 enable: null == enable ? _self.enable : enable // ignore: cast_nullable_to_non_nullable
 as bool,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
@@ -956,7 +1849,17 @@ as List<String>,stack: null == stack ? _self.stack : stack // ignore: cast_nulla
 as String,routeAddress: null == routeAddress ? _self._routeAddress : routeAddress // ignore: cast_nullable_to_non_nullable
 as List<String>,mtu: null == mtu ? _self.mtu : mtu // ignore: cast_nullable_to_non_nullable
 as int,congestionController: null == congestionController ? _self.congestionController : congestionController // ignore: cast_nullable_to_non_nullable
-as String,
+as String,disableIcmpForwarding: null == disableIcmpForwarding ? _self.disableIcmpForwarding : disableIcmpForwarding // ignore: cast_nullable_to_non_nullable
+as bool,endpointIndependentNat: null == endpointIndependentNat ? _self.endpointIndependentNat : endpointIndependentNat // ignore: cast_nullable_to_non_nullable
+as bool,recvMsgX: null == recvMsgX ? _self.recvMsgX : recvMsgX // ignore: cast_nullable_to_non_nullable
+as bool,sendMsgX: null == sendMsgX ? _self.sendMsgX : sendMsgX // ignore: cast_nullable_to_non_nullable
+as bool,includeAllNetworks: null == includeAllNetworks ? _self.includeAllNetworks : includeAllNetworks // ignore: cast_nullable_to_non_nullable
+as bool,excludeLocalNetworks: null == excludeLocalNetworks ? _self.excludeLocalNetworks : excludeLocalNetworks // ignore: cast_nullable_to_non_nullable
+as bool,excludeAPNs: null == excludeAPNs ? _self.excludeAPNs : excludeAPNs // ignore: cast_nullable_to_non_nullable
+as bool,excludeCellularServices: null == excludeCellularServices ? _self.excludeCellularServices : excludeCellularServices // ignore: cast_nullable_to_non_nullable
+as bool,enforceRoutes: null == enforceRoutes ? _self.enforceRoutes : enforceRoutes // ignore: cast_nullable_to_non_nullable
+as bool,excludeDeviceCommunication: null == excludeDeviceCommunication ? _self.excludeDeviceCommunication : excludeDeviceCommunication // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -1249,7 +2152,7 @@ as int,
 /// @nodoc
 mixin _$ChangeProxyParams {
 
-@JsonKey(name: 'group-name') String get groupName;@JsonKey(name: 'proxy-name') String get proxyName;
+@JsonKey(name: 'group-name') String get groupName;@JsonKey(name: 'proxy-name') String get proxyName;@JsonKey(name: 'close-connections') bool get closeConnections;
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1263,20 +2166,20 @@ $ChangeProxyParamsCopyWith<ChangeProxyParams> get copyWith => _$ChangeProxyParam
 @override
 bool operator ==(Object other) {
   final _this = this as ChangeProxyParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChangeProxyParams&&(identical(other.groupName, _this.groupName) || other.groupName == _this.groupName)&&(identical(other.proxyName, _this.proxyName) || other.proxyName == _this.proxyName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChangeProxyParams&&(identical(other.groupName, _this.groupName) || other.groupName == _this.groupName)&&(identical(other.proxyName, _this.proxyName) || other.proxyName == _this.proxyName)&&(identical(other.closeConnections, _this.closeConnections) || other.closeConnections == _this.closeConnections));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as ChangeProxyParams;
-  return Object.hash(runtimeType,_this.groupName,_this.proxyName);
+  return Object.hash(runtimeType,_this.groupName,_this.proxyName,_this.closeConnections);
 }
 
 @override
 String toString() {
   final _this = this as ChangeProxyParams;
-  return 'ChangeProxyParams(groupName: ${_this.groupName}, proxyName: ${_this.proxyName})';
+  return 'ChangeProxyParams(groupName: ${_this.groupName}, proxyName: ${_this.proxyName}, closeConnections: ${_this.closeConnections})';
 }
 
 
@@ -1287,7 +2190,7 @@ abstract mixin class $ChangeProxyParamsCopyWith<$Res>  {
   factory $ChangeProxyParamsCopyWith(ChangeProxyParams value, $Res Function(ChangeProxyParams) _then) = _$ChangeProxyParamsCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName
+@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName,@JsonKey(name: 'close-connections') bool closeConnections
 });
 
 
@@ -1304,11 +2207,12 @@ class _$ChangeProxyParamsCopyWithImpl<$Res>
 
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? groupName = null,Object? proxyName = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? groupName = null,Object? proxyName = null,Object? closeConnections = null,}) {
   return _then(ChangeProxyParams(
 groupName: null == groupName ? _self.groupName : groupName // ignore: cast_nullable_to_non_nullable
 as String,proxyName: null == proxyName ? _self.proxyName : proxyName // ignore: cast_nullable_to_non_nullable
-as String,
+as String,closeConnections: null == closeConnections ? _self.closeConnections : closeConnections // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -1393,10 +2297,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChangeProxyParams() when $default != null:
-return $default(_that.groupName,_that.proxyName);case _:
+return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
   return orElse();
 
 }
@@ -1414,10 +2318,10 @@ return $default(_that.groupName,_that.proxyName);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections)  $default,) {final _that = this;
 switch (_that) {
 case _ChangeProxyParams():
-return $default(_that.groupName,_that.proxyName);case _:
+return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1434,10 +2338,10 @@ return $default(_that.groupName,_that.proxyName);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections)?  $default,) {final _that = this;
 switch (_that) {
 case _ChangeProxyParams() when $default != null:
-return $default(_that.groupName,_that.proxyName);case _:
+return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
   return null;
 
 }
@@ -1449,11 +2353,12 @@ return $default(_that.groupName,_that.proxyName);case _:
 @JsonSerializable()
 
 class _ChangeProxyParams implements ChangeProxyParams {
-  const _ChangeProxyParams({@JsonKey(name: 'group-name') required this.groupName, @JsonKey(name: 'proxy-name') required this.proxyName});
+  const _ChangeProxyParams({@JsonKey(name: 'group-name') required this.groupName, @JsonKey(name: 'proxy-name') required this.proxyName, @JsonKey(name: 'close-connections') this.closeConnections = false});
   factory _ChangeProxyParams.fromJson(Map<String, dynamic> json) => _$ChangeProxyParamsFromJson(json);
 
 @override@JsonKey(name: 'group-name') final  String groupName;
 @override@JsonKey(name: 'proxy-name') final  String proxyName;
+@override@JsonKey(name: 'close-connections') final  bool closeConnections;
 
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
@@ -1468,18 +2373,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChangeProxyParams&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.proxyName, proxyName) || other.proxyName == proxyName));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChangeProxyParams&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.proxyName, proxyName) || other.proxyName == proxyName)&&(identical(other.closeConnections, closeConnections) || other.closeConnections == closeConnections));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,groupName,proxyName);
+    return Object.hash(runtimeType,groupName,proxyName,closeConnections);
 }
 
 @override
 String toString() {
-    return 'ChangeProxyParams(groupName: $groupName, proxyName: $proxyName)';
+    return 'ChangeProxyParams(groupName: $groupName, proxyName: $proxyName, closeConnections: $closeConnections)';
 }
 
 
@@ -1490,7 +2395,7 @@ abstract mixin class _$ChangeProxyParamsCopyWith<$Res> implements $ChangeProxyPa
   factory _$ChangeProxyParamsCopyWith(_ChangeProxyParams value, $Res Function(_ChangeProxyParams) _then) = __$ChangeProxyParamsCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName
+@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName,@JsonKey(name: 'close-connections') bool closeConnections
 });
 
 
@@ -1507,11 +2412,12 @@ class __$ChangeProxyParamsCopyWithImpl<$Res>
 
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? groupName = null,Object? proxyName = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? groupName = null,Object? proxyName = null,Object? closeConnections = null,}) {
   return _then(_ChangeProxyParams(
 groupName: null == groupName ? _self.groupName : groupName // ignore: cast_nullable_to_non_nullable
 as String,proxyName: null == proxyName ? _self.proxyName : proxyName // ignore: cast_nullable_to_non_nullable
-as String,
+as String,closeConnections: null == closeConnections ? _self.closeConnections : closeConnections // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -4642,7 +5548,7 @@ as int,
 /// @nodoc
 mixin _$CoreMemoryStats {
 
- int get rss; int get heapInuse; int get heapIdle; int get stackInuse; int get runtimeOther;
+ int get rss; int get heapInuse; int get heapIdle; int get stackInuse; int get runtimeOther; int get footprint;
 /// Create a copy of CoreMemoryStats
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -4656,20 +5562,20 @@ $CoreMemoryStatsCopyWith<CoreMemoryStats> get copyWith => _$CoreMemoryStatsCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as CoreMemoryStats;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreMemoryStats&&(identical(other.rss, _this.rss) || other.rss == _this.rss)&&(identical(other.heapInuse, _this.heapInuse) || other.heapInuse == _this.heapInuse)&&(identical(other.heapIdle, _this.heapIdle) || other.heapIdle == _this.heapIdle)&&(identical(other.stackInuse, _this.stackInuse) || other.stackInuse == _this.stackInuse)&&(identical(other.runtimeOther, _this.runtimeOther) || other.runtimeOther == _this.runtimeOther));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreMemoryStats&&(identical(other.rss, _this.rss) || other.rss == _this.rss)&&(identical(other.heapInuse, _this.heapInuse) || other.heapInuse == _this.heapInuse)&&(identical(other.heapIdle, _this.heapIdle) || other.heapIdle == _this.heapIdle)&&(identical(other.stackInuse, _this.stackInuse) || other.stackInuse == _this.stackInuse)&&(identical(other.runtimeOther, _this.runtimeOther) || other.runtimeOther == _this.runtimeOther)&&(identical(other.footprint, _this.footprint) || other.footprint == _this.footprint));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as CoreMemoryStats;
-  return Object.hash(runtimeType,_this.rss,_this.heapInuse,_this.heapIdle,_this.stackInuse,_this.runtimeOther);
+  return Object.hash(runtimeType,_this.rss,_this.heapInuse,_this.heapIdle,_this.stackInuse,_this.runtimeOther,_this.footprint);
 }
 
 @override
 String toString() {
   final _this = this as CoreMemoryStats;
-  return 'CoreMemoryStats(rss: ${_this.rss}, heapInuse: ${_this.heapInuse}, heapIdle: ${_this.heapIdle}, stackInuse: ${_this.stackInuse}, runtimeOther: ${_this.runtimeOther})';
+  return 'CoreMemoryStats(rss: ${_this.rss}, heapInuse: ${_this.heapInuse}, heapIdle: ${_this.heapIdle}, stackInuse: ${_this.stackInuse}, runtimeOther: ${_this.runtimeOther}, footprint: ${_this.footprint})';
 }
 
 
@@ -4680,7 +5586,7 @@ abstract mixin class $CoreMemoryStatsCopyWith<$Res>  {
   factory $CoreMemoryStatsCopyWith(CoreMemoryStats value, $Res Function(CoreMemoryStats) _then) = _$CoreMemoryStatsCopyWithImpl;
 @useResult
 $Res call({
- int rss, int heapInuse, int heapIdle, int stackInuse, int runtimeOther
+ int rss, int heapInuse, int heapIdle, int stackInuse, int runtimeOther, int footprint
 });
 
 
@@ -4697,13 +5603,14 @@ class _$CoreMemoryStatsCopyWithImpl<$Res>
 
 /// Create a copy of CoreMemoryStats
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? rss = null,Object? heapInuse = null,Object? heapIdle = null,Object? stackInuse = null,Object? runtimeOther = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? rss = null,Object? heapInuse = null,Object? heapIdle = null,Object? stackInuse = null,Object? runtimeOther = null,Object? footprint = null,}) {
   return _then(CoreMemoryStats(
 rss: null == rss ? _self.rss : rss // ignore: cast_nullable_to_non_nullable
 as int,heapInuse: null == heapInuse ? _self.heapInuse : heapInuse // ignore: cast_nullable_to_non_nullable
 as int,heapIdle: null == heapIdle ? _self.heapIdle : heapIdle // ignore: cast_nullable_to_non_nullable
 as int,stackInuse: null == stackInuse ? _self.stackInuse : stackInuse // ignore: cast_nullable_to_non_nullable
 as int,runtimeOther: null == runtimeOther ? _self.runtimeOther : runtimeOther // ignore: cast_nullable_to_non_nullable
+as int,footprint: null == footprint ? _self.footprint : footprint // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -4789,10 +5696,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int rss,  int heapInuse,  int heapIdle,  int stackInuse,  int runtimeOther)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int rss,  int heapInuse,  int heapIdle,  int stackInuse,  int runtimeOther,  int footprint)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CoreMemoryStats() when $default != null:
-return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.runtimeOther);case _:
+return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.runtimeOther,_that.footprint);case _:
   return orElse();
 
 }
@@ -4810,10 +5717,10 @@ return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int rss,  int heapInuse,  int heapIdle,  int stackInuse,  int runtimeOther)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int rss,  int heapInuse,  int heapIdle,  int stackInuse,  int runtimeOther,  int footprint)  $default,) {final _that = this;
 switch (_that) {
 case _CoreMemoryStats():
-return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.runtimeOther);case _:
+return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.runtimeOther,_that.footprint);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -4830,10 +5737,10 @@ return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int rss,  int heapInuse,  int heapIdle,  int stackInuse,  int runtimeOther)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int rss,  int heapInuse,  int heapIdle,  int stackInuse,  int runtimeOther,  int footprint)?  $default,) {final _that = this;
 switch (_that) {
 case _CoreMemoryStats() when $default != null:
-return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.runtimeOther);case _:
+return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.runtimeOther,_that.footprint);case _:
   return null;
 
 }
@@ -4845,7 +5752,7 @@ return $default(_that.rss,_that.heapInuse,_that.heapIdle,_that.stackInuse,_that.
 @JsonSerializable()
 
 class _CoreMemoryStats implements CoreMemoryStats {
-  const _CoreMemoryStats({this.rss = 0, this.heapInuse = 0, this.heapIdle = 0, this.stackInuse = 0, this.runtimeOther = 0});
+  const _CoreMemoryStats({this.rss = 0, this.heapInuse = 0, this.heapIdle = 0, this.stackInuse = 0, this.runtimeOther = 0, this.footprint = 0});
   factory _CoreMemoryStats.fromJson(Map<String, dynamic> json) => _$CoreMemoryStatsFromJson(json);
 
 @override@JsonKey() final  int rss;
@@ -4853,6 +5760,7 @@ class _CoreMemoryStats implements CoreMemoryStats {
 @override@JsonKey() final  int heapIdle;
 @override@JsonKey() final  int stackInuse;
 @override@JsonKey() final  int runtimeOther;
+@override@JsonKey() final  int footprint;
 
 /// Create a copy of CoreMemoryStats
 /// with the given fields replaced by the non-null parameter values.
@@ -4867,18 +5775,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoreMemoryStats&&(identical(other.rss, rss) || other.rss == rss)&&(identical(other.heapInuse, heapInuse) || other.heapInuse == heapInuse)&&(identical(other.heapIdle, heapIdle) || other.heapIdle == heapIdle)&&(identical(other.stackInuse, stackInuse) || other.stackInuse == stackInuse)&&(identical(other.runtimeOther, runtimeOther) || other.runtimeOther == runtimeOther));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoreMemoryStats&&(identical(other.rss, rss) || other.rss == rss)&&(identical(other.heapInuse, heapInuse) || other.heapInuse == heapInuse)&&(identical(other.heapIdle, heapIdle) || other.heapIdle == heapIdle)&&(identical(other.stackInuse, stackInuse) || other.stackInuse == stackInuse)&&(identical(other.runtimeOther, runtimeOther) || other.runtimeOther == runtimeOther)&&(identical(other.footprint, footprint) || other.footprint == footprint));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,rss,heapInuse,heapIdle,stackInuse,runtimeOther);
+    return Object.hash(runtimeType,rss,heapInuse,heapIdle,stackInuse,runtimeOther,footprint);
 }
 
 @override
 String toString() {
-    return 'CoreMemoryStats(rss: $rss, heapInuse: $heapInuse, heapIdle: $heapIdle, stackInuse: $stackInuse, runtimeOther: $runtimeOther)';
+    return 'CoreMemoryStats(rss: $rss, heapInuse: $heapInuse, heapIdle: $heapIdle, stackInuse: $stackInuse, runtimeOther: $runtimeOther, footprint: $footprint)';
 }
 
 
@@ -4889,7 +5797,7 @@ abstract mixin class _$CoreMemoryStatsCopyWith<$Res> implements $CoreMemoryStats
   factory _$CoreMemoryStatsCopyWith(_CoreMemoryStats value, $Res Function(_CoreMemoryStats) _then) = __$CoreMemoryStatsCopyWithImpl;
 @override @useResult
 $Res call({
- int rss, int heapInuse, int heapIdle, int stackInuse, int runtimeOther
+ int rss, int heapInuse, int heapIdle, int stackInuse, int runtimeOther, int footprint
 });
 
 
@@ -4906,13 +5814,14 @@ class __$CoreMemoryStatsCopyWithImpl<$Res>
 
 /// Create a copy of CoreMemoryStats
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? rss = null,Object? heapInuse = null,Object? heapIdle = null,Object? stackInuse = null,Object? runtimeOther = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? rss = null,Object? heapInuse = null,Object? heapIdle = null,Object? stackInuse = null,Object? runtimeOther = null,Object? footprint = null,}) {
   return _then(_CoreMemoryStats(
 rss: null == rss ? _self.rss : rss // ignore: cast_nullable_to_non_nullable
 as int,heapInuse: null == heapInuse ? _self.heapInuse : heapInuse // ignore: cast_nullable_to_non_nullable
 as int,heapIdle: null == heapIdle ? _self.heapIdle : heapIdle // ignore: cast_nullable_to_non_nullable
 as int,stackInuse: null == stackInuse ? _self.stackInuse : stackInuse // ignore: cast_nullable_to_non_nullable
 as int,runtimeOther: null == runtimeOther ? _self.runtimeOther : runtimeOther // ignore: cast_nullable_to_non_nullable
+as int,footprint: null == footprint ? _self.footprint : footprint // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }

@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/app_localizations.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -59,7 +60,15 @@ Future<ProviderContainer> pumpApp(WidgetTester tester, {Locale? locale}) async {
 /// The dialog blocks until the user answers, so tests must close it before
 /// awaiting the call that opened it.
 Future<void> tapCancel(WidgetTester tester) async {
-  await tester.tap(find.byType(TextButton).first);
+  final noLongerRemind = find.widgetWithText(
+    TextButton,
+    currentAppLocalizations.noLongerRemind,
+  );
+  await tester.tap(
+    noLongerRemind.evaluate().isNotEmpty
+        ? noLongerRemind
+        : find.widgetWithText(TextButton, currentAppLocalizations.cancel),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -87,6 +96,7 @@ void main() {
     expect(find.textContaining('Re-import backups'), findsOneWidget);
     expect(find.textContaining('Override scripts'), findsOneWidget);
     expect(find.textContaining('Breaking changes'), findsOneWidget);
+    expect(find.text(currentAppLocalizations.openInGitHub), findsOneWidget);
 
     await tapCancel(tester);
     await shown;

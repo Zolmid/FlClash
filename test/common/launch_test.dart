@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/launch.dart';
+import 'package:fl_clash/common/windows_autostart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
@@ -34,6 +35,28 @@ class _FakeLauncher implements LaunchAtStartup {
   Future<bool> disable() async {
     calls.add('disable');
     enabled = false;
+    return true;
+  }
+}
+
+class _GuardedRegistration implements AutostartRegistration {
+  int calls = 0;
+
+  @override
+  Future<bool> isEnabled() async {
+    calls++;
+    return false;
+  }
+
+  @override
+  Future<bool> enable() async {
+    calls++;
+    return true;
+  }
+
+  @override
+  Future<bool> disable() async {
+    calls++;
     return true;
   }
 }
@@ -77,8 +100,11 @@ void main() {
       reason: 'flutter test runs in debug; the guard below assumes it.',
     );
 
-    await autoLaunch.updateStatus(true);
-    await autoLaunch.updateStatus(false);
+    await autoLaunch.updateStatus(
+      isAutoLaunch: true,
+      isHighPriorityAutoLaunch: true,
+    );
+    await autoLaunch.updateStatus(isAutoLaunch: false);
 
     expect(
       launcher.calls,
@@ -88,4 +114,24 @@ void main() {
           'entry, or every debug run would register the running binary.',
     );
   });
+  test(
+    'safe mode never queries or changes either Windows autostart mode',
+    () async {
+      final regular = _GuardedRegistration();
+      final scheduled = _GuardedRegistration();
+      final guarded = AutoLaunch.forTesting(
+        regular: regular,
+        scheduled: scheduled,
+        safeMode: true,
+        onFailure: (error) => fail('No OS call was expected: $error'),
+      );
+      await guarded.updateStatus(
+        isAutoLaunch: true,
+        isHighPriorityAutoLaunch: true,
+      );
+      await guarded.updateStatus(isAutoLaunch: false);
+      expect(regular.calls, 0);
+      expect(scheduled.calls, 0);
+    },
+  );
 }

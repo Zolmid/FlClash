@@ -16,6 +16,7 @@ extension PageLabelL10n on PageLabel {
       PageLabel.resources => appLocalizations.resources,
       PageLabel.connections => appLocalizations.liveConnections,
       PageLabel.dns => appLocalizations.dnsQueries,
+      PageLabel.rules => appLocalizations.rules,
     };
   }
 }
@@ -28,6 +29,7 @@ extension DnsQueryInitiatorL10n on DnsQueryInitiator {
       DnsQueryInitiator.rule => appLocalizations.rule,
       DnsQueryInitiator.direct => appLocalizations.direct,
       DnsQueryInitiator.proxy => appLocalizations.proxies,
+      DnsQueryInitiator.manual => appLocalizations.manual,
       DnsQueryInitiator.other => appLocalizations.other,
     };
   }
@@ -120,6 +122,7 @@ extension LocaleL10n on Locale {
       'ja' => appLocalizations.ja,
       'ru' => appLocalizations.ru,
       'zh_CN' => appLocalizations.zhCN,
+      'zh_TW' => appLocalizations.zhTW,
       final code => code,
     };
   }

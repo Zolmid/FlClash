@@ -104,6 +104,17 @@ func handleGetProxies() ProxiesData {
 func proxyView(proxy constant.Proxy) any {
 	node := nodeView{Name: proxy.Name(), Type: proxy.Type().String()}
 	if !isProxyGroupType(proxy.Type()) {
+		info := proxy.ProxyInfo()
+		node.UDP = proxy.SupportUDP()
+		node.UOT = proxy.SupportUOT()
+		node.XUDP = info.XUDP
+		node.TFO = info.TFO
+		node.MPTCP = info.MPTCP
+		node.SMUX = info.SMUX
+		node.Interface = info.Interface
+		node.RoutingMark = info.RoutingMark
+		node.ProviderName = info.ProviderName
+		node.DialerProxy = info.DialerProxy
 		return node
 	}
 	data, err := proxy.Adapter().MarshalJSON()
@@ -168,6 +179,9 @@ func handleChangeProxy(params *ChangeProxyParams) *ChangeProxyResult {
 		return &ChangeProxyResult{Message: err.Error()}
 	}
 	changed := selector.Now() != before
+	if params.CloseConnections {
+		closeConnectionsForSelection(params.GroupName, selector.Now())
+	}
 	refreshRouteLocked(false)
 	return &ChangeProxyResult{Changed: changed}
 }

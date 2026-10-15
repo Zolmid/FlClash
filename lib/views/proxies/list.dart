@@ -36,6 +36,7 @@ class _ProxiesListViewState extends ConsumerState<ProxiesListView> {
   double containerHeight = 0;
   String? _enterGroupName;
   Timer? _enterTimer;
+  Object? _lastFocus;
 
   @override
   void initState() {
@@ -281,6 +282,7 @@ class _ProxiesListViewState extends ConsumerState<ProxiesListView> {
     return Consumer(
       builder: (_, ref, _) {
         final state = ref.watch(proxiesListStateProvider);
+        final focus = ref.watch(proxyFocusProvider);
         ref.watch(themeSettingProvider.select((state) => state.textScale));
         final proxiesLayout = ref.watch(
           proxiesStyleSettingProvider.select((state) => state.layout),
@@ -309,6 +311,33 @@ class _ProxiesListViewState extends ConsumerState<ProxiesListView> {
                 columns: columns,
                 cardType: state.proxyCardType,
               );
+              if (focus != _lastFocus) {
+                _lastFocus = focus;
+                if (focus != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted ||
+                        ref.read(proxyFocusProvider) != focus ||
+                        !_controller.hasClients) {
+                      return;
+                    }
+                    final group = _groupOffsets.groupOf(focus.groupName);
+                    if (group == null) return;
+                    final index = group.all.indexWhere(
+                      (proxy) => proxy.name == focus.proxyName,
+                    );
+                    final row = max(index, 0) ~/ columns;
+                    final offset =
+                        _groupOffsets.offsetOf(group.name) +
+                        row * getRowExtent(state.proxyCardType);
+                    _controller.jumpTo(
+                      offset.clamp(
+                        _controller.position.minScrollExtent,
+                        _controller.position.maxScrollExtent,
+                      ),
+                    );
+                  });
+                }
+              }
               final barInset = MediaQuery.paddingOf(context).top;
               containerHeight = max(
                 constraints.maxHeight - barInset - _pinnedHeaderGap,

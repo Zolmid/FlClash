@@ -154,14 +154,19 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
         return setupResult
     }
 
-    override suspend fun startService(options: VpnOptions): Boolean {
+    override suspend fun startService(options: VpnOptions, requestedOptions: VpnOptions): Boolean {
         startCalls++
         lastStartOptions = options
         beforeStartService?.invoke()
         if (!startSucceeds) {
             return false
         }
-        runtime = ServiceRuntime(vpn = runsAsVpn ?: options.enable, startedAtMillis = STARTED_AT)
+        runtime = ServiceRuntime(
+            vpn = runsAsVpn ?: options.enable,
+            startedAtMillis = STARTED_AT,
+            options = options,
+            requestedOptions = requestedOptions,
+        )
         return true
     }
 
@@ -173,6 +178,53 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServiceStateMachineTest {
+    @Test
+    fun `notification speed preference reaches the native notification owner`() {
+        assertTrue(
+            ServiceStateMachine.notificationParams(
+                SharedState(networkSpeedNotification = true),
+            ).networkSpeedNotification,
+        )
+    }
+
+    @Test
+    fun `active options follow the started service rather than later preferences`() = runTest {
+        val host = FakeHost(backgroundScope)
+        host.localNetworkPermissionGranted = false
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState(stack = "system"))
+
+        assertTrue(machine.requestStart().await())
+        assertEquals("gvisor", machine.awaitActiveVpnOptions()?.stack)
+        assertEquals("system", machine.awaitRequestedVpnOptions()?.stack)
+
+        machine.syncSharedState(configuredState(stack = "mixed"))
+        assertEquals("gvisor", machine.awaitActiveVpnOptions()?.stack)
+        assertEquals("system", machine.awaitRequestedVpnOptions()?.stack)
+
+        assertTrue(machine.requestStop().await())
+        assertEquals(null, machine.awaitActiveVpnOptions())
+        assertEquals(null, machine.awaitRequestedVpnOptions())
+
+        assertTrue(machine.requestStart().await())
+        assertEquals("gvisor", machine.awaitActiveVpnOptions()?.stack)
+        assertEquals("mixed", machine.awaitRequestedVpnOptions()?.stack)
+    }
+
+    @Test
+    fun `an open quick settings panel suppresses transition tips but still starts and stops`() = runTest {
+        val host = FakeHost(backgroundScope)
+        host.storedSharedState = configuredState().copy(collapseQuickSettingsPanel = false)
+        val machine = ServiceStateMachine(host)
+
+        machine.handleStartAction()
+        assertEquals(RunState.STARTED, machine.runState.value)
+        assertFalse(host.toasts.contains(host.storedSharedState.startTip))
+
+        machine.handleStopAction()
+        assertEquals(RunState.STOPPED, machine.runState.value)
+        assertFalse(host.toasts.contains(host.storedSharedState.stopTip))
+    }
 
     @Test
     fun `initParams spells the keys the Go wrapper expects`() {
@@ -255,6 +307,8 @@ class ServiceStateMachineTest {
         assertEquals(RunState.STOPPED, machine.runState.value)
         assertFalse(machine.isRunRequested)
         assertEquals(1, host.stoppedNotifications)
+        assertEquals(null, machine.awaitActiveVpnOptions())
+        assertEquals(null, machine.awaitRequestedVpnOptions())
     }
 
     @Test

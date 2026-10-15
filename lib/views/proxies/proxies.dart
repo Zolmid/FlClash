@@ -21,6 +21,7 @@ class ProxiesView extends ConsumerStatefulWidget {
 
 class _ProxiesViewState extends ConsumerState<ProxiesView> {
   final GlobalKey<ProxiesTabViewState> _proxiesTabKey = GlobalKey();
+  final _scaffoldKey = GlobalKey<CommonScaffoldState>();
   bool _hasProviders = false;
   bool _isTab = false;
 
@@ -35,6 +36,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
             context: context,
             builder: (_) {
               return CommonScaffold(
+                key: _scaffoldKey,
                 body: const ProxiesSetting(),
                 title: appLocalizations.settings,
               );
@@ -89,6 +91,9 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   @override
   void initState() {
     super.initState();
+    ref.listenManual(proxyFocusProvider, (_, next) {
+      if (next != null) _scaffoldKey.currentState?.handleExitSearching();
+    });
     ref.listenManual(providersProvider.select((state) => state.isNotEmpty), (
       prev,
       next,

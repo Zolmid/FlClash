@@ -28,7 +28,7 @@ typedef OnKeywordsUpdateCallback = void Function(List<String> keywords);
 typedef AppBarSearchStateBuilder =
     AppBarSearchState? Function(AppBarSearchState? state);
 
-class CommonScaffold extends StatefulWidget {
+class CommonScaffold extends ConsumerStatefulWidget {
   final Widget body;
   final Color? backgroundColor;
   final String? title;
@@ -92,10 +92,10 @@ class CommonScaffold extends StatefulWidget {
   });
 
   @override
-  State<CommonScaffold> createState() => CommonScaffoldState();
+  ConsumerState<CommonScaffold> createState() => CommonScaffoldState();
 }
 
-class CommonScaffoldState extends State<CommonScaffold> {
+class CommonScaffoldState extends ConsumerState<CommonScaffold> {
   late final ValueNotifier<AppBarState> _appBarState;
   final ValueNotifier<bool> _loadingNotifier = ValueNotifier(false);
   final ValueNotifier<bool> _isFabExtendedNotifier = ValueNotifier(true);
@@ -659,7 +659,7 @@ class CommonScaffoldState extends State<CommonScaffold> {
       hasActions: _hasActions,
     );
     final isBottomSheet = form.isBottomSheet;
-    final isTV = widget.isTV ?? system.isTV;
+    final bool isTV = widget.isTV ?? ref.watch(tvLayoutProvider);
     final bottomInset = BottomInsetScope.of(context);
     final primaryAction = widget.primaryAction;
     final actionInBar =

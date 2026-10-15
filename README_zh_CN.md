@@ -26,7 +26,12 @@
 
 ## 功能
 
-- **一个应用覆盖 Android、Windows、macOS 和 Linux**，桌面端同时提供 x64 与 ARM64 版本。
+本开发分支 [`Zolmid/FlClash`](https://github.com/Zolmid/FlClash) 跟随上游 FlClash，维护 iOS 桥接与应用层差异。
+参见[云构建](docs/cloud-build.md)、[整合审计](docs/patched-integration-audit.md)和[上游维护策略](docs/upstream-maintenance.md)。
+开发产物从云构建 Artifacts 获取，上方 Release 链接保留上游归属。
+
+- **一个应用覆盖 Android、Windows、macOS、Linux 和实验性 iOS**，桌面端同时提供 x64 与 ARM64 版本。
+- **iOS arm64 真机目标**已可生成未签名 IPA；签名安装和真机 VPN 行为仍需验证。
 - **mihomo（Clash.Meta）内核**：规则分流、代理组、延迟测试、系统代理与 TUN 模式。
 - **配置管理**：通过订阅链接或文件导入配置，内置编辑器，支持覆写脚本以及自定义规则、代理和代理组。
 - **实时查看**连接、请求、DNS 查询和日志。

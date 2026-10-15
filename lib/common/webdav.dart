@@ -1,9 +1,25 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/string.dart';
+import 'package:xml/xml.dart';
+
+enum DAVResourceType { file, collection, unknown }
+
+class DAVFile {
+  final String name;
+  final DateTime? modified;
+  final DAVResourceType type;
+
+  const DAVFile({
+    required this.name,
+    this.modified,
+    this.type = DAVResourceType.unknown,
+  });
+}
 
 final class DAVException implements Exception {
   final String method;
@@ -107,6 +123,181 @@ class DAVTransport {
     return data is List<int> ? Uint8List.fromList(data) : Uint8List(0);
   }
 
+  Future<void> delete(String path) async {
+    final type = await resourceType(path);
+    if (type == null) return;
+    if (type != DAVResourceType.file) {
+      throw StateError('Only a confirmed WebDAV file can be deleted');
+    }
+    await _send('DELETE', path, accept: const {200, 202, 204, 404});
+  }
+
+  Future<DAVResourceType?> resourceType(String path) async {
+    if (path.contains('\\') ||
+        path.split('/').any((part) => part == '.' || part == '..')) {
+      throw ArgumentError.value(path, 'path', 'Invalid WebDAV resource');
+    }
+    const body =
+        '<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>';
+    final response = await _send(
+      'PROPFIND',
+      path,
+      body: utf8.encode(body),
+      headers: const {
+        'depth': '0',
+        Headers.contentTypeHeader: 'application/xml',
+      },
+      accept: const {207, 404},
+    );
+    if (response.statusCode == 404) return null;
+    final target = resolve(path);
+    final targetParts = target.pathSegments
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final document = XmlDocument.parse(response.data as String);
+    for (final entry in document.findAllElements(
+      'response',
+      namespaceUri: 'DAV:',
+    )) {
+      final href = entry.getElement('href', namespaceUri: 'DAV:')?.innerText;
+      if (href == null) continue;
+      final uri = target.resolve(href);
+      final parts = uri.pathSegments.where((part) => part.isNotEmpty).toList();
+      if (!_sameOrigin(uri, target) ||
+          uri.hasQuery ||
+          uri.hasFragment ||
+          parts.length != targetParts.length ||
+          targetParts.indexed.any((part) => parts[part.$1] != part.$2)) {
+        continue;
+      }
+      return _resourceType(entry);
+    }
+    return DAVResourceType.unknown;
+  }
+
+  static DAVResourceType _resourceType(XmlElement entry) {
+    for (final propstat in entry.findElements(
+      'propstat',
+      namespaceUri: 'DAV:',
+    )) {
+      final status = propstat
+          .getElement('status', namespaceUri: 'DAV:')
+          ?.innerText;
+      if (status == null ||
+          !RegExp(r'^HTTP/\S+ 2\d\d(?:\s|$)').hasMatch(status.trim())) {
+        continue;
+      }
+      final type = propstat
+          .getElement('prop', namespaceUri: 'DAV:')
+          ?.getElement('resourcetype', namespaceUri: 'DAV:');
+      if (type == null) continue;
+      return type.getElement('collection', namespaceUri: 'DAV:') == null
+          ? DAVResourceType.file
+          : DAVResourceType.collection;
+    }
+    return DAVResourceType.unknown;
+  }
+
+  Future<List<DAVFile>> list(
+    String path, {
+    bool directoriesOnly = false,
+  }) async {
+    if (path.contains('\\') ||
+        path.split('/').any((part) => part == '.' || part == '..')) {
+      throw ArgumentError.value(path, 'path', 'Invalid WebDAV collection');
+    }
+    const body =
+        '<d:propfind xmlns:d="DAV:"><d:prop>'
+        '<d:resourcetype/><d:getlastmodified/>'
+        '</d:prop></d:propfind>';
+    final response = await _send(
+      'PROPFIND',
+      path,
+      collection: true,
+      body: utf8.encode(body),
+      headers: const {
+        'depth': '1',
+        Headers.contentTypeHeader: 'application/xml',
+      },
+      accept: const {207, 404},
+    );
+    if (response.statusCode == 404) return [];
+    final collection = resolve(path, collection: true);
+    final parent = collection.pathSegments
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final files = <String, DAVFile>{};
+    final document = XmlDocument.parse(response.data as String);
+    for (final entry in document.findAllElements(
+      'response',
+      namespaceUri: 'DAV:',
+    )) {
+      final href = entry.getElement('href', namespaceUri: 'DAV:')?.innerText;
+      if (href == null) continue;
+      final uri = collection.resolve(href);
+      final segments = uri.pathSegments.toList();
+      if (segments.isNotEmpty && segments.last.isEmpty) segments.removeLast();
+      if (!_sameOrigin(uri, collection) ||
+          uri.hasQuery ||
+          uri.hasFragment ||
+          segments.length != parent.length + 1 ||
+          parent.indexed.any((entry) => segments[entry.$1] != entry.$2)) {
+        continue;
+      }
+      final name = segments.last;
+      if (name.isEmpty ||
+          name == '.' ||
+          name == '..' ||
+          name.contains('/') ||
+          name.contains('\\') ||
+          RegExp(r'[\x00-\x1f\x7f]').hasMatch(name)) {
+        continue;
+      }
+      DateTime? modified;
+      var hasProperties = false;
+      final resourceType = _resourceType(entry);
+      for (final propstat in entry.findElements(
+        'propstat',
+        namespaceUri: 'DAV:',
+      )) {
+        final status = propstat
+            .getElement('status', namespaceUri: 'DAV:')
+            ?.innerText;
+        if (status == null ||
+            !RegExp(r'^HTTP/\S+ 2\d\d(?:\s|$)').hasMatch(status.trim())) {
+          continue;
+        }
+        final prop = propstat.getElement('prop', namespaceUri: 'DAV:');
+        if (prop == null) continue;
+        hasProperties = true;
+        final rawDate = prop
+            .getElement('getlastmodified', namespaceUri: 'DAV:')
+            ?.innerText;
+        if (rawDate != null) {
+          try {
+            modified = HttpDate.parse(rawDate);
+          } on HttpException {
+            modified = DateTime.tryParse(rawDate);
+          }
+        }
+      }
+      if (hasProperties &&
+          (resourceType == DAVResourceType.collection) == directoriesOnly) {
+        files[name] = DAVFile(
+          name: name,
+          modified: modified,
+          type: resourceType,
+        );
+      }
+    }
+    return files.values.toList()..sort((a, b) {
+      if (directoriesOnly) return a.name.compareTo(b.name);
+      final dateOrder = (b.modified ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.modified ?? DateTime.fromMillisecondsSinceEpoch(0));
+      return dateOrder != 0 ? dateOrder : a.name.compareTo(b.name);
+    });
+  }
+
   Future<Response<dynamic>> _send(
     String method,
     String path, {
@@ -138,6 +329,14 @@ class DAVTransport {
       }
       final location = _redirectTarget(response);
       if (location != null && redirects < _maxRedirects) {
+        if (method == 'DELETE' && uri.resolveUri(location) != origin) {
+          throw DAVException(
+            method: method,
+            path: path,
+            statusCode: status,
+            reasonPhrase: 'Refusing a redirect to a different delete target',
+          );
+        }
         uri = uri.resolveUri(location);
         continue;
       }

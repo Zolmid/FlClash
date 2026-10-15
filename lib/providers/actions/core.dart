@@ -22,14 +22,15 @@ class CoreAction extends _$CoreAction {
     }
   }
 
-  Future<void> startCore() async {
+  Future<bool> startCore() async {
     ref.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
     try {
       final result = await startLifecycle();
-      await _applyLifecycleResult(result);
+      return await _applyLifecycleResult(result);
     } catch (error) {
       ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
       dialogs.showNotifier(error.toString(), level: MessageLevel.error);
+      return false;
     }
   }
 
@@ -43,9 +44,8 @@ class CoreAction extends _$CoreAction {
     return _core.restart();
   }
 
-  // Nothing in lib/ calls CoreController.stop(); only close() (app exit)
-  // supersedes a start/restart. statusFirst lets onCrash catch a crash
-  // during initCore itself (it early-returns unless status is connected).
+  // statusFirst lets onCrash catch a crash during initCore itself (it
+  // early-returns unless status is connected).
   Future<bool> _applyLifecycleResult(
     CoreLifecycleResult result, {
     bool statusFirst = false,

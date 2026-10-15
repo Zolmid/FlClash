@@ -11,8 +11,7 @@
 #include "flutter_window.h"
 #include "utils.h"
 
-// The installer and the uninstaller run this after killing the app, whose exit
-// path is what normally turns the system proxy off.
+// The running instance owns HKCU even when the uninstaller is another admin.
 constexpr char kClearStaleProxyArgument[] = "--clear-stale-proxy";
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
@@ -21,6 +20,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       GetCommandLineArguments();
   if (std::find(command_line_arguments.begin(), command_line_arguments.end(),
                 kClearStaleProxyArgument) != command_line_arguments.end()) {
+    if (HWND running = WindowPluginFindRunningWindow()) {
+      const UINT release = RegisterWindowMessageW(PROXY_PLUGIN_RELEASE_PROXY_MESSAGE);
+      DWORD_PTR released = 0;
+      return release != 0 &&
+              SendMessageTimeoutW(running, release, 0, 0, SMTO_ABORTIFHUNG,
+                                  3000, &released) != 0 && released != 0
+          ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     return ProxyPluginClearStaleProxy() ? EXIT_SUCCESS : EXIT_FAILURE;
   }
 

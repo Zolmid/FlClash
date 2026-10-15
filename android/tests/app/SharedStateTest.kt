@@ -100,8 +100,27 @@ class SharedStateTest {
         assertEquals(true, defaults.crashlytics)
         assertEquals(false, defaults.onlyStatisticsProxy)
         assertEquals(true, defaults.showStopAction)
+        assertEquals(true, defaults.collapseQuickSettingsPanel)
+        assertEquals(true, defaults.showQuickSettingsProfileName)
+        assertEquals(false, defaults.networkSpeedNotification)
         assertNull(defaults.vpnOptions)
         assertNull(defaults.setupParams)
+    }
+
+    @Test
+    fun `widget colors preserve unsigned ARGB and quick settings choices`() {
+        val colors = """{"background":4294967295,"onBackground":4278190080,"onBackgroundVariant":4286611584,"primary":4284901115,"onPrimary":4294967295,"trackOff":4293124588,"thumbOff":4286011008}"""
+        val json = """{"collapseQuickSettingsPanel":false,"showQuickSettingsProfileName":false,"networkSpeedNotification":true,"widgetTheme":{"themeMode":"dark","light":$colors,"dark":$colors}}"""
+
+        val state = gson.fromJson(json, SharedState::class.java)
+        val decoded = gson.fromJson(gson.toJson(state), SharedState::class.java)
+
+        assertEquals(false, decoded.collapseQuickSettingsPanel)
+        assertEquals(false, decoded.showQuickSettingsProfileName)
+        assertEquals(true, decoded.networkSpeedNotification)
+        assertEquals("dark", decoded.widgetTheme?.themeMode)
+        assertEquals(4294967295L, decoded.widgetTheme?.dark?.background)
+        assertEquals(4278190080L, decoded.widgetTheme?.light?.onBackground)
     }
 
     @Test

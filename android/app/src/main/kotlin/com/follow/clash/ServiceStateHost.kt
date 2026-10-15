@@ -19,6 +19,8 @@ import kotlinx.coroutines.CoroutineScope
 internal data class ServiceRuntime(
     val vpn: Boolean,
     val startedAtMillis: Long,
+    val options: VpnOptions? = null,
+    val requestedOptions: VpnOptions? = null,
 )
 
 /**
@@ -53,7 +55,7 @@ internal interface ServiceStateHost {
 
     suspend fun quickSetup(initParams: String, setupParams: String): Result<String>
 
-    suspend fun startService(options: VpnOptions): Boolean
+    suspend fun startService(options: VpnOptions, requestedOptions: VpnOptions = options): Boolean
 
     suspend fun stopService()
 }
@@ -146,8 +148,8 @@ internal object AndroidServiceStateHost : ServiceStateHost {
     override suspend fun quickSetup(initParams: String, setupParams: String): Result<String> =
         ServiceController.quickSetup(initParams, setupParams)
 
-    override suspend fun startService(options: VpnOptions): Boolean =
-        ServiceController.start(options)
+    override suspend fun startService(options: VpnOptions, requestedOptions: VpnOptions): Boolean =
+        ServiceController.start(options, requestedOptions)
 
     override suspend fun stopService() = ServiceController.stop()
 }

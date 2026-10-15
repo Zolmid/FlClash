@@ -28,6 +28,7 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
   final _hasMoreButtonNotifier = ValueNotifier<bool>(false);
   final Map<String, ScrollController> _scrollControllers = {};
   int _columns = 1;
+  Object? _lastFocus;
 
   @override
   void initState() {
@@ -255,6 +256,39 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     );
     final groups = state.groups;
     _pruneScrollControllers(groups);
+    final focus = ref.watch(proxyFocusProvider);
+    if (focus != _lastFocus) {
+      _lastFocus = focus;
+      if (focus != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || ref.read(proxyFocusProvider) != focus) return;
+          final index = groups.indexWhere(
+            (group) => group.name == focus.groupName,
+          );
+          if (index < 0 || _tabController == null) return;
+          _tabController!.index = index;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || ref.read(proxyFocusProvider) != focus) return;
+            final controller = _scrollControllers[focus.groupName];
+            if (controller == null || !controller.hasClients) return;
+            final proxyIndex = groups[index].all.indexWhere(
+              (proxy) => proxy.name == focus.proxyName,
+            );
+            final offset =
+                max(proxyIndex, 0) ~/
+                _columns *
+                getRowExtent(state.proxyCardType);
+            controller.jumpTo(
+              offset.clamp(
+                controller.position.minScrollExtent,
+                controller.position.maxScrollExtent,
+              ),
+            );
+          });
+        });
+      }
+    }
+
     return NullStatusSwitcher(
       isEmpty: groups.isEmpty || _tabController == null,
       isSearching: isSearching,

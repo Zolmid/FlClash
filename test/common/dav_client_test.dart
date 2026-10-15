@@ -150,6 +150,49 @@ void main() {
     password: 'second-password',
   );
 
+  test(
+    'rejects invalid collections and non-basename backup names before requests',
+    () async {
+      expect(
+        () => DAVClient(firstProps.copyWith(directory: '/safe/../other')),
+        throwsArgumentError,
+      );
+      final client = DAVClient(firstProps);
+      for (final directory in [
+        '/safe/<bad>',
+        '/safe/\u0000bad',
+        '/safe/\u007fbad',
+      ]) {
+        await expectLater(
+          client.listDirectories(directory),
+          throwsArgumentError,
+        );
+      }
+      for (final name in [
+        '',
+        '.',
+        '..',
+        '../other.zip',
+        'folder/other.zip',
+        r'folder\other.zip',
+      ]) {
+        await expectLater(
+          client.upload('/missing.zip', name: name),
+          throwsArgumentError,
+        );
+        await expectLater(
+          client.download('/missing.zip', name: name),
+          throwsArgumentError,
+        );
+        expect(() => client.deleteBackup(name), throwsArgumentError);
+        await expectLater(
+          DAVClient(firstProps.copyWith(fileName: name)).listBackups(),
+          throwsArgumentError,
+        );
+      }
+    },
+  );
+
   test('latest DAV connectivity check wins', () async {
     final firstResult = Completer<bool>();
     final secondResult = Completer<bool>();
@@ -274,7 +317,11 @@ void main() {
 
       await buildClient().upload(archive.path);
 
-      expect(server.requests.map((item) => item.method), ['MKCOL', 'PUT']);
+      expect(server.requests.map((item) => item.method), [
+        'MKCOL',
+        'PROPFIND',
+        'PUT',
+      ]);
       expect(server.requests.last.path, '/$appName/backup.zip');
       expect(server.files['/$appName/backup.zip'], archive.readAsBytesSync());
     });
@@ -328,7 +375,11 @@ void main() {
 
       await buildClient().download(join(root.path, 'moved.zip'));
 
-      expect(server.requests.map((item) => item.method), ['GET', 'GET']);
+      expect(server.requests.map((item) => item.method), [
+        'PROPFIND',
+        'GET',
+        'GET',
+      ]);
       expect(File(join(root.path, 'moved.zip')).readAsBytesSync(), payload);
     });
 

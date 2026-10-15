@@ -48,6 +48,7 @@ class GoBuilder {
     return cache.run(
       key:
           '${target.platformDir}-${target.goarch}'
+          '${target.goamd64 == null ? '' : '-${target.goamd64}'}'
           '${target.lowMemory ? '-lowmem' : ''}-core',
       fingerprint: () => _calculateFingerprint(target),
       primaryOutput: outFile,
@@ -96,6 +97,7 @@ class GoBuilder {
     final env = {
       'GOOS': target.goos,
       'GOARCH': target.goarch,
+      if (target.goarch == 'amd64') 'GOAMD64': target.goamd64 ?? 'v1',
       'CGO_ENABLED': target.goos == 'ios' ? '1' : '0',
     };
     if (target.goos == 'ios') {
@@ -151,6 +153,7 @@ class GoBuilder {
         'goos': target.goos,
         'goarch': target.goarch,
         'low_memory': target.lowMemory,
+        'goamd64': target.goamd64,
       })
       ..addValue('config', config.toFingerprintMap())
       ..addValue('environment', env)

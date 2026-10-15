@@ -146,6 +146,17 @@ class RouteAddressTest {
 
 class TunOptionsTest {
     @Test
+    fun `passes the profile ICMP choice through the Android Go options envelope`() {
+        val options = optionsWithRoutes(emptyList()).copy(
+            disableIcmpForwarding = true,
+        )
+
+        val json = JsonParser.parseString(options.tunOptions).asJsonObject
+
+        assertTrue(json["disable-icmp-forwarding"].asBoolean)
+    }
+
+    @Test
     fun `an unset mtu falls back to the core default`() {
         assertEquals(9000, optionsWithRoutes(emptyList()).tunMtu)
         assertEquals(1400, optionsWithRoutes(emptyList()).copy(mtu = 1400).tunMtu)

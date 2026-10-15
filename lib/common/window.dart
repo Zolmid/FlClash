@@ -16,6 +16,7 @@ class Window implements WindowPort {
   late final WindowVisibilityController _visibility =
       WindowVisibilityController(
         showWindow: _showWindow,
+        showWindowWithActivation: _showWindow,
         hideWindow: _hideWindow,
         isWindowVisible: _isWindowVisible,
         setSkipTaskbar: (skip) => desktopWindow.setSkipTaskbar(skip),
@@ -171,7 +172,12 @@ class Window implements WindowPort {
   }
 
   @override
-  Future<void> show() => _visibility.show();
+  Future<void> show({int? activationTimestamp, String? activationToken}) {
+    return _visibility.show(
+      activationTimestamp: activationTimestamp,
+      activationToken: activationToken,
+    );
+  }
 
   @override
   Future<void> hide() => _visibility.hide();
@@ -179,9 +185,18 @@ class Window implements WindowPort {
   @override
   Future<void> toggle() => _visibility.toggle();
 
-  Future<void> _showWindow() async {
-    await desktopWindow.show();
-    await desktopWindow.focus();
+  Future<void> _showWindow({
+    int? activationTimestamp,
+    String? activationToken,
+  }) async {
+    await desktopWindow.show(
+      activationTimestamp: activationTimestamp,
+      activationToken: activationToken,
+    );
+    if (!system.isLinux ||
+        (activationTimestamp == null && activationToken == null)) {
+      await desktopWindow.focus();
+    }
   }
 
   Future<void> _hideWindow() async {
@@ -254,16 +269,24 @@ class _InitFailureWindowListener with WindowListener {
 class WindowVisibilityController {
   WindowVisibilityController({
     required Future<void> Function() showWindow,
+    Future<void> Function({int? activationTimestamp, String? activationToken})?
+    showWindowWithActivation,
     required Future<void> Function() hideWindow,
     required Future<bool> Function() isWindowVisible,
     required Future<void> Function(bool skip) setSkipTaskbar,
     required this.dockSettleDuration,
   }) : _showWindow = showWindow,
+       _showWindowWithActivation = showWindowWithActivation,
        _hideWindow = hideWindow,
        _isWindowVisible = isWindowVisible,
        _setSkipTaskbar = setSkipTaskbar;
 
   final Future<void> Function() _showWindow;
+  final Future<void> Function({
+    int? activationTimestamp,
+    String? activationToken,
+  })?
+  _showWindowWithActivation;
   final Future<void> Function() _hideWindow;
   final Future<bool> Function() _isWindowVisible;
   final Future<void> Function(bool skip) _setSkipTaskbar;
@@ -273,7 +296,14 @@ class WindowVisibilityController {
   Timer? _dockSettleTimer;
   bool _dockHidePending = false;
 
-  Future<void> show() => _enqueue(_show);
+  Future<void> show({int? activationTimestamp, String? activationToken}) {
+    return _enqueue(
+      () => _show(
+        activationTimestamp: activationTimestamp,
+        activationToken: activationToken,
+      ),
+    );
+  }
 
   Future<void> hide() => _enqueue(_hide);
 
@@ -298,9 +328,20 @@ class WindowVisibilityController {
     return result;
   }
 
-  Future<void> _show() async {
+  Future<void> _show({
+    int? activationTimestamp,
+    String? activationToken,
+  }) async {
     _dockHidePending = false;
-    await _showWindow();
+    final showWithActivation = _showWindowWithActivation;
+    if (showWithActivation != null) {
+      await showWithActivation(
+        activationTimestamp: activationTimestamp,
+        activationToken: activationToken,
+      );
+    } else {
+      await _showWindow();
+    }
     await _setSkipTaskbar(false);
     _dockSettleTimer?.cancel();
     _dockSettleTimer = dockSettleDuration == Duration.zero

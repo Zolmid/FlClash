@@ -6,6 +6,8 @@ private enum AppCoreMethod: String {
   case getIsInit
   case validateConfig
   case decryptConfig
+  case generateAgeKeyPair
+  case convertAgeSecretKeyToPublicKey
   case validateProxies
   case validateFilters
   case convertProxies

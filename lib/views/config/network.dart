@@ -4,6 +4,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -177,6 +178,32 @@ class TunStackItem extends ConsumerWidget {
       onChanged: _tunWriter((state, value) => state.copyWith.tun(stack: value)),
     );
   }
+}
+
+class RecvMsgXItem extends ConsumerWidget {
+  const RecvMsgXItem({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ConfigToggleItem(
+    title: (l) => l.recvMsgX,
+    selector: patchClashConfigProvider.select((state) => state.tun.recvMsgX),
+    onChanged: _tunWriter(
+      (state, value) => state.copyWith.tun(recvMsgX: value),
+    ),
+  );
+}
+
+class SendMsgXItem extends ConsumerWidget {
+  const SendMsgXItem({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ConfigToggleItem(
+    title: (l) => l.sendMsgX,
+    selector: patchClashConfigProvider.select((state) => state.tun.sendMsgX),
+    onChanged: _tunWriter(
+      (state, value) => state.copyWith.tun(sendMsgX: value),
+    ),
+  );
 }
 
 class InterfaceNameModeItem extends ConsumerWidget {
@@ -466,10 +493,12 @@ List<Widget> networkOptionsItems({
   required bool isDesktop,
   required bool isMacOS,
   required bool isCustomInterfaceName,
+  bool isIOS = false,
 }) {
   return [
     if (isDesktop) const TUNItem(),
     if (isMacOS) const AutoSetSystemDnsItem(),
+    if (isMacOS || isIOS) ...[const RecvMsgXItem(), const SendMsgXItem()],
     const TunStackItem(),
     // mihomo's DefaultSocketHook ignores interface-name on Android
     // (core/lib.go installHooks, vendored dialer.go), so these rows only
@@ -562,17 +591,18 @@ class NetworkOptionsSection extends ConsumerWidget {
         isDesktop: system.isDesktop,
         isMacOS: system.isMacOS,
         isCustomInterfaceName: isCustomInterfaceName,
+        isIOS: system.isIOS,
       ),
       footer: footer.isEmpty ? null : footer.join('\n'),
     );
   }
 }
 
-class NetworkListView extends StatelessWidget {
+class NetworkListView extends ConsumerWidget {
   const NetworkListView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
@@ -582,6 +612,45 @@ class NetworkListView extends StatelessWidget {
         if (system.isDesktop) const SystemProxySection(),
         const NetworkOptionsSection(),
         const TunSection(),
+        if (system.isIOS)
+          generateSectionV3(
+            title: context.appLocalizations.networkExtension,
+            items: [
+              _vpnToggle(
+                title: (l) => l.includeAllNetworks,
+                select: (s) => s.includeAllNetworks,
+                update: (s, v) => s.copyWith(includeAllNetworks: v),
+              ),
+              _vpnToggle(
+                title: (l) => l.enforceRoutes,
+                select: (s) => s.enforceRoutes,
+                update: (s, v) => s.copyWith(enforceRoutes: v),
+              ),
+              _vpnToggle(
+                title: (l) => l.excludeLocalNetworks,
+                select: (s) => s.excludeLocalNetworks,
+                update: (s, v) => s.copyWith(excludeLocalNetworks: v),
+              ),
+              if (ref.watch(versionProvider) >= 16) ...[
+                _vpnToggle(
+                  title: (l) => l.excludeAPNs,
+                  select: (s) => s.excludeAPNs,
+                  update: (s, v) => s.copyWith(excludeAPNs: v),
+                ),
+                _vpnToggle(
+                  title: (l) => l.excludeCellularServices,
+                  select: (s) => s.excludeCellularServices,
+                  update: (s, v) => s.copyWith(excludeCellularServices: v),
+                ),
+              ],
+              if (ref.watch(versionProvider) >= 17)
+                _vpnToggle(
+                  title: (l) => l.excludeDeviceCommunication,
+                  select: (s) => s.excludeDeviceCommunication,
+                  update: (s, v) => s.copyWith(excludeDeviceCommunication: v),
+                ),
+            ],
+          ),
         generateSectionV3(
           title: context.appLocalizations.outbound,
           items: outboundItems(

@@ -4,13 +4,16 @@ import 'dart:io';
 import 'package:fl_clash/common/app_localizations.dart';
 import 'package:fl_clash/common/app_ports.dart';
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/compute.dart';
 import 'package:fl_clash/common/l10n_labels.dart';
 import 'package:fl_clash/common/tray.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
-import 'package:fl_clash/providers/state.dart';
+import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -21,11 +24,14 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:riverpod/riverpod.dart';
 import 'package:tray/tray.dart';
 
+import '../helpers/test_profiles.dart';
+
 const _channel = MethodChannel('tray');
 
 const _proxyGroup = Group(
   name: 'Proxy',
   type: GroupType.Selector,
+  now: 'A',
   all: [
     Proxy(name: 'A', type: 'Direct'),
     Proxy(name: 'B', type: 'Direct'),
@@ -127,7 +133,9 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     calls = [];
     tray = AppTray.forPlatform(isMacOS: true, isWindows: false);
-    container = ProviderContainer();
+    container = ProviderContainer(
+      overrides: [profilesProvider.overrideWith(TestProfiles.new)],
+    );
     Tray.instance.resetForTesting();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async {
@@ -288,7 +296,7 @@ void main() {
 
     final submenu = _items(
       showCall(),
-    ).firstWhere((item) => item['type'] == 'submenu');
+    ).firstWhere((item) => item['label'] == 'Proxy');
     expect(submenu['label'], 'Proxy');
     final children = (submenu['items'] as List).cast<Map<Object?, Object?>>();
     expect(children.map((item) => item['label']), contains('A'));
@@ -321,18 +329,14 @@ void main() {
   test(
     'group submenus show the delay of the selection and of each proxy',
     () async {
-      container.dispose();
-      container = ProviderContainer(
-        overrides: [
-          selectedProxyNameProvider('Proxy').overrideWithValue('A'),
-          trayDelaysProvider.overrideWithValue({
-            'Proxy': {'A': 120, 'B': -1, 'C': -2},
-          }),
-        ],
-      );
+      final url = container.read(appSettingProvider).testUrl;
+      container.read(delayDataSourceProvider.notifier).value = {
+        url: {'A': 120, 'B': -1, 'C': -2},
+      };
       const group = Group(
         name: 'Proxy',
-        type: GroupType.Selector,
+        type: GroupType.URLTest,
+        now: 'A',
         all: [
           Proxy(name: 'A', type: 'Direct'),
           Proxy(name: 'B', type: 'Direct'),
@@ -340,17 +344,28 @@ void main() {
           Proxy(name: 'D', type: 'Direct'),
         ],
       );
-      await update(_trayState(groups: [group]));
+      container.read(groupsProvider.notifier).value = [group];
+      await update(_trayState(groups: [group.copyWith(now: '')]));
 
       final submenu = _item(showCall(), 'Proxy');
       expect(submenu['detail'], '120');
+      expect(submenu['sublabel'], 'A');
       final children = (submenu['items'] as List).cast<Map<Object?, Object?>>();
-      expect(children.map((item) => item['detail']), [
-        '120',
-        currentAppLocalizations.timeout,
-        currentAppLocalizations.delayFailed,
-        null,
-      ]);
+      expect(
+        children.where((item) => item['checked'] == true).single['label'],
+        'A',
+      );
+      expect(
+        children
+            .where((item) => item['type'] == 'checkbox')
+            .map((item) => item['detail']),
+        [
+          '120',
+          currentAppLocalizations.timeout,
+          currentAppLocalizations.delayFailed,
+          null,
+        ],
+      );
     },
   );
 
@@ -368,10 +383,114 @@ void main() {
     );
 
     final items = _items(showCall());
-    final index = items.indexWhere((item) => item['type'] == 'submenu');
+    final index = items.indexWhere((item) => item['label'] == 'Proxy');
     expect(items[index + 1]['label'], HotAction.delayTest.label);
     expect(items[index + 1]['detail'], '⌃⇧D');
   });
+
+  test(
+    'the tray proxy selection setting hides groups on every platform',
+    () async {
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(showTrayProxySelection: false));
+      await update(_trayState(groups: [_proxyGroup]));
+      expect(
+        _items(showCall()).where((item) => item['label'] == 'Proxy'),
+        isEmpty,
+      );
+      expect(_labels(showCall()), isNot(contains(HotAction.delayTest.label)));
+    },
+  );
+
+  test(
+    'keyed delay batches update aliases in every group without rebuilding',
+    () async {
+      const other = Group(
+        name: 'Other',
+        type: GroupType.Selector,
+        all: [
+          Proxy(name: 'A', type: 'Direct'),
+          Proxy(name: 'Proxy', type: 'Selector'),
+        ],
+      );
+      container.read(groupsProvider.notifier).value = [_proxyGroup, other];
+      final url = container.read(appSettingProvider).testUrl;
+      await update(_trayState(groups: [_proxyGroup, other]));
+      calls.clear();
+      container
+          .read(delayDataSourceProvider.notifier)
+          .setDelay(Delay(name: 'A', url: url, value: 900));
+      await tray.updateDelays(read: container.read);
+      expect(calls.map((call) => call.method), ['updateMenuItems']);
+      final updates = ((calls.single.arguments as Map)['updates'] as List)
+          .cast<Map>();
+      expect(updates, hasLength(3));
+      expect(updates.map((item) => item['sublabel']), everyElement('900 ms'));
+      expect(
+        updates.map((item) => item['sublabelStyle']),
+        everyElement('warning'),
+      );
+
+      calls.clear();
+      container
+          .read(delayDataSourceProvider.notifier)
+          .setDelay(Delay(name: 'A', url: url, value: 80));
+      await tray.updateDelays(read: container.read);
+      expect(calls.map((call) => call.method), ['updateMenuItems']);
+      expect(
+        ((calls.single.arguments as Map)['updates'] as List).cast<Map>().map(
+          (item) => item['sublabel'],
+        ),
+        everyElement('80 ms'),
+      );
+    },
+  );
+
+  test('each proxy submenu offers a persistent delay test action', () async {
+    await update(_trayState(groups: [_proxyGroup]));
+    final children = (_item(showCall(), 'Proxy')['items'] as List).cast<Map>();
+    expect(children.first['keepsMenuOpen'], isTrue);
+    expect(children.first['key'], startsWith('delay-test:'));
+  });
+
+  test(
+    'pending tests keep their measured delay and restore it on finish',
+    () async {
+      final url = container.read(appSettingProvider).testUrl;
+      final key = delayTestKey(url, 'A');
+      container
+          .read(delayDataSourceProvider.notifier)
+          .setDelay(Delay(name: 'A', url: url, value: 0));
+      await update(_trayState(groups: [_proxyGroup]));
+      final children = (_item(showCall(), 'Proxy')['items'] as List)
+          .cast<Map>();
+      final proxy = children.singleWhere((item) => item['label'] == 'A');
+      expect(proxy['detail'], '0');
+      expect(proxy['sublabel'], '0 ms');
+
+      container.read(pendingDelayTestsProvider.notifier).apply(acquired: [key]);
+      calls.clear();
+      await tray.updateDelays(read: container.read);
+      expect(
+        ((calls.single.arguments as Map)['updates'] as List)
+            .cast<Map>()
+            .single['sublabel'],
+        '...',
+      );
+      expect(container.read(delayDataSourceProvider)[url]?['A'], 0);
+
+      container.read(pendingDelayTestsProvider.notifier).apply(released: [key]);
+      calls.clear();
+      await tray.updateDelays(read: container.read);
+      expect(
+        ((calls.single.arguments as Map)['updates'] as List)
+            .cast<Map>()
+            .single['sublabel'],
+        '0 ms',
+      );
+    },
+  );
 
   group('a platform that is not macOS', () {
     late AppTray windows;
@@ -380,33 +499,36 @@ void main() {
       windows = AppTray.forPlatform(isMacOS: false, isWindows: true);
     });
 
-    test('gets a plain icon, no group submenus and no speed toggle', () async {
-      await update(
-        _trayState(
-          isStart: true,
-          groups: [
-            const Group(
-              name: 'Proxy',
-              type: GroupType.Selector,
-              all: [Proxy(name: 'A', type: 'Direct')],
-            ),
-          ],
-        ),
-        on: windows,
-      );
+    test(
+      'gets a plain icon and proxy submenus without the macOS speed toggle',
+      () async {
+        await update(
+          _trayState(
+            isStart: true,
+            groups: [
+              const Group(
+                name: 'Proxy',
+                type: GroupType.Selector,
+                all: [Proxy(name: 'A', type: 'Direct')],
+              ),
+            ],
+          ),
+          on: windows,
+        );
 
-      final arguments = showCall()!.arguments as Map;
-      expect((arguments['icon'] as Map)['isTemplate'], isFalse);
-      expect(
-        _items(showCall()).where((item) => item['type'] == 'submenu'),
-        isEmpty,
-      );
-      expect(
-        _labels(showCall()),
-        isNot(contains(currentAppLocalizations.speedStatistics)),
-      );
-      expect(_labels(showCall()), isNot(contains(HotAction.delayTest.label)));
-    });
+        final arguments = showCall()!.arguments as Map;
+        expect((arguments['icon'] as Map)['isTemplate'], isFalse);
+        expect(
+          _items(showCall()).where((item) => item['label'] == 'Proxy'),
+          hasLength(1),
+        );
+        expect(
+          _labels(showCall()),
+          isNot(contains(currentAppLocalizations.speedStatistics)),
+        );
+        expect(_labels(showCall()), contains(HotAction.delayTest.label));
+      },
+    );
 
     test('joins modifiers with + in the hotkey hints', () async {
       await update(

@@ -103,8 +103,16 @@ class DesktopWindow {
 
   Future<void> ensureInitialized() => _call('ensureInitialized');
 
-  Future<void> show({bool inactive = false}) {
-    return _call('show', {'inactive': inactive});
+  Future<void> show({
+    bool inactive = false,
+    int? activationTimestamp,
+    String? activationToken,
+  }) {
+    return _call('show', {
+      'inactive': inactive,
+      'activationTimestamp': ?activationTimestamp,
+      'activationToken': ?activationToken,
+    });
   }
 
   Future<void> hide() => _call('hide');

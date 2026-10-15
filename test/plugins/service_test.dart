@@ -156,6 +156,36 @@ void main() {
       expect(sent['currentProfileName'], 'profile');
       expect(sent['onlyStatisticsProxy'], isTrue);
     });
+
+    test(
+      'keeps Android requested options separate from the running fallback',
+      () async {
+        const requested = VpnOptions(
+          enable: true,
+          port: 7890,
+          ipv6: false,
+          dnsHijacking: true,
+          accessControlProps: AccessControlProps(),
+          allowBypass: true,
+          systemProxy: true,
+          bypassDomain: [],
+          stack: 'mixed',
+        );
+        final active = requested.copyWith(stack: 'gvisor');
+        mockChannel(
+          (call) async => json.encode(
+            call.method == 'getRequestedVpnOptions' ? requested : active,
+          ),
+        );
+
+        expect(await Service().getRequestedVpnOptions(), requested);
+        expect(await Service().getActiveVpnOptions(), active);
+        expect(calls.map((call) => call.method), [
+          'getRequestedVpnOptions',
+          'getActiveVpnOptions',
+        ]);
+      },
+    );
   });
 
   group('iOS service bridge', () {

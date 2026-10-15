@@ -5,7 +5,14 @@ package main
 //#include "bride.h"
 import "C"
 
-import "unsafe"
+import (
+	"core"
+	"unsafe"
+)
+
+func init() {
+	core.SetMemoryFootprintReader(func() uint64 { return uint64(C.flclash_physical_footprint()) })
+}
 
 func takeCString(value *C.char) string {
 	defer C.free_string(value)

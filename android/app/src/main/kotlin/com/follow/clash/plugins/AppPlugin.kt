@@ -21,6 +21,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
 import com.follow.clash.R
+import com.follow.clash.ApkInstaller
 import com.follow.clash.common.Components
 import com.follow.clash.common.GlobalState
 import com.follow.clash.common.PendingCallback
@@ -68,6 +69,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     private val requestInstalledAppsCallback = PendingCallback<Boolean>()
 
     private val requestLocalNetworkCallback = PendingCallback<Boolean>()
+
+    private val installPermissionCallback = PendingCallback<Boolean>()
 
     private var isRequestingNotificationPermission = false
 
@@ -181,6 +184,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 result.success(openAppSettings())
             }
 
+            "installApk" -> handleInstallApk(call, result)
+
             "didCrashOnPreviousExecution" -> reply(result) {
                 GlobalState.didCrashOnPreviousExecution()
             }
@@ -193,6 +198,65 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 result.notImplemented()
             }
         }
+    }
+
+    private fun handleInstallApk(call: MethodCall, result: Result) {
+        val path = (call.arguments as? Map<*, *>)?.get("path") as? String
+        if (path == null) {
+            result.success("failed")
+            return
+        }
+        scope.launch(Dispatchers.IO) {
+            try {
+                ApkInstaller.validate(GlobalState.application, path)
+            } catch (error: Exception) {
+                GlobalState.log("Rejected APK update: $error")
+                result.success("failed")
+                return@launch
+            }
+            requestInstallPermission { granted ->
+                if (!granted) {
+                    result.success("permissionDenied")
+                } else {
+                    scope.launch(Dispatchers.IO) {
+                        val status = runCatching {
+                            ApkInstaller.install(GlobalState.application, path)
+                            "started"
+                        }.getOrElse { error ->
+                            GlobalState.log("Unable to install APK update: $error")
+                            "failed"
+                        }
+                        result.success(status)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun requestInstallPermission(callback: (Boolean) -> Unit) = onMainThread {
+        installPermissionCallback.replace(callback, supersededValue = false)
+        val context = GlobalState.application
+        if (ApkInstaller.canRequestInstalls(context)) {
+            invokeInstallPermissionCallback()
+            return@onMainThread
+        }
+        val currentActivity = activity
+        if (currentActivity == null) {
+            invokeInstallPermissionCallback()
+            return@onMainThread
+        }
+        runCatching {
+            @Suppress("DEPRECATION")
+            currentActivity.startActivityForResult(
+                ApkInstaller.unknownSourcesSettings(context),
+                INSTALL_PERMISSION_REQUEST_CODE,
+            )
+        }.onFailure { invokeInstallPermissionCallback() }
+    }
+
+    private fun invokeInstallPermissionCallback() {
+        // Returning from Settings reports RESULT_CANCELED even when the permission was granted.
+        installPermissionCallback.resolve(ApkInstaller.canRequestInstalls(GlobalState.application))
     }
 
     private fun handleGetPackageIcon(call: MethodCall, result: Result) = reply(result) {
@@ -420,6 +484,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         invokeRequestNotificationCallback(false)
         invokeRequestLocalNetworkCallback(false)
         invokeRequestInstalledAppsCallback(false)
+        installPermissionCallback.resolve(false)
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -457,9 +522,14 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         invokeRequestNotificationCallback(false)
         invokeRequestLocalNetworkCallback(false)
         invokeRequestInstalledAppsCallback(false)
+        installPermissionCallback.resolve(false)
     }
 
     private fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode == INSTALL_PERMISSION_REQUEST_CODE) {
+            invokeInstallPermissionCallback()
+            return true
+        }
         if (requestCode != VPN_PERMISSION_REQUEST_CODE) {
             return false
         }
@@ -504,5 +574,6 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1002
         const val INSTALLED_APPS_PERMISSION_REQUEST_CODE = 1003
         const val LOCAL_NETWORK_PERMISSION_REQUEST_CODE = 1004
+        const val INSTALL_PERMISSION_REQUEST_CODE = 1005
     }
 }

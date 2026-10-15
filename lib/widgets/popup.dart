@@ -949,6 +949,8 @@ class CommonPopupMenuItem {
     this.onPressed,
     this.danger = false,
     this.checked,
+    this.trailing,
+    this.keepOpen = false,
     this.subItems = const [],
   });
 
@@ -957,6 +959,8 @@ class CommonPopupMenuItem {
   final VoidCallback? onPressed;
   final bool danger;
   final bool? checked;
+  final String? trailing;
+  final bool keepOpen;
   final List<CommonPopupMenuItem> subItems;
 }
 
@@ -1194,6 +1198,15 @@ class _CommonPopupMenuState extends State<CommonPopupMenu>
                 ),
               ),
             ),
+            if (item.trailing != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                item.trailing!,
+                style: context.textTheme.labelSmall?.copyWith(
+                  color: foregroundColor,
+                ),
+              ),
+            ],
             if (arrow != null) ...[const SizedBox(width: 8), arrow],
           ],
         ),
@@ -1221,7 +1234,11 @@ class _CommonPopupMenuState extends State<CommonPopupMenu>
     return _buildRow(
       context,
       item: item,
-      onTap: onPressed == null ? null : () => _select(onPressed),
+      onTap: onPressed == null
+          ? null
+          : item.keepOpen
+          ? onPressed
+          : () => _select(onPressed),
     );
   }
 

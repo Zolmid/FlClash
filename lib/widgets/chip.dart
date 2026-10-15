@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'text.dart';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/state.dart';
@@ -8,12 +10,14 @@ import 'package:flutter/rendering.dart';
 
 class CommonChip extends StatelessWidget {
   final String label;
+  final Glyph? glyph;
   final VoidCallback? onPressed;
   final VoidCallback? onDeleted;
 
   const CommonChip({
     super.key,
     required this.label,
+    this.glyph,
     this.onPressed,
     this.onDeleted,
   });
@@ -33,8 +37,10 @@ class CommonChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 4,
         children: [
+          if (glyph != null)
+            GlyphIcon(glyph!, size: 16, color: foregroundColor),
           Flexible(
-            child: Text(
+            child: EmojiText(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -98,7 +104,7 @@ class TonalChip extends StatelessWidget {
       padding: _padding,
       child: _CapCentered(
         fontSize: style.fontSize!,
-        child: Text(
+        child: EmojiText(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -328,7 +334,7 @@ class MetaChip extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Text(
+        child: EmojiText(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

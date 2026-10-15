@@ -264,6 +264,174 @@ hooks:
       );
     });
 
+    test(
+      'normalizes architecture names and rejects cross-host desktop builds',
+      () {
+        final v3 = setup.resolvePackageArchitecture(
+          platform: 'windows',
+          requested: 'x64-v3',
+          hostArch: 'amd64',
+        );
+        expect(v3.name, 'x64-v3');
+        expect(v3.flutterArch, 'x64');
+        expect(v3.goamd64, 'v3');
+        expect(setup.parsePackageArchitecture('amd64').name, 'x64');
+        expect(setup.parsePackageArchitecture('amd64-v2').goamd64, 'v2');
+        expect(
+          () => setup.resolvePackageArchitecture(
+            platform: 'linux',
+            requested: 'arm64',
+            hostArch: 'x64',
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => setup.resolvePackageArchitecture(
+            platform: 'android',
+            requested: 'x64-v3',
+            hostArch: 'x64',
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => setup.resolvePackageArchitecture(
+            platform: 'ios',
+            requested: 'arm64',
+            hostArch: 'arm64',
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test('records the actual package architecture for update selection', () {
+      expect(setup.createBuildEnvironment('stable', arch: 'x64-v3'), {
+        'APP_ENV': 'stable',
+        'APP_ARCH': 'x64-v3',
+      });
+      expect(
+        () => setup.createBuildEnvironment('stable', arch: 'x64-v4'),
+        throwsArgumentError,
+      );
+    });
+
+    test(
+      'GOAMD64 overrides preserve CRLF and restore pubspec after failure',
+      () async {
+        const original =
+            'name: x\r\nhooks:\r\n  user_defines:\r\n'
+            '    setup:\r\n      build_assets: true\r\n';
+        expect(
+          setup.pubspecWithGoAmd64(original, 'v3'),
+          contains('      goamd64: v3\r\n'),
+        );
+        final directory = await Directory.systemTemp.createTemp('setup_cpu_');
+        addTearDown(() => directory.delete(recursive: true));
+        final pubspec = File(p.join(directory.path, 'pubspec.yaml'));
+        await pubspec.writeAsString(original);
+        await expectLater(
+          setup.withGoAmd64UserDefine(directory.path, 'v3', () async {
+            expect(await pubspec.readAsString(), contains('goamd64: v3'));
+            throw StateError('failed package');
+          }),
+          throwsStateError,
+        );
+        expect(await pubspec.readAsString(), original);
+      },
+    );
+
+    test(
+      'Windows updates require the parent nonce acknowledgement before exit or replacement',
+      () {
+        final script = File(
+          'windows/packaging/exe/inno_setup.iss',
+        ).readAsStringSync();
+        final prepare = script.substring(
+          script.indexOf('function PrepareToInstall('),
+          script.indexOf('procedure CurStepChanged('),
+        );
+        expect(
+          prepare.indexOf('SignalUpdateReady'),
+          lessThan(prepare.indexOf('WaitForParentAcknowledgement')),
+        );
+        expect(
+          prepare.indexOf('WaitForParentAcknowledgement'),
+          lessThan(prepare.indexOf('WaitForAppExit')),
+        );
+        expect(
+          prepare.indexOf('WaitForAppExit'),
+          lessThan(prepare.indexOf('UnregisterHelperService')),
+        );
+        expect(prepare, contains('if not SignalUpdateReady then'));
+        expect(prepare, contains('if not WaitForParentAcknowledgement then'));
+        expect(prepare, contains('if not WaitForAppExit then'));
+        expect(
+          script,
+          contains("ExpandConstant('{srcexe}') + '.' + Nonce + '.ready'"),
+        );
+        expect(script, contains("TemporaryReadyFile := ReadyFile + '.tmp';"));
+        expect(
+          script,
+          contains('Flags: runasoriginaluser nowait; Check: IsAppUpdate'),
+        );
+        expect(script, contains("ExpandConstant('{param:UPDATENONCE|}')"));
+        expect(script, contains("ExpandConstant('{param:UPDATEPID|}')"));
+        expect(
+          script,
+          contains('WaitForSingleObject(UpdateProcessHandle, 60000)'),
+        );
+        expect(prepare, contains('if not IsAppUpdate then\n    KillProcesses'));
+        expect(
+          script,
+          contains(
+            'WriteReadyFile(ReadyHandle, AnsiString(Nonce), Length(Nonce),',
+          ),
+        );
+        expect(script, contains('RenameFile(TemporaryReadyFile, ReadyFile)'));
+        expect(script, contains('CloseApplications=no'));
+        final signal = script.substring(
+          script.indexOf('function SignalUpdateReady'),
+          script.indexOf('function WaitForAppExit'),
+        );
+        expect(
+          signal.indexOf('QueryFullProcessImageName'),
+          lessThan(signal.indexOf('WriteReadyFile')),
+        );
+        expect(
+          signal.indexOf('CloseHandle(ReadyHandle)'),
+          lessThan(signal.indexOf('RenameFile')),
+        );
+        expect(
+          signal,
+          contains(
+            r'CreateReadyFile(TemporaryReadyFile, $40000000, 0, 0, 1, $80, 0)',
+          ),
+        );
+
+        final acknowledgement = script.substring(
+          script.indexOf('function WaitForParentAcknowledgement'),
+          script.indexOf('function WaitForAppExit'),
+        );
+        expect(
+          acknowledgement,
+          contains("ExpandConstant('{param:UPDATEREADY|}') + '.ack'"),
+        );
+        expect(signal, contains("FileExists(ReadyFile + '.ack')"));
+        expect(acknowledgement, contains('Result := False;'));
+        expect(acknowledgement, contains('for i := 1 to 150 do'));
+        expect(acknowledgement, contains('String(Contents) = Nonce'));
+        expect(
+          acknowledgement,
+          contains('WaitForSingleObject(UpdateProcessHandle, 0) <> 258'),
+        );
+        expect(
+          acknowledgement.indexOf('FileExists(AcknowledgementFile)'),
+          lessThan(acknowledgement.indexOf('WaitForSingleObject')),
+        );
+        expect(script, isNot(contains('tasklist /FI')));
+      },
+    );
+
     test('downloads the appimagetool build matching the host', () {
       expect(setup.appImageToolArch('arm64'), 'aarch64');
       expect(setup.appImageToolArch('amd64'), 'x86_64');

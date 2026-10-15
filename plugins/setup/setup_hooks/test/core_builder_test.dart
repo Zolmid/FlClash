@@ -129,6 +129,21 @@ void main() {
       expect(request.target, Target.linuxAmd64);
     });
 
+    test(
+      'passes GOAMD64 from package user defines to the Core build target',
+      () {
+        final request = const CoreBuilder().requestFor(
+          buildInput(
+            os: OS.linux,
+            architecture: Architecture.x64,
+            userDefines: {'goamd64': 'v3'},
+          ),
+        )!;
+        expect(request.target.goamd64, 'v3');
+        expect(request.target.goarch, 'amd64');
+      },
+    );
+
     test('skips the macOS slice the host does not run', () {
       const builder = CoreBuilder(hostArchitecture: Architecture.arm64);
 

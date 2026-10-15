@@ -5,6 +5,7 @@ import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/views/about.dart';
+import 'package:fl_clash/views/profiles/age_key_generator.dart';
 import 'package:fl_clash/views/access.dart';
 import 'package:fl_clash/views/backup_and_restore.dart';
 import 'package:fl_clash/views/config/general.dart';
@@ -40,6 +41,13 @@ class _ToolViewState extends ConsumerState<ToolsView> {
     return generateSection(
       title: context.appLocalizations.other,
       items: [
+        ListItem(
+          leading: const GlyphIcon(AppGlyphs.key),
+          title: Text(context.appLocalizations.ageKeyGenerateTitle),
+          onTap: () => dialogs.showCommonDialog<void>(
+            child: const AgeKeyGeneratorDialog(),
+          ),
+        ),
         const _DisclaimerItem(),
         if (enableDeveloperMode) const _DeveloperItem(),
         const _InfoItem(),

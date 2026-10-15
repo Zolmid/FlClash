@@ -48,6 +48,14 @@ enum CoreMethod {
   clearEffect,
   updateDns,
   watchRoute,
+  getCoreVersion,
+  getMemory,
+  getGoroutineCount,
+  getRules,
+  setRuleDisabled,
+  queryDns,
+  generateAgeKeyPair,
+  convertAgeSecretKeyToPublicKey,
 }
 
 class CoreMethodCall {

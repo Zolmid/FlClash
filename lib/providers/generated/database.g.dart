@@ -48,6 +48,80 @@ final class ProfilesStreamProvider
 
 String _$profilesStreamHash() => r'ea944e081294567f0f63286e95e4e66cdc650383';
 
+@ProviderFor(profileAddedRules)
+final profileAddedRulesProvider = ProfileAddedRulesFamily._();
+
+final class ProfileAddedRulesProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<Rule>>,
+          List<Rule>,
+          Stream<List<Rule>>
+        >
+    with $FutureModifier<List<Rule>>, $StreamProvider<List<Rule>> {
+  ProfileAddedRulesProvider._({
+    required ProfileAddedRulesFamily super.from,
+    required int super.argument,
+  }) : super(
+         retry: null,
+         name: r'profileAddedRulesProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$profileAddedRulesHash();
+
+  @override
+  String toString() {
+    return r'profileAddedRulesProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<List<Rule>> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<Rule>> create(Ref ref) {
+    final argument = this.argument as int;
+    return profileAddedRules(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ProfileAddedRulesProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$profileAddedRulesHash() => r'83fcf12716f79beae19849fcbe2edc32963b3def';
+
+final class ProfileAddedRulesFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<List<Rule>>, int> {
+  ProfileAddedRulesFamily._()
+    : super(
+        retry: null,
+        name: r'profileAddedRulesProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  ProfileAddedRulesProvider call(int profileId) =>
+      ProfileAddedRulesProvider._(argument: profileId, from: this);
+
+  @override
+  String toString() => r'profileAddedRulesProvider';
+}
+
 @ProviderFor(addedRulesStream)
 final addedRulesStreamProvider = AddedRulesStreamFamily._();
 

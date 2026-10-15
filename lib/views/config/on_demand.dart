@@ -373,10 +373,29 @@ class _OnDemandViewState extends ConsumerState<OnDemandView>
     return CommonScaffold(
       body: CustomScrollView(
         slivers: [
+          if (system.isIOS)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+              ).copyWith(top: context.appBarInset),
+              sliver: SliverToBoxAdapter(
+                child: generateSectionV3(
+                  items: [
+                    ConfigToggleItem(
+                      title: (l) => l.alwaysOn,
+                      selector: alwaysOnProvider,
+                      onChanged: (ref, value) =>
+                          ref.read(alwaysOnProvider.notifier).value = value,
+                    ),
+                  ],
+                  footer: context.appLocalizations.alwaysOnDesc,
+                ),
+              ),
+            ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16,
-            ).copyWith(top: context.appBarInset),
+            ).copyWith(top: system.isIOS ? 0 : context.appBarInset),
             sliver: SliverToBoxAdapter(child: _buildPrerequisites()),
           ),
           SliverPadding(

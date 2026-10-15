@@ -282,6 +282,12 @@ class _MemoryDetailSheetState extends State<MemoryDetailSheet> {
     }
     final total = snapshot.coreTotal;
     return [
+      if (core.footprint > 0)
+        _MemoryRow(
+          label: appLocalizations.memoryFootprint,
+          bytes: core.footprint,
+          total: core.footprint,
+        ),
       _MemoryRow(
         label: appLocalizations.memoryCoreHeapInuse,
         bytes: core.heapInuse,

@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/metacubex/mihomo/component/resolver"
+	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 )
 
@@ -38,6 +39,24 @@ func handleCloseConnections() bool {
 		return true
 	})
 	return true
+}
+
+func closeConnectionsForSelection(groupName, proxyName string) {
+	statistic.DefaultManager.Range(func(connection statistic.Tracker) bool {
+		if chainUsesOtherSelection(connection.Info().Chain, groupName, proxyName) {
+			_ = connection.Close()
+		}
+		return true
+	})
+}
+
+func chainUsesOtherSelection(chain constant.Chain, groupName, proxyName string) bool {
+	for index, name := range chain {
+		if name == groupName {
+			return index == 0 || chain[index-1] != proxyName
+		}
+	}
+	return false
 }
 
 func handleResetConnections() bool {

@@ -61,8 +61,8 @@ class CoreController {
   static Future<void> initGeo() async {
     final homePath = await appPath.homeDirPath;
     const geoFileNameList = [MMDB, GEOIP, GEOSITE, ASN];
-    try {
-      for (final geoFileName in geoFileNameList) {
+    for (final geoFileName in geoFileNameList) {
+      try {
         final geoFile = File(join(homePath, geoFileName));
         final isExists = await geoFile.exists();
         if (isExists) {
@@ -71,15 +71,34 @@ class CoreController {
         final data = await rootBundle.load('assets/data/$geoFileName');
         final List<int> bytes = data.buffer.asUint8List();
         await geoFile.writeAsBytes(bytes, flush: true);
+      } catch (e) {
+        commonPrint.log(
+          'Failed to initialize $geoFileName: $e',
+          logLevel: LogLevel.error,
+        );
       }
-    } catch (e) {
-      commonPrint.log(
-        'Failed to initialize geo data: $e',
-        logLevel: LogLevel.error,
-      );
-      rethrow;
     }
   }
+
+  Future<String> getCoreVersion() => _interface.getCoreVersion();
+
+  Future<CoreMemoryInfo> getMemory() => _interface.getMemory();
+
+  Future<int> getGoroutineCount() => _interface.getGoroutineCount();
+
+  Future<List<CoreRule>> getRules() => _interface.getRules();
+
+  Future<bool> setRuleDisabled(SetRuleDisabledParams params) =>
+      _interface.setRuleDisabled(params);
+
+  Future<DnsQuery> queryDns(String domain, String type) =>
+      _interface.queryDns(domain, type);
+
+  Future<Map<String, String>> generateAgeKeyPair() =>
+      _interface.generateAgeKeyPair();
+
+  Future<String> convertAgeSecretKeyToPublicKey(String secretKey) =>
+      _interface.convertAgeSecretKeyToPublicKey(secretKey);
 
   Future<bool> init(int version) async {
     await ensureHomeDir();

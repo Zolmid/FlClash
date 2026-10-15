@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -101,6 +102,12 @@ class AboutView extends ConsumerWidget {
                 label: 'github.com/$repository',
               ),
               _buildLinkItem(
+                glyph: AppGlyphs.code,
+                title: appLocalizations.otherContributors,
+                url: 'https://github.com/$upstreamRepository',
+                label: 'github.com/$upstreamRepository',
+              ),
+              _buildLinkItem(
                 glyph: AppGlyphs.cpu,
                 title: appLocalizations.core,
                 url: 'https://github.com/chen08209/Clash.Meta/tree/FlClash',
@@ -133,7 +140,7 @@ class AboutView extends ConsumerWidget {
   }
 }
 
-class _AboutHero extends StatelessWidget {
+class _AboutHero extends ConsumerStatefulWidget {
   final bool isCheckingUpdate;
   final VoidCallback? onCheckUpdate;
   final VoidCallback onEnterDeveloperMode;
@@ -143,6 +150,38 @@ class _AboutHero extends StatelessWidget {
     required this.onCheckUpdate,
     required this.onEnterDeveloperMode,
   });
+
+  @override
+  ConsumerState<_AboutHero> createState() => _AboutHeroState();
+}
+
+class _AboutHeroState extends ConsumerState<_AboutHero> {
+  String? _coreVersion;
+  bool _loadingVersion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(coreStatusProvider, (_, status) {
+      if (status == CoreStatus.connected) _loadCoreVersion();
+    }, fireImmediately: true);
+  }
+
+  Future<void> _loadCoreVersion() async {
+    if (_coreVersion != null || _loadingVersion) return;
+    _loadingVersion = true;
+    try {
+      final version = await ref.read(coreHandlerProvider).getCoreVersion();
+      if (mounted && version.isNotEmpty) setState(() => _coreVersion = version);
+    } catch (error) {
+      commonPrint.log(
+        'getCoreVersion error: $error',
+        logLevel: coreFailureLogLevel(error),
+      );
+    } finally {
+      _loadingVersion = false;
+    }
+  }
 
   static const _logoSize = 96.0;
   static const _logoInset = 14.0;
@@ -157,7 +196,7 @@ class _AboutHero extends StatelessWidget {
       child: Column(
         children: [
           _DeveloperModeDetector(
-            onEnterDeveloperMode: onEnterDeveloperMode,
+            onEnterDeveloperMode: widget.onEnterDeveloperMode,
             child: DecoratedBox(
               decoration: ShapeDecoration(
                 color: colorScheme.surfaceContainerHigh,
@@ -191,6 +230,12 @@ class _AboutHero extends StatelessWidget {
                 color: colorScheme.primary,
                 foregroundColor: colorScheme.onPrimary,
               ),
+              if (_coreVersion != null)
+                _Pill(
+                  label: 'mihomo $_coreVersion',
+                  color: colorScheme.surfaceContainerHighest,
+                  foregroundColor: colorScheme.onSurfaceVariant,
+                ),
               _Pill(
                 label: 'GPL-3.0',
                 color: colorScheme.surfaceContainerHighest,
@@ -210,10 +255,10 @@ class _AboutHero extends StatelessWidget {
               ),
             ),
           ),
-          if (onCheckUpdate != null) ...[
+          if (widget.onCheckUpdate != null) ...[
             const SizedBox(height: 20),
             FilledButton.tonalIcon(
-              onPressed: isCheckingUpdate ? null : onCheckUpdate,
+              onPressed: widget.isCheckingUpdate ? null : widget.onCheckUpdate,
               icon: const GlyphIcon(AppGlyphs.sync, fill: 1),
               label: Text(appLocalizations.checkUpdate),
             ),

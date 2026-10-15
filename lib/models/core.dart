@@ -1,9 +1,78 @@
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/common/system.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'generated/core.freezed.dart';
 part 'generated/core.g.dart';
+
+@freezed
+abstract class CoreRule with _$CoreRule {
+  const factory CoreRule({
+    required int index,
+    required String type,
+    @Default('') String payload,
+    @Default('') String proxy,
+    @Default(-1) int size,
+    @Default(false) bool disabled,
+    @Default(0) int hitCount,
+    DateTime? hitAt,
+    @Default(0) int missCount,
+    DateTime? missAt,
+  }) = _CoreRule;
+
+  factory CoreRule.fromJson(Map<String, Object?> json) =>
+      _$CoreRuleFromJson(json);
+}
+
+extension CoreRuleExt on CoreRule {
+  List<String> get searchFields => [type, payload, proxy];
+
+  SetRuleDisabledParams toDisabledParams(bool disabled) {
+    return SetRuleDisabledParams(
+      index: index,
+      type: type,
+      payload: payload,
+      disabled: disabled,
+    );
+  }
+}
+
+@freezed
+abstract class SetRuleDisabledParams with _$SetRuleDisabledParams {
+  const factory SetRuleDisabledParams({
+    required int index,
+    required String type,
+    required String payload,
+    required bool disabled,
+  }) = _SetRuleDisabledParams;
+
+  factory SetRuleDisabledParams.fromJson(Map<String, Object?> json) =>
+      _$SetRuleDisabledParamsFromJson(json);
+}
+
+@freezed
+abstract class CoreMemoryInfo with _$CoreMemoryInfo {
+  const CoreMemoryInfo._();
+
+  const factory CoreMemoryInfo({
+    @Default(0) int sys,
+    @Default(0) int heapObjects,
+    @Default(0) int heapUnused,
+    @Default(0) int heapIdle,
+    @Default(0) int heapReleased,
+    @Default(0) int stacks,
+    @Default(0) int metadata,
+    @Default(0) int gc,
+    @Default(0) int other,
+    @Default(0) int footprint,
+  }) = _CoreMemoryInfo;
+
+  int get total => sys - heapReleased;
+
+  factory CoreMemoryInfo.fromJson(Map<String, dynamic> json) =>
+      _$CoreMemoryInfoFromJson(json);
+}
 
 @freezed
 abstract class SetupParams with _$SetupParams {
@@ -59,6 +128,16 @@ abstract class VpnOptions with _$VpnOptions {
     @Default([]) List<String> routeAddress,
     @Default(0) int mtu,
     @Default('') String congestionController,
+    @Default(false) bool disableIcmpForwarding,
+    @Default(false) bool endpointIndependentNat,
+    @Default(true) bool recvMsgX,
+    @Default(false) bool sendMsgX,
+    @Default(false) bool includeAllNetworks,
+    @Default(true) bool excludeLocalNetworks,
+    @Default(true) bool excludeAPNs,
+    @Default(true) bool excludeCellularServices,
+    @Default(false) bool enforceRoutes,
+    @Default(true) bool excludeDeviceCommunication,
   }) = _VpnOptions;
 
   factory VpnOptions.fromJson(Map<String, Object?> json) =>
@@ -67,7 +146,9 @@ abstract class VpnOptions with _$VpnOptions {
 
 extension VpnOptionsExt on VpnOptions {
   /// Only what `ServiceController.start` and `VpnService.handleStart` read.
-  VpnOptions get effective {
+  VpnOptions get effective => effectiveForPlatform(isIOS: system.isIOS);
+
+  VpnOptions effectiveForPlatform({required bool isIOS}) {
     if (!enable) {
       return const VpnOptions(
         enable: false,
@@ -81,9 +162,24 @@ extension VpnOptionsExt on VpnOptions {
         stack: '',
       );
     }
-    final accessControl = accessControlProps;
+    final options = copyWith(
+      accessControlProps: isIOS
+          ? const AccessControlProps()
+          : accessControlProps,
+      allowBypass: !isIOS && allowBypass,
+      endpointIndependentNat: false,
+      recvMsgX: isIOS ? recvMsgX : true,
+      sendMsgX: isIOS && sendMsgX,
+      includeAllNetworks: isIOS && includeAllNetworks,
+      excludeLocalNetworks: !isIOS || excludeLocalNetworks,
+      excludeAPNs: !isIOS || excludeAPNs,
+      excludeCellularServices: !isIOS || excludeCellularServices,
+      enforceRoutes: isIOS && enforceRoutes,
+      excludeDeviceCommunication: !isIOS || excludeDeviceCommunication,
+    );
+    final accessControl = options.accessControlProps;
     final accepts = accessControl.mode == AccessControlMode.acceptSelected;
-    return copyWith(
+    return options.copyWith(
       port: systemProxy ? port : 0,
       bypassDomain: systemProxy ? bypassDomain : const [],
       accessControlProps: accessControl.enable
@@ -114,6 +210,7 @@ abstract class ChangeProxyParams with _$ChangeProxyParams {
   const factory ChangeProxyParams({
     @JsonKey(name: 'group-name') required String groupName,
     @JsonKey(name: 'proxy-name') required String proxyName,
+    @JsonKey(name: 'close-connections') @Default(false) bool closeConnections,
   }) = _ChangeProxyParams;
 
   factory ChangeProxyParams.fromJson(Map<String, Object?> json) =>
@@ -268,6 +365,7 @@ abstract class CoreMemoryStats with _$CoreMemoryStats {
     @Default(0) int heapIdle,
     @Default(0) int stackInuse,
     @Default(0) int runtimeOther,
+    @Default(0) int footprint,
   }) = _CoreMemoryStats;
 
   factory CoreMemoryStats.fromJson(Map<String, Object?> json) =>

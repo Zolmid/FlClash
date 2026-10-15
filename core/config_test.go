@@ -248,7 +248,7 @@ func TestUpdateConfigDecodesTheTunSettingsTheHostSends(t *testing.T) {
 	withCurrentConfig(t, &config.Config{General: &config.General{}, Controller: &config.Controller{}})
 	var params UpdateParams
 	payload := `{"tun":{"enable":true,"mtu":1400,"congestion-controller":"bbr","strict-route":true,
-		"route-exclude-address":["10.0.0.0/8"]}}`
+		"recvmsgx":true,"sendmsgx":false,"route-exclude-address":["10.0.0.0/8"]}}`
 	if err := json.Unmarshal([]byte(payload), &params); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -259,6 +259,9 @@ func TestUpdateConfigDecodesTheTunSettingsTheHostSends(t *testing.T) {
 	tun := currentConfig.General.Tun
 	if tun.MTU != 1400 || tun.CongestionController != "bbr" || !tun.StrictRoute {
 		t.Errorf("MTU = %d, CongestionController = %q, StrictRoute = %v", tun.MTU, tun.CongestionController, tun.StrictRoute)
+	}
+	if !tun.RecvMsgX || tun.SendMsgX {
+		t.Errorf("Darwin batching settings = %v/%v, want true/false", tun.RecvMsgX, tun.SendMsgX)
 	}
 	if len(tun.RouteExcludeAddress) != 1 || tun.RouteExcludeAddress[0] != netip.MustParsePrefix("10.0.0.0/8") {
 		t.Errorf("RouteExcludeAddress = %v", tun.RouteExcludeAddress)

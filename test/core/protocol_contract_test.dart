@@ -92,7 +92,32 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
         'heapIdle': 256,
         'stackInuse': 64,
         'runtimeOther': 32,
+        'footprint': 4096,
       },
+      CoreMethod.getCoreVersion => 'v1.19.99-test',
+      CoreMethod.getRules => [
+        {
+          'index': 7,
+          'type': 'Domain',
+          'payload': 'example.com',
+          'proxy': 'Auto',
+        },
+      ],
+      CoreMethod.setRuleDisabled => true,
+      CoreMethod.queryDns => {
+        'domain': 'example.com',
+        'type': 'AAAA',
+        'initiator': 'manual',
+        'answers': ['2001:db8::1'],
+        'rcode': 'NOERROR',
+        'delay': 5,
+        'time': '2026-09-18T04:30:02Z',
+      },
+      CoreMethod.generateAgeKeyPair => {
+        'secret-key': 'AGE-SECRET-KEY-TEST',
+        'public-key': 'age1test',
+      },
+      CoreMethod.convertAgeSecretKeyToPublicKey => 'age1test',
       CoreMethod.changeProxy => {'message': '', 'changed': true},
       CoreMethod.compileRuleSet => {'behavior': 'ipcidr', 'format': 'text'},
       CoreMethod.getConnectionCount => 3,
@@ -219,6 +244,44 @@ void main() {
 
     expect(handler.calls[CoreMethod.validateFilters], ['hk`jp', '(hk']);
     expect(errors, ['', 'missing closing )']);
+  });
+
+  test('runtime rule disabling preserves rule identity', () async {
+    final handler = _RecordingCoreHandler();
+    final rule = (await handler.getRules()).single;
+
+    expect(await handler.setRuleDisabled(rule.toDisabledParams(true)), isTrue);
+    expect(handler.calls[CoreMethod.setRuleDisabled], {
+      'index': 7,
+      'type': 'Domain',
+      'payload': 'example.com',
+      'disabled': true,
+    });
+  });
+
+  test('manual DNS and Age tools keep their wire contracts', () async {
+    final handler = _RecordingCoreHandler();
+
+    final dns = await handler.queryDns('example.com', 'AAAA');
+    expect(handler.calls[CoreMethod.queryDns], {
+      'domain': 'example.com',
+      'type': 'AAAA',
+    });
+    expect(dns.initiator, DnsQueryInitiator.manual);
+    expect(dns.answers, ['2001:db8::1']);
+    expect(await handler.getCoreVersion(), 'v1.19.99-test');
+    expect(await handler.generateAgeKeyPair(), {
+      'secret-key': 'AGE-SECRET-KEY-TEST',
+      'public-key': 'age1test',
+    });
+    expect(
+      await handler.convertAgeSecretKeyToPublicKey('AGE-SECRET-KEY-TEST'),
+      'age1test',
+    );
+    expect(
+      handler.calls[CoreMethod.convertAgeSecretKeyToPublicKey],
+      'AGE-SECRET-KEY-TEST',
+    );
   });
 
   test('dumpRuleSet sends the rule set path', () async {
@@ -382,6 +445,7 @@ void main() {
     final memory = await handler.getMemoryStats();
     expect(memory?.rss, 2048);
     expect(memory?.runtimeTotal, 1024 + 256 + 64 + 32);
+    expect(memory?.footprint, 4096);
   });
 
   test('getConfig preserves structured core errors', () async {

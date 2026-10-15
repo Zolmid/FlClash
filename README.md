@@ -26,7 +26,14 @@ A multi-platform proxy client based on ClashMeta. Simple to use, open source and
 
 ## Features
 
-- **One app for Android, Windows, macOS and Linux**, with x64 and ARM64 builds on the desktop.
+This development fork, [`Zolmid/FlClash`](https://github.com/Zolmid/FlClash), maintains
+the iOS bridge and application changes while following upstream FlClash. See
+[cloud builds](docs/cloud-build.md), [the integration audit](docs/patched-integration-audit.md)
+and [upstream maintenance](docs/upstream-maintenance.md). Development packages are available
+as cloud artifacts; the release links above retain upstream attribution.
+
+- **One app for Android, Windows, macOS, Linux and experimental iOS**, with x64 and ARM64 builds on the desktop.
+- **iOS arm64 device builds** produce an unsigned IPA; signed installation and real-device VPN behavior still need validation.
 - **mihomo (Clash.Meta) core** with rule routing, proxy groups, latency tests, system proxy and TUN mode.
 - **Profiles** from a subscription link or a file, with a built-in editor, override scripts, and custom rules,
   proxies and proxy groups.

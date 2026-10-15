@@ -430,6 +430,11 @@ class InputDialog extends StatefulWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextInputType? keyboardType;
   final bool selectAll;
+  final List<Widget> Function(
+    TextEditingController controller,
+    VoidCallback submit,
+  )?
+  actionsBuilder;
 
   const InputDialog({
     super.key,
@@ -445,6 +450,7 @@ class InputDialog extends StatefulWidget {
     this.inputFormatters,
     this.keyboardType,
     this.selectAll = false,
+    this.actionsBuilder,
     this.autovalidateMode = AutovalidateMode.onUserInteraction,
   });
 
@@ -504,25 +510,27 @@ class _InputDialogState extends State<InputDialog> {
     );
     return CommonDialog(
       title: title,
-      actions: [
-        if (widget.resetValue != null &&
-            _textController.value.text != widget.resetValue) ...[
-          TextButton(
-            onPressed: _handleReset,
-            child: Text(appLocalizations.reset),
-          ),
-        ] else
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text(appLocalizations.cancel),
-          ),
-        TextButton(
-          onPressed: _handleUpdate,
-          child: Text(appLocalizations.submit),
-        ),
-      ],
+      actions:
+          widget.actionsBuilder?.call(_textController, _handleUpdate) ??
+          [
+            if (widget.resetValue != null &&
+                _textController.value.text != widget.resetValue) ...[
+              TextButton(
+                onPressed: _handleReset,
+                child: Text(appLocalizations.reset),
+              ),
+            ] else
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(appLocalizations.cancel),
+              ),
+            TextButton(
+              onPressed: _handleUpdate,
+              child: Text(appLocalizations.submit),
+            ),
+          ],
       child: Form(
         autovalidateMode: widget.autovalidateMode,
         key: _formKey,

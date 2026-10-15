@@ -133,6 +133,11 @@ Stream<List<Profile>> profilesStream(Ref ref) {
 }
 
 @riverpod
+Stream<List<Rule>> profileAddedRules(Ref ref, int profileId) {
+  return database.rulesDao.queryProfileRules(profileId).watch();
+}
+
+@riverpod
 Stream<List<Rule>> addedRulesStream(Ref ref, int profileId) {
   return database.rulesDao.queryAddedRules(profileId).watch();
 }

@@ -1,5 +1,10 @@
 import 'dart:async';
 
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:fl_clash/common/print.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/widgets/inherited.dart';
@@ -14,6 +19,33 @@ mixin ActivePollingMixin<T extends StatefulWidget>
   bool _isPageActive = true;
   bool _isPolling = false;
   int _pollGeneration = 0;
+  bool _isUnfocused = false;
+  ProviderContainer? _pollContainer;
+  ProviderSubscription<AppSettingProps>? _pollSettings;
+  AppSettingProps _settings = const AppSettingProps();
+
+  bool get _supportsIdlePolling => switch (defaultTargetPlatform) {
+    TargetPlatform.windows ||
+    TargetPlatform.macOS ||
+    TargetPlatform.linux => true,
+    _ => false,
+  };
+
+  Duration get _effectivePollInterval {
+    if (_pollContainer == null) return pollInterval;
+    final seconds = _isUnfocused && _settings.foregroundTickerIdleWhenUnfocused
+        ? _settings.foregroundTickerIdleInterval
+        : _settings.foregroundTickerInterval;
+    final configured = Duration(seconds: seconds.clamp(1, 1 << 30));
+    return configured > pollInterval ? configured : pollInterval;
+  }
+
+  void _rescheduleTimer() {
+    if (_pollTimer == null) return;
+    _pollTimer!.cancel();
+    _pollTimer = null;
+    if (_isPolling && canPoll) _schedulePoll(_pollGeneration);
+  }
 
   Duration get pollInterval;
 
@@ -28,8 +60,12 @@ mixin ActivePollingMixin<T extends StatefulWidget>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _isUnfocused =
+        lifecycleState == AppLifecycleState.inactive && _supportsIdlePolling;
     _isForeground =
-        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+        lifecycleState == null ||
+        lifecycleState == AppLifecycleState.resumed ||
+        _isUnfocused;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _syncPolling();
@@ -40,6 +76,17 @@ mixin ActivePollingMixin<T extends StatefulWidget>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final scope = context
+        .findAncestorWidgetOfExactType<UncontrolledProviderScope>();
+    final container = scope == null ? null : ProviderScope.containerOf(context);
+    if (!identical(container, _pollContainer)) {
+      _pollSettings?.close();
+      _pollContainer = container;
+      _pollSettings = container?.listen(appSettingProvider, (_, next) {
+        _settings = next;
+        _rescheduleTimer();
+      }, fireImmediately: true);
+    }
     final isPageActive = PageActivityScope.isActiveOf(context);
     if (_isPageActive == isPageActive) {
       return;
@@ -51,7 +98,9 @@ mixin ActivePollingMixin<T extends StatefulWidget>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    final isForeground = state == AppLifecycleState.resumed;
+    _isUnfocused = state == AppLifecycleState.inactive && _supportsIdlePolling;
+    final isForeground = state == AppLifecycleState.resumed || _isUnfocused;
+    _rescheduleTimer();
     if (_isForeground == isForeground) {
       return;
     }
@@ -61,6 +110,7 @@ mixin ActivePollingMixin<T extends StatefulWidget>
 
   @override
   void dispose() {
+    _pollSettings?.close();
     WidgetsBinding.instance.removeObserver(this);
     _isForeground = false;
     stopPolling();
@@ -104,7 +154,7 @@ mixin ActivePollingMixin<T extends StatefulWidget>
       canPoll && _isPolling && generation == _pollGeneration;
 
   void _schedulePoll(int generation) {
-    _pollTimer = Timer(pollInterval, () {
+    _pollTimer = Timer(_effectivePollInterval, () {
       _pollTimer = null;
       if (_isCurrentPoll(generation)) {
         unawaited(_runPoll(generation));

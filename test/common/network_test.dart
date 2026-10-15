@@ -60,6 +60,61 @@ void main() {
     });
   });
 
+  group('interfaceType', () {
+    test('recognises physical interface names', () {
+      for (final name in [
+        'wlan0',
+        'Wi-Fi',
+        'WLAN1',
+        'Ethernet 2',
+        '以太网 2',
+        'en0',
+        'enp3s0',
+        'ens5',
+        'enx001122',
+        'eth0',
+        'ETH1',
+      ]) {
+        expect(
+          _FakeInterface(name, const []).interfaceType,
+          NetworkInterfaceType.physical,
+          reason: name,
+        );
+      }
+    });
+
+    test('recognises common virtual interface names', () {
+      for (final name in [
+        'FlClash',
+        'Meta Tunnel',
+        'tun0',
+        'utun3',
+        'tailscale0',
+        'ZeroTier One',
+        'netbird0',
+        'easytier',
+        'docker0',
+        'tap0',
+      ]) {
+        expect(
+          _FakeInterface(name, const []).interfaceType,
+          NetworkInterfaceType.virtual,
+          reason: name,
+        );
+      }
+    });
+
+    test('leaves unrecognised interface names as unknown', () {
+      for (final name in ['fortune0', 'veth0', 'lo0', 'ppp0', '']) {
+        expect(
+          _FakeInterface(name, const []).interfaceType,
+          NetworkInterfaceType.unknown,
+          reason: name,
+        );
+      }
+    });
+  });
+
   test('includesIPv4 only counts IPv4 addresses', () {
     expect(_FakeInterface('en1', [_v4('10.0.0.2')]).includesIPv4, isTrue);
     expect(_FakeInterface('en1', [_v6('fe80::1')]).includesIPv4, isFalse);

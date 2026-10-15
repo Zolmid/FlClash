@@ -32,6 +32,22 @@ void main() {
     });
   });
 
+  test('GOAMD64 variants validate levels and preserve target properties', () {
+    final v3 = Target.linuxAmd64.withGoAmd64UserDefine('v3');
+    expect(v3.goamd64, 'v3');
+    expect(v3.platformDir, 'linux');
+    expect(v3.withGoAmd64('v1').goamd64, isNull);
+    expect(Target.iosArm64.withGoAmd64UserDefine('v3'), Target.iosArm64);
+    expect(
+      () => Target.linuxAmd64.withGoAmd64UserDefine('v4'),
+      throwsA(isA<BuildException>()),
+    );
+    expect(
+      () => Target.linuxAmd64.withGoAmd64UserDefine(3),
+      throwsA(isA<BuildException>()),
+    );
+  });
+
   test('only Linux and Windows ship the Helper', () {
     expect(Target.all.where((target) => target.hasHelper), [
       Target.linuxArm64,

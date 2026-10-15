@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class CommonDialog extends ConsumerWidget {
   final String title;
+  final double maxWidth;
   final Widget? trailing;
   final Widget? child;
   final List<Widget>? actions;
@@ -17,6 +18,7 @@ class CommonDialog extends ConsumerWidget {
   const CommonDialog({
     super.key,
     required this.title,
+    this.maxWidth = 300,
     this.trailing,
     this.actions,
     this.child,
@@ -44,7 +46,7 @@ class CommonDialog extends ConsumerWidget {
       content: Container(
         constraints: BoxConstraints(
           maxHeight: min(size.height - 40, 500),
-          maxWidth: 300,
+          maxWidth: maxWidth,
         ),
         width: size.width - 40,
         child: !overrideScroll ? SingleChildScrollView(child: child) : child,

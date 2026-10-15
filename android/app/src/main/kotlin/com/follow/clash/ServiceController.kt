@@ -68,7 +68,7 @@ object ServiceController {
         Core.updateEventListener(callback)
     }
 
-    suspend fun start(options: VpnOptions): Boolean = lock.withLock {
+    suspend fun start(options: VpnOptions, requestedOptions: VpnOptions = options): Boolean = lock.withLock {
         ServiceConfig.updateVpnOptions(options)
         val nextIntent = if (options.enable) {
             VpnService::class.intent
@@ -108,6 +108,8 @@ object ServiceController {
         runtime = ServiceRuntime(
             vpn = options.enable,
             startedAtMillis = runtime?.startedAtMillis ?: System.currentTimeMillis(),
+            options = options,
+            requestedOptions = requestedOptions,
         )
         true
     }

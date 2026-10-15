@@ -156,6 +156,58 @@ void main() {
         proxyOnly.effective,
       );
     });
+
+    test('Android ignores NetworkExtension and Darwin-only options', () {
+      final changed = options.copyWith(
+        recvMsgX: false,
+        sendMsgX: true,
+        includeAllNetworks: true,
+        excludeLocalNetworks: false,
+        excludeAPNs: false,
+        excludeCellularServices: false,
+        enforceRoutes: true,
+        excludeDeviceCommunication: false,
+      );
+
+      expect(
+        changed.effectiveForPlatform(isIOS: false),
+        options.effectiveForPlatform(isIOS: false),
+      );
+      expect(
+        changed.effectiveForPlatform(isIOS: true),
+        isNot(options.effectiveForPlatform(isIOS: true)),
+      );
+    });
+
+    test('iOS ignores Android app filtering and allow-bypass', () {
+      final changed = options.copyWith(
+        allowBypass: false,
+        accessControlProps: const AccessControlProps(),
+      );
+
+      expect(
+        changed.effectiveForPlatform(isIOS: true),
+        options.effectiveForPlatform(isIOS: true),
+      );
+      expect(
+        changed.effectiveForPlatform(isIOS: false),
+        isNot(options.effectiveForPlatform(isIOS: false)),
+      );
+    });
+
+    test(
+      'raw legacy NAT option does not trigger restart on either platform',
+      () {
+        for (final isIOS in [false, true]) {
+          expect(
+            options
+                .copyWith(endpointIndependentNat: true)
+                .effectiveForPlatform(isIOS: isIOS),
+            options.effectiveForPlatform(isIOS: isIOS),
+          );
+        }
+      },
+    );
   });
 
   group('ChangeProxyParams', () {
@@ -167,6 +219,11 @@ void main() {
       final out = params.toJson();
       expect(out['group-name'], 'Proxy');
       expect(out['proxy-name'], 'auto');
+      expect(out['close-connections'], isFalse);
+      expect(
+        params.copyWith(closeConnections: true).toJson()['close-connections'],
+        isTrue,
+      );
     });
   });
 

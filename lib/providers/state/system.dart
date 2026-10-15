@@ -192,6 +192,8 @@ SharedState sharedState(Ref ref) {
         crashlytics: state.crashlytics,
         testUrl: state.testUrl,
         checkCertificate: state.checkCertificate,
+        collapseQuickSettingsPanel: state.collapseQuickSettingsPanel,
+        showQuickSettingsProfileName: state.showQuickSettingsProfileName,
       ),
     ),
   );
@@ -216,6 +218,21 @@ SharedState sharedState(Ref ref) {
     ),
     vpnOptions: ref.watch(vpnOptionsProvider).value,
     excludeSSIDs: ref.watch(excludeSSIDsProvider),
+    alwaysOn: ref.watch(alwaysOnProvider),
+    networkSpeedNotification: ref
+        .watch(vpnSettingProvider)
+        .networkSpeedNotification,
+    collapseQuickSettingsPanel: appSetting.collapseQuickSettingsPanel,
+    showQuickSettingsProfileName: appSetting.showQuickSettingsProfileName,
+    widgetTheme: WidgetTheme(
+      themeMode: ref.watch(themeSettingProvider).themeMode,
+      light: WidgetColors.fromScheme(
+        ref.watch(genColorSchemeProvider(Brightness.light)),
+      ),
+      dark: WidgetColors.fromScheme(
+        ref.watch(genColorSchemeProvider(Brightness.dark)),
+      ),
+    ),
   );
 }
 
@@ -254,6 +271,18 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
   final safeMode = ref.watch(safeModeProvider);
   final routeAddress = ref.watch(vpnRouteAddressProvider.future);
   final tun = clashConfig.tun;
+  final disableIcmpForwarding =
+      system.isMobile &&
+      ref.watch(
+        currentProfileProvider.select(
+          (profile) =>
+              profile?.type == ProfileType.custom &&
+              profile!.overrides.tunOverrideKeys.contains(
+                TunOverrideKey.disableIcmpForwarding,
+              ) &&
+              profile.overrides.tun.disableIcmpForwarding,
+        ),
+      );
   return VpnOptions(
     enable: (system.isIOS || vpnSetting.enable) && !safeMode,
     stack: tun.stack.name,
@@ -270,6 +299,15 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
     routeAddress: await routeAddress,
     mtu: tun.mtu,
     congestionController: tun.congestionController,
+    recvMsgX: tun.recvMsgX,
+    sendMsgX: tun.sendMsgX,
+    disableIcmpForwarding: disableIcmpForwarding,
+    includeAllNetworks: vpnSetting.includeAllNetworks,
+    excludeLocalNetworks: vpnSetting.excludeLocalNetworks,
+    excludeAPNs: vpnSetting.excludeAPNs,
+    excludeCellularServices: vpnSetting.excludeCellularServices,
+    enforceRoutes: vpnSetting.enforceRoutes,
+    excludeDeviceCommunication: vpnSetting.excludeDeviceCommunication,
   );
 }
 

@@ -172,6 +172,7 @@ abstract class Log with _$Log {
   const factory Log({
     @JsonKey(name: 'LogLevel') @Default(LogLevel.info) LogLevel logLevel,
     @JsonKey(name: 'Payload') @Default('') String payload,
+    @Default(LogSource.app) LogSource source,
     @JsonKey(fromJson: _logDateTime) required String dateTime,
   }) = _Log;
 
@@ -187,6 +188,8 @@ abstract class LogsState with _$LogsState {
   const factory LogsState({
     @Default([]) List<Log> logs,
     @Default([]) List<String> keywords,
+    @Default({}) Set<LogSource> sources,
+    @Default({}) Set<LogLevel> levels,
     @Default('') String query,
     @Default(true) bool autoScrollToEnd,
   }) = _LogsState;
@@ -195,20 +198,42 @@ abstract class LogsState with _$LogsState {
 final _logSearchTexts = Expando<String>();
 
 extension LogsStateExt on LogsState {
-  bool get isSearching => keywords.isNotEmpty || SearchQuery(query).isNotEmpty;
+  bool get hasFilters => sources.isNotEmpty || levels.isNotEmpty;
+
+  bool get isSearching =>
+      hasFilters || keywords.isNotEmpty || SearchQuery(query).isNotEmpty;
+
+  LogsState toggleSource(LogSource source) {
+    final next = {...sources};
+    next.contains(source) ? next.remove(source) : next.add(source);
+    return copyWith(sources: next);
+  }
+
+  LogsState toggleLevel(LogLevel level) {
+    final next = {...levels};
+    next.contains(level) ? next.remove(level) : next.add(level);
+    return copyWith(levels: next);
+  }
+
+  LogsState clearFilters() => copyWith(sources: {}, levels: {});
 
   List<Log> get list {
     final searchQuery = SearchQuery(query);
-    if (keywords.isEmpty && searchQuery.isEmpty) {
+    if (!hasFilters && keywords.isEmpty && searchQuery.isEmpty) {
       return logs;
     }
     return logs
+        .where(
+          (log) =>
+              (sources.isEmpty || sources.contains(log.source)) &&
+              (levels.isEmpty || levels.contains(log.logLevel)),
+        )
         .where(
           (log) => keywords.every((keyword) => keyword == log.logLevel.name),
         )
         .whereMatches(
           searchQuery,
-          (log) => [log.payload, log.logLevel.name],
+          (log) => [log.payload, log.logLevel.name, log.source.name],
           texts: _logSearchTexts,
         )
         .toList();
@@ -413,6 +438,7 @@ abstract class DAVProps with _$DAVProps {
     @Default('')
     String password,
     @Default(defaultDavFileName) String fileName,
+    @Default('/FlClash') String directory,
   }) = _DAVProps;
 
   factory DAVProps.fromJson(Map<String, Object?> json) =>
@@ -420,7 +446,7 @@ abstract class DAVProps with _$DAVProps {
 
   @override
   String toString() =>
-      'DAVProps(uri: $uri, user: $user, password: ***, fileName: $fileName)';
+      'DAVProps(uri: $uri, user: $user, password: ***, fileName: $fileName, directory: $directory)';
 }
 
 @freezed

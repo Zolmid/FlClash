@@ -453,7 +453,7 @@ void main() {
           outcome: CoreLifecycleOutcome.superseded,
         );
 
-        await coreAction.startCore();
+        expect(await coreAction.startCore(), isFalse);
 
         expect(coreAction.initCoreCount, 0);
         expect(container.read(coreStatusProvider), CoreStatus.connecting);
@@ -472,7 +472,7 @@ void main() {
         outcome: CoreLifecycleOutcome.coalesced,
       );
 
-      await coreAction.startCore();
+      expect(await coreAction.startCore(), isTrue);
 
       expect(coreAction.initCoreCount, 1);
       expect(container.read(coreStatusProvider), CoreStatus.connected);

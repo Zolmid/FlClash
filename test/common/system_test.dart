@@ -114,6 +114,7 @@ void main() {
   late Directory root;
   late _FakeProcesses processes;
   String? password;
+  final readEffectiveUid = system.readEffectiveUid;
 
   setUpAll(() {
     root = Directory.systemTemp.createTempSync('system_test');
@@ -131,6 +132,7 @@ void main() {
   setUp(() {
     processes = _FakeProcesses();
     system.runProcess = processes.run;
+    system.readEffectiveUid = () => 1000;
     MacOS().runProcess = processes.run;
     linuxElevation.run = processes.run;
     linuxElevation.runWithInput = processes.runWithInput;
@@ -140,9 +142,37 @@ void main() {
 
   tearDown(() {
     system.runProcess = Process.run;
+    system.readEffectiveUid = readEffectiveUid;
     MacOS().runProcess = Process.run;
     linuxElevation.run = Process.run;
   });
+
+  group('root process', () {
+    test('uses the effective UID of the running process', () async {
+      final result = await Process.run('id', ['-u']);
+      expect(result.exitCode, 0);
+      expect(readEffectiveUid(), int.parse(result.stdout.toString().trim()));
+    });
+
+    test('needs neither helper nor elevation when already root', () async {
+      system.readEffectiveUid = () => 0;
+
+      expect(system.isRunningAsRoot, isTrue);
+      expect(system.hasHelperService, isFalse);
+      expect(await system.checkIsAdmin(), isTrue);
+      expect(await system.authorizeCore(), AuthorizeCode.none);
+      expect(processes.runs, isEmpty);
+    });
+
+    test('a regular user keeps the existing authorization path', () async {
+      expect(system.isRunningAsRoot, isFalse);
+      if (!system.hasHelperService) {
+        processes.stub('stat', 'alice:staff -rwxr-xr-x');
+        expect(await system.checkIsAdmin(), isFalse);
+        expect(processes.ran('stat'), isTrue);
+      }
+    });
+  }, skip: !system.isLinux && !system.isMacOS);
 
   group('statArguments', () {
     test('selects the BSD format on macOS and the GNU one elsewhere', () {

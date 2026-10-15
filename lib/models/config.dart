@@ -181,10 +181,20 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(false) bool onlyStatisticsProxy,
     @Default(true) bool showNotificationStopAction,
     @Default(false) bool autoLaunch,
+    @Default(false) bool highPriorityAutoLaunch,
     @Default(false) bool silentLaunch,
     @Default(false) bool autoRun,
     @Default(false) bool openLogs,
     @Default(true) bool closeConnections,
+    @Default(true) bool promptCloseConnections,
+    @Default(false) bool tvMode,
+    @Default(true) bool backToDashboard,
+    @Default(1) int foregroundTickerInterval,
+    @Default(true) bool foregroundTickerIdleWhenUnfocused,
+    @Default(2) int foregroundTickerIdleInterval,
+    @Default(true) bool collapseProxyChains,
+    @Default(true) bool collapseQuickSettingsPanel,
+    @Default(true) bool showQuickSettingsProfileName,
     @Default(defaultTestUrl) String testUrl,
     @Default(TabAnimation.slide)
     @JsonKey(readValue: _readTabAnimation)
@@ -202,6 +212,7 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(false) bool developerMode,
     @Default(RestoreStrategy.compatible) RestoreStrategy restoreStrategy,
     @Default(true) bool showTrayTitle,
+    @Default(true) bool showTrayProxySelection,
     @Default(true) bool checkCertificate,
     @Default(defaultUserAgents)
     @JsonKey(readValue: _readUserAgents)
@@ -210,6 +221,7 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(false) bool hideIp,
     @Default(false) bool editorLineWrap,
     @Default(EditorFontSize.standard) EditorFontSize editorFontSize,
+    @Default(EditorLineHeight.standard) EditorLineHeight editorLineHeight,
     @Default([]) List<String> serviceOrder,
     @Default([]) List<String> disabledServices,
     String? currentService,
@@ -284,6 +296,13 @@ abstract class VpnProps with _$VpnProps {
     @Default(false) bool ipv6,
     @Default(true) bool allowBypass,
     @Default(false) bool dnsHijacking,
+    @Default(false) bool networkSpeedNotification,
+    @Default(false) bool includeAllNetworks,
+    @Default(true) bool excludeLocalNetworks,
+    @Default(true) bool excludeAPNs,
+    @Default(true) bool excludeCellularServices,
+    @Default(false) bool enforceRoutes,
+    @Default(true) bool excludeDeviceCommunication,
     @Default(defaultAccessControlProps) AccessControlProps accessControlProps,
   }) = _VpnProps;
 
@@ -348,6 +367,7 @@ abstract class ProxiesStyleProps with _$ProxiesStyleProps {
     ProxiesIconStyle iconStyle,
     @Default(ProxyCardType.shrink) ProxyCardType cardType,
     @Default(false) bool hideTimeoutProxies,
+    @Default(false) bool showHiddenGroups,
   }) = _ProxiesStyleProps;
 
   factory ProxiesStyleProps.fromJson(Map<String, Object?>? json) => json == null
@@ -408,6 +428,7 @@ abstract class Config with _$Config {
     @Default(defaultWindowProps) WindowProps windowProps,
     @Default(defaultClashConfig) PatchClashConfig patchClashConfig,
     @Default([]) List<String> excludeSSIDs,
+    @Default(false) bool alwaysOn,
   }) = _Config;
 
   factory Config.fromJson(Map<String, Object?> json) =>

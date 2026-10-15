@@ -5,4 +5,5 @@ data class NotificationParams(
     val stopText: String = "STOP",
     val onlyStatisticsProxy: Boolean = false,
     val showStopAction: Boolean = true,
+    val networkSpeedNotification: Boolean = false,
 )

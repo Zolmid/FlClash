@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:code_assets/code_assets.dart';
 import 'package:flutter_rust_bridge_hooks/flutter_rust_bridge_hooks.dart';
 
+import 'cargo_environment.dart';
+
 void main(List<String> args) async {
   await build(args, (input, output) async {
     if (input.userDefines['build_assets'] == false) {
@@ -11,72 +13,9 @@ void main(List<String> args) async {
     }
     await FlutterRustBridgeNativeAssetsBuilder(
       cratePath: 'rust',
-      extraCargoEnvironmentVariables: _cargoEnvironment(input),
+      extraCargoEnvironmentVariables: input.config.buildCodeAssets
+          ? cargoEnvironment(input.config.code)
+          : const {},
     ).run(input: input, output: output);
   });
-}
-
-// rquickjs runs bindgen on Android, which must load the NDK's libclang; Linux
-// NDKs before r26 keep it under lib64, later ones and every macOS NDK under lib.
-Map<String, String> _cargoEnvironment(BuildInput input) {
-  if (!input.config.buildCodeAssets) {
-    return const {};
-  }
-  final code = input.config.code;
-  if (code.targetOS == OS.iOS) {
-    return _iosEnvironment(code);
-  }
-  if (code.targetOS != OS.android) {
-    return const {};
-  }
-  final compiler = input.config.code.cCompiler?.compiler;
-  if (compiler == null) {
-    return const {};
-  }
-  final llvmRoot = File.fromUri(compiler).parent.parent;
-  for (final name in const ['lib', 'lib64']) {
-    final directory = Directory(
-      '${llvmRoot.path}${Platform.pathSeparator}$name',
-    );
-    if (directory.existsSync() && directory.listSync().any(_isLibclang)) {
-      return {'LIBCLANG_PATH': directory.path};
-    }
-  }
-  throw StateError(
-    'No libclang under ${llvmRoot.path} (lib or lib64); the NDK Flutter '
-    'passed cannot run bindgen for rquickjs',
-  );
-}
-
-Map<String, String> _iosEnvironment(CodeConfig code) {
-  final sdk = code.iOS.targetSdk == IOSSdk.iPhoneOS
-      ? 'iphoneos'
-      : 'iphonesimulator';
-  String xcrun(List<String> args) {
-    final command = ['--sdk', sdk, ...args];
-    final result = Process.runSync('xcrun', command);
-    if (result.exitCode != 0) {
-      throw ProcessException(
-        'xcrun',
-        command,
-        '${result.stderr}',
-        result.exitCode,
-      );
-    }
-    return (result.stdout as String).trim();
-  }
-
-  final sdkPath = xcrun(['--show-sdk-path']);
-  final clang = xcrun(['--find', 'clang']);
-  return {
-    'LIBCLANG_PATH': '${File(clang).parent.parent.path}/lib',
-    'BINDGEN_EXTRA_CLANG_ARGS': '-isysroot "$sdkPath"',
-    'IPHONEOS_DEPLOYMENT_TARGET': '${code.iOS.targetVersion}.0',
-    // Rust stripping can misalign Mach-O LINKEDIT (rust-lang/rust#157750).
-    'CARGO_PROFILE_RELEASE_STRIP': 'none',
-  };
-}
-
-bool _isLibclang(FileSystemEntity entity) {
-  return entity.path.split(Platform.pathSeparator).last.startsWith('libclang.');
 }

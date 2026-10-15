@@ -26,6 +26,7 @@ data class VpnOptions(
     val routeAddress: List<String>,
     val mtu: Int = 0,
     val congestionController: String? = null,
+    val disableIcmpForwarding: Boolean = false,
 )
 
 private const val DEFAULT_TUN_MTU = 9000
@@ -44,6 +45,7 @@ val VpnOptions.tunOptions: String
         mapOf(
             "mtu" to tunMtu,
             "congestion-controller" to congestionController.orEmpty(),
+            "disable-icmp-forwarding" to disableIcmpForwarding,
         ),
     )
 

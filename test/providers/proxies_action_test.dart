@@ -212,10 +212,14 @@ void main() {
 
       verify(
         () => core.changeProxy(
-          const ChangeProxyParams(groupName: 'Proxy', proxyName: 'HK-01'),
+          const ChangeProxyParams(
+            groupName: 'Proxy',
+            proxyName: 'HK-01',
+            closeConnections: true,
+          ),
         ),
       ).called(1);
-      verify(core.closeConnections).called(1);
+      verifyNever(core.closeConnections);
       verifyNever(core.resetConnections);
     });
 
@@ -234,7 +238,7 @@ void main() {
     });
 
     test('a failing connection reset does not fail the switch', () async {
-      when(core.closeConnections).thenThrow(
+      when(core.resetConnections).thenThrow(
         const CoreMethodException(
           code: 'transport_disconnected',
           message: 'Core RPC client is closed',
@@ -242,14 +246,14 @@ void main() {
       );
       final container = buildContainer(profile: _selectedProfile('HK-00'));
       container.read(appSettingProvider.notifier).value = const AppSettingProps(
-        closeConnections: true,
+        closeConnections: false,
       );
 
       await actionOf(
         container,
       ).changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
 
-      verify(core.closeConnections).called(1);
+      verify(core.resetConnections).called(1);
       expect(container.read(currentProfileProvider)?.selectedMap, {
         'Proxy': 'HK-01',
       });
@@ -268,7 +272,7 @@ void main() {
     });
 
     test(
-      'skips the connection reset when the Core reports no change',
+      'applies connection settings when reselecting the current proxy',
       () async {
         when(
           () => core.changeProxy(any()),
@@ -279,6 +283,15 @@ void main() {
           container,
         ).changeProxy(groupName: 'Proxy', proxyName: 'HK-01');
 
+        verify(
+          () => core.changeProxy(
+            const ChangeProxyParams(
+              groupName: 'Proxy',
+              proxyName: 'HK-01',
+              closeConnections: true,
+            ),
+          ),
+        ).called(1);
         verifyNever(core.closeConnections);
         verifyNever(core.resetConnections);
       },

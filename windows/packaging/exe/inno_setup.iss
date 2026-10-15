@@ -8,17 +8,43 @@ AppSupportURL={{PUBLISHER_URL}}
 AppUpdatesURL={{PUBLISHER_URL}}
 DefaultDirName={{INSTALL_DIR_NAME}}
 DisableProgramGroupPage=yes
+CloseApplications=no
+RestartApplications=no
 OutputDir=.
 OutputBaseFilename={{OUTPUT_BASE_FILENAME}}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile={{SETUP_ICON_FILE}}
+UninstallDisplayIcon={app}\{{EXECUTABLE_NAME}}
 WizardStyle=modern
 PrivilegesRequired={{PRIVILEGES_REQUIRED}}
 ArchitecturesAllowed={{ARCH}}
 ArchitecturesInstallIn64BitMode={{ARCH}}
 
 [Code]
+var
+  UpdateProcessHandle: THandle;
+
+function OpenProcess(DesiredAccess: LongWord; InheritHandle: Boolean;
+  ProcessId: LongWord): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function WaitForSingleObject(Handle: THandle; Milliseconds: LongWord): LongWord;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+function CloseHandle(Handle: THandle): Boolean;
+  external 'CloseHandle@kernel32.dll stdcall';
+function QueryFullProcessImageName(Handle: THandle; Flags: LongWord;
+  FileName: String; var Size: LongWord): Boolean;
+  external 'QueryFullProcessImageNameW@kernel32.dll stdcall';
+
+function CreateReadyFile(FileName: String; DesiredAccess, ShareMode,
+  SecurityAttributes, CreationDisposition, FlagsAndAttributes: LongWord;
+  TemplateFile: THandle): THandle;
+  external 'CreateFileW@kernel32.dll stdcall';
+function WriteReadyFile(Handle: THandle; Buffer: AnsiString;
+  BytesToWrite: LongWord; var BytesWritten: LongWord;
+  Overlapped: LongWord): Boolean;
+  external 'WriteFile@kernel32.dll stdcall';
+
 procedure KillProcesses;
 var
   Processes: TArrayOfString;
@@ -45,7 +71,7 @@ begin
   end;
 end;
 
-procedure ClearStaleProxy;
+procedure ClearStaleProxy(AsOriginalUser: Boolean);
 var
   AppPath: String;
   ResultCode: Integer;
@@ -53,7 +79,10 @@ begin
   AppPath := ExpandConstant('{app}\\{{EXECUTABLE_NAME}}');
   if FileExists(AppPath) then
   begin
-    Exec(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if AsOriginalUser then
+      ExecAsOriginalUser(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+    else
+      Exec(AppPath, '--clear-stale-proxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 end;
 
@@ -86,26 +115,134 @@ begin
   end;
 end;
 
+function IsAppUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:UPDATE|0}') = '1';
+end;
+
+function SignalUpdateReady: Boolean;
+var
+  ReadyFile, TemporaryReadyFile, Nonce, ProcessIdText, ProcessPath: String;
+  ProcessId, PathSize, BytesWritten: LongWord;
+  ReadyHandle: THandle;
+  i: Integer;
+begin
+  Result := False;
+  ReadyFile := ExpandConstant('{param:UPDATEREADY|}');
+  Nonce := ExpandConstant('{param:UPDATENONCE|}');
+  ProcessIdText := ExpandConstant('{param:UPDATEPID|}');
+  if (ReadyFile = '') or
+     (CompareText(ReadyFile, ExpandConstant('{srcexe}') + '.' + Nonce + '.ready') <> 0) or
+     FileExists(ReadyFile) or FileExists(ReadyFile + '.ack') or
+     (Length(Nonce) <> 64) then
+    Exit;
+  for i := 1 to Length(Nonce) do
+    if Pos(Lowercase(Nonce[i]), '0123456789abcdef') = 0 then
+      Exit;
+  ProcessId := StrToIntDef(ProcessIdText, 0);
+  if ProcessId = 0 then
+    Exit;
+  UpdateProcessHandle := OpenProcess($00101000, False, ProcessId);
+  if UpdateProcessHandle = 0 then
+    Exit;
+  PathSize := 32768;
+  ProcessPath := StringOfChar(#0, PathSize);
+  if not QueryFullProcessImageName(UpdateProcessHandle, 0, ProcessPath, PathSize) then
+    Exit;
+  SetLength(ProcessPath, PathSize);
+  if CompareText(ProcessPath, ExpandConstant('{app}\{{EXECUTABLE_NAME}}')) <> 0 then
+    Exit;
+  TemporaryReadyFile := ReadyFile + '.tmp';
+  ReadyHandle := CreateReadyFile(TemporaryReadyFile, $40000000, 0, 0, 1, $80, 0);
+  if ReadyHandle = THandle(-1) then
+    Exit;
+  try
+    Result := WriteReadyFile(ReadyHandle, AnsiString(Nonce), Length(Nonce),
+      BytesWritten, 0) and (BytesWritten = Length(Nonce));
+  finally
+    CloseHandle(ReadyHandle);
+  end;
+  if Result then
+    Result := RenameFile(TemporaryReadyFile, ReadyFile);
+  if not Result then
+    DeleteFile(TemporaryReadyFile);
+end;
+
+function WaitForParentAcknowledgement: Boolean;
+var
+  AcknowledgementFile, Nonce: String;
+  Contents: AnsiString;
+  i: Integer;
+begin
+  Result := False;
+  AcknowledgementFile := ExpandConstant('{param:UPDATEREADY|}') + '.ack';
+  Nonce := ExpandConstant('{param:UPDATENONCE|}');
+  for i := 1 to 150 do
+  begin
+    if FileExists(AcknowledgementFile) then
+    begin
+      if LoadStringFromFile(AcknowledgementFile, Contents) then
+        Result := String(Contents) = Nonce;
+      Exit;
+    end;
+    if WaitForSingleObject(UpdateProcessHandle, 0) <> 258 then
+      Exit;
+    Sleep(200);
+  end;
+end;
+
+function WaitForAppExit: Boolean;
+begin
+  Result := WaitForSingleObject(UpdateProcessHandle, 60000) = 0;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  UnregisterHelperService;
-  KillProcesses;
   Result := '';
+  if IsAppUpdate then
+  begin
+    UpdateProcessHandle := 0;
+    try
+      if not SignalUpdateReady then
+      begin
+        Result := 'Unable to acknowledge the update request after elevation.';
+        Exit;
+      end;
+      if not WaitForParentAcknowledgement then
+      begin
+        Result := 'The application did not confirm this update request.';
+        Exit;
+      end;
+      if not WaitForAppExit then
+      begin
+        Result := 'FlClash did not exit. Close it before retrying the update.';
+        Exit;
+      end;
+    finally
+      if UpdateProcessHandle <> 0 then
+        CloseHandle(UpdateProcessHandle);
+      UpdateProcessHandle := 0;
+    end;
+  end;
+  UnregisterHelperService;
+  if not IsAppUpdate then
+    KillProcesses;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    ClearStaleProxy;
+    ClearStaleProxy(True);
   end;
 end;
 
 function InitializeUninstall(): Boolean;
 begin
   UnregisterHelperService;
+  ClearStaleProxy(False);
   KillProcesses;
-  ClearStaleProxy;
+  ClearStaleProxy(False);
   Result := True;
 end;
 
@@ -159,3 +296,4 @@ Name: "{autoprograms}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"
 Name: "{autodesktop}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"; Tasks: desktopicon
 [Run]
 Filename: "{app}\\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {% if PRIVILEGES_REQUIRED == 'admin' %}runascurrentuser{% endif %} nowait postinstall skipifsilent
+Filename: "{app}\\{{EXECUTABLE_NAME}}"; Flags: runasoriginaluser nowait; Check: IsAppUpdate

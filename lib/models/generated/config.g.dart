@@ -25,10 +25,25 @@ _AppSettingProps _$AppSettingPropsFromJson(
   showNotificationStopAction:
       json['showNotificationStopAction'] as bool? ?? true,
   autoLaunch: json['autoLaunch'] as bool? ?? false,
+  highPriorityAutoLaunch: json['highPriorityAutoLaunch'] as bool? ?? false,
   silentLaunch: json['silentLaunch'] as bool? ?? false,
   autoRun: json['autoRun'] as bool? ?? false,
   openLogs: json['openLogs'] as bool? ?? false,
   closeConnections: json['closeConnections'] as bool? ?? true,
+  promptCloseConnections: json['promptCloseConnections'] as bool? ?? true,
+  tvMode: json['tvMode'] as bool? ?? false,
+  backToDashboard: json['backToDashboard'] as bool? ?? true,
+  foregroundTickerInterval:
+      (json['foregroundTickerInterval'] as num?)?.toInt() ?? 1,
+  foregroundTickerIdleWhenUnfocused:
+      json['foregroundTickerIdleWhenUnfocused'] as bool? ?? true,
+  foregroundTickerIdleInterval:
+      (json['foregroundTickerIdleInterval'] as num?)?.toInt() ?? 2,
+  collapseProxyChains: json['collapseProxyChains'] as bool? ?? true,
+  collapseQuickSettingsPanel:
+      json['collapseQuickSettingsPanel'] as bool? ?? true,
+  showQuickSettingsProfileName:
+      json['showQuickSettingsProfileName'] as bool? ?? true,
   testUrl: json['testUrl'] as String? ?? defaultTestUrl,
   tabAnimation:
       $enumDecodeNullable(
@@ -51,6 +66,7 @@ _AppSettingProps _$AppSettingPropsFromJson(
       $enumDecodeNullable(_$RestoreStrategyEnumMap, json['restoreStrategy']) ??
       RestoreStrategy.compatible,
   showTrayTitle: json['showTrayTitle'] as bool? ?? true,
+  showTrayProxySelection: json['showTrayProxySelection'] as bool? ?? true,
   checkCertificate: json['checkCertificate'] as bool? ?? true,
   userAgents:
       (_readUserAgents(json, 'userAgents') as List<dynamic>?)
@@ -67,6 +83,12 @@ _AppSettingProps _$AppSettingPropsFromJson(
   editorFontSize:
       $enumDecodeNullable(_$EditorFontSizeEnumMap, json['editorFontSize']) ??
       EditorFontSize.standard,
+  editorLineHeight:
+      $enumDecodeNullable(
+        _$EditorLineHeightEnumMap,
+        json['editorLineHeight'],
+      ) ??
+      EditorLineHeight.standard,
   serviceOrder:
       (json['serviceOrder'] as List<dynamic>?)
           ?.map((e) => e as String)
@@ -89,10 +111,21 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'onlyStatisticsProxy': instance.onlyStatisticsProxy,
       'showNotificationStopAction': instance.showNotificationStopAction,
       'autoLaunch': instance.autoLaunch,
+      'highPriorityAutoLaunch': instance.highPriorityAutoLaunch,
       'silentLaunch': instance.silentLaunch,
       'autoRun': instance.autoRun,
       'openLogs': instance.openLogs,
       'closeConnections': instance.closeConnections,
+      'promptCloseConnections': instance.promptCloseConnections,
+      'tvMode': instance.tvMode,
+      'backToDashboard': instance.backToDashboard,
+      'foregroundTickerInterval': instance.foregroundTickerInterval,
+      'foregroundTickerIdleWhenUnfocused':
+          instance.foregroundTickerIdleWhenUnfocused,
+      'foregroundTickerIdleInterval': instance.foregroundTickerIdleInterval,
+      'collapseProxyChains': instance.collapseProxyChains,
+      'collapseQuickSettingsPanel': instance.collapseQuickSettingsPanel,
+      'showQuickSettingsProfileName': instance.showQuickSettingsProfileName,
       'testUrl': instance.testUrl,
       'tabAnimation': _$TabAnimationEnumMap[instance.tabAnimation]!,
       'floatingNavigationBar': instance.floatingNavigationBar,
@@ -106,12 +139,14 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'developerMode': instance.developerMode,
       'restoreStrategy': _$RestoreStrategyEnumMap[instance.restoreStrategy]!,
       'showTrayTitle': instance.showTrayTitle,
+      'showTrayProxySelection': instance.showTrayProxySelection,
       'checkCertificate': instance.checkCertificate,
       'userAgents': instance.userAgents,
       'filters': instance.filters,
       'hideIp': instance.hideIp,
       'editorLineWrap': instance.editorLineWrap,
       'editorFontSize': _$EditorFontSizeEnumMap[instance.editorFontSize]!,
+      'editorLineHeight': _$EditorLineHeightEnumMap[instance.editorLineHeight]!,
       'serviceOrder': instance.serviceOrder,
       'disabledServices': instance.disabledServices,
       'currentService': instance.currentService,
@@ -131,6 +166,12 @@ const _$EditorFontSizeEnumMap = {
   EditorFontSize.standard: 'standard',
   EditorFontSize.large: 'large',
   EditorFontSize.extraLarge: 'extraLarge',
+};
+
+const _$EditorLineHeightEnumMap = {
+  EditorLineHeight.small: 'small',
+  EditorLineHeight.standard: 'standard',
+  EditorLineHeight.large: 'large',
 };
 
 const _$DashboardWidgetEnumMap = {
@@ -220,6 +261,14 @@ _VpnProps _$VpnPropsFromJson(Map<String, dynamic> json) => _VpnProps(
   ipv6: json['ipv6'] as bool? ?? false,
   allowBypass: json['allowBypass'] as bool? ?? true,
   dnsHijacking: json['dnsHijacking'] as bool? ?? false,
+  networkSpeedNotification: json['networkSpeedNotification'] as bool? ?? false,
+  includeAllNetworks: json['includeAllNetworks'] as bool? ?? false,
+  excludeLocalNetworks: json['excludeLocalNetworks'] as bool? ?? true,
+  excludeAPNs: json['excludeAPNs'] as bool? ?? true,
+  excludeCellularServices: json['excludeCellularServices'] as bool? ?? true,
+  enforceRoutes: json['enforceRoutes'] as bool? ?? false,
+  excludeDeviceCommunication:
+      json['excludeDeviceCommunication'] as bool? ?? true,
   accessControlProps: json['accessControlProps'] == null
       ? defaultAccessControlProps
       : AccessControlProps.fromJson(
@@ -233,6 +282,13 @@ Map<String, dynamic> _$VpnPropsToJson(_VpnProps instance) => <String, dynamic>{
   'ipv6': instance.ipv6,
   'allowBypass': instance.allowBypass,
   'dnsHijacking': instance.dnsHijacking,
+  'networkSpeedNotification': instance.networkSpeedNotification,
+  'includeAllNetworks': instance.includeAllNetworks,
+  'excludeLocalNetworks': instance.excludeLocalNetworks,
+  'excludeAPNs': instance.excludeAPNs,
+  'excludeCellularServices': instance.excludeCellularServices,
+  'enforceRoutes': instance.enforceRoutes,
+  'excludeDeviceCommunication': instance.excludeDeviceCommunication,
   'accessControlProps': instance.accessControlProps,
 };
 
@@ -297,6 +353,7 @@ _ProxiesStyleProps _$ProxiesStylePropsFromJson(Map<String, dynamic> json) =>
           $enumDecodeNullable(_$ProxyCardTypeEnumMap, json['cardType']) ??
           ProxyCardType.shrink,
       hideTimeoutProxies: json['hideTimeoutProxies'] as bool? ?? false,
+      showHiddenGroups: json['showHiddenGroups'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ProxiesStylePropsToJson(_ProxiesStyleProps instance) =>
@@ -307,6 +364,7 @@ Map<String, dynamic> _$ProxiesStylePropsToJson(_ProxiesStyleProps instance) =>
       'iconStyle': _$ProxiesIconStyleEnumMap[instance.iconStyle]!,
       'cardType': _$ProxyCardTypeEnumMap[instance.cardType]!,
       'hideTimeoutProxies': instance.hideTimeoutProxies,
+      'showHiddenGroups': instance.showHiddenGroups,
     };
 
 const _$ProxiesTypeEnumMap = {ProxiesType.tab: 'tab', ProxiesType.list: 'list'};
@@ -439,6 +497,7 @@ _Config _$ConfigFromJson(Map<String, dynamic> json) => _Config(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  alwaysOn: json['alwaysOn'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$ConfigToJson(_Config instance) => <String, dynamic>{
@@ -453,4 +512,5 @@ Map<String, dynamic> _$ConfigToJson(_Config instance) => <String, dynamic>{
   'windowProps': instance.windowProps,
   'patchClashConfig': instance.patchClashConfig,
   'excludeSSIDs': instance.excludeSSIDs,
+  'alwaysOn': instance.alwaysOn,
 };

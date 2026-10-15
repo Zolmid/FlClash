@@ -5,6 +5,7 @@
 
 #include "proxy_plugin.h"
 #include "proxy_ownership.h"
+#include "include/proxy/proxy_plugin_c_api.h"
 
 // This must be included before many other Windows headers.
 #include <windows.h>
@@ -399,17 +400,17 @@ bool ClearStaleProxyForConnection(
 namespace proxy
 {
 
-  bool ClearStaleProxy()
+  bool ClearOwnedProxies(bool requireReleasedPort)
   {
     const auto owned = ReadOwnedProxyServers();
     if (!owned) return false;
     if (owned->empty()) return true;
     const bool cleared = ReclaimOwnedProxies(
         *owned,
-        [](const std::wstring& server)
+        [requireReleasedPort](const std::wstring& server)
         {
           const auto port = ProxyPort(server);
-          return !port || IsPortReleased(*port);
+          return !port || !requireReleasedPort || IsPortReleased(*port);
         },
         [](const std::wstring& server)
         {
@@ -421,6 +422,11 @@ namespace proxy
         RecordOwnedProxyServers);
     const bool settingsNotified = NotifySettingsChanged();
     return cleared && settingsNotified;
+  }
+
+  bool ClearStaleProxy()
+  {
+    return ClearOwnedProxies(true);
   }
 
   // static
@@ -444,7 +450,8 @@ namespace proxy
   }
 
   ProxyPlugin::ProxyPlugin(flutter::PluginRegistrarWindows* registrar)
-      : registrar_(registrar)
+      : registrar_(registrar),
+        release_proxy_message_(RegisterWindowMessageW(PROXY_PLUGIN_RELEASE_PROXY_MESSAGE))
   {
     window_proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(
         [this](HWND window, UINT message, WPARAM wparam, LPARAM lparam)
@@ -471,6 +478,12 @@ namespace proxy
   std::optional<LRESULT> ProxyPlugin::HandleWindowProc(
       HWND window, UINT message, WPARAM wparam, LPARAM lparam)
   {
+    if (release_proxy_message_ != 0 && message == release_proxy_message_)
+    {
+      const bool released = ClearOwnedProxies(false);
+      if (released) proxy_applied_ = false;
+      return released ? 1 : 0;
+    }
     if (proxy_applied_ && IsSessionEnding(message, wparam))
     {
       proxy_applied_ = !stopProxy();

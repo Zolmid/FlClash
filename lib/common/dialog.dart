@@ -36,6 +36,7 @@ class Dialogs {
     String? title,
     String? confirmText,
     String? cancelText,
+    Widget? leadingAction,
     bool cancelable = true,
     bool? dismissible,
   }) async {
@@ -48,6 +49,7 @@ class Dialogs {
           return CommonDialog(
             title: title ?? appLocalizations.tip,
             actions: [
+              ?leadingAction,
               if (cancelable)
                 TextButton(
                   onPressed: () {

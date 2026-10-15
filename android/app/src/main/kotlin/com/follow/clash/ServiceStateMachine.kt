@@ -74,6 +74,14 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         host.runtime?.startedAtMillis?.takeIf { isRunRequested } ?: 0L
     }
 
+    suspend fun awaitActiveVpnOptions(): VpnOptions? = transitionLock.withLock {
+        host.runtime?.options?.takeIf { isRunRequested }
+    }
+
+    suspend fun awaitRequestedVpnOptions(): VpnOptions? = transitionLock.withLock {
+        host.runtime?.let { it.requestedOptions ?: it.options }?.takeIf { isRunRequested }
+    }
+
     fun captureRequestToken(): RunRequest = arbiter.current()
 
     /**
@@ -108,7 +116,9 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         if (!isRunRequested) {
             return
         }
-        host.showToast(sharedState.stopTip)
+        if (sharedState.collapseQuickSettingsPanel) {
+            host.showToast(sharedState.stopTip)
+        }
         requestStop().await()
         host.notifyStopped()
     }
@@ -188,7 +198,9 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
 
     private suspend fun setupCore(): Boolean {
         applySharedState()
-        host.showToast(sharedState.startTip)
+        if (sharedState.collapseQuickSettingsPanel) {
+            host.showToast(sharedState.startTip)
+        }
         return host.quickSetup(
             initParams(host.homeDirPath, host.sdkInt),
             Gson().toJson(sharedState.setupParams),
@@ -252,7 +264,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
                 !isCurrent(request) -> false
                 host.runtime?.vpn == options.enable -> true
                 else -> transitioning(RunState.STARTING) {
-                    host.startService(withLocalNetworkFallback(options)) && isCurrent(request)
+                    host.startService(withLocalNetworkFallback(options), options) && isCurrent(request)
                 }
             }
         }
@@ -378,6 +390,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
             stopText = state.stopText,
             onlyStatisticsProxy = state.onlyStatisticsProxy,
             showStopAction = state.showStopAction,
+            networkSpeedNotification = state.networkSpeedNotification,
         )
     }
 }

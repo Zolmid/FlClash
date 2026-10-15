@@ -2391,3 +2391,109 @@ abstract class _$CurrentSSID extends $Notifier<String?> {
     return element.handleCreate(ref, build);
   }
 }
+
+@ProviderFor(ProxyFocus)
+final proxyFocusProvider = ProxyFocusProvider._();
+
+final class ProxyFocusProvider
+    extends
+        $NotifierProvider<
+          ProxyFocus,
+          ({String groupName, String? proxyName})?
+        > {
+  ProxyFocusProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'proxyFocusProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$proxyFocusHash();
+
+  @$internal
+  @override
+  ProxyFocus create() => ProxyFocus();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(({String groupName, String? proxyName})? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<({String groupName, String? proxyName})?>(value),
+    );
+  }
+}
+
+String _$proxyFocusHash() => r'5fc8c94873433709e7b4756d1a6b18b20266cd2f';
+
+abstract class _$ProxyFocus
+    extends $Notifier<({String groupName, String? proxyName})?> {
+  ({String groupName, String? proxyName})? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<
+              ({String groupName, String? proxyName})?,
+              ({String groupName, String? proxyName})?
+            >;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                ({String groupName, String? proxyName})?,
+                ({String groupName, String? proxyName})?
+              >,
+              ({String groupName, String? proxyName})?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(tvLayout)
+final tvLayoutProvider = TvLayoutProvider._();
+
+final class TvLayoutProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  TvLayoutProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'tvLayoutProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$tvLayoutHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return tvLayout(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$tvLayoutHash() => r'4c2b0b5d79ffe95eb34378b8c6bf7a3a0ba05b53';

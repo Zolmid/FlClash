@@ -193,3 +193,19 @@ String? getFileNameForDisposition(String? disposition) {
   if (fileNameKey.isEmpty) return null;
   return parameters[fileNameKey];
 }
+
+String? getFileNameFromUrl(String? url) {
+  final uri = Uri.tryParse(url?.trim() ?? '');
+  if (uri == null || uri.pathSegments.isEmpty) return null;
+  final name = uri.pathSegments.last.trim();
+  final dot = name.lastIndexOf('.');
+  if (name.isEmpty ||
+      name.contains('/') ||
+      name.contains(r'\') ||
+      name.contains(RegExp(r'[\x00-\x1f\x7f]')) ||
+      dot <= 0 ||
+      dot == name.length - 1) {
+    return null;
+  }
+  return name;
+}

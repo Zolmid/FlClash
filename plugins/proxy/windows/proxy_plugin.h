@@ -40,6 +40,7 @@ class ProxyPlugin : public flutter::Plugin {
  private:
   flutter::PluginRegistrarWindows* registrar_ = nullptr;
   int window_proc_id_ = -1;
+  UINT release_proxy_message_ = 0;
   // Whether this process is the one that pointed Windows at a proxy.
   bool proxy_applied_ = false;
 };

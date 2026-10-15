@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/filter_bar.dart';
 import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -52,6 +53,7 @@ class LogsView extends ConsumerStatefulWidget {
 class _LogsViewState extends ConsumerState<LogsView>
     with RouteMotionHoldMixin<LogsView> {
   final _listController = LogListController();
+  bool _showFilters = false;
   late final ScrollController _scrollController;
   late final _physics = FollowEndScrollPhysics(
     isFollowing: () => _listController.value.autoScrollToEnd,
@@ -72,6 +74,12 @@ class _LogsViewState extends ConsumerState<LogsView>
 
   List<IconButtonData> _buildActions() {
     return [
+      IconButtonData(
+        glyph: AppGlyphs.filter,
+        tooltip: context.appLocalizations.filter,
+        isSelected: _showFilters || _listController.value.hasFilters,
+        onPressed: () => setState(() => _showFilters = !_showFilters),
+      ),
       IconButtonData(
         glyph: AppGlyphs.export,
         tooltip: context.appLocalizations.exportLogs,
@@ -112,6 +120,58 @@ class _LogsViewState extends ConsumerState<LogsView>
     }, duration: renderThrottleDuration);
   }
 
+  void _toggleSource(LogSource source) => setState(() {
+    _listController.value = _listController.value.toggleSource(source);
+  });
+
+  void _toggleLevel(LogLevel level) => setState(() {
+    _listController.value = _listController.value.toggleLevel(level);
+  });
+
+  Widget _buildFilters(LogsState state) {
+    final l10n = context.appLocalizations;
+    String sourceLabel(LogSource source) => switch (source) {
+      LogSource.app => l10n.app,
+      LogSource.core => l10n.core,
+    };
+    return FilterChipBar(
+      visible: _showFilters,
+      active: state.hasFilters,
+      chips: [
+        for (final source in state.sources)
+          FilterChipData(
+            icon: AppGlyphs.logs,
+            label: sourceLabel(source),
+            onDeleted: () => _toggleSource(source),
+          ),
+        for (final level in state.levels)
+          FilterChipData(
+            icon: AppGlyphs.filter,
+            label: level.name,
+            onDeleted: () => _toggleLevel(level),
+          ),
+      ],
+      groups: [
+        FilterMenuGroup(
+          icon: AppGlyphs.logs,
+          label: l10n.source,
+          values: state.logs.map((log) => log.source.name),
+          selected: state.sources.map((source) => source.name).toSet(),
+          labelOf: (value) => sourceLabel(LogSource.values.byName(value)),
+          onToggled: (value) => _toggleSource(LogSource.values.byName(value)),
+        ),
+        FilterMenuGroup(
+          icon: AppGlyphs.filter,
+          label: l10n.logLevel,
+          values: state.logs.map((log) => log.logLevel.name),
+          selected: state.levels.map((level) => level.name).toSet(),
+          labelOf: (value) => value,
+          onToggled: (value) => _toggleLevel(LogLevel.values.byName(value)),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
@@ -124,57 +184,69 @@ class _LogsViewState extends ConsumerState<LogsView>
         valueListenable: _listController,
         builder: (context, state, _) {
           final logs = state.list;
-          return NullStatusSwitcher(
-            isEmpty: logs.isEmpty,
-            isSearching: state.isSearching,
-            nullStatus: NullStatus(
-              illustration: NullStatusIllustration.logs,
-              label: appLocalizations.nullTip(appLocalizations.logs),
-            ),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: FloatingScrollbar(
-                controller: _scrollController,
-                hintBuilder: (fraction) {
-                  final index = (fraction * (logs.length - 1)).round();
-                  return logs[index].dateTime;
-                },
-                child: ScrollToEndBox(
-                  onCancelToEnd: () {
-                    _listController.setAutoScrollToEnd(false);
-                  },
-                  onResumeToEnd: () {
-                    _listController.resumeAutoScrollToEnd(
-                      ref.read(logsProvider).list,
-                    );
-                  },
-                  controller: _scrollController,
-                  enable: state.autoScrollToEnd,
-                  child: SuperListView.separated(
-                    physics: _physics,
-                    reverse: true,
-                    shrinkWrap: true,
-                    controller: _scrollController,
-                    padding: EdgeInsets.only(
-                      top: context.appBarInset,
-                      bottom: 16 + BottomInsetScope.of(context),
-                    ),
-                    itemCount: logs.length,
-                    extentEstimation: zeroDividerExtentEstimation,
-                    separatorBuilder: (_, _) => const Divider(height: 0),
-                    itemBuilder: (_, index) {
-                      final log = logs[index];
-                      return LogItem(
-                        log: log,
-                        onClick: (value) {
-                          context.commonScaffoldState?.addKeyword(value);
+          final showFilters = _showFilters || state.hasFilters;
+          return Column(
+            children: [
+              if (showFilters)
+                Padding(
+                  padding: EdgeInsets.only(top: context.contentTopPadding),
+                  child: _buildFilters(state),
+                ),
+              Expanded(
+                child: NullStatusSwitcher(
+                  isEmpty: logs.isEmpty,
+                  isSearching: state.isSearching,
+                  nullStatus: NullStatus(
+                    illustration: NullStatusIllustration.logs,
+                    label: appLocalizations.nullTip(appLocalizations.logs),
+                  ),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: FloatingScrollbar(
+                      controller: _scrollController,
+                      hintBuilder: (fraction) {
+                        final index = (fraction * (logs.length - 1)).round();
+                        return logs[index].dateTime;
+                      },
+                      child: ScrollToEndBox(
+                        onCancelToEnd: () {
+                          _listController.setAutoScrollToEnd(false);
                         },
-                      );
-                    },
+                        onResumeToEnd: () {
+                          _listController.resumeAutoScrollToEnd(
+                            ref.read(logsProvider).list,
+                          );
+                        },
+                        controller: _scrollController,
+                        enable: state.autoScrollToEnd,
+                        child: SuperListView.separated(
+                          physics: _physics,
+                          reverse: true,
+                          shrinkWrap: true,
+                          controller: _scrollController,
+                          padding: EdgeInsets.only(
+                            top: showFilters ? 0 : context.appBarInset,
+                            bottom: 16 + BottomInsetScope.of(context),
+                          ),
+                          itemCount: logs.length,
+                          extentEstimation: zeroDividerExtentEstimation,
+                          separatorBuilder: (_, _) => const Divider(height: 0),
+                          itemBuilder: (_, index) {
+                            final log = logs[index];
+                            return LogItem(
+                              log: log,
+                              onClick: (value) {
+                                context.commonScaffoldState?.addKeyword(value);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           );
         },
       ),

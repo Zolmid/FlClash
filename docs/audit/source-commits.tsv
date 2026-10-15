@@ -1,0 +1,282 @@
+sha	author	date	subject	review_domains
+0cbab86e87b0979c7394caf77203cbada3840ccf	Chenx Dust	2026-08-31T19:37:39+08:00	build: establish fork distribution and build workflow	dart-domain,dependencies-build,desktop-native,docs-meta-other,product-ui
+46ada1e8a9bfd743743554a18c3e0ce4102b01e4	Chenx Dust	2026-08-31T20:27:40+08:00	fix(core): harden runtime and managed data handling	core,dart-domain,desktop-tray,product-ui
+43964ff168f66bbc315fab0be22a384e89397902	Chenx Dust	2026-08-31T21:40:29+08:00	feat(config): extend profile and network support	core,dart-domain,product-ui
+4d3ce623c86a2ff84046597c21961d0cee492e5d	Chenx Dust	2026-08-31T22:12:08+08:00	feat(android): improve platform integration	android,core,dependencies-build
+e6d0712eefb54ed32e03a335a5ae9d6da0a527c4	Chenx Dust	2026-08-31T22:45:08+08:00	feat(ios): add platform support	core,dart-domain,dependencies-build,docs-meta-other,ios,product-ui
+8012efc6fcf06515c11d9da1dc0ddca205fe46be	Chenx Dust	2026-09-01T00:17:55+08:00	feat(desktop): improve shell integration	dart-domain,dependencies-build,desktop-native,desktop-tray,docs-meta-other,product-ui
+abbec34a7f9973ca0b1c9ba1602e9d5db1dead65	Chenx Dust	2026-09-01T00:32:42+08:00	refactor(l10n): refine localization and terminology	dart-domain,product-ui
+e6b4bf87fd5f4924d9e6031def4f7fcce5435177	Chenx Dust	2026-09-01T01:07:42+08:00	refactor(ui): unify navigation and common interactions	dart-domain,desktop-tray,docs-meta-other,product-ui
+5d3ba8b410219666a5871e9bd9a226503431552f	Chenx Dust	2026-09-01T01:39:52+08:00	feat(dashboard): expand runtime and network visibility	core,dart-domain,dependencies-build,product-ui
+e36bbc9ff6ce590581cb81355011c85e85a91e73	Chenx Dust	2026-09-01T02:33:20+08:00	feat(connection): improve logs and connection management	core,dart-domain,product-ui
+3d1a49457aaa869169e27fee62fd3a8149c3159c	Chenx Dust	2026-09-01T13:18:16+08:00	feat(proxy): rework proxy browsing and list editing	dart-domain,dependencies-build,product-ui
+798cf24e8ee2c781e752febb7e3c2c0cd4ae83ad	Chenx Dust	2026-09-01T14:07:33+08:00	feat(settings): refine settings, access control, and TUN interfaces	dart-domain,product-ui
+01238a375abd46aeffaa86dae81ab54b01a4d3b3	Chenx Dust	2026-09-01T23:36:03+08:00	feat(tray): rework featured tray	dart-domain,desktop-tray
+42245be582646185a094610daf3671fabfbe4a85	Chenx Dust	2026-09-02T02:29:22+08:00	fix(ui): restore iOS swipe-back for editable lists	dart-domain,product-ui
+b526e186313ac1b06f20531c20838233051374c9	Chenx Dust	2026-09-02T04:02:23+08:00	chore: bump version and update dependencies	dependencies-build
+7420243c3032bba48c70ede4aaf61ae8702f2eb7	Chenx Dust	2026-09-03T00:34:20+08:00	refactor(app): remove obsolete Crashlytics code	dart-domain,product-ui
+b766fa8c0ca1c1ee7960e46abb256db1c6dda1bd	Chenx Dust	2026-09-03T01:10:57+08:00	fix(update): align manual and automatic update checks	dart-domain,product-ui
+a3887bb16d9503110744f0ebe7e6d85df90eb799	Chenx Dust	2026-09-03T01:15:16+08:00	fix(proxies): use circular corners for tight headers	dart-domain,product-ui
+5fd6ddfddf48d91dd0a2a893a4b010e140d8eeba	Chenx Dust	2026-09-03T11:42:33+08:00	chore: bump version	dependencies-build
+4d0d33df42c2a48d44578afb5a9b5309f0979506	Chenx Dust	2026-09-03T12:34:57+08:00	refactor(ci): remove verifying changelog	dependencies-build
+ac8ad09c99718098a7ed0f34b42aa87e63d5207d	Chenx Dust	2026-09-03T17:52:05+08:00	fix(packaging): restore Windows installer and fork metadata	desktop-native,docs-meta-other
+f2c0fa3a8966583ad63a8703226ca4a3ee0b3b98	Chenx Dust	2026-09-03T17:52:12+08:00	fix(window): reduce default window width	dart-domain
+9e246501363938f89409ef3029439e80b09d3d9b	Chenx Dust	2026-09-04T12:38:33+08:00	refactor(settings): align dependent toggle visibility handling	dart-domain,product-ui
+50730d01baf27303fad5d7d8f8bcca862f71f990	Chenx Dust	2026-09-04T20:30:57+08:00	feat(android): make quick settings panel collapse optional	android,dart-domain,product-ui
+f187acf285f04e9855ec83e143b1da89e07b81b8	Chenx Dust	2026-09-04T20:42:13+08:00	feat(android): show active profile on quick settings tile	android
+8f8153747b88cd3d6b671d1ec687d27b6f269a4f	Chenx Dust	2026-09-04T21:06:55+08:00	fix(dashboard): preserve delete button contrast	dart-domain,product-ui
+b3f27cb80aa4e23b3f30d6a34c042d2362aa3458	Chenx Dust	2026-09-04T21:43:00+08:00	refactor(core): align mobile build constraints	core
+34d6ffc052359c6b48cf712d0bbaf5f7f3f4a240	Chenx Dust	2026-09-04T21:52:25+08:00	fix(core): pause provider health checks while suspended	core
+d6a032d8344bf65c5d1cdad217b7e6eb8bc4bcdf	Chenx Dust	2026-09-04T22:01:37+08:00	fix(webdav): url input type to TextInputType.url	product-ui
+e5af9500b8bfc240a4754851660c3edd986d5703	Chenx Dust	2026-09-05T11:37:57+08:00	chore: make proxies close connection snackbar temporary	dart-domain
+c691616521dea9243ee6be5c193ab2ef63a6221a	Chenx Dust	2026-09-05T15:06:01+08:00	fix(ios): disable msgx to decrease memory usage	core
+b3e71ce15602eb671c85fb1543882f08d86c1735	Chenx Dust	2026-09-05T15:57:54+08:00	feat(proxies): improve padding and animation in proxies settings	dart-domain,product-ui
+0dff1719f502be7cc30f6a001775a0fa4d2a97a6	Chenx Dust	2026-09-05T15:58:14+08:00	chore(core): improve memory statistics	core
+7dbd1142e2915237c7c0703e87392ca18284229f	Chenx Dust	2026-09-05T17:19:41+08:00	fix(core): limit single core and fix bug for lower memory consumption with go mod tidy	core
+65b08574f4e0d6e0140478463ad0b5ca4a9cdb04	Chenx Dust	2026-09-05T17:44:40+08:00	chore: bump app and flutter version	dependencies-build,docs-meta-other
+da4af83c9b1904610417f772ce5016712977471f	Chenx Dust	2026-09-05T18:00:47+08:00	fix(rules): preserve compound payloads and wire parameter toggles	dart-domain
+cf7807960cc7dee028651e22dfce8e36021f6979	Chenx Dust	2026-09-05T15:13:48+08:00	fix(dashboard): preserve add button contrast	product-ui
+db023f31e4aaee03b463cb12de2725aca75f6e2d	Chenx Dust	2026-09-05T18:33:17+08:00	chore: repo use fork	dart-domain,dependencies-build
+e5cd6e32c47442278e848466f1f9e9e2e9e55256	Chenx Dust	2026-09-06T01:21:21+08:00	fix: reconcile platform integrations after rebase	dart-domain,dependencies-build,desktop-native,desktop-tray,docs-meta-other,product-ui
+4768ee643ec76719f3aa4e08c443e88c887129ae	Chenx Dust	2026-09-06T01:33:00+08:00	fix: hide tray icon settings on mobile	dart-domain,product-ui
+ffc853869b79fa18f2d7f4cb86be6e6286d69c45	Chenx Dust	2026-09-06T11:25:51+08:00	fix(build): reconcile release notes and iOS exit handling	core,dependencies-build
+70fba9563f52f63720f59c8ec050985d589e350f	Chenx Dust	2026-09-06T12:09:17+08:00	fix(linux): restore tray window activation	dart-domain,dependencies-build,desktop-tray,docs-meta-other
+b03877df6e1ca47f3050a42414b4fd1dedfdf4a8	Chenx Dust	2026-09-06T13:02:46+08:00	test(android): fix notification parameter expectations	android
+6a85072ee40250d5e05aa7fd3e036904af313346	Chenx Dust	2026-09-06T17:53:57+08:00	fix(ios): remove flutter dep in necore	ios
+3934fc9aafa5f10e11c06f2597de8d90d586400c	Chenx Dust	2026-09-06T20:29:16+08:00	fix(profiles): preserve subscription download error details	dart-domain
+9241b2e9edd438a91030627a5edbc21ba3f730ce	Chenx Dust	2026-09-06T20:29:30+08:00	fix(ui): enable keyboard submission in input dialogs	product-ui
+adf000248c8936349d7b4ae04b5966b3a5382eb1	Chenx Dust	2026-09-06T21:01:36+08:00	test: align network error expectations with detailed messages	dart-domain
+2158e60181cb12e72c1c9a867cce95a0e4ee33c5	Chenx Dust	2026-09-07T01:19:16+08:00	chore: bump version and tune go mod	core,dependencies-build
+942b326ba14b4e6656f19224a3cdb97bb2cac672	Chenx Dust	2026-09-07T01:23:17+08:00	fix: remove top padding in proxies	product-ui
+d482770078a46decf16f7547407105efd6accb94	Chenx Dust	2026-09-07T01:36:57+08:00	fix(scaffold): do not change color after scroll	product-ui
+2f30e43329b60c3c606def70a53215d81a9e2dee	Chenx Dust	2026-09-07T01:41:57+08:00	fix(macos,tray): set autosave name	desktop-tray
+5d80e40801ebeea81d7b79c40a7758fde39bd5dd	Chenx Dust	2026-09-07T11:13:21+08:00	fix: build issue	dependencies-build,desktop-native,docs-meta-other,ios
+64e55028a23d8b52536eea2d25ddf4afd1dce909	Chenx Dust	2026-09-07T11:26:13+08:00	fix: align migration test and CI docs after upstream rebase	dart-domain,docs-meta-other
+e3fd7eefe39ca40a84b0974cd770375c6d8f7f00	Chenx Dust	2026-09-08T12:17:36+08:00	chore: improve logs style	dart-domain,product-ui
+066fba2784b0b739b80985d64facb25edc208d56	Chenx Dust	2026-09-09T14:01:58+08:00	feat: pass TrayIconActivated in Linux	dart-domain,desktop-tray
+d70453e2d599fa42c3d197d08a791edfcc3fb4de	Chenx Dust	2026-09-10T17:52:27+08:00	feat: support direct run when running as root	dart-domain,docs-meta-other
+1afbc35172829d2a18b0952e308420c4018f176b	Chenx Dust	2026-09-10T17:53:52+08:00	fix(helper): no need to check root owned	desktop-native
+e09916e6e684879c210a42d24d76ccf638959dee	Chenx Dust	2026-09-10T18:10:47+08:00	fix(logs): classify live core logs with the core source	dart-domain
+f266bd708317b70ec96adfa9e1771421299f2d5d	Chenx Dust	2026-09-10T18:20:17+08:00	chore: bump version	dependencies-build
+4a5e0e69241739aa3076703957b7d8e20de1462a	Chenx Dust	2026-09-12T15:30:43+08:00	fix(tray): align macOS custom menu styling	desktop-tray
+dfcd6e8e14fca860e467095a2f8ceb6b763711d3	Chenx Dust	2026-09-12T16:09:17+08:00	perf(tray): batch delay menu updates	dart-domain,desktop-tray
+446f2159ded1f3c72d2791c524577747ee955fee	Chenx Dust	2026-09-12T16:28:25+08:00	build(ios): replace CocoaPods with Swift Package Manager	dependencies-build,ios
+2894fa096f4d9b5c9bffb6ba297558b36156e83f	Chenx Dust	2026-09-12T16:59:13+08:00	chore: bump version and dep	dependencies-build,docs-meta-other
+90c3338c3cef3ddc3538ac80d994e49ba7d602c7	Chenx Dust	2026-09-13T19:14:12+08:00	refactor(platform): remove redundant desktop file lock	dart-domain,desktop-tray
+24c6a8894d22f3b298d447ec5c0cc497d7f4234d	Chenx Dust	2026-09-13T21:46:45+08:00	fix(state): debounce foreground and background transitions	dart-domain
+d22ff01b756529b4ef6585e113a1d1dcc7a58a29	Chenx Dust	2026-09-14T21:17:03+08:00	perf(icons): decode raster images at display size	product-ui
+78262b27c4ffd085f96d499390d45d5fe9b1a4d6	Chenx Dust	2026-09-14T21:22:37+08:00	feat(core): update mihomo and add mipstack support	core,dart-domain
+f2acf0d0850d59298015a928e5a6623d5e0b6e35	Chenx Dust	2026-09-14T23:18:42+08:00	feat(networking): add EasyTier network and peer details	core,dart-domain,product-ui
+8200a862af908aeccf5b14a1a356f3f05762a703	Chenx Dust	2026-09-14T23:18:57+08:00	fix(networking): size overlay network details dialogs to fit content	product-ui
+32ca96eb5c8af04108b5dc73fd264d5cce785695	Chenx Dust	2026-09-14T23:27:32+08:00	feat(network): default to mipstack and restore iOS TUN stack selection	core,dart-domain,product-ui
+7526372c6a68696dac4927a6ee6ac1d220a5a26e	Chenx Dust	2026-09-14T23:36:17+08:00	feat(network): add recvmsg_x and sendmsg_x toggles on macOS and iOS	core,dart-domain,ios,product-ui
+43de6c7aaac52831b8e9642bc3b8bb1140169798	Chenx Dust	2026-09-14T23:43:45+08:00	chore: bump version	dependencies-build
+b413608cdceb46905b98d37f292d3c4fc550b0c7	Chenx Dust	2026-09-15T00:00:06+08:00	fix(ui): refine TUN switch labels and correct networking smoke test	dart-domain,product-ui
+a5a020865561e6986a11280615cab5ce3a79a199	Chenx Dust	2026-09-15T11:23:53+08:00	fix(ui): display connection and key expiry timestamps in local time	product-ui
+eaf120ed7fd93d825843b2ba3c260280a9504e81	Chenx Dust	2026-09-15T17:03:43+08:00	fix(profiles): align automatic updates with configured intervals	dart-domain,product-ui
+74cf3f4b185a62fc7fc247553c2beaee662ffa95	Chenx Dust	2026-09-15T21:27:35+08:00	perf(core): use memory-mapped geodata matcher caches	core
+fff98bb70a41a5d9af44c1137eab8d31ee5f3479	Chenx Dust	2026-09-15T22:10:38+08:00	fix(ios): avoid restarting tunnel on foreground refresh	ios
+9c65454dcf82b47a26ab3e61a16b576081710550	Chenx Dust	2026-09-17T11:54:16+08:00	fix(ios): prevent misaligned Rust framework binaries	dependencies-build
+5f6e0fb022bd5646c19b51e9afc3ae0b5406074c	Chenx Dust	2026-09-17T11:55:27+08:00	fix(ios): system stack support	core
+6af970661d68dc9eed95bf7276fff27f844d49a8	Chenx Dust	2026-09-17T15:09:06+08:00	feat(profiles): create local profiles in the editor	dart-domain,product-ui
+ae97ddbef8629049518c1f5ad5138ba501ab0363	Chenx Dust	2026-09-17T15:20:52+08:00	fix(networking): keep error details out of network subtitles	product-ui
+249932a11523197e166d10b6a82d0b1404dc78ef	Chenx Dust	2026-09-17T15:33:49+08:00	chore(networking): tuning networking ui	product-ui
+3322cb978d443fe6f0f7a9416847bf90a4128ec3	Chenx Dust	2026-09-17T16:07:03+08:00	fix(tray): align macOS custom menu rows with native state columns	desktop-tray
+6aa3bcd2559493438ca91ed657982125c1684acf	Chenx Dust	2026-09-17T16:07:30+08:00	chore: bump version	dependencies-build
+745a2b8feccaf8b92ff5f32c99362fa97c5d50b1	Chenx Dust	2026-09-17T16:10:45+08:00	test(requests): use local time in scrollbar hint expectation	dart-domain
+3dbd540284f201cc78f5ce76c8a132c8cbf6fc1c	Chenx Dust	2026-09-18T19:46:40+08:00	ci(macos): cross-compile x64 packages on arm runners	dart-domain,dependencies-build,docs-meta-other
+ab86dadb2ea8ac0fad7ffd255246ca32a5cc39b2	Chenx Dust	2026-09-18T20:15:15+08:00	fix(macos): prevent misaligned Rust framework binaries	dependencies-build
+df3a96bd8eb1cfaa2a266faeb43cff54d6c49081	Chenx Dust	2026-09-18T21:28:28+08:00	perf(proxy): skip unnecessary system proxy cleanup on exit	dart-domain,desktop-native
+4157e6b34a3a461a14df6cb18ae1e4467e1e0ccc	Chenx Dust	2026-09-19T16:19:35+08:00	perf(core): reduce retained memory in low-memory builds	core
+9b5c5c554b8a8e5203400b0f9e13cff8e28d227c	Chenx Dust	2026-09-19T15:25:26+08:00	fix(config): default log level to info	dart-domain
+db6efe4807d95e139d179557f83482e01a40e5ef	Chenx Dust	2026-09-20T11:51:05+08:00	fix(core): decode large desktop IPC frames off the UI isolate	dart-domain
+ec4e7f3b97795ffaae456f54fb0a45da82573650	Chenx Dust	2026-09-20T13:43:51+08:00	chore: bump version	core,dependencies-build
+577d80c091ab60226c8bf94676bd81b55341c3d2	Chenx Dust	2026-09-20T18:50:40+08:00	fix(macos): avoid blocking on large proxy tray menus	dart-domain,desktop-tray
+6826f4747ad263a95a6fe43a73922c5ef6b557d1	Chenx Dust	2026-09-20T19:17:28+08:00	fix(tray): refresh menu when theme brightness changes	desktop-tray
+34b8fe2cf0138c45f1cc215d31e2f76306970401	Chenx Dust	2026-09-20T19:18:59+08:00	fix(core): update mihomo to fix anytls connection release	core
+0ca72fb018edecb79154dee41c3b8c55d211f743	Chenx Dust	2026-09-20T19:23:06+08:00	chore: use https in submodule for convenience	dependencies-build
+7a26ddcf761659760709129ab74effd0d0b268cf	Chenx Dust	2026-09-20T20:27:08+08:00	feat(tray): add proxy selection on Windows and Linux	dart-domain,desktop-tray,docs-meta-other
+e592f91e03c296acd3bd1f108bb24d98b4652afc	Chenx Dust	2026-09-20T20:29:34+08:00	feat(tray): show latency status and keep Windows delay tests open	dart-domain,desktop-tray
+7839111f328eef5c01a3c75a14929d2720ed7af1	Chenx Dust	2026-09-20T20:29:34+08:00	chore(core): sync mihomo to ceb217c58	core
+1a33045d1acc63a603d2e90da1a9848460a186a6	Chenx Dust	2026-09-20T20:39:14+08:00	fix(tray): avoid Windows menu flicker during latency tests	desktop-tray
+9064d6ecc3b05d170be218371d46f8ec83bddac8	Chenx Dust	2026-09-20T20:49:12+08:00	fix(tray): preserve Windows proxy selection checkmarks	desktop-tray
+fdf813f1ad8df9e875e98962a2f4018ac81f5823	Chenx Dust	2026-09-20T20:57:54+08:00	feat(tray): add proxy selection visibility setting	dart-domain,product-ui
+6b8f820129b1fd0e806dd0c684f21ac515b4ed28	Chenx Dust	2026-09-20T21:01:39+08:00	perf(tray): lazily populate Windows and Linux proxy submenus	desktop-tray
+7feff5de708cb1e61619be395aff08baaf309b2f	Chenx Dust	2026-09-20T21:33:50+08:00	ci: shard flutter tests across four parallel jobs	dart-domain,dependencies-build,docs-meta-other
+07ec500c6a9e05a42eab23c04b483dfcda0c0032	Chenx Dust	2026-09-20T21:47:27+08:00	ci: run coverage independently of eight test shards	dependencies-build,docs-meta-other
+d2823680457e49a70550f6fc236536ad322d077e	Chenx Dust	2026-09-20T22:02:00+08:00	ci: remove duplicate coverage test run from dart checks	dependencies-build
+750bf7e33a6373a46d04126f10ad8b6da0a117dd	Chenx Dust	2026-09-20T22:13:05+08:00	ci(release): skip changelog generation for non-stable tags	dependencies-build
+f64371e9737be78a7c22155918b47c68d49e4f00	Chenx Dust	2026-09-20T22:47:55+08:00	fix(tray): use white foreground for macOS warning items	desktop-tray
+864826aea7074069da58058e466f68285b3dbca1	Chenx Dust	2026-09-20T22:57:13+08:00	fix(android): respect quick settings panel preference for VPN toasts	android,dart-domain,product-ui
+5ea6daee0086abecb32d5d5fb7104de0cefbd5de	Chenx Dust	2026-09-20T23:04:18+08:00	perf(tray): reduce macos menu update overhead	desktop-tray
+4f79fff2e6fd4ff79d8fd8d902aad2a87b725694	Chenx Dust	2026-09-20T23:26:23+08:00	feat(tray): add profile selection and update menu	dart-domain,desktop-tray
+e013aca6880515fc167ac2fb83d74055a5ef2991	Chenx Dust	2026-09-20T23:21:07+08:00	perf(tray): update proxy selections without rebuilding menus	desktop-tray
+f55668bc481fb87074d20846a9c514fe71ae1c29	Chenx Dust	2026-09-20T23:28:43+08:00	build(linux): install dbusmenu development dependency for native tests	dependencies-build
+555afea0602968d1557d77e77303ba9e436f4a98	Chenx Dust	2026-09-20T23:34:23+08:00	fix(theme): show monochrome tray option only on linux	dart-domain,product-ui
+834f3f25afb9b3e9617dcc5bdc95a5a5ee9dba00	Chenx Dust	2026-09-20T23:44:52+08:00	fix(tray): keep Windows menus open during delay updates	desktop-tray
+ee442b7a78b5c9775616f1e13122d203de5b43be	Chenx Dust	2026-09-20T23:56:07+08:00	test(tray): isolate lifecycle tests from database and host platform	dart-domain
+a3ce031637a7bf4e43d8c2aaffb3431ea04a7cea	Chenx Dust	2026-09-20T23:59:07+08:00	fix(tray): build Linux submenus before exporting the menu	dependencies-build,desktop-tray
+5e118d896eb352d4d9d71b29758d54510508ee04	Chenx Dust	2026-09-21T00:03:49+08:00	chore: bump version	dependencies-build
+72b5e22df14516caa94b08caa4b5dad740904e42	Chenx Dust	2026-09-21T17:08:32+08:00	fix(tray): synchronize proxy delays across groups	dart-domain,desktop-tray
+a252d65637a8fbcb1bdce036f5e6c386ec4c987b	Chenx Dust	2026-09-21T17:33:40+08:00	fix(android): restore predictive back at navigation root	dart-domain,product-ui
+38f781a743f5653c3a330f265d89130e83f817eb	Chenx Dust	2026-09-21T17:34:51+08:00	build(rust): update toolchain and fix Windows NDK library loading	dependencies-build
+d943fdee29351bed4284bf65a69837d562975f84	Chenx Dust	2026-09-21T18:29:51+08:00	fix(navigation): update back handling when local history changes	dart-domain,product-ui
+38d6e1c8bb10812de47f5c89d007423c630de503	Chenx Dust	2026-09-23T00:27:41+08:00	fix(tv): release input focus before dismissing dialogs	dart-domain,product-ui
+33bf9b6cb15f7fb61aef3eaa3e031bdf00dc3a4f	Chenx Dust	2026-09-24T15:28:04+08:00	build(core): update mihomo and Go dependencies	core
+1ea840396a61c8eb20feaa140a4fe0ae9b93448c	Chenx Dust	2026-09-24T21:56:20+08:00	fix(core): keep NTP from setting the system clock on Android and iOS	core
+5446c18fa7a26a3eb1cfbde97498f92711d4d43a	Chenx Dust	2026-09-24T22:52:09+08:00	fix(profiles): align the Age key dialog with other input dialogs	dart-domain,product-ui
+3bc93b84f66620bdacba9d98e1ac0c95f929ba5c	Chenx Dust	2026-09-24T23:10:53+08:00	fix(core): keep startup going when a geo file fails to initialize	dart-domain
+dec59305d07c079c7895d6033d1f88cea94c14c5	Chenx Dust	2026-09-24T23:12:00+08:00	feat(profiles): paste clipboard text into the URL import field	dart-domain,product-ui
+d4b6198baa795bc8d07e3cb4fa1cdaa2753526dd	Chenx Dust	2026-09-25T00:15:03+08:00	fix(ui): keep timed snack bars visible under the pointer	dart-domain
+e65a054b9f533f45554e3dfc6a25a57611ce0a36	Chenx Dust	2026-09-25T00:31:49+08:00	feat(ui): focus the first field when opening create dialogs	dart-domain,product-ui
+1b6ec91b80eaaf8079ac4c568be91222e29304be	Chenx Dust	2026-09-25T00:55:50+08:00	style(test): format input dialog focus expectations (#15)	dart-domain
+ccc5fe5d240ff547fb41ba36c761579059a59f45	Chenx Dust	2026-09-25T16:13:16+08:00	feat(navigation): return to the dashboard before exiting	dart-domain,product-ui
+160bd35a685a14b9b7a16429975630dea7ad797e	Chenx Dust	2026-09-25T16:58:10+08:00	feat(ui): delete a focused dashboard card in edit mode	dart-domain,product-ui
+9e6470b5685ef4725468182b8f20fe47623e4491	Chenx Dust	2026-09-25T17:19:10+08:00	fix(tv): move from the toolbar FAB to nearby actions	dart-domain,product-ui
+438353c475fd2f664a1a88e2fd877736b0214090	Chenx Dust	2026-09-25T17:47:30+08:00	feat(ui): add a focused dashboard card without focusing its corner button	dart-domain,product-ui
+dd1fcfba2091dd8b05853c27362f6ec37f18c111	Chenx Dust	2026-09-25T17:51:04+08:00	fix(tv): stop focus from leaving open popups and side sheets	dart-domain,product-ui
+998317cb7712a01dfb32b8b29874e7715053d92b	Chenx Dust	2026-09-25T21:04:35+08:00	feat(dashboard): reorder held cards from the keyboard	dart-domain,product-ui
+d2a8eec7deb0c7b0a9cf212ef42cc542ab55fe5d	Chenx Dust	2026-09-25T21:09:55+08:00	fix(ui): round dialog list options with the app corner	dart-domain,product-ui
+4fbf26adf23930f3573f17fe9cfa091e20d3a82d	Chenx Dust	2026-09-25T21:10:01+08:00	fix(tv): outline the FAB while it has focus	dart-domain,product-ui
+affc3f7d4ff76001a9747f63e5deece5c9c9397b	Chenx Dust	2026-09-25T23:39:05+08:00	fix(ui): wait before showing hover tooltips	dart-domain,product-ui
+df67e1263d71af183398298a9c74dfd08e1780f8	Chenx Dust	2026-09-26T00:22:29+08:00	feat(tv): turn on the remote layout from settings	dart-domain,product-ui
+9dab0426107bfc65a07adf4e6a27fcce8533631c	Chenx Dust	2026-09-26T00:28:44+08:00	chore(core): update mihomo to mieru 3.38.0	core
+9d4a2b0c6e009f893d53e9eb7f7bfd6b25f92721	Chenx Dust	2026-09-26T00:32:27+08:00	style: format locale messages and TV tests	dart-domain,product-ui
+34709497c1c168c4c3da880c3cf792b0d64d7ba2	Chenx Dust	2026-09-26T12:34:20+08:00	fix(ui): tighten subscription info dialog spacing	product-ui
+706dfbe76c5b467555227bb20e4936b20abe88f4	Chenx Dust	2026-09-26T16:19:21+08:00	feat(dns): show recent core DNS queries	core,dart-domain,product-ui
+82bd3676e8698065d81ffa7da7acf3285c8878a3	Chenx Dust	2026-09-26T17:09:17+08:00	fix(ui): open more tools as full pages	product-ui
+74b86ec1a0fb377312c7e73b57feb66b98f6f7c4	Chenx Dust	2026-09-26T19:10:03+08:00	fix(ui): tighten the first section header on detail pages	product-ui
+01c782bd8af43fb1133d7f3bec90efcff938f61c	Chenx Dust	2026-09-26T21:06:07+08:00	feat(networking): show EasyTier flags and fold local nodes into the list	core,dart-domain,product-ui
+f909c50e25b9948a5ca17b1f9886f7055bce3ed3	Chenx Dust	2026-09-26T21:24:08+08:00	fix(ui): round standalone list items with the larger corner	product-ui
+94650330f7a5951c3bd9cfb14b1087b9b72e5f81	Chenx Dust	2026-09-26T21:48:51+08:00	fix(ui): skip predictive-back pages below Android 13	product-ui
+76283b2e18141a3dbb85a641ca4e714f54a26528	Chenx Dust	2026-09-26T22:55:30+08:00	feat(ui): regroup settings into grouped general rows	dart-domain,product-ui
+e28134f1b515622076d7d2bd6140dcf66a577d5b	Chenx Dust	2026-09-27T01:28:56+08:00	feat(hotkey): bind mode, delay, update, and exit shortcuts	dart-domain,desktop-tray,product-ui
+a9d7607fc54120ab155c621963d6cdbe8e61bdc4	Chenx Dust	2026-09-27T01:29:03+08:00	fix(ui): space the external controller dialog controls	product-ui
+410b7729c9facf3a5c3dd5b47b826ac52f3ec6c6	Chenx Dust	2026-09-27T01:29:04+08:00	test: settle scrolled settings hits and grouped resource rows	dart-domain,product-ui
+ba7907724a3794b942deb156a06cd01b1b8f0a4d	Chenx Dust	2026-09-27T02:07:18+08:00	feat(ui): share one inset across grouped settings pages	dart-domain,product-ui
+a1832975e19908923216660d0bf0609ca3fea060	Chenx Dust	2026-09-27T02:19:52+08:00	feat(ui): group backup and dashboard option sheets	product-ui
+e9f62629567374b858ccf93dc7ab543be726d3c3	Chenx Dust	2026-09-27T02:34:52+08:00	fix(ui): put general settings first and drop unused transitions	dart-domain,product-ui
+6366a0e68543f34d64a9b08b6d0dfe0172388096	Chenx Dust	2026-09-27T02:35:46+08:00	chore: bump version	dependencies-build
+4b1f58d3006c5238ff264f92d3754288cbf2427c	Chenx Dust	2026-09-27T12:38:30+08:00	refactor(ui): group the tools page and shorten general titles	dart-domain,product-ui
+caf3a06945aa6f366c306111a265db240e73c85a	Chenx Dust	2026-09-27T15:57:56+08:00	fix(ui): hide the other close buttons while a dashboard card is carried	dart-domain,product-ui
+a4a01bdbc821dd7a2782f5bbf25d46fd52eaf475	Chenx Dust	2026-09-27T16:04:16+08:00	fix(networking): classify localised ethernet and tun interface names	dart-domain
+4f0aac9dbeb062241b0d6b13aad2a61bfcee8acd	Chenx Dust	2026-09-27T16:04:22+08:00	fix(ui): align the dashboard network card headers	product-ui
+9f202803663c77f055f940773251476d8652b86f	Chenx Dust	2026-09-27T18:44:25+08:00	feat(ui): share the filter chip bar and confirm touch deletion	dart-domain,product-ui
+68ae229833b42b63d67bcb109e087d16d791bdc1	Chenx Dust	2026-09-27T19:16:48+08:00	feat(tun): choose the mips congestion controller	android,core,dart-domain,ios,product-ui
+7700491510c9a134d65df3a4c5f4bb25d2723394	Chenx Dust	2026-09-27T20:18:56+08:00	feat(ui): lay out connection, request, DNS, and log rows as records	dart-domain,product-ui
+f713793ae8bed112a8b30a084940beb31cb71ed8	Chenx Dust	2026-09-27T20:34:17+08:00	fix(core,android,ios): stop suspending the tunnel while the device sleeps	android,core,docs-meta-other,ios,product-ui
+1da54bb53b8a103c06e3192b60592747ac19cad1	Chenx Dust	2026-09-27T22:11:36+08:00	feat(scripts): store overwrite script URLs and allow reordering	dart-domain,product-ui
+43ca96498a6a7c37e79e06a901740974602dafa1	Chenx Dust	2026-09-27T22:21:36+08:00	fix(ui): open desktop list pages with the container transition	product-ui
+450324db89b0e6da1f470a37b06b5bb1ac12f1e7	Chenx Dust	2026-09-27T23:07:42+08:00	feat(config): override NTP the same way DNS is overridden	dart-domain,product-ui
+4af801f7272b9388b56a2a61b49340bcbf454ad5	Chenx Dust	2026-09-27T23:22:31+08:00	chore: bump version	dependencies-build
+d9910098fca2c77b70819cce625b6b5e58e6119a	Chenx Dust	2026-09-27T23:26:04+08:00	fix(analysis): fix	dart-domain,product-ui
+42b098b39c678b6b9f6e01ab2dae59566edcba9e	Chenx Dust	2026-09-29T12:56:32+08:00	fix(config): apply all TUN settings and controller secret updates	core,dart-domain,product-ui
+0d764e8b8fddcfd35860e6b6dd8e255d777b5deb	Chenx Dust	2026-09-29T13:07:41+08:00	refactor(app)!: migrate application identifiers to cc.chenx.flclash	android,dart-domain,dependencies-build,desktop-native,docs-meta-other,ios,product-ui
+31a1aded7e4da10c3b0cf490c51640bfd4020ed4	Chenx Dust	2026-09-29T13:13:39+08:00	fix(ui): show the environment banner only in debug builds	dart-domain
+e44bfb2118838cf64e52b7e59a4bc12db4ac6c84	Chenx Dust	2026-09-29T13:15:47+08:00	chore: bump version	dependencies-build
+3e03227030cf13208dcc13c1f95ac0b69af95ef5	Chenx Dust	2026-09-29T13:16:35+08:00	chore: update readme	docs-meta-other
+ccb77409df6ebef70ebabdf382d8d74cf135dd21	Chenx Dust	2026-10-01T17:41:06+08:00	chore: bump mihomo version to v1.9.32	core
+927dd7475ca5e8ffae8058bf0dd7e315283e7dbd	Chenx Dust	2026-10-01T22:25:52+08:00	feat(build): add amd64-v3 Core packages	dart-domain,dependencies-build,docs-meta-other
+c128c9a58cd7b02c44c7e6e04715ac23d19521a1	Cursor Agent	2026-10-01T15:43:57Z	feat(ui): show the full proxy name after hovering a truncated node	dart-domain,product-ui
+56772de7a20ab2b9d920e99f3b91437612fd9bbc	Chenx Dust	2026-10-01T23:47:21+08:00	chore: bump version	dependencies-build
+5f99ba518208397173d15704aa64d1a340e8f765	Chenx Dust	2026-10-02T00:33:06+08:00	fix(build): accept CRLF pubspec when setting GOAMD64	dart-domain,dependencies-build
+9c63c977f2d9cd7b053dc1dce056a86253531608	Chenx Dust	2026-10-03T22:19:32+08:00	fix(ui): keep the page below while a shared-axis route opens	dart-domain
+4512b1d77a07f778b8c34e24b7f2c070a8233b3e	Chenx Dust	2026-10-03T22:25:52+08:00	build(android): compile rquickjs bindgen with NDK r30	dependencies-build
+05e0f44ccd0c567a0150cc70c2fbbbe398f8c854	Chenx Dust	2026-10-03T22:47:36+08:00	feat(icons): refresh app palette and tray connection badges	android,dart-domain,dependencies-build,desktop-native,docs-meta-other,ios,product-ui
+5c12cb08cd3f6625a289e419c8b9da60678ec234	Chenx Dust	2026-10-04T00:09:08+08:00	feat(ui): switch interface icons to Material Symbols	dart-domain,dependencies-build,product-ui
+17bb8deccb5bfa017f05737b1367d2a7bd38d321	Chenx Dust	2026-10-04T00:26:57+08:00	feat(ui): use the icon blue as the default palette	dart-domain
+9e0b341deb1f3a700caf3d817a854ccae60a92dd	Chenx Dust	2026-10-04T00:52:06+08:00	feat(ui): redraw the about page	dart-domain,dependencies-build,product-ui
+907cd0117aa237be8387c77aa6fd4c06bb20c7dc	Chenx Dust	2026-10-04T00:54:17+08:00	refactor(android): remove launch crash recovery	android,dart-domain,docs-meta-other,product-ui
+19c5cb50cdd8289962a3a7b327f9e97bff0d09ee	Chenx Dust	2026-10-04T01:05:48+08:00	fix: keep empty Android DNS reports from blocking the system resolver	core,docs-meta-other,product-ui
+2d057f209b1172ef5758aa3976f20c9b604f1edf	Chenx Dust	2026-10-04T01:12:51+08:00	fix(android): fall back to the mips stack without local network permission	android
+3b6d1579cafcbb8865a4c2b7a376dae1b17c8b68	Chenx Dust	2026-10-04T02:53:17+08:00	fix(ios): wait for tunnel readiness before network detection	dart-domain,ios
+243bf0250c7a15057d733c673f2d4647f2ce5d97	Chenx Dust	2026-10-04T02:54:26+08:00	feat(editor): switch the editor to CodeForge	dart-domain,dependencies-build,product-ui
+354bea5e7397f1195247cd1b9ae5d6d2a94a1269	Chenx Dust	2026-10-04T02:57:35+08:00	fix(ios): sync tunnel state without replaying lifecycle actions	dart-domain,ios
+5f189001916297644daa2339f7874738f01a8664	Chenx Dust	2026-10-04T02:59:27+08:00	fix(ui): show geo resource urls and flatten sheet chrome	product-ui
+e16e4c6a3504c976888aefa7c7b53cd55cef0114	Chenx Dust	2026-10-04T04:43:14+08:00	feat(dashboard): add detailed memory usage controls	core,dart-domain,product-ui
+f5d49d08cc202d678979b6f2e07a973fcc185cdd	Chenx Dust	2026-10-04T04:44:12+08:00	chore: bump version	dependencies-build
+e4c6fac783f1e10c5a8ae5197ca4953086ea8bf2	Chenx Dust	2026-10-04T04:53:08+08:00	fix: align widget tests with the current icon, hotkey, and resource UI	dart-domain,product-ui
+17d31ab721f4534b31ca1f8513c577f070ab5394	Chenx Dust	2026-10-04T05:33:08+08:00	fix(ci): load a prebuilt librust_api in the Dart tests	dart-domain,dependencies-build,docs-meta-other
+65c15c871636dd78544cc33ab85e9f375c587a3f	Chenx Dust	2026-10-04T16:19:21+08:00	chore(deps): upgrade Flutter, Rust, and Android dependencies	android,core,dependencies-build,desktop-native,docs-meta-other
+d4369bc5b41a5b8f0af5976eac3f19c558031852	Chenx Dust	2026-10-04T16:29:51+08:00	fix(icons): improve blue palette and tray status indicators	android,desktop-native,docs-meta-other,ios,product-ui
+c6ae852b0685821a10f59026f63811d17376445d	Chenx Dust	2026-10-04T16:30:37+08:00	fix(editor): reuse shared app bar for correct status bar contrast	dart-domain,product-ui
+3e88f3b28768306bb7a81a93e45f2198c6480dd3	Chenx Dust	2026-10-04T17:10:07+08:00	fix(proxy): write KDE https proxy with the HTTP scheme	desktop-native
+48eb06f28ec51a423c5ff282c938724ae292beef	Chenx Dust	2026-10-04T17:57:33+08:00	fix(editor): size the find panel and dismiss mobile menus on back	dart-domain,product-ui
+23dc94a25e7ed15ca53f5bee52853c5ba39488ee	Chenx Dust	2026-10-04T19:01:47+08:00	feat(webdav): support configurable backup names and directories	dart-domain,product-ui
+df4f88e097803270c97e056c70cf6b7d3b7570a0	Chenx Dust	2026-10-04T19:26:43+08:00	refactor(keyboard): remove uni_platform dependency from physical key labels	dart-domain,dependencies-build
+9d8b8ea0c2fa15009d88b39b53aee4d519b95ddf	Chenx Dust	2026-10-04T19:27:03+08:00	fix(ios): pin libc to preserve backtrace dyld APIs	dependencies-build,docs-meta-other
+4586665a5c0533e9719847dd8faae8700dbaf4e9	Chenx Dust	2026-10-04T19:27:07+08:00	fix(ui): refine network and script icons and subscription dialog spacing	product-ui
+54753af62dbf6d4e40bdf286629eee07afbec30c	Chenx Dust	2026-10-04T19:27:09+08:00	docs(readme): include iOS in the supported platforms	docs-meta-other
+7bb17a20628c1f83dc94006ebc2f39959bd828d2	Chenx Dust	2026-10-04T19:48:53+08:00	fix(editor): toggle the find bar from the search button	dart-domain,product-ui
+1756a65c907b61d2c2616ad8858f0a5efa571e33	Chenx Dust	2026-10-04T20:33:50+08:00	fix(editor): animate opening and closing the find bar	dart-domain,product-ui
+531a59a3d6264d83415475f40289626d752693d8	Chenx Dust	2026-10-04T21:37:31+08:00	feat(dashboard): show per-node traffic breakdown	core,dart-domain,product-ui
+adba38ba063350edd95ac0876dbf2c47c268753f	Chenx Dust	2026-10-04T21:54:55+08:00	fix(dashboard): handle zero memory and update widget tests	dart-domain,product-ui
+8d97b1f6dd0a24260d91f687611b044b6cc2420a	Chenx Dust	2026-10-04T21:56:04+08:00	chore(release): bump version to 0.9.1	dependencies-build
+aaf0755da58010b210b23627cfc3134819928d74	Chenx Dust	2026-10-04T22:17:02+08:00	fix(icons): synchronize blue palette across platform assets	android,dependencies-build,desktop-native,docs-meta-other,ios,product-ui
+f80f2749f86c047ba5ecf2d7fe2a7a75a0980496	Chenx Dust	2026-10-04T23:03:35+08:00	fix(widgets): close donut ring for a single segment	product-ui
+38b13a757f17d988f56007eae5aa8a117ab7d18e	Chenx Dust	2026-10-04T23:49:08+08:00	fix(windows): set installed app display icon	docs-meta-other
+04432770e1c7e0a0bf787980d1044c68c5c7b440	Chenx Dust	2026-10-05T00:38:22+08:00	fix(dashboard): adjust widget height and improve no data text styling	product-ui
+eb4ac3fb667e6caddcf606a4b26381b44acfdecb	Chenx Dust	2026-10-05T12:04:58+08:00	fix(dns): wrap error text in query details	dart-domain,product-ui
+42ebfa1159da0828e30419323a489c1450e2fc0c	Chenx Dust	2026-10-05T12:42:43+08:00	chore(ui): use secondaryContainer as illustration colors	product-ui
+323f678d2f4fed3aa08a409cdfbb2e06a32e95b0	Chenx Dust	2026-10-05T14:06:24+08:00	feat(l10n): add Traditional Chinese across app and native platforms	android,dart-domain,desktop-native,docs-meta-other,ios,product-ui
+f9a47b8a771ea84b9e1411a8a82a58ebb84e8e84	Chenx Dust	2026-10-05T14:30:24+08:00	fix(dashboard): update memory shares when released memory is hidden	dart-domain,product-ui
+dc107c90b0bbfc95f1a8ca4a59ab2c1292d09a1c	Chenx Dust	2026-10-05T15:34:35+08:00	feat(dashboard): show direct traffic in node statistics	core,dart-domain,product-ui
+f240b994ad9cfafdb4dcbb661b4a649681d93708	Chenx Dust	2026-10-05T17:14:49+08:00	fix(dashboard): stabilize traffic chart transitions and legend layout	core,dart-domain,product-ui
+e195005ed6df3080f57e8118343b0540ddc7761a	Chenx Dust	2026-10-05T19:28:29+08:00	build: use x64 for architecture parameters and package names	dart-domain,dependencies-build,docs-meta-other
+324a21174bfd2bf5a28a8ca8cbf556599e4126a4	Chenx Dust	2026-10-05T23:03:14+08:00	fix(ui): use filled icons for scaffold floating action buttons	product-ui
+fc10fba0f6281b1309641d6604701a3be128a5a5	Chenx Dust	2026-10-05T20:03:53+08:00	fix(ui): keep list edits when leaving an open container	dart-domain,product-ui
+97742d425bac41a45daf376194d549eaaa668b4e	Chenx Dust	2026-10-05T23:00:58+08:00	refactor(macos): stop patching the system DNS	dart-domain,product-ui
+23290a9eacd6b1242904aa1865d7745c3e983a87	Chenx Dust	2026-10-05T23:04:25+08:00	chore: enable sendmsgx defaults and refresh generated code	dart-domain,docs-meta-other
+52e8c47a56dd0e2654c0ecd051e67fc1d1af55bb	Chenx Dust	2026-10-05T23:13:02+08:00	build(core): use the chenx-dust sing-tun fork	core
+4449fd368c2434561413adc7df79917dd7446a32	Chenx Dust	2026-10-05T23:30:05+08:00	ci: render release notes before the build and drop the telegram renderer	dart-domain,dependencies-build,docs-meta-other
+5c5d397eb101fc99ef72677ed7c38cffabebabff	Chenx Dust	2026-10-05T23:30:21+08:00	chore: bump version	dependencies-build
+e4f58fe488e0d1f9dd1ef792206f6247ae5d7148	Chenx Dust	2026-10-06T02:34:34+08:00	feat(ui): pick filter values from a popup menu	dart-domain,product-ui
+03d79e3dc8357bcc27242950ea1bfbec5fb2808e	Chenx Dust	2026-10-06T03:02:27+08:00	feat(dns): query DNS manually from the DNS queries page	core,dart-domain,product-ui
+6adae513f529ac0e148955290e37f00e467dd611	Chenx Dust	2026-10-06T03:36:19+08:00	fix(ui): rename requests and move it to tools	product-ui
+2502ef3569c2703d52899db59444f902363d162a	Chenx Dust	2026-10-06T15:21:23+08:00	feat(ui): add runtime rules panel and shared proxy chains	core,dart-domain,product-ui
+e63f9042b1005fd758f2e1c4003a21a660469868	Chenx Dust	2026-10-06T15:58:18+08:00	fix(config): automatically reload settings and added rules	dart-domain
+0f0511ac4b7fa04ed6beaadd33d84636cbfce812	Chenx Dust	2026-10-06T16:09:03+08:00	feat(rules): tag added rules and link to their settings	dart-domain,product-ui
+697755c953a3a7f56c7dba04ef979ee0aa4d49f3	Chenx Dust	2026-10-06T16:18:43+08:00	fix(vpn): compare restart prompts against active native options	android,dart-domain,ios,product-ui
+1a790ccc13707e9ffea8ee7d89a1bb4cc0cdb89f	Chenx Dust	2026-10-06T16:33:31+08:00	fix(ui): render chip emoji with Twemoji	dart-domain,product-ui
+41d99c9201d256bdbb525d005da793c0f160bedc	Chenx Dust	2026-10-06T17:30:34+08:00	feat(rules): add interactive rule queries with advanced metadata	core,dart-domain,product-ui
+fa13ab5cf5fa98f5dcb5df371e03e784e535ac70	Chenx Dust	2026-10-06T17:51:52+08:00	fix(dns): display lookup results inline and reuse the type selector	dart-domain,product-ui
+30fc87cbb66e7b13f9847f7cc25a3ae1ef65e3ac	Chenx Dust	2026-10-06T18:22:53+08:00	fix(l10n): distinguish requests from recent requests labels	dart-domain,product-ui
+71f94d5af53eb6193e153ae2c039460b9011ad55	Chenx Dust	2026-10-06T18:42:19+08:00	test: align widget tests with rich text and polling behavior	dart-domain,docs-meta-other
+29c34877c42c65738af99c3de4db8a05e7e38026	Chenx Dust	2026-10-06T20:54:18+08:00	fix(navigation): preserve routes across responsive layout changes	dart-domain,product-ui
+51708b245e08730dcaea6c0f51819bacad4b700f	Chenx Dust	2026-10-06T23:41:02+08:00	fix(ui): stage donut slice visibility animations	dart-domain,product-ui
+e2be2a23de1c35bd3f5b7e1621cf45e72bd8a2f5	Chenx Dust	2026-10-06T23:49:25+08:00	feat(settings): add proxy chain collapse toggle	dart-domain,product-ui
+d7159ccd5c240fe0f33baa56a481abfcac483476	Chenx Dust	2026-10-06T23:50:15+08:00	chore: bump version	dependencies-build
+bae8dd9b01456acd8f450bd0c53e1d5a5b6e23b3	Chenx Dust	2026-10-07T01:54:27+08:00	fix(core,ios): preserve startup intent and distinguish unknown listener results	dart-domain,ios,product-ui
+10332be8866854065c407cb26b3c05fd96ae1545	Chenx Dust	2026-10-07T02:12:08+08:00	feat(mobile): make quick toggle profile names configurable	android,dart-domain,ios,product-ui
+1de91ebbfce8013bced5e99426d0b227aa82cb9f	Chenx Dust	2026-10-09T00:16:11+08:00	feat(updater): download and install verified release packages	android,dart-domain,dependencies-build,docs-meta-other,product-ui,updater
+34842c290505db92cd06eed7e1a007822d63b9fc	Chenx Dust	2026-10-09T00:20:48+08:00	fix(core): enable loopback detection on mobile	core
+197967cf9b7290479b2a5a71876523c9805efd0e	Chenx Dust	2026-10-09T00:39:19+08:00	feat(updater): link to GitHub release from the update dialog	dart-domain,product-ui
+da3a9e57878bfda7dc85fdec463e87964c7b62c4	Chenx Dust	2026-10-09T00:56:04+08:00	feat(tun): add system DNS mode selection and update mihomo	core,dart-domain,product-ui
+5e6c87aa29ea520bf1d5880f29e074a8b48a97ea	Chenx Dust	2026-10-09T01:00:00+08:00	chore: bump version	dependencies-build
+eddc23eeaec08a1eacf06fb6127ebafdd0b85ca4	Chenx Dust	2026-10-10T13:53:25+08:00	fix(proxies): honor connection settings when reselecting a proxy	dart-domain
+1cad08ba10c99959b835cdf1286453232d1e4e53	Chenx Dust	2026-10-10T14:58:34+08:00	fix(android): derive the run state from the service that actually runs	android,core,dart-domain
+95a06882d436f4433b8e01a8c2f623ded49e65e1	Chenx Dust	2026-10-10T14:58:41+08:00	feat(android,ios): add start and stop launcher shortcuts	android,dart-domain,ios
+3814b935fa5de23e72e744b367b2f77ac55d8aec	Chenx Dust	2026-10-10T14:58:41+08:00	fix(android,ios): move the VPN onto 198.18.0.0/15	android,ios
+93c7145b9c7bf42db5037837bb3a5a4144666d25	Chenx Dust	2026-10-10T17:08:14+08:00	feat(android): follow battery optimization live and request on-demand permissions in one step	android,dart-domain,docs-meta-other,product-ui
+3d4f0ac6759ea49e412ec0de3447a32523f57f24	Chenx Dust	2026-10-10T22:12:53+08:00	fix(linux): fall back to sudo when polkit authorization is unavailable	dart-domain,product-ui
+139b0f054e4f6ba7787fa0a8c4ee6a017800609c	Chenx Dust	2026-10-10T22:12:54+08:00	fix(windows): restore window positions across display scales	dart-domain,desktop-tray
+d2ab42416a2c31c619d497d3750a9ebc228090d4	Chenx Dust	2026-10-10T22:12:55+08:00	fix(windows): publish the helper service port dynamically	dart-domain,desktop-native
+2a0a2fb1a830ee32c07bf3ea5c6f15140b49aebb	Chenx Dust	2026-10-10T22:12:55+08:00	fix(helper): reap core processes that exit on their own	desktop-native
+bd7da00c72e60a8481d38fb788813aa0b7cd5cd3	Chenx Dust	2026-10-10T22:12:56+08:00	fix(windows): clear owned system proxies during installation and removal	desktop-native,docs-meta-other
+9d8c15a22c94edde1df3d16480b1aade293eac1b	Chenx Dust	2026-10-10T22:12:57+08:00	fix(windows): normalize IPv6 entries in proxy bypass lists	desktop-native
+4374e4d65126532f3734e9a42f33e9336fd67e93	Chenx Dust	2026-10-10T22:12:57+08:00	fix(linux): notify running KDE applications of proxy changes	desktop-native
+103cb8d86588928f89d000c1e32eb160dc02bb78	Chenx Dust	2026-10-10T22:12:58+08:00	fix(windows): retry tray icon registration while the shell starts	desktop-tray
+4de078245693a1d6dd41882e23da74bd488cc33a	Chenx Dust	2026-10-10T22:12:58+08:00	fix(linux): initialize X11 threading and set the window icon	desktop-native
+3ac6f36dc30ba0b6d0c53ab9eadbcbfe777d9bc5	Chenx Dust	2026-10-11T03:09:14+08:00	feat(mobile): add home screen widgets with profile name and VPN toggle	android,dart-domain,ios
+58edc19c27d8e0836baa26ffa16720dd58d1aafd	Chenx Dust	2026-10-11T21:59:31+08:00	fix(proxies): shrink the delay test icon in proxy cards	product-ui
+588610ef213a20828d8f8c58f7b110765243a2bf	Chenx Dust	2026-10-11T22:41:34+08:00	feat(proxies): add a proxy card context menu with delay test and details	dart-domain,product-ui
+023c80fe0ac382374a8ece1b2892e91fb682fefd	Chenx Dust	2026-10-11T23:30:02+08:00	chore: update flutter and remove actions	dart-domain,dependencies-build,desktop-native,desktop-tray,docs-meta-other,product-ui
+38b8e3d912537f416d45ebdedca765acca7451d6	Chenx Dust	2026-10-11T23:53:12+08:00	feat(linux): use dedicated SVG tray icons	dart-domain,dependencies-build,desktop-tray,docs-meta-other,product-ui
+55c3c5da450ff6ee85a3803229e0289af81ac9bf	Chenx Dust	2026-10-12T00:02:04+08:00	chore: bump version	dependencies-build
+83378a01405f56671cafa7d465448f4198292acf	Chenx Dust	2026-10-12T16:50:07+08:00	feat(rules): show rule as type(payload) with emphasized payload	dart-domain,product-ui
+39379c10b4b380d87f2628c9189f436bb94a7b2d	Chenx Dust	2026-10-12T17:19:18+08:00	feat(proxies): float the pinned group header with a shadow while its rows scroll under it	product-ui
+843d1a7893ff44767f7951371d5e59d9f607cb5b	Chenx Dust	2026-10-12T17:23:27+08:00	feat(tv): drop the FAB shadow and space the app bar FAB from its neighbors	product-ui
+d1d354c87bebf04a2fdb4e717ca93d79df8eabd6	Chenx Dust	2026-10-12T17:28:04+08:00	feat(dashboard): show the core status button on mobile too	product-ui
+a84e571099fe1392b55e051ab76d892ff7f9e0a6	Chenx Dust	2026-10-13T13:36:19+08:00	feat(dashboard): show app memory and iOS memory footprint in memory details	core,dart-domain,product-ui
+e5772789f8d742da7bcaf9b10231573e9615594e	Chenx Dust	2026-10-13T20:16:05+08:00	chore(tray): remove redundant separator from AppTray menu	desktop-tray
+7ea4597c9182d40cd57da9fc2f2d5cc0a5f84c2f	Chenx Dust	2026-10-13T20:29:07+08:00	feat(about): show the bundled mihomo version	core,dart-domain,dependencies-build,product-ui

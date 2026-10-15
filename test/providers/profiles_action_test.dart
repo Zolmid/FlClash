@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
@@ -10,6 +11,8 @@ import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/providers/database.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -21,6 +24,35 @@ import '../helpers/test_app.dart';
 import '../helpers/test_profiles.dart';
 
 class _MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
+
+class _SingleFlightProfilesAction extends ProfilesAction {
+  final response = Completer<Profile>();
+  var requests = 0;
+
+  @override
+  Future<Profile> fetchUpdatedProfile(Profile profile) {
+    requests++;
+    return response.future;
+  }
+}
+
+class _QueuedProfilesAction extends ProfilesAction {
+  final requests = <Profile>[];
+  final responses = <Completer<Profile>>[];
+
+  @override
+  Future<Profile> fetchUpdatedProfile(Profile profile) {
+    requests.add(profile);
+    final response = Completer<Profile>();
+    responses.add(response);
+    return response.future;
+  }
+}
+
+class _NoProfileApply extends SetupAction {
+  @override
+  void applyProfileDebounce({bool silence = false, bool force = false}) {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +110,186 @@ void main() {
   Future<List<Map>> savedProxies(Profile profile) async {
     final config = loadYaml(await (await profile.file).readAsString()) as Map;
     return [for (final proxy in config['proxies'] as List) proxy as Map];
+  }
+
+  test(
+    'manual and automatic refreshes share the same in-flight profile update',
+    () async {
+      const profile = Profile(
+        id: 42,
+        type: ProfileType.url,
+        url: 'https://example.com',
+        autoUpdateDuration: Duration(minutes: 20),
+      );
+      final action = _SingleFlightProfilesAction();
+      final scoped = ProviderContainer(
+        overrides: [
+          profilesProvider.overrideWith(() => TestProfiles([profile])),
+          profilesActionProvider.overrideWith(() => action),
+          setupActionProvider.overrideWith(_NoProfileApply.new),
+          currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+        ],
+      );
+      addTearDown(scoped.dispose);
+      scoped.read(profilesActionProvider.notifier);
+
+      final automatic = action.autoUpdateProfiles();
+      final manual = action.updateProfile(profile, showLoading: true);
+      expect(action.requests, 1);
+      final updated = profile.copyWith(lastUpdateDate: DateTime(2026, 10, 15));
+      action.response.complete(updated);
+      await Future.wait([automatic, manual]);
+      expect(
+        scoped.read(profilesProvider).single.lastUpdateDate,
+        updated.lastUpdateDate,
+      );
+      expect(action.lastUpdateAttempt(profile.id), isNotNull);
+    },
+  );
+
+  test('failed manual refreshes record an attempt for the scheduler', () async {
+    const profile = Profile(
+      id: 42,
+      type: ProfileType.url,
+      url: 'https://example.com',
+      autoUpdateDuration: Duration(minutes: 20),
+    );
+    final action = _SingleFlightProfilesAction();
+    final scoped = ProviderContainer(
+      overrides: [
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        profilesActionProvider.overrideWith(() => action),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    scoped.read(profilesActionProvider.notifier);
+    final operation = action.updateProfile(profile);
+    action.response.completeError(StateError('offline'));
+
+    await expectLater(operation, throwsStateError);
+    expect(action.lastUpdateAttempt(profile.id), isNotNull);
+    expect(scoped.read(profilesProvider).single.lastUpdateDate, isNull);
+  });
+
+  for (final fails in [false, true]) {
+    test(
+      'source edits wait for an active refresh without being lost ($fails)',
+      () async {
+        const profile = Profile(
+          id: 42,
+          type: ProfileType.url,
+          url: 'https://old.example.com',
+          autoUpdateDuration: Duration(minutes: 20),
+        );
+        final edited = profile.copyWith(
+          url: 'https://new.example.com',
+          ageSecretKey: 'AGE-SECRET-KEY-NEW',
+        );
+        final action = _QueuedProfilesAction();
+        final scoped = ProviderContainer(
+          overrides: [
+            profilesProvider.overrideWith(() => TestProfiles([profile])),
+            profilesActionProvider.overrideWith(() => action),
+            setupActionProvider.overrideWith(_NoProfileApply.new),
+            currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+          ],
+        );
+        addTearDown(scoped.dispose);
+        scoped.read(profilesActionProvider.notifier);
+        final active = action.updateProfile(profile);
+        final activeResult = expectLater(
+          active,
+          fails ? throwsStateError : completes,
+        );
+        final saved = action.updateProfile(edited);
+        expect(action.requests, [profile]);
+        if (fails) {
+          action.responses.first.completeError(StateError('old URL offline'));
+        } else {
+          action.responses.first.complete(
+            profile.copyWith(lastUpdateDate: DateTime(2026, 10, 15)),
+          );
+        }
+        await activeResult;
+        await pumpEventQueue();
+        expect(action.requests, [profile, edited]);
+        action.responses.last.complete(
+          edited.copyWith(lastUpdateDate: DateTime(2026, 10, 16)),
+        );
+        await saved;
+        expect(scoped.read(profilesProvider).single.url, edited.url);
+        expect(
+          scoped.read(profilesProvider).single.ageSecretKey,
+          edited.ageSecretKey,
+        );
+      },
+    );
+
+    test(
+      'startup file recovery joins the scheduler and awaits the latest source ($fails)',
+      () async {
+        const profile = Profile(
+          id: 7501,
+          type: ProfileType.url,
+          url: 'https://old.example.com',
+          autoUpdateDuration: Duration(minutes: 20),
+        );
+        final edited = profile.copyWith(
+          url: 'https://new.example.com',
+          ageSecretKey: 'AGE-SECRET-KEY-NEW',
+        );
+        final action = _QueuedProfilesAction();
+        final scoped = ProviderContainer(
+          overrides: [
+            profilesProvider.overrideWith(() => TestProfiles([profile])),
+            profilesActionProvider.overrideWith(() => action),
+            setupActionProvider.overrideWith(_NoProfileApply.new),
+            currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+          ],
+        );
+        addTearDown(scoped.dispose);
+        scoped.read(profilesActionProvider.notifier);
+        final errors = <Object>[];
+        final updater = ProfileAutoUpdater(
+          profiles: () => scoped.read(profilesProvider),
+          update: action.updateProfile,
+          onError: errors.add,
+        );
+        addTearDown(updater.dispose);
+        updater.start();
+        final scheduled = updater.check();
+        var ready = false;
+        final startup = action
+            .ensureProfileFile(profile.id)
+            .then((_) => ready = true);
+        await pumpEventQueue();
+        expect(action.requests, [profile]);
+        final saved = action.updateProfile(edited);
+        if (fails) {
+          action.responses.first.completeError(StateError('old URL offline'));
+        } else {
+          action.responses.first.complete(
+            profile.copyWith(lastUpdateDate: DateTime.now()),
+          );
+        }
+        await scheduled;
+        await pumpEventQueue();
+        expect(action.requests, [profile, edited]);
+        expect(ready, isFalse);
+        action.responses.last.complete(
+          edited.copyWith(lastUpdateDate: DateTime.now()),
+        );
+        await Future.wait([saved, startup]);
+        expect(ready, isTrue);
+        expect(errors, hasLength(fails ? 1 : 0));
+        expect(scoped.read(currentProfileProvider)?.url, edited.url);
+        expect(
+          scoped.read(currentProfileProvider)?.ageSecretKey,
+          edited.ageSecretKey,
+        );
+        updater.dispose();
+      },
+    );
   }
 
   group('addProfileFromLink with a share link', () {

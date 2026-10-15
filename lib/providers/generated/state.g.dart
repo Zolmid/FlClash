@@ -446,7 +446,7 @@ final class SharedStateProvider
   }
 }
 
-String _$sharedStateHash() => r'bb7ccc5a740b25c560b4b8bcd07b66cd4b367234';
+String _$sharedStateHash() => r'd5478ae6e5c85e4b7bb0ab1bda8a6f0a5fba2c09';
 
 @ProviderFor(vpnRouteAddress)
 final vpnRouteAddressProvider = VpnRouteAddressProvider._();
@@ -523,7 +523,7 @@ final class VpnOptionsProvider
   }
 }
 
-String _$vpnOptionsHash() => r'61fa4a5c2a4f34d56bdb3d649f34c7fe4454c025';
+String _$vpnOptionsHash() => r'442243e8989ef40e0ad5ba03d33e27d99125cd95';
 
 @ProviderFor(AccessControlState)
 final accessControlStateProvider = AccessControlStateProvider._();
@@ -1761,7 +1761,7 @@ final class CurrentGroupsStateProvider
 }
 
 String _$currentGroupsStateHash() =>
-    r'd4ea3c3271a77d8bd791f94c697cc94a41fff38f';
+    r'722819e3b1cf0698b93d9adc7195dbec6e7a11f9';
 
 @ProviderFor(proxyState)
 final proxyStateProvider = ProxyStateProvider._();
@@ -1945,7 +1945,7 @@ final class VisibleGroupsStateProvider
 }
 
 String _$visibleGroupsStateHash() =>
-    r'02b4a37b356f4484fa3787a08a239ddfe77769f0';
+    r'0be4ece70a444c7abbcfa911f06acb53877a09c3';
 
 @ProviderFor(filterGroupsState)
 final filterGroupsStateProvider = FilterGroupsStateFamily._();

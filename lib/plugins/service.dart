@@ -185,12 +185,15 @@ class Service {
   }
 
   Future<VpnOptions?> getActiveVpnOptions() async {
-    if (!_isIOS) {
-      return null;
-    }
-    final data = await methodChannel.invokeMethod<String>(
-      'getActiveVpnOptions',
-    );
+    return _getVpnOptions('getActiveVpnOptions');
+  }
+
+  Future<VpnOptions?> getRequestedVpnOptions() async {
+    return _getVpnOptions('getRequestedVpnOptions');
+  }
+
+  Future<VpnOptions?> _getVpnOptions(String method) async {
+    final data = await methodChannel.invokeMethod<String>(method);
     if (data == null) {
       return null;
     }

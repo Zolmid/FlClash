@@ -5,6 +5,7 @@ import 'src/icons/ico.dart';
 
 const sourceDir = 'assets_source/images/icon';
 const pngOutputDir = 'assets/images/tray/unix';
+const linuxOutputDir = 'assets/images/tray/linux';
 const icoOutputDir = 'assets/images/tray/windows';
 const macosOutputDir = 'assets/images/tray/macos';
 const statusIconNames = ['status_1', 'status_2', 'status_3', 'status_4'];
@@ -28,6 +29,7 @@ Future<void> main() async {
   }
 
   await Directory(icoOutputDir).create(recursive: true);
+  await Directory(linuxOutputDir).create(recursive: true);
   final tempDir = await Directory.systemTemp.createTemp('status_icons_');
   final renderer = _Renderer(rsvgConvert, tempDir);
   try {
@@ -38,6 +40,7 @@ Future<void> main() async {
         exitCode = 1;
         return;
       }
+      await source.copy('$linuxOutputDir/$name.svg');
       await _writeTrayVariants(renderer, source, name, pngOutputDir);
       await _writeIco(
         renderer,

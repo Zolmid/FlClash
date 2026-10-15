@@ -8,7 +8,9 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/core.dart';
+import 'package:fl_clash/providers/config.dart';
 import 'package:flutter/services.dart';
+import 'package:riverpod/riverpod.dart' show ProviderListenableSelect;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'generated/app.g.dart';
@@ -666,3 +668,20 @@ List<Override> buildAppStateOverrides(AppState appState) {
     coreStatusProvider.overrideWithBuild((_, _) => appState.coreStatus),
   ];
 }
+
+@Riverpod(keepAlive: true)
+class ProxyFocus extends _$ProxyFocus with AutoDisposeNotifierMixin {
+  @override
+  ({String groupName, String? proxyName})? build() {
+    ref.listen(currentPageLabelProvider, (_, next) {
+      if (next != PageLabel.proxies) state = null;
+    });
+    ref.listen(currentProfileIdProvider, (_, _) => state = null);
+    return null;
+  }
+}
+
+@riverpod
+bool tvLayout(Ref ref) =>
+    system.isTV ||
+    ref.watch(appSettingProvider.select((state) => state.tvMode));

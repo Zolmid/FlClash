@@ -27,7 +27,7 @@ class _VpnContainerState extends ConsumerState<VpnManager>
   @override
   void initState() {
     super.initState();
-    if (system.isIOS) {
+    if (system.isMobile) {
       WidgetsBinding.instance.addObserver(this);
       service?.tunnelState.addListener(_checkActiveOptions);
       ref.listenManual(isStartProvider, (_, next) {
@@ -63,11 +63,13 @@ class _VpnContainerState extends ConsumerState<VpnManager>
     if (!mounted ||
         !ref.read(isStartProvider) ||
         ref.read(safeModeProvider) ||
-        service?.tunnelState.value != TunnelState.connected) {
+        (system.isIOS && service?.tunnelState.value != TunnelState.connected)) {
       return;
     }
     try {
-      final active = await service?.getActiveVpnOptions();
+      final active = await (system.isAndroid
+          ? service?.getRequestedVpnOptions()
+          : service?.getActiveVpnOptions());
       if (!mounted ||
           revision != _checkRevision ||
           !ref.read(isStartProvider) ||
@@ -99,7 +101,7 @@ class _VpnContainerState extends ConsumerState<VpnManager>
   @override
   void dispose() {
     _checkRevision++;
-    if (system.isIOS) {
+    if (system.isMobile) {
       service?.tunnelState.removeListener(_checkActiveOptions);
       WidgetsBinding.instance.removeObserver(this);
     }

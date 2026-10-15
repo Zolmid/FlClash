@@ -250,10 +250,14 @@ class _CodeForgeState extends State<CodeForge>
           ListenableBuilder(
             listenable: _findController,
             builder: (context, _) {
-              if (!_findController.isActive) {
-                return const SizedBox.shrink();
-              }
-              return widget.finderBuilder!(context, _findController);
+              return AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _findController.isActive
+                    ? widget.finderBuilder!(context, _findController)
+                    : const SizedBox.shrink(),
+              );
             },
           ),
         Expanded(

@@ -42,6 +42,12 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             "shutdown" -> shutdown(result)
             "invokeMethod" -> invokeMethod(call, result)
             "getRunTime" -> getRunTime(result)
+            "getActiveVpnOptions" -> scope.launch {
+                result.success(ServiceState.awaitActiveVpnOptions()?.let(gson::toJson))
+            }
+            "getRequestedVpnOptions" -> scope.launch {
+                result.success(ServiceState.awaitRequestedVpnOptions()?.let(gson::toJson))
+            }
             "syncState" -> syncState(call, result)
             "start" -> start(call, result)
             "stop" -> stop(call, result)

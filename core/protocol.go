@@ -15,51 +15,59 @@ import (
 type CoreMethod string
 
 const (
-	messageMethod                  CoreMethod = "message"
-	initClashMethod                CoreMethod = "initClash"
-	getIsInitMethod                CoreMethod = "getIsInit"
-	forceGcMethod                  CoreMethod = "forceGc"
-	shutdownMethod                 CoreMethod = "shutdown"
-	validateConfigMethod           CoreMethod = "validateConfig"
-	decryptConfigMethod            CoreMethod = "decryptConfig"
-	validateProxiesMethod          CoreMethod = "validateProxies"
-	validateFiltersMethod          CoreMethod = "validateFilters"
-	convertProxiesMethod           CoreMethod = "convertProxies"
-	encodeShareLinksMethod         CoreMethod = "encodeShareLinks"
-	decodeShareLinksMethod         CoreMethod = "decodeShareLinks"
-	updateConfigMethod             CoreMethod = "updateConfig"
-	getProxiesMethod               CoreMethod = "getProxies"
-	changeProxyMethod              CoreMethod = "changeProxy"
-	getTrafficMethod               CoreMethod = "getTraffic"
-	getTotalTrafficMethod          CoreMethod = "getTotalTraffic"
-	resetTrafficMethod             CoreMethod = "resetTraffic"
-	asyncTestDelayMethod           CoreMethod = "asyncTestDelay"
-	probeMethod                    CoreMethod = "probe"
-	outboundIpMethod               CoreMethod = "outboundIp"
-	serviceCheckMethod             CoreMethod = "serviceCheck"
-	getConnectionsMethod           CoreMethod = "getConnections"
-	getConnectionCountMethod       CoreMethod = "getConnectionCount"
-	closeConnectionsMethod         CoreMethod = "closeConnections"
-	resetConnectionsMethod         CoreMethod = "resetConnections"
-	closeConnectionMethod          CoreMethod = "closeConnection"
-	getExternalProvidersMethod     CoreMethod = "getExternalProviders"
-	getExternalProviderMethod      CoreMethod = "getExternalProvider"
-	getMemoryStatsMethod           CoreMethod = "getMemoryStats"
-	updateGeoDataMethod            CoreMethod = "updateGeoData"
-	updateExternalProviderMethod   CoreMethod = "updateExternalProvider"
-	sideLoadExternalProviderMethod CoreMethod = "sideLoadExternalProvider"
-	startLogMethod                 CoreMethod = "startLog"
-	stopLogMethod                  CoreMethod = "stopLog"
-	startListenerMethod            CoreMethod = "startListener"
-	stopListenerMethod             CoreMethod = "stopListener"
-	updateDnsMethod                CoreMethod = "updateDns"
-	crashMethod                    CoreMethod = "crash"
-	setupConfigMethod              CoreMethod = "setupConfig"
-	getConfigMethod                CoreMethod = "getConfig"
-	dumpRuleSetMethod              CoreMethod = "dumpRuleSet"
-	compileRuleSetMethod           CoreMethod = "compileRuleSet"
-	clearEffectMethod              CoreMethod = "clearEffect"
-	watchRouteMethod               CoreMethod = "watchRoute"
+	messageMethod                        CoreMethod = "message"
+	initClashMethod                      CoreMethod = "initClash"
+	getIsInitMethod                      CoreMethod = "getIsInit"
+	forceGcMethod                        CoreMethod = "forceGc"
+	shutdownMethod                       CoreMethod = "shutdown"
+	validateConfigMethod                 CoreMethod = "validateConfig"
+	decryptConfigMethod                  CoreMethod = "decryptConfig"
+	validateProxiesMethod                CoreMethod = "validateProxies"
+	validateFiltersMethod                CoreMethod = "validateFilters"
+	convertProxiesMethod                 CoreMethod = "convertProxies"
+	encodeShareLinksMethod               CoreMethod = "encodeShareLinks"
+	decodeShareLinksMethod               CoreMethod = "decodeShareLinks"
+	updateConfigMethod                   CoreMethod = "updateConfig"
+	getProxiesMethod                     CoreMethod = "getProxies"
+	changeProxyMethod                    CoreMethod = "changeProxy"
+	getTrafficMethod                     CoreMethod = "getTraffic"
+	getTotalTrafficMethod                CoreMethod = "getTotalTraffic"
+	resetTrafficMethod                   CoreMethod = "resetTraffic"
+	asyncTestDelayMethod                 CoreMethod = "asyncTestDelay"
+	probeMethod                          CoreMethod = "probe"
+	outboundIpMethod                     CoreMethod = "outboundIp"
+	serviceCheckMethod                   CoreMethod = "serviceCheck"
+	getConnectionsMethod                 CoreMethod = "getConnections"
+	getConnectionCountMethod             CoreMethod = "getConnectionCount"
+	closeConnectionsMethod               CoreMethod = "closeConnections"
+	resetConnectionsMethod               CoreMethod = "resetConnections"
+	closeConnectionMethod                CoreMethod = "closeConnection"
+	getExternalProvidersMethod           CoreMethod = "getExternalProviders"
+	getExternalProviderMethod            CoreMethod = "getExternalProvider"
+	getMemoryStatsMethod                 CoreMethod = "getMemoryStats"
+	getMemoryMethod                      CoreMethod = "getMemory"
+	getGoroutineCountMethod              CoreMethod = "getGoroutineCount"
+	getCoreVersionMethod                 CoreMethod = "getCoreVersion"
+	getRulesMethod                       CoreMethod = "getRules"
+	setRuleDisabledMethod                CoreMethod = "setRuleDisabled"
+	queryDnsMethod                       CoreMethod = "queryDns"
+	generateAgeKeyPairMethod             CoreMethod = "generateAgeKeyPair"
+	convertAgeSecretKeyToPublicKeyMethod CoreMethod = "convertAgeSecretKeyToPublicKey"
+	updateGeoDataMethod                  CoreMethod = "updateGeoData"
+	updateExternalProviderMethod         CoreMethod = "updateExternalProvider"
+	sideLoadExternalProviderMethod       CoreMethod = "sideLoadExternalProvider"
+	startLogMethod                       CoreMethod = "startLog"
+	stopLogMethod                        CoreMethod = "stopLog"
+	startListenerMethod                  CoreMethod = "startListener"
+	stopListenerMethod                   CoreMethod = "stopListener"
+	updateDnsMethod                      CoreMethod = "updateDns"
+	crashMethod                          CoreMethod = "crash"
+	setupConfigMethod                    CoreMethod = "setupConfig"
+	getConfigMethod                      CoreMethod = "getConfig"
+	dumpRuleSetMethod                    CoreMethod = "dumpRuleSet"
+	compileRuleSetMethod                 CoreMethod = "compileRuleSet"
+	clearEffectMethod                    CoreMethod = "clearEffect"
+	watchRouteMethod                     CoreMethod = "watchRoute"
 )
 
 type MessageType string
@@ -125,6 +133,8 @@ type tunSchema struct {
 	RouteAddress         *[]netip.Prefix    `yaml:"route-address" json:"route-address,omitempty"`
 	MTU                  *uint32            `yaml:"mtu" json:"mtu"`
 	CongestionController *string            `yaml:"congestion-controller" json:"congestion-controller"`
+	RecvMsgX             *bool              `yaml:"recvmsgx" json:"recvmsgx"`
+	SendMsgX             *bool              `yaml:"sendmsgx" json:"sendmsgx"`
 	StrictRoute          *bool              `yaml:"strict-route" json:"strict-route"`
 	RouteExcludeAddress  *[]netip.Prefix    `yaml:"route-exclude-address" json:"route-exclude-address"`
 }
@@ -145,8 +155,9 @@ type RuleSetInfo struct {
 }
 
 type ChangeProxyParams struct {
-	GroupName string `json:"group-name"`
-	ProxyName string `json:"proxy-name"`
+	GroupName        string `json:"group-name"`
+	ProxyName        string `json:"proxy-name"`
+	CloseConnections bool   `json:"close-connections"`
 }
 
 type ChangeProxyResult struct {
@@ -211,6 +222,15 @@ type MemoryStats struct {
 	HeapIdle     uint64 `json:"heapIdle"`
 	StackInuse   uint64 `json:"stackInuse"`
 	RuntimeOther uint64 `json:"runtimeOther"`
+	Sys          uint64 `json:"sys"`
+	HeapObjects  uint64 `json:"heapObjects"`
+	HeapUnused   uint64 `json:"heapUnused"`
+	HeapReleased uint64 `json:"heapReleased"`
+	Stacks       uint64 `json:"stacks"`
+	Metadata     uint64 `json:"metadata"`
+	GC           uint64 `json:"gc"`
+	Other        uint64 `json:"other"`
+	Footprint    uint64 `json:"footprint,omitempty"`
 }
 
 type ExternalProvider struct {
@@ -229,8 +249,18 @@ type ProxiesData struct {
 }
 
 type nodeView struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	UDP          bool   `json:"udp,omitempty"`
+	UOT          bool   `json:"uot,omitempty"`
+	XUDP         bool   `json:"xudp,omitempty"`
+	TFO          bool   `json:"tfo,omitempty"`
+	MPTCP        bool   `json:"mptcp,omitempty"`
+	SMUX         bool   `json:"smux,omitempty"`
+	Interface    string `json:"interface,omitempty"`
+	RoutingMark  int    `json:"routing-mark,omitempty"`
+	ProviderName string `json:"provider-name,omitempty"`
+	DialerProxy  string `json:"dialer-proxy,omitempty"`
 }
 
 type GeoUpdateStatus struct {

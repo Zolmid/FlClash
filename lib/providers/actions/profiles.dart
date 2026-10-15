@@ -3,6 +3,10 @@ part of '../action.dart';
 @Riverpod(keepAlive: true)
 class ProfilesAction extends _$ProfilesAction {
   CoreController get _core => ref.read(coreHandlerProvider);
+  final _profileUpdates = <int, ({Profile profile, Future<void> future})>{};
+  final _lastUpdateAttempts = <int, DateTime>{};
+
+  DateTime? lastUpdateAttempt(int id) => _lastUpdateAttempts[id];
 
   @override
   void build() {}
@@ -129,18 +133,62 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
-  Future<void> updateProfile(
+  Future<void> updateProfile(Profile profile, {bool showLoading = false}) {
+    final active = _profileUpdates[profile.id];
+    if (active != null &&
+        active.profile.url == profile.url &&
+        active.profile.ageSecretKey == profile.ageSecretKey) {
+      return active.future;
+    }
+    final update = active == null
+        ? _updateProfile(profile, showLoading: showLoading)
+        : active.future.then<void>(
+            (_) => _updateProfile(profile, showLoading: showLoading),
+            onError: (Object error) =>
+                _updateProfile(profile, showLoading: showLoading),
+          );
+    late final Future<void> operation;
+    operation = update.whenComplete(() {
+      _lastUpdateAttempts[profile.id] = DateTime.now();
+      if (identical(_profileUpdates[profile.id]?.future, operation)) {
+        _profileUpdates.remove(profile.id);
+      }
+    });
+    _profileUpdates[profile.id] = (profile: profile, future: operation);
+    return operation;
+  }
+
+  Future<void> ensureProfileFile(int id) async {
+    final profile = ref.read(profilesProvider).getProfile(id);
+    if (profile == null || profile.type != ProfileType.url) return;
+    final file = File(await appPath.getProfilePath(id.toString()));
+    if (await file.exists()) return;
+    final latest = ref.read(profilesProvider).getProfile(id);
+    if (latest == null || latest.type != ProfileType.url) return;
+    var operation = _profileUpdates[id]?.future ?? updateProfile(latest);
+    while (true) {
+      try {
+        await operation;
+      } catch (_) {
+        final pending = _profileUpdates[id]?.future;
+        if (pending == null || identical(pending, operation)) rethrow;
+      }
+      final pending = _profileUpdates[id]?.future;
+      if (pending == null) return;
+      operation = pending;
+    }
+  }
+
+  Future<void> _updateProfile(
     Profile profile, {
-    bool showLoading = false,
+    required bool showLoading,
   }) async {
     final operation = showLoading
         ? ref.read(updatingKeysProvider.notifier).start(profile.updatingKey)
         : null;
     try {
       ref.read(profilesProvider.notifier).put(profile);
-      final newProfile = await profile.update(
-        validate: (path, key) => _core.validateProfile(path, key),
-      );
+      final newProfile = await fetchUpdatedProfile(profile);
       ref.read(profilesProvider.notifier).put(newProfile);
       if (profile.id == ref.read(currentProfileIdProvider)) {
         ref
@@ -167,6 +215,10 @@ class ProfilesAction extends _$ProfilesAction {
       }
     }
   }
+
+  @protected
+  Future<Profile> fetchUpdatedProfile(Profile profile) =>
+      profile.update(validate: (path, key) => _core.validateProfile(path, key));
 
   Future<void> addProfileFormFile() async {
     final platformFile = await globalState.safeRun(picker.pickerFile);

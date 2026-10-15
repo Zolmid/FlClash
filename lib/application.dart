@@ -73,8 +73,10 @@ Widget _backButtonIcon(BuildContext context) =>
 Widget _closeButtonIcon(BuildContext context) =>
     const GlyphIcon(AppGlyphs.close);
 
-class ApplicationState extends ConsumerState<Application> {
+class ApplicationState extends ConsumerState<Application>
+    with WidgetsBindingObserver {
   Timer? _autoUpdateProfilesTaskTimer;
+  late final ProfileAutoUpdater _profileAutoUpdater;
   bool _preHasVpn = false;
   // Windows can only watch SIGINT and SIGHUP.
   final _terminateSignals = system.isDesktop && !system.isWindows
@@ -99,12 +101,27 @@ class ApplicationState extends ConsumerState<Application> {
   void initState() {
     super.initState();
     SystemNavigator.setFrameworkHandlesBack(true);
+    WidgetsBinding.instance.addObserver(this);
+    _profileAutoUpdater = ProfileAutoUpdater(
+      profiles: () => ref.read(profilesProvider),
+      lastAttempt: (id) =>
+          ref.read(profilesActionProvider.notifier).lastUpdateAttempt(id),
+      update: (profile) =>
+          ref.read(profilesActionProvider.notifier).updateProfile(profile),
+      onError: (error) => commonPrint.log(compactError(error)),
+    );
+    ref.listenManual(
+      profilesProvider,
+      (_, _) => _profileAutoUpdater.reschedule(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       if (globalState.navigatorKey.currentContext != null) {
         await bootstrap.attach();
       } else {
         exit(0);
       }
+      if (!mounted) return;
+      _profileAutoUpdater.start();
       _autoUpdateProfilesTask();
       _initLink();
       if (!safeModeBuild) {
@@ -142,9 +159,15 @@ class ApplicationState extends ConsumerState<Application> {
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_profileAutoUpdater.check());
+    }
+  }
+
   void _autoUpdateProfilesTask() {
     _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
-      await ref.read(profilesActionProvider.notifier).autoUpdateProfiles();
       await ref.read(resourcesActionProvider.notifier).autoUpdate();
       if (!mounted) {
         return;
@@ -195,7 +218,10 @@ class ApplicationState extends ConsumerState<Application> {
               isDesktop: system.isDesktop,
               onConnectivityChanged: _handleConnectivityChanged,
               terminateSignals: _terminateSignals,
-              child: RemoteFocusAdapter(enabled: system.isTV, child: child!),
+              child: RemoteFocusAdapter(
+                enabled: ref.watch(tvLayoutProvider),
+                child: child!,
+              ),
             );
           },
           scrollBehavior: const BaseScrollBehavior(),
@@ -230,6 +256,8 @@ class ApplicationState extends ConsumerState<Application> {
   void dispose() {
     linkManager.destroy();
     _autoUpdateProfilesTaskTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _profileAutoUpdater.dispose();
     super.dispose();
   }
 }

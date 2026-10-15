@@ -319,16 +319,61 @@ func handleClearEffect(profileId int64) error {
 	if profileId <= 0 {
 		return errors.New("invalid profile id")
 	}
-	homes := []string{constant.Path.HomeDir()}
+	appStores := []bool{false}
 	if runtime.GOOS == "ios" {
-		homes = append(homes, filepath.Join(constant.Path.HomeDir(), iosAppStorageDir))
+		appStores = append(appStores, true)
 	}
-	for _, homeDir := range homes {
-		providersRoot, providersPath := providerPaths(homeDir, profileId)
-		if err := os.RemoveAll(providersPath); err != nil {
+	for _, appStorage := range appStores {
+		if err := clearProviderEffects(constant.Path.HomeDir(), profileId, appStorage); err != nil {
 			return err
 		}
-		_ = os.Remove(providersRoot)
 	}
+	return nil
+}
+
+func clearProviderEffects(homeDir string, profileId int64, appStorage bool) error {
+	root, err := os.OpenRoot(homeDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	home := root
+	defer home.Close()
+	components := []string{"profiles", "providers"}
+	if appStorage {
+		components = append([]string{iosAppStorageDir}, components...)
+	}
+	for _, component := range components {
+		next, err := root.OpenRoot(component)
+		if errors.Is(err, os.ErrNotExist) {
+			if root != home {
+				_ = root.Close()
+			}
+			return nil
+		}
+		if err != nil {
+			if root != home {
+				_ = root.Close()
+			}
+			return err
+		}
+		opened, openErr := next.Stat(".")
+		entry, statErr := root.Lstat(component)
+		if root != home {
+			_ = root.Close()
+		}
+		if openErr != nil || statErr != nil || !entry.IsDir() || entry.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, entry) {
+			_ = next.Close()
+			return errors.New("provider cache path is not a stable directory")
+		}
+		root = next
+	}
+	defer root.Close()
+	if err := root.RemoveAll(strconv.FormatInt(profileId, 10)); err != nil {
+		return err
+	}
+	_ = home.Remove(filepath.Join(components...))
 	return nil
 }

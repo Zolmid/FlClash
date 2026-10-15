@@ -95,12 +95,32 @@ _Proxy _$ProxyFromJson(Map<String, dynamic> json) => _Proxy(
   name: json['name'] as String,
   type: json['type'] as String,
   now: json['now'] as String?,
+  udp: json['udp'] as bool? ?? false,
+  uot: json['uot'] as bool? ?? false,
+  xudp: json['xudp'] as bool? ?? false,
+  tfo: json['tfo'] as bool? ?? false,
+  mptcp: json['mptcp'] as bool? ?? false,
+  smux: json['smux'] == null ? false : _parseSmux(json['smux']),
+  interface: json['interface'] as String? ?? '',
+  routingMark: (json['routing-mark'] as num?)?.toInt() ?? 0,
+  providerName: json['provider-name'] as String? ?? '',
+  dialerProxy: json['dialer-proxy'] as String? ?? '',
 );
 
 Map<String, dynamic> _$ProxyToJson(_Proxy instance) => <String, dynamic>{
   'name': instance.name,
   'type': instance.type,
   'now': instance.now,
+  'udp': instance.udp,
+  'uot': instance.uot,
+  'xudp': instance.xudp,
+  'tfo': instance.tfo,
+  'mptcp': instance.mptcp,
+  'smux': instance.smux,
+  'interface': instance.interface,
+  'routing-mark': instance.routingMark,
+  'provider-name': instance.providerName,
+  'dialer-proxy': instance.dialerProxy,
 };
 
 _CustomProxy _$CustomProxyFromJson(Map<String, dynamic> json) => _CustomProxy(
@@ -262,6 +282,8 @@ _Tun _$TunFromJson(Map<String, dynamic> json) => _Tun(
   device: json['device'] as String? ?? appName,
   autoRoute: json['auto-route'] as bool? ?? false,
   stack: $enumDecodeNullable(_$TunStackEnumMap, json['stack']) ?? TunStack.mips,
+  recvMsgX: json['recvmsgx'] as bool? ?? true,
+  sendMsgX: json['sendmsgx'] as bool? ?? false,
   dnsHijack:
       (json['dns-hijack'] as List<dynamic>?)
           ?.map((e) => e as String)
@@ -291,6 +313,8 @@ Map<String, dynamic> _$TunToJson(_Tun instance) => <String, dynamic>{
   'device': instance.device,
   'auto-route': instance.autoRoute,
   'stack': _$TunStackEnumMap[instance.stack]!,
+  'recvmsgx': instance.recvMsgX,
+  'sendmsgx': instance.sendMsgX,
   'dns-hijack': instance.dnsHijack,
   'route-address': instance.routeAddress,
   'mtu': instance.mtu,

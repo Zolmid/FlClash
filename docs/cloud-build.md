@@ -36,6 +36,8 @@
 工作流仅授予 `contents: read` 权限。自动和手动构建均不使用生产签名，不发布 Release，
 不上传 TestFlight，不向 Telegram、Homebrew 或 F-Droid 推送。
 上游已有的 `build.yaml` 保持原样，继续负责已有检查。
+Windows 云任务在编译后实际运行代理归属状态 gtest 和托盘菜单原生 CTest；
+只编译桌面 bundle 不计作这些测试已经执行。
 
 ## iOS 源码选择
 
@@ -132,3 +134,17 @@ iOS 首轮迁入了 `ios/`、Dart 服务桥、Go iOS/TUN 适配及构建 hooks�
 全部成功：4069 tests passed / 6 skipped，覆盖率 88.13%。
 这组结果属于 iOS 支持分支的基线，不作为后续 Patched 整合提交的验证结果。
 未签名 IPA 生成成功仍不代表签名真机 VPN、后台行为或其他设备交互已经验证。
+
+## 整合分支检查点（外层独立核验）
+
+- `0713ff79bbea1d85a33e06fb5a20c257076f04a3` 的
+  [Cloud all/project 38710369127](https://github.com/Zolmid/FlClash/actions/runs/38710369127)
+  已完整成功，包含 Linux、Windows、Android、macOS arm64/Intel 和项目 iOS IPA 共六份产物。
+- `11406fa0db2042e5a107d137b9a81528e20e1a39` 的
+  [标准 CI 38711463436](https://github.com/Zolmid/FlClash/actions/runs/38711463436)
+  九项全部成功；[Cloud 38711463348](https://github.com/Zolmid/FlClash/actions/runs/38711463348)
+  的结果仍由外层监控核验。
+
+上述结果只覆盖对应 SHA，不包含后续整合提交。后续仍需同 SHA 全平台构建和独立 review 才合入 main。
+保留原 `8380d0e` core 与依赖锁；长期同步策略及 iOS TUN FD 升级复核边界见
+[上游维护说明](upstream-maintenance.md)。

@@ -76,6 +76,24 @@ void main() {
   });
 
   test(
+    'show carries activation details without adding absent arguments',
+    () async {
+      await desktopWindow.show();
+      expect(calls.last.arguments, {'inactive': false});
+
+      await desktopWindow.show(
+        activationTimestamp: 1234,
+        activationToken: 'wayland-token',
+      );
+      expect(calls.last.arguments, {
+        'inactive': false,
+        'activationTimestamp': 1234,
+        'activationToken': 'wayland-token',
+      });
+    },
+  );
+
+  test(
     'events reach the generic and the dedicated callback in order',
     () async {
       final listener = _RecordingListener();

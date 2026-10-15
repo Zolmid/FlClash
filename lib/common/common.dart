@@ -58,3 +58,8 @@ export 'task_pool.dart';
 export 'text.dart';
 export 'webdav.dart';
 export 'yaml.dart';
+export 'profile_auto_updater.dart';
+export 'backup_file_name.dart';
+export 'app_update.dart';
+export 'app_update_client.dart';
+export 'app_installer.dart';

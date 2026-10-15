@@ -1,5 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/features/features.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -9,8 +10,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RequestsView extends ConsumerStatefulWidget {
   final ScrollController? scrollController;
+  final TrackerInfoFilter initialFilter;
+  final List<String> initialKeywords;
 
-  const RequestsView({super.key, this.scrollController});
+  const RequestsView({
+    super.key,
+    this.scrollController,
+    this.initialKeywords = const [],
+    this.initialFilter = const TrackerInfoFilter(),
+  });
 
   @override
   ConsumerState<RequestsView> createState() => _RequestsViewState();
@@ -19,6 +27,9 @@ class RequestsView extends ConsumerStatefulWidget {
 class _RequestsViewState extends ConsumerState<RequestsView>
     with RouteMotionHoldMixin<RequestsView> {
   final _listController = TrackerInfoListController();
+  late TrackerInfoFilter _filter = widget.initialFilter;
+  bool _showFilters = false;
+  final _scaffoldKey = GlobalKey<CommonScaffoldState>();
   late final ScrollController _scrollController;
   late final _physics = FollowEndScrollPhysics(
     isFollowing: () => _listController.value.autoScrollToEnd,
@@ -27,6 +38,12 @@ class _RequestsViewState extends ConsumerState<RequestsView>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final keyword in widget.initialKeywords) {
+        _scaffoldKey.currentState?.addKeyword(keyword);
+      }
+    });
     _scrollController =
         widget.scrollController ??
         sheetScrollController(context, initialScrollOffset: double.maxFinite);
@@ -63,56 +80,83 @@ class _RequestsViewState extends ConsumerState<RequestsView>
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return CommonScaffold(
+      key: _scaffoldKey,
       title: PageLabel.requests.label,
+      iconActions: [
+        IconButtonData(
+          glyph: AppGlyphs.filter,
+          tooltip: context.appLocalizations.filter,
+          isSelected: _showFilters || _filter.isNotEmpty,
+          onPressed: () => setState(() => _showFilters = !_showFilters),
+        ),
+      ],
       searchState: AppBarSearchState(onSearch: _listController.search),
       onKeywordsUpdate: _listController.updateKeywords,
       body: ValueListenableBuilder<TrackerInfosState>(
         valueListenable: _listController,
         builder: (context, state, _) {
-          final requests = state.list;
-          return NullStatusSwitcher(
-            isEmpty: requests.isEmpty,
-            isSearching: state.isSearching,
-            nullStatus: NullStatus(
-              label: appLocalizations.nullTip(appLocalizations.requests),
-              illustration: NullStatusIllustration.requests,
-            ),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: FloatingScrollbar(
-                controller: _scrollController,
-                hintBuilder: (fraction) {
-                  final index = (fraction * (requests.length - 1)).round();
-                  return requests[index].start.showFull;
-                },
-                child: ScrollToEndBox(
-                  controller: _scrollController,
-                  enable: state.autoScrollToEnd,
-                  onCancelToEnd: () {
-                    _listController.setAutoScrollToEnd(false);
-                  },
-                  onResumeToEnd: () {
-                    _listController.resumeAutoScrollToEnd(
-                      ref.read(requestsProvider).list,
-                    );
-                  },
-                  child: TrackerInfoList(
-                    reverse: true,
-                    shrinkWrap: true,
-                    physics: _physics,
-                    controller: _scrollController,
-                    padding: EdgeInsets.only(
-                      top: context.contentTopPadding,
-                      bottom: 16 + BottomInsetScope.of(context),
-                    ),
-                    trackerInfos: requests,
-                    detailTitle: appLocalizations.details(
-                      appLocalizations.request,
+          final requests = state.list.withTrackerFilter(_filter);
+          final showFilters = _showFilters || _filter.isNotEmpty;
+          return Column(
+            children: [
+              if (showFilters)
+                Padding(
+                  padding: EdgeInsets.only(top: context.contentTopPadding),
+                  child: TrackerInfoFilterBar(
+                    visible: _showFilters,
+                    trackerInfos: state.trackerInfos,
+                    filter: _filter,
+                    onChanged: (value) => setState(() => _filter = value),
+                  ),
+                ),
+              Expanded(
+                child: NullStatusSwitcher(
+                  isEmpty: requests.isEmpty,
+                  isSearching: state.isSearching || _filter.isNotEmpty,
+                  nullStatus: NullStatus(
+                    label: appLocalizations.nullTip(appLocalizations.requests),
+                    illustration: NullStatusIllustration.requests,
+                  ),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: FloatingScrollbar(
+                      controller: _scrollController,
+                      hintBuilder: (fraction) {
+                        final index = (fraction * (requests.length - 1))
+                            .round();
+                        return requests[index].start.showFull;
+                      },
+                      child: ScrollToEndBox(
+                        controller: _scrollController,
+                        enable: state.autoScrollToEnd,
+                        onCancelToEnd: () {
+                          _listController.setAutoScrollToEnd(false);
+                        },
+                        onResumeToEnd: () {
+                          _listController.resumeAutoScrollToEnd(
+                            ref.read(requestsProvider).list,
+                          );
+                        },
+                        child: TrackerInfoList(
+                          reverse: true,
+                          shrinkWrap: true,
+                          physics: _physics,
+                          controller: _scrollController,
+                          padding: EdgeInsets.only(
+                            top: showFilters ? 0 : context.contentTopPadding,
+                            bottom: 16 + BottomInsetScope.of(context),
+                          ),
+                          trackerInfos: requests,
+                          detailTitle: appLocalizations.details(
+                            appLocalizations.request,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           );
         },
       ),

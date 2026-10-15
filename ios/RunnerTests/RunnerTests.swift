@@ -39,6 +39,22 @@ final class RunnerTests: XCTestCase {
   }
 
   @MainActor
+  func testAgeKeyUtilitiesStayInTheAppWhileRuntimeQueriesUseTheTunnel() async {
+    var routes: [CoreRoute] = []
+    let router = CoreMessageRouter { _, route in
+      routes.append(route)
+      return #"{"result":null}"#
+    }
+    router.updateTunnelState(.running)
+
+    for method in ["generateAgeKeyPair", "convertAgeSecretKeyToPublicKey", "getCoreVersion"] {
+      _ = await router.invoke(Data("{\"method\":\"\(method)\",\"arguments\":null}".utf8))
+    }
+
+    XCTAssertEqual(routes, [.app, .app, .networkExtension])
+  }
+
+  @MainActor
   func testProviderFailureDoesNotAcknowledgeWritesFromTheAppCore() async throws {
     for method in [
       "changeProxy", "closeConnection", "closeConnections", "updateExternalProvider",

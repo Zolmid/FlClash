@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdint.h>
 
 extern void (*release_object_func)(void *obj);
 extern void *(*retain_object_func)(void *obj);
@@ -16,3 +17,4 @@ extern void *retain_object(void *obj);
 extern void free_string(char *data);
 extern void result(void *invoke_interface, const char *data);
 extern void system_log(const char *level, const char *message);
+extern uint64_t flclash_physical_footprint(void);

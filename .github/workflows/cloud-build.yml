@@ -163,6 +163,13 @@ jobs:
           cmake --build build/proxy-ownership-tests --config Release
           ctest --test-dir build/proxy-ownership-tests -C Release --output-on-failure
 
+      - name: Test Windows tray menus
+        if: matrix.platform == 'windows'
+        run: |
+          cmake -S plugins/tray/test/native -B build/tray-menu-tests
+          cmake --build build/tray-menu-tests --config Release
+          ctest --test-dir build/tray-menu-tests -C Release --output-on-failure
+
       - name: Archive Linux bundle
         if: matrix.platform == 'linux'
         run: |

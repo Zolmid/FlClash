@@ -31,6 +31,40 @@ class _FakeNativeWindow {
 }
 
 void main() {
+  test('queued show retains its own activation timestamp and token', () async {
+    final hidden = Completer<void>();
+    final activations = <({int? timestamp, String? token})>[];
+    final controller = WindowVisibilityController(
+      showWindow: () async {},
+      showWindowWithActivation: ({activationTimestamp, activationToken}) async {
+        activations.add((
+          timestamp: activationTimestamp,
+          token: activationToken,
+        ));
+      },
+      hideWindow: () => hidden.future,
+      isWindowVisible: () async => false,
+      setSkipTaskbar: (_) async {},
+      dockSettleDuration: Duration.zero,
+    );
+    final hiding = controller.hide();
+    final first = controller.show(
+      activationTimestamp: 10,
+      activationToken: 'first',
+    );
+    final second = controller.show(
+      activationTimestamp: 20,
+      activationToken: 'second',
+    );
+    expect(activations, isEmpty);
+    hidden.complete();
+    await Future.wait([hiding, first, second]);
+    expect(activations, [
+      (timestamp: 10, token: 'first'),
+      (timestamp: 20, token: 'second'),
+    ]);
+  });
+
   testWidgets('a hide right after a show waits for the Dock policy to settle', (
     tester,
   ) async {

@@ -554,12 +554,18 @@ few keys of a `tun` section the network settings own, so its spec does not mix i
 
 ## Where A Route Opens
 
-On desktop each navigation destination has its own `Navigator` (`_NavigationPage` in `lib/pages/home.dart`); on mobile
-there is none, and everything goes on the root navigator, `rootNavigatorKey` in `lib/common/navigator.dart`. A route
-takes the navigator of the context it opens from: `BaseNavigator.push`, `showExtend`, `showSheet` and `showSnapSheet`
-all do, so a page or sheet opened from a destination stays beside the navigation rail, leaves the rail usable, and
-stays in that destination's stack when the user switches away and back. `sheetNavigatorOf` lifts a sheet out of a
-paged sheet's own `SheetPagesNavigator`, never past the destination.
+Each navigation destination has its own stable `Navigator` at every layout size (`_NavigationPage` in
+`lib/pages/home.dart`). The shared shell keeps one mobile navigation bar or dock outside the page view, preserving
+its keyboard focus and rapid tab selection during page transitions. Each destination reports whether it has a
+subroute; on mobile the shell hides its navigation and removes its bottom inset while the active destination has
+one, leaving the route the full content area. The desktop rail remains usable. Resizing changes the chrome without
+replacing the navigator or its routes. Destinations retain independent stacks under their existing keep-alive policy.
+
+A route takes the navigator of the context it opens from: `BaseNavigator.push`, `showExtend`, `showSheet` and
+`showSnapSheet` all do, so a page or sheet opened from a destination stays in that destination's stack when the user
+switches away and back. Home dispatches system back to the active destination with `maybePop`, preserving route
+guards before falling back to the dashboard or app-close behavior. `sheetNavigatorOf` lifts a sheet out of a paged
+sheet's own `SheetPagesNavigator`, never past the destination.
 
 The root navigator is only for what belongs to no single destination:
 
@@ -575,9 +581,9 @@ close it with a root `popUntil` before switching to the profiles tab, so `showAd
 takes the caller's context as `origin`; a page the sheet leads to opens from `origin`, as `AddProfileView._toAddCustom`
 does.
 
-The mistake only shows in the desktop layout, and `TestApp` has nothing but the root navigator. A test that guards
-where a route opens hosts the page in a nested `Navigator`, as the desktop case of a new custom profile in
-`test/features/profile_views_test.dart` does.
+A root push visibly covers the rail on desktop and escapes the destination stack at either layout size. `TestApp`
+has nothing but the root navigator. A test that guards where a route opens hosts the page in a nested `Navigator`,
+as the desktop case of a new custom profile in `test/features/profile_views_test.dart` does.
 
 ## Settings Rows
 

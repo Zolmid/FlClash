@@ -13,8 +13,28 @@ data class SharedState(
     val stopText: String = "Stop",
     val onlyStatisticsProxy: Boolean = false,
     val showStopAction: Boolean = true,
+    val networkSpeedNotification: Boolean = false,
+    val collapseQuickSettingsPanel: Boolean = true,
+    val showQuickSettingsProfileName: Boolean = true,
     val vpnOptions: VpnOptions? = null,
     val setupParams: SetupParams? = null,
+    val widgetTheme: WidgetTheme? = null,
+)
+
+data class WidgetTheme(
+    val themeMode: String = "system",
+    val light: WidgetColors,
+    val dark: WidgetColors,
+)
+
+data class WidgetColors(
+    val background: Long,
+    val onBackground: Long,
+    val onBackgroundVariant: Long,
+    val primary: Long,
+    val onPrimary: Long,
+    val trackOff: Long,
+    val thumbOff: Long,
 )
 
 data class SetupParams(

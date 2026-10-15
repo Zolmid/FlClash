@@ -108,12 +108,15 @@ _Log _$LogFromJson(Map<String, dynamic> json) => _Log(
   logLevel:
       $enumDecodeNullable(_$LogLevelEnumMap, json['LogLevel']) ?? LogLevel.info,
   payload: json['Payload'] as String? ?? '',
+  source:
+      $enumDecodeNullable(_$LogSourceEnumMap, json['source']) ?? LogSource.app,
   dateTime: _logDateTime(json['dateTime']),
 );
 
 Map<String, dynamic> _$LogToJson(_Log instance) => <String, dynamic>{
   'LogLevel': _$LogLevelEnumMap[instance.logLevel]!,
   'Payload': instance.payload,
+  'source': _$LogSourceEnumMap[instance.source]!,
   'dateTime': instance.dateTime,
 };
 
@@ -124,6 +127,8 @@ const _$LogLevelEnumMap = {
   LogLevel.error: 'error',
   LogLevel.silent: 'silent',
 };
+
+const _$LogSourceEnumMap = {LogSource.app: 'app', LogSource.core: 'core'};
 
 _DnsQuery _$DnsQueryFromJson(Map<String, dynamic> json) => _DnsQuery(
   domain: json['domain'] as String,
@@ -163,6 +168,7 @@ const _$DnsQueryInitiatorEnumMap = {
   DnsQueryInitiator.direct: 'direct',
   DnsQueryInitiator.proxy: 'proxy',
   DnsQueryInitiator.other: 'other',
+  DnsQueryInitiator.manual: 'manual',
 };
 
 _DAVProps _$DAVPropsFromJson(Map<String, dynamic> json) => _DAVProps(
@@ -172,6 +178,7 @@ _DAVProps _$DAVPropsFromJson(Map<String, dynamic> json) => _DAVProps(
       ? ''
       : _decodeDavPassword(json['password'] as String?),
   fileName: json['fileName'] as String? ?? defaultDavFileName,
+  directory: json['directory'] as String? ?? '/FlClash',
 );
 
 Map<String, dynamic> _$DAVPropsToJson(_DAVProps instance) => <String, dynamic>{
@@ -179,6 +186,7 @@ Map<String, dynamic> _$DAVPropsToJson(_DAVProps instance) => <String, dynamic>{
   'user': instance.user,
   'password': _encodeDavPassword(instance.password),
   'fileName': instance.fileName,
+  'directory': instance.directory,
 };
 
 _VersionInfo _$VersionInfoFromJson(Map<String, dynamic> json) => _VersionInfo(

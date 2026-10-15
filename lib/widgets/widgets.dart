@@ -63,3 +63,6 @@ export 'text.dart';
 export 'text_loupe.dart';
 export 'theme.dart';
 export 'wave.dart';
+export 'proxy_chain.dart';
+export 'update_progress.dart';
+export 'clipboard.dart';
