@@ -1,0 +1,322 @@
+name: Cloud build
+run-name: Cloud build · ${{ inputs.platform }} · iOS ${{ inputs.ios_source }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to compile
+        type: choice
+        required: true
+        default: all
+        options: [all, macos, windows, android, ios, linux]
+      ios_source:
+        description: iOS source (reference is not the main project)
+        type: choice
+        required: true
+        default: patched-reference
+        options: [patched-reference, project]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-build-${{ github.ref }}-${{ inputs.platform }}-${{ inputs.ios_source }}
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      enabled: ${{ steps.select.outputs.enabled }}
+    steps:
+      - id: select
+        env:
+          PLATFORM: ${{ inputs.platform }}
+        run: |
+          node <<'JS'
+          const fs = require('fs');
+          const targets = [
+            {platform: 'linux', os: 'ubuntu-22.04', arch: 'x64'},
+            {platform: 'windows', os: 'windows-2022', arch: 'x64'},
+            {platform: 'android', os: 'ubuntu-24.04', arch: 'arm64'},
+            {platform: 'macos', os: 'macos-26', arch: 'arm64'},
+            {platform: 'macos', os: 'macos-15-intel', arch: 'x64'},
+          ].filter(t => process.env.PLATFORM === 'all' || t.platform === process.env.PLATFORM);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `matrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
+          JS
+
+  project:
+    name: FlClash · ${{ matrix.platform }} · ${{ matrix.arch }}
+    needs: select
+    if: needs.select.outputs.enabled == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      FLUTTER_VERSION: '3.47.6'
+      GO_VERSION: '1.27.1'
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      GOTOOLCHAIN: local
+      TARGET_PLATFORM: ${{ matrix.platform }}
+      TARGET_ARCH: ${{ matrix.arch }}
+    steps:
+      - name: Enable Windows long paths
+        if: matrix.platform == 'windows'
+        run: git config --global core.longpaths true
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          if [[ "$TARGET_PLATFORM" == android ]]; then
+            rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-linux-android
+          fi
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cloud-${{ matrix.platform }}-${{ matrix.arch }}
+          workspaces: |
+            services/helper
+            plugins/rust_api/rust
+          cache-directories: .dart_tool/hooks_runner
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install Linux libraries
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev
+
+      - name: Select Xcode
+        if: matrix.platform == 'macos'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+
+      - name: Preserve Intel macOS rendering workaround
+        if: matrix.platform == 'macos' && matrix.arch == 'x64'
+        run: plutil -replace FLTEnableImpeller -bool NO macos/Runner/Info.plist
+
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: nttld/setup-ndk@v1
+        if: matrix.platform == 'android'
+        id: ndk
+        with:
+          ndk-version: r28c
+          link-to-sdk: true
+
+      - uses: gradle/actions/setup-gradle@v6
+        if: matrix.platform == 'android'
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Compile desktop
+        if: matrix.platform != 'android'
+        run: flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev
+
+      - name: Compile Android
+        if: matrix.platform == 'android'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev
+
+      - name: Archive Linux bundle
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist
+          tar -C build/linux/x64/release/bundle -czf dist/FlClash-linux-x64-release.tar.gz .
+
+      - name: Archive macOS app
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/FlClash.app "dist/FlClash-macos-$TARGET_ARCH-release.zip"
+
+      - name: Archive Windows bundle
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/FlClash-windows-x64-release.zip
+
+      - name: Collect Android APK
+        if: matrix.platform == 'android'
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-debug.apk dist/FlClash-android-arm64-development.apk
+
+      - name: Record source and toolchain
+        run: |
+          {
+            echo "source_repository=$GITHUB_REPOSITORY"
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "target=$TARGET_PLATFORM-$TARGET_ARCH"
+            echo "run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo 'distribution=development artifact; no production signing or notarization'
+            git submodule status --recursive
+            flutter --version
+            go version
+            rustc --version
+          } > dist/source-provenance.txt
+          node <<'JS'
+          const fs = require('fs'), crypto = require('crypto');
+          const files = fs.readdirSync('dist').filter(f => f !== 'SHA256SUMS').sort();
+          fs.writeFileSync('dist/SHA256SUMS', files.map(f =>
+            crypto.createHash('sha256').update(fs.readFileSync(`dist/${f}`)).digest('hex') + '  ' + f
+          ).join('\n') + '\n');
+          JS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flclash-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    name: iOS · ${{ inputs.ios_source }} · unsigned arm64
+    if: inputs.platform == 'all' || inputs.platform == 'ios'
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      IOS_SOURCE: ${{ inputs.ios_source }}
+      FLUTTER_VERSION: ${{ inputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
+      GO_VERSION: ${{ inputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      GOTOOLCHAIN: local
+    steps:
+      - name: Checkout project
+        if: inputs.ios_source == 'project'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Checkout pinned Patched reference
+        if: inputs.ios_source == 'patched-reference'
+        uses: actions/checkout@v4
+        with:
+          repository: chenx-dust/FlClash-Patched
+          ref: 7ea4597c9182d40cd57da9fc2f2d5cc0a5f84c2f
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Check iOS implementation
+        run: |
+          if [[ ! -f ios/Runner.xcodeproj/project.pbxproj || ! -f ios/NECore/PacketTunnelProvider.swift ]]; then
+            echo '::error::This project has no complete iOS port yet. Select patched-reference to build the separate baseline. No automatic fallback is performed.'
+            exit 1
+          fi
+          if [[ "$IOS_SOURCE" == patched-reference ]]; then
+            test "$(git rev-parse HEAD)" = 7ea4597c9182d40cd57da9fc2f2d5cc0a5f84c2f
+          fi
+
+      - name: Fetch Patched core version history
+        if: inputs.ios_source == 'patched-reference'
+        run: |
+          if [[ "$(git -C core/mihomo rev-parse --is-shallow-repository)" == true ]]; then
+            git -C core/mihomo fetch --unshallow --tags origin
+          else
+            git -C core/mihomo fetch --tags origin
+          fi
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+
+      - name: Install Rust iOS target
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cloud-ios-${{ inputs.ios_source }}
+          workspaces: plugins/rust_api/rust
+          cache-directories: .dart_tool/hooks_runner
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Compile unsigned device IPA
+        run: dart setup.dart ios --env dev --no-codesign -v
+
+      - name: Collect IPA and provenance
+        run: |
+          shopt -s nullglob
+          ipas=(dist/*-ios-arm64-unsigned.ipa)
+          if (( ${#ipas[@]} == 0 )); then
+            echo '::error::No unsigned arm64 IPA was produced.'
+            exit 1
+          fi
+          mkdir -p cloud-artifacts
+          cp "${ipas[@]}" cloud-artifacts/
+          source_repo="$GITHUB_REPOSITORY"
+          if [[ "$IOS_SOURCE" == patched-reference ]]; then
+            source_repo=chenx-dust/FlClash-Patched
+          fi
+          {
+            echo "source_kind=$IOS_SOURCE"
+            echo "source_repository=$source_repo"
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "workflow_repository=$GITHUB_REPOSITORY"
+            echo "workflow_commit=$GITHUB_SHA"
+            echo 'target=iOS arm64 physical device; simulator unsupported'
+            echo 'signing=ad hoc unsigned IPA; requires provisioning for device installation'
+            git submodule status --recursive
+            flutter --version
+            go version
+            rustc --version
+            xcodebuild -version
+          } > cloud-artifacts/source-provenance.txt
+          (cd cloud-artifacts && shasum -a 256 ./* > SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ inputs.ios_source }}-arm64-unsigned-${{ github.run_number }}
+          path: cloud-artifacts/
+          if-no-files-found: error
+          retention-days: 14
