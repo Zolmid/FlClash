@@ -4,7 +4,7 @@ import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 class AgeKeyGeneratorDialog extends ConsumerStatefulWidget {

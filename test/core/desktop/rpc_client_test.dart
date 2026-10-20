@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:fl_clash/core/desktop/rpc_client.dart';
 import 'package:fl_clash/core/event.dart';
 import 'package:fl_clash/core/method.dart';
+import 'package:fl_clash/core/spill.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart';
 
+import '../../helpers/app_paths.dart';
 import 'fakes.dart';
 
 Future<Map<String, Object?>> _sentRequest(
@@ -17,6 +21,81 @@ Future<Map<String, Object?>> _sentRequest(
 }
 
 void main() {
+  test('disconnect invalidates a response while its spill is read', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final read = Completer<CoreMethodResponse>();
+    final started = Completer<void>();
+    final client = CoreRpcClient(
+      transport,
+      spillResolver: (response, {method}) {
+        started.complete();
+        return read.future;
+      },
+    );
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    final invocation = client.invoke<bool>(method: CoreMethod.getIsInit);
+    final request = await _sentRequest(transport);
+    transport.addJson({'id': request['id'], 'file': 'pending.json'});
+    await started.future;
+    expect(client.pendingCount, 1);
+    final failed = expectLater(
+      invocation,
+      throwsA(
+        isA<CoreMethodException>().having(
+          (e) => e.code,
+          'code',
+          'transport_disconnected',
+        ),
+      ),
+    );
+    transport.disconnect(1);
+    await failed;
+    transport.connect(generation: 2);
+    read.complete(
+      CoreMethodResponse(id: request['id'] as String, result: true),
+    );
+    await pumpEventQueue();
+    expect(client.pendingCount, 0);
+  });
+
+  test('a duplicate response cannot overtake a spill being read', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final read = Completer<CoreMethodResponse>();
+    final started = Completer<void>();
+    var reads = 0;
+    var completed = false;
+    final client = CoreRpcClient(
+      transport,
+      spillResolver: (response, {method}) {
+        reads++;
+        started.complete();
+        return read.future;
+      },
+    );
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    final invocation = client.invoke<bool>(method: CoreMethod.getIsInit);
+    unawaited(
+      invocation.then((_) {
+        completed = true;
+      }),
+    );
+    final request = await _sentRequest(transport);
+    final envelope = {'id': request['id'], 'file': 'pending.json'};
+    transport.addJson(envelope);
+    await started.future;
+    transport.addJson(envelope);
+    transport.addJson({'id': request['id'], 'result': false});
+    await pumpEventQueue();
+    expect(reads, 1);
+    expect(completed, isFalse);
+    read.complete(
+      CoreMethodResponse(id: request['id'] as String, result: true),
+    );
+    expect(await invocation, isTrue);
+  });
+
   test('decodes a large node response in the background', () async {
     final transport = FakeDesktopCoreTransport.connected();
     final client = CoreRpcClient(transport);
@@ -88,6 +167,33 @@ void main() {
       expect(await listener.loaded.future, 'current-provider');
     },
   );
+
+  test('reads a response the Core spilled to a file', () async {
+    final home = Directory.systemTemp.createTempSync('rpc_spill');
+    addTearDown(() => home.deleteSync(recursive: true));
+    await useAppPaths(home);
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    final invocation = client.invoke<Map<String, dynamic>>(
+      method: CoreMethod.getConfig,
+    );
+    final request = await _sentRequest(transport);
+    final file = File(join(home.path, coreSpillDirectoryName, '1.json'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        jsonEncode({
+          'id': request['id'],
+          'result': {'mode': 'rule'},
+        }),
+      );
+
+    transport.addJson({'id': request['id'], 'result': null, 'file': file.path});
+
+    expect(await invocation, {'mode': 'rule'});
+    expect(file.existsSync(), isFalse);
+    await client.close();
+    await transport.close();
+  });
 
   test('correlates a response and ignores a late duplicate', () async {
     final transport = FakeDesktopCoreTransport.connected();

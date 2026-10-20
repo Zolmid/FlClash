@@ -1,8 +1,8 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/icons/icons.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +24,22 @@ String _endpointText(String ip, String port) {
     return '$ip:$port';
   }
   return ip;
+}
+
+void showTrackerInfoDetail(
+  BuildContext context,
+  TrackerInfo trackerInfo,
+  String title,
+) {
+  showInSheet<void>(
+    context,
+    builder: (_) {
+      return CommonScaffold(
+        body: TrackerInfoDetailView(trackerInfo: trackerInfo),
+        title: title,
+      );
+    },
+  );
 }
 
 class TrackerInfoItem extends ConsumerWidget {
@@ -51,17 +67,7 @@ class TrackerInfoItem extends ConsumerWidget {
       ),
     );
     return RecordListItem(
-      onTap: () {
-        showInSheet<void>(
-          context,
-          builder: (_) {
-            return CommonScaffold(
-              body: TrackerInfoDetailView(trackerInfo: trackerInfo),
-              title: detailTitle,
-            );
-          },
-        );
-      },
+      onTap: () => showTrackerInfoDetail(context, trackerInfo, detailTitle),
       header: _buildHeader(context),
       body: _TrackerInfoBody(
         trackerInfo: trackerInfo,
@@ -74,7 +80,9 @@ class TrackerInfoItem extends ConsumerWidget {
   Widget _buildHeader(BuildContext context) {
     final network = Text(
       trackerInfo.metadata.network.toUpperCase(),
-      style: const TextStyle(fontWeight: FontWeight.w500),
+      style: AppTextStyle.caption1
+          .of(context, emphasized: true)
+          .copyWith(color: context.colorScheme.onSurfaceVariant),
     );
     if (!isLive) {
       return RecordHeader(
@@ -135,10 +143,13 @@ class _TrackerInfoBody extends ConsumerWidget {
         children: [
           TextSpan(
             text: _endpointText(trackerInfo.title, metadata.destinationPort),
-            style: styles.primary?.copyWith(fontWeight: FontWeight.w500),
+            style: styles.title,
           ),
           if (metadata.host.isNotEmpty && metadata.destinationIP.isNotEmpty)
-            TextSpan(text: '  ${metadata.destinationIP}', style: styles.muted),
+            TextSpan(
+              text: '  ${metadata.destinationIP}',
+              style: styles.secondary,
+            ),
         ],
       ),
     );
@@ -180,7 +191,7 @@ class _TrackerInfoBody extends ConsumerWidget {
           leading: rule.isNotEmpty ? Text(rule, style: styles.secondary) : null,
           onSelected: onClickKeyword,
         ),
-        if (source.isNotEmpty) Text(source, style: styles.muted),
+        if (source.isNotEmpty) Text(source, style: styles.secondary),
       ],
     );
   }
@@ -230,7 +241,7 @@ class TrackerInfoDetailView extends StatelessWidget {
         horizontal: 16,
       ).copyWith(bottom: 20, top: context.contentTopPadding),
       children: [
-        generateSectionV3(
+        generateSection(
           title: appLocalizations.basicInfo,
           items: _buildRows([
             (appLocalizations.creationTime, trackerInfo.start.showFull),
@@ -241,7 +252,7 @@ class TrackerInfoDetailView extends StatelessWidget {
             (appLocalizations.download, trackerInfo.download.traffic.show),
           ]),
         ),
-        generateSectionV3(
+        generateSection(
           title: appLocalizations.address,
           items: _buildRows([
             (appLocalizations.host, metadata.host),
@@ -261,7 +272,7 @@ class TrackerInfoDetailView extends StatelessWidget {
             (appLocalizations.remoteDestination, metadata.remoteDestination),
           ]),
         ),
-        generateSectionV3(
+        generateSection(
           title: appLocalizations.proxies,
           items: [
             ..._buildRows([

@@ -5,6 +5,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
@@ -22,6 +23,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yaml/yaml.dart';
 
+import '../helpers/app_paths.dart';
 import '../helpers/test_app.dart';
 import '../helpers/test_profiles.dart';
 
@@ -69,13 +71,7 @@ void main() {
   setUpAll(() async {
     await AppLocalizations.load(const Locale('en'));
     home = Directory.systemTemp.createTempSync('flclash-profiles-action-');
-    AppPath.supportDirectory = () async => home;
-    AppPath.temporaryDirectory = () async => home;
-    AppPath.cacheDirectory = () async => home;
-    AppPath.downloadDirectory = () async => home;
-    await appPath.dataDir.future;
-    await appPath.tempDir.future;
-    await appPath.cacheDir.future;
+    await useAppPaths(home);
   });
 
   tearDownAll(() {
@@ -154,6 +150,38 @@ void main() {
       expect(action.lastUpdateAttempt(profile.id), isNotNull);
     },
   );
+
+  test('a queued source edit does not resurrect a deleted profile', () async {
+    when(() => core.clearEffect(any())).thenAnswer((_) async => '');
+    const profile = Profile(
+      id: 43,
+      type: ProfileType.url,
+      url: 'https://old.example.com',
+      autoUpdateDuration: Duration(minutes: 20),
+    );
+    final action = _QueuedProfilesAction();
+    final scoped = ProviderContainer(
+      overrides: [
+        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        profilesActionProvider.overrideWith(() => action),
+        setupActionProvider.overrideWith(_NoProfileApply.new),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    scoped.read(profilesActionProvider.notifier);
+    final active = action.updateProfile(profile.id);
+    final queued = action.updateProfileSource(
+      profile.copyWith(url: 'https://new.example.com'),
+    );
+    await scoped.read(profilesProvider.notifier).del(profile.id);
+    action.responses.single.complete(
+      profile.copyWith(lastUpdateDate: DateTime.now()),
+    );
+    await Future.wait([active, queued]);
+    expect(scoped.read(profilesProvider), isEmpty);
+    expect(action.requests, [profile]);
+  });
 
   test('failed manual refreshes record an attempt for the scheduler', () async {
     const profile = Profile(
@@ -289,18 +317,23 @@ void main() {
         final navigator = globalState.navigatorKey.currentState!;
         final editor = navigator.push<void>(
           MaterialPageRoute(
-            builder: (context) =>
-                EditProfileView(context: context, profile: profile),
+            builder: (context) => const EditProfileView(profile: profile),
           ),
         );
         await tester.pumpAndSettle();
         final l10n = currentAppLocalizations;
         await tester.enterText(
-          find.widgetWithText(TextFormField, l10n.url),
+          find.descendant(
+            of: find.widgetWithText(FormRow, l10n.url),
+            matching: find.byType(EditableText),
+          ),
           edited.url,
         );
         await tester.enterText(
-          find.widgetWithText(TextFormField, l10n.ageSecretKey),
+          find.descendant(
+            of: find.widgetWithText(FormRow, l10n.ageSecretKey),
+            matching: find.byType(EditableText),
+          ),
           edited.ageSecretKey,
         );
         await tester.tap(find.byTooltip(l10n.save));

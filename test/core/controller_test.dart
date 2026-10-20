@@ -39,9 +39,6 @@ void main() {
     registerFallbackValue(
       const ChangeProxyParams(groupName: 'G', proxyName: 'P'),
     );
-    registerFallbackValue(
-      const UpdateGeoDataParams(geoType: 't', geoName: 'n'),
-    );
   });
 
   setUp(() {
@@ -396,6 +393,34 @@ void main() {
       expect(result?.name, 'P1');
       expect(result?.value, 100);
     });
+
+    test(
+      'startListener preserves the frozen payload and freshness guard',
+      () async {
+        const frozen = SharedState(
+          stopTip: '',
+          startTip: '',
+          localNetworkTip: '',
+          currentProfileName: 'applied',
+          stopText: '',
+          onlyStatisticsProxy: false,
+        );
+        bool isCurrent() => true;
+        when(
+          () => mock.startListener(startState: frozen, isCurrent: isCurrent),
+        ).thenAnswer((_) async => true);
+        expect(
+          await controller.startListener(
+            startState: frozen,
+            isCurrent: isCurrent,
+          ),
+          isTrue,
+        );
+        verify(
+          () => mock.startListener(startState: frozen, isCurrent: isCurrent),
+        ).called(1);
+      },
+    );
 
     test('startListener delegates', () async {
       when(() => mock.startListener()).thenAnswer((_) async => true);

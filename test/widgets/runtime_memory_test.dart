@@ -58,8 +58,8 @@ void main() {
         container: container,
         child: TestApp(
           child: MemoryDetailSheet(
-            snapshot: snapshot,
-            onRelease: () async => 0,
+            initial: snapshot.value,
+            memoryReader: () async => snapshot.value,
             runtimeReader: reader,
           ),
         ),

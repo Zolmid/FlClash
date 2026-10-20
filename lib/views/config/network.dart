@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/views/config/override.dart';
+import 'package:fl_clash/views/config/tun.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -180,32 +183,6 @@ class TunStackItem extends ConsumerWidget {
   }
 }
 
-class RecvMsgXItem extends ConsumerWidget {
-  const RecvMsgXItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => ConfigToggleItem(
-    title: (l) => l.recvMsgX,
-    selector: patchClashConfigProvider.select((state) => state.tun.recvMsgX),
-    onChanged: _tunWriter(
-      (state, value) => state.copyWith.tun(recvMsgX: value),
-    ),
-  );
-}
-
-class SendMsgXItem extends ConsumerWidget {
-  const SendMsgXItem({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => ConfigToggleItem(
-    title: (l) => l.sendMsgX,
-    selector: patchClashConfigProvider.select((state) => state.tun.sendMsgX),
-    onChanged: _tunWriter(
-      (state, value) => state.copyWith.tun(sendMsgX: value),
-    ),
-  );
-}
-
 class InterfaceNameModeItem extends ConsumerWidget {
   const InterfaceNameModeItem({super.key});
 
@@ -313,14 +290,6 @@ class LoopbackItem extends StatelessWidget {
 
 const _maxUint32 = 0xFFFFFFFF;
 
-// The congestion controls mipstack registers, cubic first as its default.
-const _congestionControllers = [
-  defaultCongestionController,
-  'reno',
-  'bbr',
-  'bbr3',
-];
-
 class _NumberItem extends ConsumerWidget {
   const _NumberItem({
     required this.title,
@@ -375,11 +344,9 @@ class _NumberItem extends ConsumerWidget {
   }
 }
 
-List<Widget> tunItems({
-  required bool isLinux,
-  required bool isWindows,
-  required bool isMipsStack,
-}) {
+// Android's VPN service starts from these rows; the desktop TUN takes the
+// same keys as overrides, so a profile's own values apply unless picked.
+List<Widget> tunItems({required bool isMipsStack}) {
   return [
     _NumberItem(
       title: (l) => 'MTU',
@@ -391,23 +358,13 @@ List<Widget> tunItems({
     if (isMipsStack)
       ConfigOptionsItem<String>(
         title: (l) => l.congestionController,
-        options: _congestionControllers,
+        options: congestionControllers,
         textBuilder: (value) => value,
         selector: patchClashConfigProvider.select(
           (state) => state.tun.congestionController,
         ),
         onChanged: _tunWriter(
           (state, value) => state.copyWith.tun(congestionController: value),
-        ),
-      ),
-    if (isLinux || isWindows)
-      ConfigToggleItem(
-        title: (l) => l.strictRoute,
-        selector: patchClashConfigProvider.select(
-          (state) => state.tun.strictRoute,
-        ),
-        onChanged: _tunWriter(
-          (state, value) => state.copyWith.tun(strictRoute: value),
         ),
       ),
     const BypassPrivateRouteItem(),
@@ -427,27 +384,60 @@ List<Widget> tunItems({
 }
 
 class TunSection extends ConsumerWidget {
-  const TunSection({super.key});
+  const TunSection({
+    super.key,
+    required this.isDesktop,
+    required this.isLinux,
+    required this.isWindows,
+  });
+
+  final bool isDesktop;
+  final bool isLinux;
+  final bool isWindows;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isMipsStack = ref.watch(
-      patchClashConfigProvider.select(
-        (state) => state.tun.stack == TunStack.mips,
-      ),
-    );
     final appLocalizations = context.appLocalizations;
-    return generateSectionV3(
+    if (!isDesktop) {
+      final isMipsStack = ref.watch(
+        patchClashConfigProvider.select(
+          (state) => state.tun.stack == TunStack.mips,
+        ),
+      );
+      return generateSection(
+        title: appLocalizations.tun,
+        items: tunItems(isMipsStack: isMipsStack),
+        footer: appLocalizations.bypassPrivateRouteDesc,
+      );
+    }
+    final spec = appTunOverrideSpec(isLinux: isLinux, isWindows: isWindows);
+    final picked = ref.watch(
+      patchClashConfigProvider.select((state) => state.tunOverrideKeys),
+    );
+    final listed = [
+      for (final key in spec.values)
+        if (picked.contains(key)) key,
+    ];
+    void handleAdd() => showOverrideAddSheet(context, ref, spec);
+    return generateAnimatedSection(
       title: appLocalizations.tun,
-      items: tunItems(
-        isLinux: system.isLinux,
-        isWindows: system.isWindows,
-        isMipsStack: isMipsStack,
-      ),
+      items: [
+        const BypassPrivateRouteItem(key: ValueKey(#bypassPrivateRoute)),
+        for (final key in listed)
+          OverrideEntry(key: ValueKey(key), spec: spec, overrideKey: key),
+        if (listed.length < spec.values.length)
+          FormRow(
+            key: const ValueKey(#add),
+            leading: EntryButton.add(onPressed: handleAdd),
+            title: spec.target.addEntry(appLocalizations),
+            titleStyle: TextStyle(color: context.colorScheme.primary),
+            onPressed: handleAdd,
+          ),
+      ],
       footer: [
-        if (system.isLinux || system.isWindows)
-          appLocalizations.strictRouteDesc,
         appLocalizations.bypassPrivateRouteDesc,
+        appLocalizations.tunOverrideDesc,
+        ?spec.footerOf(listed, appLocalizations),
       ].join('\n'),
     );
   }
@@ -493,12 +483,10 @@ List<Widget> networkOptionsItems({
   required bool isDesktop,
   required bool isMacOS,
   required bool isCustomInterfaceName,
-  bool isIOS = false,
 }) {
   return [
     if (isDesktop) const TUNItem(),
     if (isMacOS) const AutoSetSystemDnsItem(),
-    if (isMacOS || isIOS) ...[const RecvMsgXItem(), const SendMsgXItem()],
     const TunStackItem(),
     // mihomo's DefaultSocketHook ignores interface-name on Android
     // (core/lib.go installHooks, vendored dialer.go), so these rows only
@@ -525,11 +513,11 @@ class VpnSections extends ConsumerWidget {
     return Column(
       children: [
         if (isAndroid)
-          generateSectionV3(
+          generateSection(
             items: const [VPNItem()],
             footer: appLocalizations.vpnEnableDesc,
           ),
-        generateSectionV3(
+        generateSection(
           title: 'VPN',
           items: [
             const VpnSystemProxyItem(),
@@ -556,7 +544,7 @@ class SystemProxySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
-    return generateSectionV3(
+    return generateSection(
       title: appLocalizations.system,
       items: [
         const SystemProxyItem(),
@@ -585,13 +573,12 @@ class NetworkOptionsSection extends ConsumerWidget {
         if (isCustomInterfaceName) appLocalizations.interfaceNameDesc,
       ],
     ];
-    return generateSectionV3(
+    return generateSection(
       title: appLocalizations.options,
       items: networkOptionsItems(
         isDesktop: system.isDesktop,
         isMacOS: system.isMacOS,
         isCustomInterfaceName: isCustomInterfaceName,
-        isIOS: system.isIOS,
       ),
       footer: footer.isEmpty ? null : footer.join('\n'),
     );
@@ -611,9 +598,13 @@ class NetworkListView extends ConsumerWidget {
         if (system.isMobile) const VpnSections(),
         if (system.isDesktop) const SystemProxySection(),
         const NetworkOptionsSection(),
-        const TunSection(),
+        TunSection(
+          isDesktop: system.isDesktop || system.isIOS,
+          isLinux: system.isLinux,
+          isWindows: system.isWindows,
+        ),
         if (system.isIOS)
-          generateSectionV3(
+          generateSection(
             title: context.appLocalizations.networkExtension,
             items: [
               _vpnToggle(
@@ -651,7 +642,7 @@ class NetworkListView extends ConsumerWidget {
                 ),
             ],
           ),
-        generateSectionV3(
+        generateSection(
           title: context.appLocalizations.outbound,
           items: outboundItems(
             isDesktop: system.isDesktop,

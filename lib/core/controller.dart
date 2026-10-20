@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/core/interface.dart';
+import 'package:fl_clash/core/spill.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter/foundation.dart'
@@ -315,8 +316,17 @@ class CoreController {
     return _interface.updateExternalProvider(providerName);
   }
 
-  Future<bool> startListener() async {
-    return _interface.startListener();
+  Future<bool> startListener({
+    SharedState? startState,
+    bool Function()? isCurrent,
+  }) async {
+    if (startState == null && isCurrent == null) {
+      return _interface.startListener();
+    }
+    return _interface.startListener(
+      startState: startState,
+      isCurrent: isCurrent,
+    );
   }
 
   Future<bool> stopListener() async {
@@ -339,15 +349,28 @@ class CoreController {
     return _readConfig(await appPath.getProfilePath(id.toString()));
   }
 
-  Future<Map<String, dynamic>> getAppliedConfig() async {
-    return _readConfig(await appPath.configFilePath);
-  }
-
   Future<Map<String, dynamic>> _readConfig(String path) async {
     final data = Map<String, dynamic>.from(await _interface.getConfig(path));
     data['rules'] = data['rule'];
     data.remove('rule');
     return data;
+  }
+
+  Future<Map<String, dynamic>> getProfileOutbounds(int id) async {
+    return _interface.getProfileOutbounds(
+      await appPath.getProfilePath(id.toString()),
+    );
+  }
+
+  Future<String> buildProfile(SetupBase base) async {
+    return readSpilledText(await _interface.buildProfile(base));
+  }
+
+  Future<({ProfileBase base, String path})> getProfileBase(int id) async {
+    final path = await appPath.getProfilePath(id.toString());
+    final base = await _interface.getProfileBase(path);
+    final config = Map<String, dynamic>.from(base.config)..remove('rule');
+    return (base: base.copyWith(config: config), path: path);
   }
 
   Future<Traffic> getTraffic(bool onlyStatisticsProxy) async {

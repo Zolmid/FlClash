@@ -54,7 +54,7 @@ void main() {
       expect(profile?.url, edited.url);
     });
 
-    test('updates selection, inserts first profile, and reorders profiles', () {
+    test('updates selection and inserts the first profile', () {
       final first = Profile.normal(label: 'First');
       final second = Profile.normal(label: 'Second');
       final container = ProviderContainer(
@@ -77,9 +77,6 @@ void main() {
       action.putProfile(second);
       expect(container.read(currentProfileIdProvider), second.id);
       expect(container.read(profilesProvider), [updatedFirst, second]);
-
-      action.reorder([second, updatedFirst]);
-      expect(container.read(profilesProvider), [second, updatedFirst]);
     });
 
     test(
@@ -111,25 +108,6 @@ void main() {
         expect(container.read(profilesProvider), profiles);
       },
     );
-
-    test('setProfileAndAutoApply stores a non-current profile', () {
-      final current = Profile.normal(label: 'Current');
-      final other = Profile.normal(label: 'Other');
-      final container = ProviderContainer(
-        overrides: [
-          currentProfileIdProvider.overrideWithBuild((_, _) => current.id),
-          profilesProvider.overrideWith(() => TestProfiles([current])),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      container
-          .read(profilesActionProvider.notifier)
-          .setProfileAndAutoApply(other);
-
-      expect(container.read(profilesProvider), [current, other]);
-      expect(container.read(currentProfileIdProvider), current.id);
-    });
   });
 
   group('ScriptsAction', () {
@@ -544,6 +522,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             initProvider.overrideWithBuild((_, _) => true),
+            profilesProvider.overrideWith(TestProfiles.new),
             commonActionProvider.overrideWith(_RaceCommonAction.new),
             setupActionProvider.overrideWith(_RaceSetupAction.new),
           ],
@@ -574,6 +553,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             initProvider.overrideWithBuild((_, _) => true),
+            profilesProvider.overrideWith(TestProfiles.new),
             commonActionProvider.overrideWith(_RaceCommonAction.new),
             setupActionProvider.overrideWith(_RaceSetupAction.new),
           ],
@@ -611,6 +591,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             initProvider.overrideWithBuild((_, _) => true),
+            profilesProvider.overrideWith(TestProfiles.new),
             commonActionProvider.overrideWith(_RaceCommonAction.new),
             setupActionProvider.overrideWith(_RaceSetupAction.new),
             // Bypassing private addresses computes the routes in an isolate,
@@ -647,6 +628,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             initProvider.overrideWithBuild((_, _) => true),
+            profilesProvider.overrideWith(TestProfiles.new),
             commonActionProvider.overrideWith(_RaceCommonAction.new),
             setupActionProvider.overrideWith(_RaceSetupAction.new),
           ],
@@ -676,6 +658,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             initProvider.overrideWithBuild((_, _) => true),
+            profilesProvider.overrideWith(TestProfiles.new),
             commonActionProvider.overrideWith(_RaceCommonAction.new),
             setupActionProvider.overrideWith(_InitializingSetupAction.new),
           ],
@@ -705,6 +688,7 @@ void main() {
           final container = ProviderContainer(
             overrides: [
               initProvider.overrideWithBuild((_, _) => true),
+              profilesProvider.overrideWith(TestProfiles.new),
               suspendProvider.overrideWithValue(true),
               commonActionProvider.overrideWith(_RaceCommonAction.new),
               setupActionProvider.overrideWith(_RaceSetupAction.new),
@@ -1010,7 +994,11 @@ class _RaceSetupAction extends SetupAction {
   }
 
   @override
-  Future<bool> setCoreRunning(bool running) async {
+  Future<bool> setCoreRunning(
+    bool running, {
+    SharedState? startState,
+    bool Function()? isCurrent,
+  }) async {
     transitions.add(running);
     return running
         ? await startCompleter?.future ?? true

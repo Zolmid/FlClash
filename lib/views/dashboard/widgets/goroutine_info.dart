@@ -1,16 +1,17 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/core.dart';
-import 'package:fl_clash/views/dashboard/widget_metrics.dart';
+import 'package:fl_clash/views/dashboard/layout.dart';
+import 'package:fl_clash/views/dashboard/style.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'feed_card.dart';
+import 'card.dart';
 
 class GoroutineInfo extends ConsumerStatefulWidget {
   const GoroutineInfo({super.key, @visibleForTesting this.countReader});
@@ -68,21 +69,23 @@ class _GoroutineInfoState extends ConsumerState<GoroutineInfo>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: DashboardWidgetMetrics.heightOf(context, 1),
-      child: CommonCard(
-        radius: DashboardWidgetMetrics.radiusOf(context),
-        infoPadding: DashboardWidgetMetrics.paddingOf(
-          context,
-        ).copyWith(bottom: 0),
-        info: Info(
-          label: context.appLocalizations.goroutineInfo,
-          glyph: AppGlyphs.cpu,
-        ),
-        child: Padding(
-          padding: DashboardWidgetMetrics.paddingOf(context).copyWith(top: 0),
-          child: FeedCount(count: _count),
-        ),
+    final density = DashboardDensityScope.of(context);
+    return DashboardCard(
+      semanticLabel: context.appLocalizations.goroutineInfo,
+      child: Column(
+        mainAxisSize: density.isDesktop ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DashboardCardHeader(
+            glyph: AppGlyphs.cpu,
+            title: context.appLocalizations.goroutineInfo,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '$_count',
+            style: DashboardText.figure(context, AppTextStyle.title1),
+          ),
+        ],
       ),
     );
   }

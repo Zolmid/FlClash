@@ -4,7 +4,9 @@ import 'dart:io';
 
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/common/system.dart';
-import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/ui/color.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/ui/surface.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -130,19 +132,8 @@ extension RecordToneExt on RecordTone {
   Color? accentColor(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return switch (this) {
-      RecordTone.warning => colorScheme.tertiary,
+      RecordTone.warning => colorScheme.warning,
       RecordTone.error => colorScheme.error,
-      RecordTone.muted || RecordTone.neutral => null,
-    };
-  }
-
-  Color? tintColor(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return switch (this) {
-      RecordTone.warning => colorScheme.tertiaryContainer.withValues(
-        alpha: 0.2,
-      ),
-      RecordTone.error => colorScheme.errorContainer.withValues(alpha: 0.2),
       RecordTone.muted || RecordTone.neutral => null,
     };
   }
@@ -152,7 +143,7 @@ extension RecordToneExt on RecordTone {
     return switch (this) {
       RecordTone.muted => colorScheme.outline,
       RecordTone.neutral => colorScheme.onSurfaceVariant,
-      RecordTone.warning => colorScheme.onTertiaryContainer,
+      RecordTone.warning => colorScheme.onWarningContainer,
       RecordTone.error => colorScheme.onErrorContainer,
     };
   }
@@ -160,9 +151,9 @@ extension RecordToneExt on RecordTone {
   Color labelContainerColor(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return switch (this) {
-      RecordTone.muted => colorScheme.surfaceContainerHigh,
-      RecordTone.neutral => colorScheme.surfaceContainerHighest,
-      RecordTone.warning => colorScheme.tertiaryContainer,
+      RecordTone.muted ||
+      RecordTone.neutral => context.raisedSurfaceLevel.colorOf(colorScheme),
+      RecordTone.warning => colorScheme.warningContainer,
       RecordTone.error => colorScheme.errorContainer,
     };
   }
@@ -184,7 +175,7 @@ extension MessageLevelExt on MessageLevel {
     final colorScheme = Theme.of(context).colorScheme;
     return switch (this) {
       MessageLevel.error => colorScheme.errorContainer,
-      _ => colorScheme.surfaceContainerHigh,
+      _ => SurfaceLevel.floatingOf(colorScheme).colorOf(colorScheme),
     };
   }
 
@@ -200,8 +191,8 @@ extension MessageLevelExt on MessageLevel {
     final colorScheme = Theme.of(context).colorScheme;
     return switch (this) {
       MessageLevel.info => colorScheme.onSurfaceVariant,
-      MessageLevel.success => colorScheme.primary,
-      MessageLevel.warning => colorScheme.tertiary,
+      MessageLevel.success => colorScheme.success,
+      MessageLevel.warning => colorScheme.warning,
       MessageLevel.error => colorScheme.onErrorContainer,
     };
   }
@@ -242,6 +233,7 @@ enum CoreEventType {
   log,
   delay,
   request,
+  requestTraffic,
   dns,
   loaded,
   crash,
@@ -256,13 +248,11 @@ enum InterfaceNameMode { clear, follow, custom }
 
 enum RestoreOption { all, onlyProfiles }
 
-enum CommonCardType { plain, filled }
-
 enum ProxiesType { tab, list }
 
 enum ProxiesLayout { loose, standard, tight }
 
-enum ProxyCardType { expand, shrink, min }
+enum ProxyCardType { loose, standard, compact }
 
 enum DnsMode {
   normal,
@@ -339,6 +329,7 @@ enum DnsOverrideKey with OverrideKey {
     fakeIpFilterMode,
     defaultNameserver,
     nameserver,
+    fallback,
     proxyServerNameserver,
     directNameserver,
   };
@@ -382,11 +373,26 @@ enum SnifferOverrideKey with OverrideKey {
 }
 
 /// Written over the profile's `tun` section, which Android's VPN never reads,
-/// so these apply on desktop only. The network settings' `Tun` holds the rest.
+/// so these apply on desktop only, beside the keys of `Tun.coreJson`.
 @JsonEnum(valueField: 'path')
 enum TunOverrideKey with OverrideKey {
+  mtu('mtu'),
+  congestionController('congestion-controller'),
+  strictRoute('strict-route'),
+  recvMsgX('recvmsgx'),
+  sendMsgX('sendmsgx'),
+  routeAddress('route-address'),
+  routeExcludeAddress('route-exclude-address'),
+  dnsHijack('dns-hijack'),
+  udpTimeout('udp-timeout'),
   disableIcmpForwarding('disable-icmp-forwarding'),
-  excludeInterface('exclude-interface');
+  gso('gso'),
+  includeInterface('include-interface'),
+  excludeInterface('exclude-interface'),
+  includeUid('include-uid'),
+  excludeUid('exclude-uid'),
+  excludeSrcPort('exclude-src-port'),
+  excludeDstPort('exclude-dst-port');
 
   const TunOverrideKey(this.path);
 
@@ -435,15 +441,6 @@ enum HotAction {
 
 enum ProxiesIconStyle { filled, plain, hidden }
 
-enum FontFamily {
-  twEmoji('Twemoji'),
-  jetBrainsMono('JetBrainsMono');
-
-  final String value;
-
-  const FontFamily(this.value);
-}
-
 enum EditorFontSize {
   standard(16),
   large(18),
@@ -469,24 +466,17 @@ enum TunAuthorizationState { none, authorized, unauthorized }
 
 enum FunctionTag {
   updateConfig,
-  setupConfig,
   updateGroups,
   applyProfile,
   savePreferences,
   changeProxy,
-  handleWill,
   updateDelay,
   autoLaunch,
-  updatePageIndex,
-  pageChange,
-  proxiesTabChange,
   logs,
   requests,
   dnsQueries,
-  autoScrollToEnd,
   loadedProvider,
   saveSharedFile,
-  removeProxy,
   suspend,
   coreErrorNotifier,
   dialerLoopNotifier,
@@ -494,22 +484,17 @@ enum FunctionTag {
 }
 
 enum DashboardWidget {
+  currentOutbound,
   networkSpeed,
   outboundMode,
-  trafficUsage,
-  networkDetection,
-  tunButton(platforms: desktopPlatforms),
   vpnButton(platforms: [SupportPlatform.Android]),
-  systemProxyButton(platforms: desktopPlatforms),
+  networkTakeover(platforms: desktopPlatforms),
+  serviceStatus,
+  profiles,
+  proxyGroups,
+  connectionStats,
   intranetIp,
   memoryInfo,
-  serviceStatus,
-  dnsQueries,
-  requests,
-  connections,
-  runTime,
-  proxyGroups,
-  profiles,
   goroutineInfo;
 
   final List<SupportPlatform> platforms;
@@ -843,9 +828,11 @@ enum RestoreStrategy { compatible, override }
 
 enum TabAnimation { slide, fade }
 
+enum LiquidGlassMode { none, standard, ultra }
+
 enum Language { yaml, javaScript, json }
 
-enum ScrollPositionCacheKey { tools, profiles, proxiesList, proxiesTabList }
+enum ScrollPositionCacheKey { proxiesTabList }
 
 enum QueryTag { proxies, access }
 
@@ -863,46 +850,3 @@ enum LoadingTag {
 enum CoreStatus { connecting, connected, disconnected }
 
 enum UpdatingScope { core, local }
-
-enum ItemPosition {
-  start,
-  middle,
-  end,
-  startAndEnd;
-
-  static ItemPosition get(int index, int length) {
-    ItemPosition position = ItemPosition.middle;
-    if (length == 1) {
-      position = ItemPosition.startAndEnd;
-    } else if (index == length - 1) {
-      position = ItemPosition.end;
-    } else if (index == 0) {
-      position = ItemPosition.start;
-    }
-    return position;
-  }
-
-  static ItemPosition calculateVisualPosition<T>(
-    int currentIndex,
-    List<T> items,
-    Set<T> deletedItems,
-  ) {
-    if (deletedItems.isEmpty) {
-      return ItemPosition.get(currentIndex, items.length);
-    }
-    final currentItem = items[currentIndex];
-    if (deletedItems.contains(currentItem)) {
-      return ItemPosition.middle;
-    }
-    final int visualLength = items.length - deletedItems.length;
-    if (visualLength <= 0) return ItemPosition.middle;
-    int deletedCountBeforeMe = 0;
-    for (int i = 0; i < currentIndex; i++) {
-      if (deletedItems.contains(items[i])) {
-        deletedCountBeforeMe++;
-      }
-    }
-    final int visualIndex = currentIndex - deletedCountBeforeMe;
-    return ItemPosition.get(visualIndex, visualLength);
-  }
-}

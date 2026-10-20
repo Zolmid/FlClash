@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/event.dart';
 import 'package:fl_clash/core/method.dart';
+import 'package:fl_clash/core/spill.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter/foundation.dart';
@@ -13,11 +14,23 @@ final _utf8JsonDecoder = utf8.decoder.fuse(json.decoder);
 
 Object? _decodeUtf8Json(Uint8List data) => _utf8JsonDecoder.convert(data);
 
-Future<Object?> _decodeResponse(Uint8List data) async {
-  if (data.length < 51200) {
-    return _decodeUtf8Json(data);
+Map<String, Object?> _decodeResponseOf((Object, CoreMethod) request) {
+  final (data, method) = request;
+  final decoded = data is String
+      ? json.decode(data)
+      : _decodeUtf8Json(data as Uint8List);
+  return withResultModel(method, Map<String, Object?>.from(decoded as Map));
+}
+
+Future<Map<String, Object?>> _decodeResponse(
+  Object data,
+  CoreMethod method,
+) async {
+  final length = data is String ? data.length : (data as Uint8List).length;
+  if (length < 51200) {
+    return _decodeResponseOf((data, method));
   }
-  return compute(_decodeUtf8Json, data);
+  return compute(_decodeResponseOf, (data, method));
 }
 
 abstract mixin class ServiceListener {
@@ -33,6 +46,7 @@ class Service {
   late MethodChannel methodChannel;
   final bool _isIOS;
   final _tunnelState = ValueNotifier(TunnelState.pending);
+  static const _coreChannel = MethodChannel('$packageName/core');
 
   ValueListenable<TunnelState> get tunnelState => _tunnelState;
 
@@ -81,9 +95,12 @@ class Service {
           );
           break;
         case 'event':
-          final data = call.arguments as String? ?? '';
+          final data = call.arguments;
+          final decoded = data is String
+              ? json.decode(data)
+              : _decodeUtf8Json(data as Uint8List);
           final methodCall = CoreMethodCall.fromJson(
-            Map<String, Object?>.from(json.decode(data) as Map),
+            Map<String, Object?>.from(decoded as Map),
           );
           for (final event in coreEventsFromData(methodCall.arguments)) {
             _dispatch(
@@ -107,17 +124,18 @@ class Service {
   }
 
   Future<CoreMethodResponse?> invokeMethod(CoreMethodCall call) async {
-    final data = await methodChannel.invokeMethod<Object>(
+    final channel = _isIOS ? methodChannel : _coreChannel;
+    final data = await channel.invokeMethod<Object>(
       'invokeMethod',
       json.encode(call),
     );
     if (data == null) {
       return null;
     }
-    final dataJson = _isIOS
-        ? await (data as String).decodeJson<Object?>()
-        : await _decodeResponse(data as Uint8List);
-    return CoreMethodResponse.fromJson(dataJson as Map<String, dynamic>);
+    return resolveSpilledResponse(
+      CoreMethodResponse.fromJson(await _decodeResponse(data, call.method)),
+      method: call.method,
+    );
   }
 
   void _dispatch(String label, void Function(ServiceListener) deliver) {

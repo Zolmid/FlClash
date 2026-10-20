@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/providers/app.dart';
+import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +25,7 @@ void _mockClipboard(WidgetTester tester, Future<Object?> Function() read) {
 
 Future<void> _openDialog(
   WidgetTester tester, {
-  NamedUrlDialog dialog = const NamedUrlDialog(title: 'Import'),
+  NamedUrlForm dialog = const NamedUrlForm(title: 'Import'),
   void Function(List<NamedUrl>?)? onResult,
 }) async {
   tester.view.physicalSize = const Size(1200, 1000);
@@ -39,7 +40,7 @@ Future<void> _openDialog(
       child: Builder(
         builder: (context) => TextButton(
           onPressed: () async {
-            final result = await showDialog<List<NamedUrl>>(
+            final result = await showFormSheet<List<NamedUrl>>(
               context: context,
               builder: (_) => dialog,
             );
@@ -54,11 +55,13 @@ Future<void> _openDialog(
   await tester.pumpAndSettle();
 }
 
+Finder _field(String title) => find.descendant(
+  of: find.widgetWithText(FormRow, title),
+  matching: find.byType(TextFormField),
+);
+
 EditableText _urlInput(WidgetTester tester) => tester.widget<EditableText>(
-  find.descendant(
-    of: find.widgetWithText(TextFormField, 'URL'),
-    matching: find.byType(EditableText),
-  ),
+  find.descendant(of: _field('URL'), matching: find.byType(EditableText)),
 );
 
 void main() {
@@ -70,15 +73,12 @@ void main() {
       List<NamedUrl>? result;
       await _openDialog(
         tester,
-        dialog: const NamedUrlDialog(title: 'Import', withAgeSecretKey: true),
+        dialog: const NamedUrlForm(title: 'Import', withAgeSecretKey: true),
         onResult: (value) => result = value,
       );
+      await tester.enterText(_field('Name'), 'Home');
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Name'),
-        'Home',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Age secret key'),
+        _field('Age secret key'),
         'AGE-SECRET-KEY-1EXAMPLE',
       );
       await tester.tap(find.byTooltip('Paste'));
@@ -91,7 +91,7 @@ void main() {
         const TextSelection.collapsed(offset: url.length),
       );
       expect(result, isNull);
-      expect(find.byType(NamedUrlDialog), findsOneWidget);
+      expect(find.byType(NamedUrlForm), findsOneWidget);
 
       await tester.tap(find.text('Submit'));
       await tester.pumpAndSettle();
@@ -111,7 +111,7 @@ void main() {
       });
       await _openDialog(
         tester,
-        dialog: const NamedUrlDialog(
+        dialog: const NamedUrlForm(
           title: 'Import',
           url: 'https://example.com/original',
         ),
@@ -163,7 +163,7 @@ void main() {
     List<NamedUrl>? result;
     await _openDialog(
       tester,
-      dialog: NamedUrlDialog(
+      dialog: NamedUrlForm(
         title: 'Import',
         batch: true,
         existingUrls: const {'https://example.com/old'},
