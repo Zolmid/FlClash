@@ -10,9 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 class Dialogs {
   Dialogs._();
 
-  // Focus sits in the route the user acts in, so an alert raised from a form
-  // sheet, or a page pushed inside one, opens over it, beside the navigation
-  // as the sheet sits.
+  // Focus identifies the active sheet's navigator for nested alerts.
   BuildContext get _context {
     var context = FocusManager.instance.primaryFocus?.context;
     while (context != null) {

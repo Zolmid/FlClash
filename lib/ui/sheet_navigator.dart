@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 
-/// A sheet's own navigator, which holds only the pages of that sheet.
 class SheetPagesNavigator extends Navigator {
   const SheetPagesNavigator({super.key, super.onGenerateInitialRoutes});
 }
@@ -23,7 +22,6 @@ final _covers = Expando<ProxyAnimation>();
 ProxyAnimation _coverOf(Route<dynamic> route) =>
     _covers[route] ??= ProxyAnimation(kAlwaysDismissedAnimation);
 
-/// Hands the route below the sheet's entrance, for it to step back behind.
 mixin SheetCoverRouteMixin<T> on TransitionRoute<T> {
   ProxyAnimation? _covered;
 

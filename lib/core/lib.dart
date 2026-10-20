@@ -121,8 +121,7 @@ class CoreLib extends CoreHandlerInterface {
     }
   }
 
-  // The service opens and closes the Core's listeners itself and reports a run
-  // that ends, so once it takes the command the Core's own answer is moot.
+  // Native service lifecycle owns listener results; a Core reply cannot override its accepted command.
   @override
   Future<bool> startListener({
     SharedState? startState,

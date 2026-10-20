@@ -14,7 +14,6 @@ concurrency:
 
 env:
   IS_STABLE: ${{ !contains(github.ref, '-') }}
-  # See CI Caches in .agents/commands.md.
   BRANCH_CACHE: ${{ !startsWith(github.ref, 'refs/tags/') }}
   FLUTTER_VERSION: '3.47.6'
   GO_VERSION: '1.27.1'
@@ -427,8 +426,7 @@ jobs:
         if: matrix.platform == 'macos' && matrix.arch == 'amd64'
         run: plutil -replace FLTEnableImpeller -bool NO macos/Runner/Info.plist
 
-      # The core embeds this bundle and FlClashHttpOverrides.trustCoreRoots loads it for Dart.
-      # Pinned by hash, so a new bundle from https://curl.se/docs/caextract.html is a reviewed bump.
+      # Reviewed hash pins the CA roots shared by the Core and Dart.
       - name: Fetch CA certificates
         shell: bash
         env:

@@ -119,8 +119,7 @@ GroupsState _hideTimeoutProxies(Ref ref, GroupsState groups) {
   );
 }
 
-/// Searches before hiding, so a group whose matches all timed out keeps them,
-/// and with them its delay test, instead of dropping out of the results.
+/// Searches first so hiding timeouts preserves matching groups for retesting.
 @riverpod
 GroupsState filterGroupsState(Ref ref, String query) {
   final searchQuery = SearchQuery(query);

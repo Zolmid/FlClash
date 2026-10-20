@@ -1,8 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
-/// Apple's iOS Dynamic Type scale at its default size, a dp per point, with
-/// two steps it lacks: [display] for a dashboard figure, [pageTitle] for an app
-/// bar.
+/// Apple's iOS Dynamic Type scale, plus [display] for dashboard figures and
+/// [pageTitle] for app bars; one dp per point.
 enum AppTextStyle {
   display(40, 44, emphasizedWeight: FontWeight.w700),
   largeTitle(34, 41, emphasizedWeight: FontWeight.w700),

@@ -12,21 +12,17 @@ final Animatable<Offset> _slideTween = Tween<Offset>(
 );
 const Animation<Offset> _noSlide = AlwaysStoppedAnimation(Offset.zero);
 
-/// Lets a press anywhere on the route drag it toward the reading end to pop.
-/// A horizontal scrollable, slider or text field under the pointer is deeper
-/// in the hit test, so it wins the arena and keeps the drag.
+/// Nested scrollables, sliders and fields join the arena before this route drag.
 mixin DragBackRouteMixin<T> on ModalRoute<T> {
   bool _dragBackActive = false;
 
-  /// What a page hands back to its opener when a pop brings no result of its
-  /// own, as a drag back's does, so the page need not veto pops to answer.
+  /// Supplies a result for gesture pops without vetoing the pop.
   ValueGetter<Object?>? pageResult;
 
   @override
   T? get currentResult => pageResult?.call() as T?;
 
-  /// While true the route's own transition should follow the finger linearly,
-  /// through the release until the route settles.
+  /// Keeps the transition linear through the drag and release settling.
   bool get isDragBackActive => _dragBackActive;
 
   @protected
@@ -40,10 +36,8 @@ mixin DragBackRouteMixin<T> on ModalRoute<T> {
     return _DragBackDetector(route: this, child: child);
   }
 
-  /// Follows the finger while a drag back is active and stays still
-  /// otherwise. A route keeps it in its tree either way: wrapping the page
-  /// only once the drag starts would move the page to a new parent, which
-  /// rebuilds all of it.
+  /// Keep this wrapper mounted: adding a parent when dragging starts
+  /// would rebuild the page.
   Widget dragBackSlide(
     BuildContext context,
     Animation<double> animation,
@@ -56,9 +50,8 @@ mixin DragBackRouteMixin<T> on ModalRoute<T> {
     );
   }
 
-  // popGestureEnabled no longer waits for the route to be fully uncovered or
-  // for another drag back to settle, and NavigatorResizable would settle on
-  // a pop still running under the drag.
+  // popGestureEnabled no longer excludes covered or settling routes;
+  // NavigatorResizable must not settle beneath an active gesture.
   bool get _canDragBack =>
       isCurrent &&
       popGestureEnabled &&
@@ -71,10 +64,8 @@ mixin DragBackRouteMixin<T> on ModalRoute<T> {
     navigator!.didStartUserGesture();
   }
 
-  // Either end reached mid-drag would flip the animation's status, which
-  // routes take for a finished transition: TransitionRoute turns the route
-  // opaque and OpenContainer hides or returns its tile. The release settles
-  // the last bit.
+  // Mid-drag endpoints finalize route opacity or OpenContainer ownership
+  // early; only release may settle the last bit.
   void _updateDragBack(double delta) {
     final controller = this.controller!;
     controller.value = clampDouble(

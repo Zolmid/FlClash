@@ -124,7 +124,6 @@ abstract class TrackerInfo with _$TrackerInfo {
       _$TrackerInfoFromJson(json);
 }
 
-/// Reads the Core's `getConnections` answer.
 List<TrackerInfo> trackerInfosOf(Object? data) {
   final connections = data is Map ? data['connections'] : null;
   if (connections is! List) {
@@ -550,7 +549,6 @@ extension GroupExt on Group {
     return proxyName.isNotEmpty && _isMember(proxyName) ? proxyName : realNow;
   }
 
-  /// A saved pick outlives a subscription update that renames or drops it.
   bool _isMember(String proxyName) =>
       all.isEmpty || all.any((proxy) => proxy.name == proxyName);
 }

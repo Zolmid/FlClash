@@ -151,7 +151,6 @@ const _retiredDashboardWidgets = {
   'overrideNtpButton',
 };
 
-/// The current outbound card cannot be removed: a list without it predates it.
 List<DashboardWidget> dashboardWidgetsFromJson(
   List<dynamic>? dashboardWidgets,
 ) {
@@ -449,7 +448,6 @@ abstract class TextScale with _$TextScale {
       _$TextScaleFromJson(json);
 }
 
-// Older configs name one of Material's nine scheme variants instead.
 Object? _readColorStyle(Map<dynamic, dynamic> json, String key) {
   if (json.containsKey(key)) {
     return json[key];
@@ -461,7 +459,6 @@ Object? _readColorStyle(Map<dynamic, dynamic> json, String key) {
   };
 }
 
-// Older configs say whether glass is on.
 Object? _readLiquidGlass(Map<dynamic, dynamic> json, String key) {
   return switch (json[key]) {
     true => LiquidGlassMode.standard.name,

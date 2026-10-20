@@ -9,8 +9,7 @@ import (
 	"github.com/metacubex/mihomo/constant/features"
 )
 
-// Android copies a reply into the Java heap three times and the desktop IPC
-// frame stops at maxIPCFrameSize. The directory name is mirrored in Dart.
+// The Dart-mirrored directory avoids oversized IPC frames and Android's repeated heap copies.
 const (
 	responseSpillThreshold = 1 << 20
 	spilledResponseDirName = "responses"

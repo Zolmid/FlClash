@@ -90,7 +90,6 @@ typedef RealProfile = ({
   ProfileTun tun,
 });
 
-/// Counts what the Core was handed, not what the profile file declares.
 ConfigCounts configCountsOf(Map<Object?, Object?> config) {
   int lengthOf(Object? value) => value is List ? value.length : 0;
   return (
@@ -212,11 +211,8 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
   rawConfig['authentication'] = data.authentication;
   rawConfig['skip-auth-prefixes'] = [];
   rawConfig['mode'] = realPatchConfig.mode.name;
-  // auto-route is always on, so without auto-detect-interface the core sends
-  // its own outbound back into the TUN unless interface-name binds it, and
-  // interface-name wins over the detected interface anyway. A profile's own
-  // dns-hijack may leave queries to other resolvers unhijacked, so only a
-  // picked key replaces any:53.
+  // Detect the outbound interface to avoid routing Core traffic back into TUN.
+  // Hijack all DNS unless an explicit profile override selects another target.
   final tun = {
     if (rawConfig['tun'] is Map) ...rawConfig['tun'] as Map,
     'dns-hijack': defaultDnsHijack,
