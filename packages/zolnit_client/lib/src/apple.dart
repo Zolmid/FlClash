@@ -167,6 +167,7 @@ class ApplePurchaseController extends ChangeNotifier {
   final Map<String, PurchaseDetails> _unverified = {};
   final Set<String> _finished = {};
   String? _accountId;
+  int _catalogRevision = 0;
   int _generation = 0;
   bool _disposed = false;
 
@@ -175,6 +176,10 @@ class ApplePurchaseController extends ChangeNotifier {
   void _set(ApplePurchaseStage value) {
     _stage = value;
     notifyListeners();
+  }
+
+  bool _catalogCurrent(int generation, int catalogRev) {
+    return _current(generation) && catalogRev == _catalogRevision;
   }
 
   void setAccount(String? accountId) {
@@ -193,22 +198,25 @@ class ApplePurchaseController extends ChangeNotifier {
     if (_disposed) throw const ClientFailure('closed');
     if (_busy) throw const ClientFailure('purchase_in_progress');
     final generation = _generation;
+    final catalogRev = _catalogRevision;
     if (!enabled || productIds.isEmpty) {
       _set(ApplePurchaseStage.unavailable);
       return;
     }
     try {
       if (!await store.available()) {
-        if (_current(generation)) _set(ApplePurchaseStage.unavailable);
+        if (_catalogCurrent(generation, catalogRev)) {
+          _set(ApplePurchaseStage.unavailable);
+        }
         return;
       }
-      if (!_current(generation)) return;
+      if (!_catalogCurrent(generation, catalogRev)) return;
       final result = await store.products(productIds);
-      if (!_current(generation)) return;
+      if (!_catalogCurrent(generation, catalogRev)) return;
       _products = List.unmodifiable(result);
       _set(ApplePurchaseStage.idle);
     } catch (_) {
-      if (!_current(generation)) return;
+      if (!_catalogCurrent(generation, catalogRev)) return;
       _failure = 'apple_products_unavailable';
       _set(ApplePurchaseStage.failed);
     }
@@ -238,6 +246,7 @@ class ApplePurchaseController extends ChangeNotifier {
       throw const ClientFailure('unknown_product');
     }
     _failure = null;
+    _catalogRevision++;
     _set(ApplePurchaseStage.purchasing);
     if (!_current(generation)) return;
     try {
@@ -281,6 +290,7 @@ class ApplePurchaseController extends ChangeNotifier {
     int generation,
   ) async {
     if (!productIds.contains(purchase.productID)) return;
+    _catalogRevision++;
     if (purchase.status == PurchaseStatus.pending) {
       _set(ApplePurchaseStage.pending);
       return;
@@ -370,6 +380,7 @@ class ApplePurchaseController extends ChangeNotifier {
     if (!enabled || _accountId == null || productIds.isEmpty) {
       throw const ClientFailure('apple_unavailable');
     }
+    _catalogRevision++;
     _set(ApplePurchaseStage.restoring);
     if (!_current(generation)) return;
     try {

@@ -13,6 +13,8 @@ class Store implements AppleStore {
   int restores = 0;
   String? token;
   bool isAvailable = true;
+  Completer<bool>? checking;
+  Completer<List<ProductDetails>>? querying;
   final product = ProductDetails(
     id: 'monthly',
     title: 'Monthly',
@@ -25,10 +27,12 @@ class Store implements AppleStore {
   @override
   Stream<List<PurchaseDetails>> get purchases => events.stream;
   @override
-  Future<bool> available() async => isAvailable;
+  Future<bool> available() async =>
+      checking != null ? checking!.future : isAvailable;
   @override
   Future<List<ProductDetails>> products(Set<String> ids) async {
     queries++;
+    if (querying != null) return querying!.future;
     return [product];
   }
 
@@ -287,6 +291,132 @@ void main() {
       expect(store.restores, 0);
     },
   );
+
+  group(
+    'stale catalog cannot overwrite a newer purchase or terminal state',
+    () {
+      test('late product success does not reset purchasing to idle', () async {
+        await controller.loadProducts();
+        store.querying = Completer();
+        final refresh = controller.loadProducts();
+        await Future<void>.delayed(Duration.zero);
+        expect(store.queries, 2);
+
+        final buy = controller.buy('monthly');
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.stage, ApplePurchaseStage.purchasing);
+
+        store.querying!.complete([store.product]);
+        await refresh;
+        expect(controller.stage, ApplePurchaseStage.purchasing);
+
+        await expectLater(
+          controller.buy('monthly'),
+          throwsA(
+            isA<ClientFailure>().having(
+              (e) => e.code,
+              'code',
+              'purchase_in_progress',
+            ),
+          ),
+        );
+        expect(store.buys, 1);
+        await buy;
+      });
+
+      test('late availability false does not overwrite purchasing', () async {
+        await controller.loadProducts();
+        store.checking = Completer();
+        final refresh = controller.loadProducts();
+        await Future<void>.delayed(Duration.zero);
+
+        final buy = controller.buy('monthly');
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.stage, ApplePurchaseStage.purchasing);
+
+        store.checking!.complete(false);
+        await refresh;
+        expect(controller.stage, ApplePurchaseStage.purchasing);
+        store.checking = null;
+        await buy;
+      });
+
+      test('late query failure does not overwrite purchasing', () async {
+        await controller.loadProducts();
+        store.querying = Completer();
+        final refresh = controller.loadProducts();
+        await Future<void>.delayed(Duration.zero);
+
+        final buy = controller.buy('monthly');
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.stage, ApplePurchaseStage.purchasing);
+
+        store.querying!.completeError(
+          const ClientFailure('apple_products_unavailable'),
+        );
+        await refresh;
+        expect(controller.stage, ApplePurchaseStage.purchasing);
+        expect(controller.failure, isNull);
+        store.querying = null;
+        await buy;
+      });
+
+      test('applied purchase is preserved from late catalog success', () async {
+        await controller.loadProducts();
+        store.querying = Completer();
+        final refresh = controller.loadProducts();
+        await Future<void>.delayed(Duration.zero);
+
+        await send(purchase());
+        expect(controller.stage, ApplePurchaseStage.applied);
+        expect(store.finishes, 1);
+        expect(store.buys, 0);
+
+        store.querying!.complete([store.product]);
+        await refresh;
+        expect(controller.stage, ApplePurchaseStage.applied);
+        store.querying = null;
+      });
+
+      test('restored state is preserved from late catalog success', () async {
+        await controller.loadProducts();
+        store.querying = Completer();
+        final refresh = controller.loadProducts();
+        await Future<void>.delayed(Duration.zero);
+
+        await controller.restore();
+        expect(controller.stage, ApplePurchaseStage.restored);
+        expect(store.restores, 1);
+
+        store.querying!.complete([store.product]);
+        await refresh;
+        expect(controller.stage, ApplePurchaseStage.restored);
+        expect(store.finishes, 0);
+        expect(store.buys, 0);
+        store.querying = null;
+      });
+    },
+  );
+
+  test('disposal during catalog load silences the result', () async {
+    final localStore = Store();
+    final localController = ApplePurchaseController(
+      store: localStore,
+      backend: backend,
+      productIds: {'monthly'},
+      enabled: true,
+    )..setAccount('accountA');
+    await localController.loadProducts();
+    localStore.querying = Completer();
+    final refresh = localController.loadProducts();
+    await Future<void>.delayed(Duration.zero);
+
+    localController.dispose();
+    localStore.querying!.complete([localStore.product]);
+    await refresh;
+    expect(localController.stage, ApplePurchaseStage.idle);
+    await localStore.close();
+  });
 
   test('invalidating a scheduled purchase prevents native work', () async {
     await controller.loadProducts();
