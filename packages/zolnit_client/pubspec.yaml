@@ -1,0 +1,21 @@
+name: zolnit_client
+description: Xboard client API and platform payment orchestration for ZolNit.
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  flutter_stripe: 14.2.0
+  in_app_purchase: ^3.3.1
+  in_app_purchase_storekit: ^0.4.10
+  url_launcher: ^6.3.3
+  qr_flutter: ^4.1.0
+  zolnit_wechat_pay:
+    path: ../../plugins/zolnit_wechat_pay
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -36,6 +36,9 @@ String? _installConfigUrl(Uri uri) {
   return url == null || url.isEmpty ? null : url;
 }
 
+bool isPaymentReturnLink(Uri uri) =>
+    uri.scheme == 'zolnit' && uri.host == 'safepay';
+
 class LinkManager {
   static LinkManager? _instance;
   StreamSubscription? subscription;
@@ -72,6 +75,7 @@ class LinkManager {
   }
 
   void _handle(Uri uri, Function(String url) installConfigCallBack) {
+    if (isPaymentReturnLink(uri)) return;
     commonPrint.log('onAppLink: $uri');
     final url = _installConfigUrl(uri);
     if (url != null) {

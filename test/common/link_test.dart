@@ -64,6 +64,23 @@ void main() {
     expect(received, isEmpty);
   });
 
+  test(
+    'payment returns are recognized before subscription-link processing',
+    () async {
+      final uri = Uri.parse(
+        'zolnit://safepay?payment_intent_client_secret=private-proof',
+      );
+      expect(isPaymentReturnLink(uri), isTrue);
+      expect(
+        isPaymentReturnLink(Uri.parse('zolnit://install-config')),
+        isFalse,
+      );
+      await listen();
+      await emit(uri.toString());
+      expect(received, isEmpty);
+    },
+  );
+
   test('listening again replaces the previous subscription', () async {
     await listen();
     final first = linkManager.subscription;
