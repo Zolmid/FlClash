@@ -226,6 +226,49 @@ void main() {
   });
 
   group('listeners', () {
+    test(
+      'iOS starts with the frozen applied payload without reading current providers',
+      () async {
+        final frozen = container
+            .read(sharedStateProvider)
+            .copyWith(currentProfileName: 'applied');
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            vpnOptionsProvider.overrideWith(
+              (_) => throw StateError('must not re-read VPN options'),
+            ),
+            sharedStateProvider.overrideWith(
+              (_) => throw StateError('must not re-read shared state'),
+            ),
+          ],
+        );
+        globalState.container = container;
+        lib = CoreLib.scoped(service, listenerManagedByService: true);
+
+        expect(
+          await lib.startListener(startState: frozen, isCurrent: () => true),
+          isTrue,
+        );
+        expect(service.startState, same(frozen));
+        expect(service.calls, ['start']);
+      },
+    );
+
+    test(
+      'iOS rejects a superseded frozen payload before native startup',
+      () async {
+        final frozen = container.read(sharedStateProvider);
+        lib = CoreLib.scoped(service, listenerManagedByService: true);
+
+        expect(
+          await lib.startListener(startState: frozen, isCurrent: () => false),
+          isFalse,
+        );
+        expect(service.calls, isEmpty);
+      },
+    );
+
     test('iOS delegates listener ownership to the native tunnel', () async {
       lib = CoreLib.scoped(service, listenerManagedByService: true);
       await lib.start();
@@ -251,7 +294,7 @@ void main() {
       expect(service.invokedCalls, isEmpty);
     });
 
-    test('a listener is started only when both sides agree', () async {
+    test('a listener start is answered by the service', () async {
       await lib.start();
       service.onInvokeMethod = (_) =>
           const CoreMethodResponse(id: '1', result: true);
@@ -260,6 +303,21 @@ void main() {
 
       service.startResult = false;
       expect(await lib.startListener(), isFalse);
+
+      service.startResult = true;
+      service.onInvokeMethod = (_) => null;
+      expect(await lib.startListener(), isTrue);
+      expect(service.calls.last, 'start');
+    });
+
+    test('a listener stop is answered by the service', () async {
+      await lib.start();
+      service.onInvokeMethod = (_) => null;
+
+      expect(await lib.stopListener(), isTrue);
+
+      service.stopResult = false;
+      expect(await lib.stopListener(), isFalse);
     });
 
     test('stopListener stops the service before the core listener', () async {

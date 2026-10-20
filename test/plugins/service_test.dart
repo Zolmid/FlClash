@@ -1,12 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/core/method.dart';
+import 'package:fl_clash/core/spill.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart';
+
+import '../helpers/app_paths.dart';
 
 class _RecordingListener with ServiceListener {
   final events = <CoreEvent>[];
@@ -53,17 +58,24 @@ void main() {
 
   const channelName = '$packageName/service';
   const channel = MethodChannel(channelName);
+  const coreChannel = MethodChannel('$packageName/core');
   const codec = StandardMethodCodec();
 
   late List<MethodCall> calls;
 
-  void mockChannel(Future<Object?>? Function(MethodCall call) handler) {
+  void mockChannel(
+    Future<Object?>? Function(MethodCall call) handler, {
+    MethodChannel target = channel,
+  }) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
+        .setMockMethodCallHandler(target, (call) async {
           calls.add(call);
           return handler(call);
         });
   }
+
+  void mockCoreChannel(Future<Object?>? Function(MethodCall call) handler) =>
+      mockChannel(handler, target: coreChannel);
 
   Future<void> emitFromPlatform(Object? arguments) async {
     final payload = json.encode(
@@ -72,7 +84,7 @@ void main() {
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
           channelName,
-          codec.encodeMethodCall(MethodCall('event', payload)),
+          codec.encodeMethodCall(MethodCall('event', utf8.encode(payload))),
           null,
         );
   }
@@ -82,8 +94,10 @@ void main() {
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
+    for (final target in [channel, coreChannel]) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(target, null);
+    }
   });
 
   test('is a singleton so the platform handler is installed once', () {
@@ -131,7 +145,6 @@ void main() {
             currentProfileName: 'profile',
             stopText: 'stop',
             onlyStatisticsProxy: false,
-            crashlytics: false,
           ),
         ),
         isEmpty,
@@ -147,7 +160,6 @@ void main() {
         currentProfileName: 'profile',
         stopText: 'stop',
         onlyStatisticsProxy: true,
-        crashlytics: false,
       );
 
       expect(await Service().syncState(state), 'ok');
@@ -222,7 +234,6 @@ void main() {
           currentProfileName: 'profile',
           stopText: 'stop',
           onlyStatisticsProxy: false,
-          crashlytics: false,
           excludeSSIDs: ['Home'],
         );
 
@@ -254,6 +265,74 @@ void main() {
         expect(response?.result, {'up': 1});
       },
     );
+
+    test('decodes a large iOS string response', () async {
+      final names = List.generate(5000, (index) => '节点-$index');
+      mockChannel(
+        (_) async => json.encode(
+          CoreMethodResponse(id: 'large-ios', result: names).toJson(),
+        ),
+      );
+
+      final response = await iosService.invokeMethod(
+        const CoreMethodCall(id: 'large-ios', method: CoreMethod.getProxies),
+      );
+
+      expect(response?.result, names);
+    });
+
+    test('maps iOS connection responses to tracker models', () async {
+      final tracker = TrackerInfo(
+        id: 'ios-connection',
+        start: DateTime.utc(2026, 10, 20),
+        metadata: const Metadata(host: 'example.com'),
+        chains: const ['DIRECT'],
+        rule: 'Match',
+        rulePayload: '',
+      );
+      mockChannel(
+        (_) async => json.encode(
+          CoreMethodResponse(
+            id: 'ios-trackers',
+            result: {
+              'connections': [tracker.toJson()],
+            },
+          ).toJson(),
+        ),
+      );
+
+      final response = await iosService.invokeMethod(
+        const CoreMethodCall(
+          id: 'ios-trackers',
+          method: CoreMethod.getConnections,
+        ),
+      );
+
+      expect(response?.result, [tracker]);
+    });
+
+    test('accepts the native iOS string event envelope', () async {
+      final listener = _RecordingListener();
+      iosService.addListener(listener);
+      final payload = json.encode(
+        const CoreMethodCall(
+          method: CoreMethod.message,
+          arguments: [
+            {'type': 'loaded', 'data': 'provider'},
+          ],
+        ).toJson(),
+      );
+
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            channelName,
+            codec.encodeMethodCall(MethodCall('event', payload)),
+            null,
+          );
+
+      expect(listener.events.single.type, CoreEventType.loaded);
+      expect(listener.events.single.data, 'provider');
+    });
 
     test(
       'publishes native tunnel transitions independently of app core',
@@ -405,7 +484,7 @@ void main() {
 
   group('invokeMethod', () {
     test('encodes the call and decodes the response envelope', () async {
-      mockChannel(
+      mockCoreChannel(
         (_) async => utf8.encode(
           json.encode(
             const CoreMethodResponse(id: '7', result: {'up': 1}).toJson(),
@@ -438,7 +517,7 @@ void main() {
 
     test('decodes a large UTF-8 envelope off the calling isolate', () async {
       final names = List.generate(5000, (index) => '节点-$index');
-      mockChannel(
+      mockCoreChannel(
         (_) async => utf8.encode(
           json.encode(CoreMethodResponse(id: '3', result: names).toJson()),
         ),
@@ -451,8 +530,33 @@ void main() {
       expect(response!.result, names);
     });
 
+    test('reads an envelope the Core spilled to a file', () async {
+      final home = Directory.systemTemp.createTempSync('service_spill');
+      addTearDown(() => home.deleteSync(recursive: true));
+      await useAppPaths(home);
+      final file = File(join(home.path, coreSpillDirectoryName, '1.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          json.encode(
+            const CoreMethodResponse(id: '8', result: 'big').toJson(),
+          ),
+        );
+      mockCoreChannel(
+        (_) async => utf8.encode(
+          json.encode(CoreMethodResponse(id: '8', file: file.path).toJson()),
+        ),
+      );
+
+      final response = await Service().invokeMethod(
+        const CoreMethodCall(id: '8', method: CoreMethod.getConfig),
+      );
+
+      expect(response!.result, 'big');
+      expect(file.existsSync(), isFalse);
+    });
+
     test('returns null when the platform sends no envelope', () async {
-      mockChannel((_) async => null);
+      mockCoreChannel((_) async => null);
 
       expect(
         await Service().invokeMethod(
@@ -463,7 +567,7 @@ void main() {
     });
 
     test('surfaces a Core error inside the envelope', () async {
-      mockChannel(
+      mockCoreChannel(
         (_) async => utf8.encode(
           json.encode({
             'id': '1',
@@ -598,7 +702,7 @@ void main() {
           .defaultBinaryMessenger
           .handlePlatformMessage(
             channelName,
-            codec.encodeMethodCall(const MethodCall('event', '')),
+            codec.encodeMethodCall(MethodCall('event', Uint8List(0))),
             null,
           );
 

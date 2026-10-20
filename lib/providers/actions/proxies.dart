@@ -213,11 +213,11 @@ class ProxiesAction extends _$ProxiesAction {
         if (ref.read(appSettingProvider).promptCloseConnections) {
           final context = globalState.navigatorKey.currentContext;
           if (context != null && context.mounted) {
-            context.showSnackBar(
+            context.showNotifier(
               currentAppLocalizations.closeConnectionsPrompt,
-              action: SnackBarAction(
-                label: currentAppLocalizations.closeConnections,
-                onPressed: () {
+              actionState: MessageActionState(
+                actionText: currentAppLocalizations.closeConnections,
+                action: () {
                   if (_currentSelectedName(groupName) != proxyName) return;
                   unawaited(
                     globalState.safeRun(

@@ -1,10 +1,8 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/icons/icons.dart';
-import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/proxies/list.dart';
-import 'package:fl_clash/views/proxies/providers.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +11,9 @@ import 'setting.dart';
 import 'tab.dart';
 
 class ProxiesView extends ConsumerStatefulWidget {
-  const ProxiesView({super.key});
+  const ProxiesView({super.key, this.picker = false});
+
+  final bool picker;
 
   @override
   ConsumerState<ProxiesView> createState() => _ProxiesViewState();
@@ -21,9 +21,10 @@ class ProxiesView extends ConsumerStatefulWidget {
 
 class _ProxiesViewState extends ConsumerState<ProxiesView> {
   final GlobalKey<ProxiesTabViewState> _proxiesTabKey = GlobalKey();
-  final _scaffoldKey = GlobalKey<CommonScaffoldState>();
-  bool _hasProviders = false;
+
+  late final _tabView = ProxiesTabView(key: _proxiesTabKey);
   bool _isTab = false;
+  final _scaffoldKey = GlobalKey<CommonScaffoldState>();
 
   List<CommonPopupMenuItem> _buildMenuItems(BuildContext context) {
     final appLocalizations = context.appLocalizations;
@@ -36,7 +37,6 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
             context: context,
             builder: (_) {
               return CommonScaffold(
-                key: _scaffoldKey,
                 body: const ProxiesSetting(),
                 title: appLocalizations.settings,
               );
@@ -44,19 +44,6 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
           );
         },
       ),
-      if (_hasProviders)
-        CommonPopupMenuItem(
-          glyph: AppGlyphs.layers,
-          label: appLocalizations.providers,
-          onPressed: () {
-            showExtend(
-              context,
-              builder: (_) {
-                return const ProvidersView();
-              },
-            );
-          },
-        ),
     ];
   }
 
@@ -64,16 +51,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     if (!_isTab) {
       return null;
     }
-    final currentGroupName = ref.watch(
-      proxiesTabControllerStateProvider.select(
-        (state) => state.currentGroupName,
-      ),
-    );
-    final isDelayTesting = ref.watch(
-      delayTestingGroupsProvider.select(
-        (state) => state.contains(currentGroupName),
-      ),
-    );
+    final isDelayTesting = ref.watch(currentGroupDelayTestingProvider);
     return IconButtonData(
       glyph: AppGlyphs.bolt,
       onPressed: () {
@@ -94,16 +72,6 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     ref.listenManual(proxyFocusProvider, (_, next) {
       if (next != null) _scaffoldKey.currentState?.handleExitSearching();
     });
-    ref.listenManual(providersProvider.select((state) => state.isNotEmpty), (
-      prev,
-      next,
-    ) {
-      if (prev != next) {
-        setState(() {
-          _hasProviders = next;
-        });
-      }
-    }, fireImmediately: true);
     ref.listenManual(
       proxiesStyleSettingProvider.select(
         (state) => state.type == ProxiesType.tab,
@@ -125,12 +93,16 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       proxiesStyleSettingProvider.select((state) => state.type),
     );
     final isLoading = ref.watch(loadingProvider(LoadingTag.proxies));
+    final picker = widget.picker;
+    final primaryAction = _buildPrimaryAction();
     return CommonScaffold(
+      key: _scaffoldKey,
       isLoading: isLoading,
       resizeToAvoidBottomInset: false,
-      primaryAction: _buildPrimaryAction(),
+      primaryAction: primaryAction,
+      searchActions: [?primaryAction],
       iconActions: [
-        if (_isTab)
+        if (_isTab && !picker)
           IconButtonData(
             glyph: AppGlyphs.locate,
             onPressed: () {
@@ -139,11 +111,11 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
             tooltip: context.appLocalizations.scrollToSelected,
           ),
       ],
-      menuItems: _buildMenuItems(context),
+      menuItems: picker ? const [] : _buildMenuItems(context),
       title: context.appLocalizations.proxies,
       searchState: AppBarSearchState(onSearch: _onSearch),
       body: switch (proxiesType) {
-        ProxiesType.tab => ProxiesTabView(key: _proxiesTabKey),
+        ProxiesType.tab => _tabView,
         ProxiesType.list => const ProxiesListView(),
       },
     );

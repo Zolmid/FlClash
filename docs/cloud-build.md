@@ -13,7 +13,7 @@
 | push 分支 | 构建目标 | iOS 源码 |
 | --- | --- | --- |
 | `main` | 全平台（`all`） | 当前主项目（`project`） |
-| `codex/patched-integration` | 全平台（`all`），供合并前独立 review | 当前主项目（`project`） |
+| `codex/patched-integration`、`codex/upstream-0.9.1` | 全平台（`all`），供合并前独立 review | 当前主项目（`project`） |
 | `codex/ios-support` | 仅 iOS | 当前主项目（`project`） |
 
 仅修改 Markdown 文件或 `docs/**` 时不自动构建。其他分支不受此规则影响。

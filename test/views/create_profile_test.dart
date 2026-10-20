@@ -6,7 +6,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/pages/editor.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
@@ -36,7 +36,7 @@ void main() {
     AppPath.supportDirectory = () async => root;
     AppPath.temporaryDirectory = () async => Directory('${root.path}/temp');
     AppPath.cacheDirectory = () async => Directory('${root.path}/cache');
-    await appPath.dataDir.future;
+    await appPath.homeDirPath;
     await initEditorNative();
   });
 

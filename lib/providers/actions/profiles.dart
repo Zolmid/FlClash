@@ -44,8 +44,11 @@ class ProfilesAction extends _$ProfilesAction {
   }
 
   Future<void> autoUpdateProfiles() async {
-    for (final profile in ref.read(profilesProvider)) {
-      if (!profile.autoUpdate) continue;
+    for (final id in [
+      for (final profile in ref.read(profilesProvider)) profile.id,
+    ]) {
+      final profile = ref.read(profilesProvider).getProfile(id);
+      if (profile == null || !profile.autoUpdate) continue;
       final isNotNeedUpdate = profile.lastUpdateDate
           ?.add(profile.autoUpdateDuration)
           .isBeforeNow;
@@ -127,9 +130,10 @@ class ProfilesAction extends _$ProfilesAction {
   }
 
   Future<void> updateProfiles() async {
-    for (final profile in ref.read(profilesProvider)) {
-      if (profile.type != ProfileType.url) continue;
-      await updateProfile(profile.id, showLoading: true);
+    for (final id in [
+      for (final profile in ref.read(profilesProvider)) profile.id,
+    ]) {
+      await updateProfile(id, showLoading: true);
     }
   }
 
@@ -198,8 +202,20 @@ class ProfilesAction extends _$ProfilesAction {
         ? ref.read(updatingKeysProvider.notifier).start(profile.updatingKey)
         : null;
     try {
+      if (ref.read(profilesProvider).getProfile(profile.id) == null) return;
       ref.read(profilesProvider.notifier).put(profile);
-      final newProfile = await fetchUpdatedProfile(profile);
+      final updated = await fetchUpdatedProfile(profile);
+      // The download can take minutes; edits and deletes made meanwhile win.
+      final latest = ref.read(profilesProvider).getProfile(profile.id);
+      if (latest == null) {
+        await clearEffect(profile.id);
+        return;
+      }
+      final newProfile = latest.copyWith(
+        label: latest.label.takeFirstValid([updated.label]),
+        subscriptionInfo: updated.subscriptionInfo,
+        lastUpdateDate: updated.lastUpdateDate,
+      );
       ref.read(profilesProvider.notifier).put(newProfile);
       if (profile.id == ref.read(currentProfileIdProvider)) {
         ref
@@ -498,21 +514,10 @@ class ProfilesAction extends _$ProfilesAction {
         );
   }
 
-  void setProfileAndAutoApply(Profile profile) {
-    ref.read(profilesProvider.notifier).put(profile);
-    if (profile.id == ref.read(currentProfileIdProvider)) {
-      ref.read(setupActionProvider.notifier).applyProfileDebounce();
-    }
-  }
-
   Future<void> addProfileFormQrCode() async {
     final url = await globalState.safeRun(picker.pickerConfigQRCode);
     if (url == null) return;
     unawaited(addProfileFromLink(url));
-  }
-
-  void reorder(List<Profile> profiles) {
-    ref.read(profilesProvider.notifier).reorder(profiles);
   }
 
   Future<void> clearEffect(int profileId) async {

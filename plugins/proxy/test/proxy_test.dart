@@ -482,6 +482,12 @@ USB 10/100/1000 LAN
         );
       },
     );
+    test('drops trailing slashes that fail the whole list', () {
+      expect(
+        windowsBypassList(['example.test/', 'example.test', 'nas//', '/']),
+        ['example.test', 'nas', '<local>'],
+      );
+    });
   });
 
   group('MethodChannelProxy', () {

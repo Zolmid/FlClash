@@ -5,16 +5,15 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/app_paths.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory root;
 
   setUpAll(() async {
     root = Directory.systemTemp.createTempSync('flclash-profile-file-');
-    AppPath.supportDirectory = () async => root;
-    AppPath.temporaryDirectory = () async => Directory('${root.path}/temp');
-    AppPath.cacheDirectory = () async => Directory('${root.path}/cache');
-    await appPath.dataDir.future;
+    await useAppPaths(root);
   });
 
   tearDownAll(() {

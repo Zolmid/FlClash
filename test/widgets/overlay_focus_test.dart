@@ -1,6 +1,6 @@
-import 'package:fl_clash/widgets/focus.dart';
-import 'package:fl_clash/widgets/popup.dart';
-import 'package:fl_clash/widgets/side_sheet.dart';
+import 'package:fl_clash/ui/focus.dart';
+import 'package:fl_clash/ui/popup.dart';
+import 'package:fl_clash/ui/side_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';

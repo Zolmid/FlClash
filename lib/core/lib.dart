@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/plugins/service.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -9,6 +10,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'desktop/model.dart';
 import 'interface.dart';
 import 'method.dart';
+import 'spill.dart';
 
 class CoreLib extends CoreHandlerInterface {
   static CoreLib? _instance;
@@ -119,18 +121,25 @@ class CoreLib extends CoreHandlerInterface {
     }
   }
 
+  // Native service lifecycle owns listener results; a Core reply cannot override its accepted command.
   @override
-  Future<bool> startListener() async {
+  Future<bool> startListener({
+    SharedState? startState,
+    bool Function()? isCurrent,
+  }) async {
     if (_listenerManagedByService) {
-      await globalState.container.read(vpnOptionsProvider.future);
-      return await _service?.start(
-            globalState.container.read(sharedStateProvider),
-          ) ??
-          false;
+      var state = startState;
+      if (state == null) {
+        await globalState.container.read(vpnOptionsProvider.future);
+        state = globalState.container.read(sharedStateProvider);
+      }
+      if (isCurrent?.call() == false) return false;
+      return await _service?.start(state) ?? false;
     }
-    final listenerStarted = await super.startListener();
-    final serviceStarted = await _service?.start() ?? false;
-    return listenerStarted && serviceStarted;
+    if (isCurrent?.call() == false) return false;
+    await super.startListener();
+    if (isCurrent?.call() == false) return false;
+    return await _service?.start() ?? false;
   }
 
   @override
@@ -139,8 +148,8 @@ class CoreLib extends CoreHandlerInterface {
     if (_listenerManagedByService) {
       return serviceStopped;
     }
-    final listenerStopped = await super.stopListener();
-    return serviceStopped && listenerStopped;
+    await super.stopListener();
+    return serviceStopped;
   }
 
   @override
@@ -149,10 +158,14 @@ class CoreLib extends CoreHandlerInterface {
     Object? arguments,
     Duration? timeout,
   }) {
-    return _invokeMethod<T>(
-      method: method,
-      arguments: arguments,
-    ).withTimeout(timeout: timeout, onTimeout: () => null);
+    final call = _invokeMethod<T>(method: method, arguments: arguments);
+    return call.withTimeout(
+      timeout: timeout,
+      onTimeout: () {
+        unawaited(call.then(discardSpilledFile, onError: (_) {}));
+        return null;
+      },
+    );
   }
 
   Future<T?> _invokeMethod<T>({

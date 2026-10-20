@@ -3,7 +3,7 @@ run-name: Cloud build · ${{ github.event_name == 'push' && (github.ref == 'refs
 
 on:
   push:
-    branches: [main, codex/patched-integration, codex/ios-support]
+    branches: [main, codex/patched-integration, codex/ios-support, codex/upstream-0.9.1]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'

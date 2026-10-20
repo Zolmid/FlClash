@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -109,6 +109,7 @@ class _DonutChartState extends State<DonutChart>
             to: _to,
             progress: _progress,
             colors: [for (final item in widget.data) item.color],
+            adaptiveScale: 1.0.ap(context),
             trackColor:
                 widget.trackColor ??
                 context.colorScheme.surfaceContainerHighest,
@@ -130,6 +131,7 @@ class _DonutChartPainter extends CustomPainter {
     required this.progress,
     required this.colors,
     required this.trackColor,
+    required this.adaptiveScale,
   }) : super(repaint: progress);
 
   static const _minStrokeWidth = 10.0;
@@ -144,6 +146,7 @@ class _DonutChartPainter extends CustomPainter {
   final Animation<double> progress;
   final List<Color> colors;
   final Color trackColor;
+  final double adaptiveScale;
 
   final Paint _arcPaint = Paint()
     ..style = PaintingStyle.stroke
@@ -154,8 +157,8 @@ class _DonutChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final diameter = min(size.width, size.height);
     final strokeWidth = (diameter * _strokeRatio).clamp(
-      _minStrokeWidth.ap,
-      _maxStrokeWidth.ap,
+      _minStrokeWidth * adaptiveScale,
+      _maxStrokeWidth * adaptiveScale,
     );
     final radius = (diameter - strokeWidth) / 2;
     if (radius <= 0) {
@@ -217,7 +220,8 @@ class _DonutChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DonutChartPainter oldDelegate) {
-    return oldDelegate.from != from ||
+    return oldDelegate.adaptiveScale != adaptiveScale ||
+        oldDelegate.from != from ||
         oldDelegate.to != to ||
         oldDelegate.progress != progress ||
         !listEquals(oldDelegate.colors, colors) ||

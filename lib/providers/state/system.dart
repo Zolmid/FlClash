@@ -2,9 +2,6 @@ part of '../state.dart';
 
 @riverpod
 UpdateParams updateParams(Ref ref) {
-  final bypassPrivateRoute = ref.watch(
-    networkSettingProvider.select((state) => state.bypassPrivateRoute),
-  );
   final authentication = ref.watch(
     networkSettingProvider.select((state) => state.authentication),
   );
@@ -14,7 +11,6 @@ UpdateParams updateParams(Ref ref) {
   return ref.watch(
     patchClashConfigProvider.select(
       (state) => state.toUpdateParams(
-        bypassPrivateRoute: bypassPrivateRoute,
         authentication: authentication.credentials,
         skipCertVerify: !checkCertificate,
       ),
@@ -23,7 +19,8 @@ UpdateParams updateParams(Ref ref) {
 }
 
 @riverpod
-({PatchClashConfig patchConfig, bool appendSystemDns}) setupPatch(Ref ref) {
+({PatchClashConfig patchConfig, bool appendSystemDns, bool bypassPrivateRoute})
+setupPatch(Ref ref) {
   return (
     patchConfig: ref.watch(
       patchClashConfigProvider.select((state) => state.setupOnly),
@@ -31,6 +28,12 @@ UpdateParams updateParams(Ref ref) {
     appendSystemDns: ref.watch(
       networkSettingProvider.select((state) => state.appendSystemDns),
     ),
+    // Android's VPN service takes it on its next start instead.
+    bypassPrivateRoute:
+        system.isDesktop &&
+        ref.watch(
+          networkSettingProvider.select((state) => state.bypassPrivateRoute),
+        ),
   );
 }
 
@@ -58,6 +61,7 @@ TrayState trayState(Ref ref) {
   final groups = ref.watch(currentGroupsStateProvider).value;
   final selectedMap = ref.watch(selectedMapProvider);
   final safeMode = ref.watch(safeModeProvider);
+  final suspended = ref.watch(suspendProvider);
   final hotKeys = _trayHotKeys(ref);
 
   return TrayState(
@@ -67,6 +71,7 @@ TrayState trayState(Ref ref) {
     systemProxy: systemProxy,
     tunEnable: clashConfig.tunEnable,
     isStart: isStart,
+    suspended: isStart && suspended,
     groups: groups,
     selectedMap: selectedMap,
     showTrayTitle: appSetting.showTrayTitle,
@@ -134,18 +139,6 @@ TrayTitleState trayTitleState(Ref ref) {
 }
 
 @riverpod
-PackageListSelectorState packageListSelectorState(Ref ref) {
-  final packages = ref.watch(packagesProvider);
-  final accessControlProps = ref.watch(
-    vpnSettingProvider.select((state) => state.accessControlProps),
-  );
-  return PackageListSelectorState(
-    packages: packages,
-    accessControlProps: accessControlProps,
-  );
-}
-
-@riverpod
 HotKeyAction getHotKeyAction(Ref ref, HotAction hotAction) {
   return ref.watch(
     hotKeyActionsProvider.select((state) {
@@ -189,7 +182,6 @@ SharedState sharedState(Ref ref) {
       (state) => (
         onlyStatisticsProxy: state.onlyStatisticsProxy,
         showStopAction: state.showNotificationStopAction,
-        crashlytics: state.crashlytics,
         testUrl: state.testUrl,
         checkCertificate: state.checkCertificate,
         collapseQuickSettingsPanel: state.collapseQuickSettingsPanel,
@@ -200,14 +192,12 @@ SharedState sharedState(Ref ref) {
   final currentProfileName = currentProfile.label;
   final selectedMap = currentProfile.selectedMap;
   final onlyStatisticsProxy = appSetting.onlyStatisticsProxy;
-  final crashlytics = appSetting.crashlytics;
   final testUrl = appSetting.testUrl;
   return SharedState(
     currentProfileName: currentProfileName,
     onlyStatisticsProxy: onlyStatisticsProxy,
     showStopAction: appSetting.showStopAction,
     stopText: currentAppLocalizations.stop,
-    crashlytics: crashlytics,
     stopTip: currentAppLocalizations.stopVpn,
     startTip: currentAppLocalizations.startVpn,
     localNetworkTip: currentAppLocalizations.localNetworkDeniedTip,
@@ -234,6 +224,62 @@ SharedState sharedState(Ref ref) {
       ),
     ),
   );
+}
+
+typedef ProfileTunIdentity = ({
+  int? profileId,
+  DateTime? lastUpdate,
+  ExtendType? extendType,
+  int? scriptId,
+  ProfileOverrides? overrides,
+  Tun tun,
+  ProfileTun appOverride,
+  Set<TunOverrideKey> appOverrideKeys,
+  bool bypassPrivateRoute,
+});
+
+typedef ProfileTunSnapshot = ({
+  Object generation,
+  ProfileTunIdentity identity,
+  ProfileTun tun,
+});
+
+ProfileTunIdentity profileTunIdentity(
+  Profile? profile,
+  PatchClashConfig patch,
+  NetworkProps network,
+) => (
+  profileId: profile?.id,
+  lastUpdate: profile?.lastUpdateDate,
+  extendType: profile?.extendType,
+  scriptId: profile?.scriptId,
+  overrides: profile?.overrides,
+  tun: patch.tun,
+  appOverride: patch.tunOverride,
+  appOverrideKeys: patch.tunOverrideKeys,
+  bypassPrivateRoute: network.bypassPrivateRoute,
+);
+
+@Riverpod(keepAlive: true)
+class BuiltProfileTun extends _$BuiltProfileTun with AutoDisposeNotifierMixin {
+  @override
+  ProfileTunSnapshot? build() {
+    ref.listen(currentProfileIdProvider, (previous, next) {
+      if (previous != next) state = null;
+    });
+    return null;
+  }
+}
+
+@riverpod
+ProfileTun? effectiveProfileTun(Ref ref) {
+  final snapshot = ref.watch(builtProfileTunProvider);
+  final identity = profileTunIdentity(
+    ref.watch(currentProfileProvider),
+    ref.watch(patchClashConfigProvider),
+    ref.watch(networkSettingProvider),
+  );
+  return snapshot?.identity == identity ? snapshot?.tun : null;
 }
 
 @Riverpod(keepAlive: true)
@@ -264,13 +310,34 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
   );
   final clashConfig = ref.watch(
     patchClashConfigProvider.select(
-      (state) => (tun: state.tun, mixedPort: state.mixedPort),
+      (state) => (
+        tun: state.tun,
+        mixedPort: state.mixedPort,
+        tunOverride: state.tunOverride,
+        tunOverrideKeys: state.tunOverrideKeys,
+      ),
     ),
   );
   final vpnSetting = ref.watch(vpnSettingProvider);
   final safeMode = ref.watch(safeModeProvider);
   final routeAddress = ref.watch(vpnRouteAddressProvider.future);
   final tun = clashConfig.tun;
+  final profile = ref.watch(currentProfileProvider);
+  final overrides = profile?.type == ProfileType.custom
+      ? profile!.overrides.overAppTun(
+          clashConfig.tunOverride,
+          clashConfig.tunOverrideKeys,
+        )
+      : ProfileOverrides(
+          tun: clashConfig.tunOverride,
+          tunOverrideKeys: clashConfig.tunOverrideKeys,
+        );
+  final profileTun = system.isIOS
+      ? ref.watch(effectiveProfileTunProvider) ??
+            ProfileTun.fromJson(
+              overrides.tun.overrideJson(overrides.tunOverrideKeys),
+            )
+      : null;
   final disableIcmpForwarding =
       system.isMobile &&
       ref.watch(
@@ -296,12 +363,20 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
     accessControlProps: vpnSetting.accessControlProps,
     allowBypass: vpnSetting.allowBypass,
     bypassDomain: networkSetting.bypassDomain,
-    routeAddress: await routeAddress,
-    mtu: tun.mtu,
-    congestionController: tun.congestionController,
-    recvMsgX: tun.recvMsgX,
-    sendMsgX: tun.sendMsgX,
-    disableIcmpForwarding: disableIcmpForwarding,
+    routeAddress: profileTun == null
+        ? await routeAddress
+        : await subtractCidrsTask(
+            profileTun.routeAddress,
+            profileTun.routeExcludeAddress,
+            wholeWhenEmpty: true,
+          ),
+    mtu: profileTun?.mtu ?? tun.mtu,
+    congestionController:
+        profileTun?.congestionController ?? tun.congestionController,
+    recvMsgX: profileTun?.recvMsgX ?? true,
+    sendMsgX: profileTun?.sendMsgX ?? false,
+    disableIcmpForwarding:
+        profileTun?.disableIcmpForwarding ?? disableIcmpForwarding,
     includeAllNetworks: vpnSetting.includeAllNetworks,
     excludeLocalNetworks: vpnSetting.excludeLocalNetworks,
     excludeAPNs: vpnSetting.excludeAPNs,

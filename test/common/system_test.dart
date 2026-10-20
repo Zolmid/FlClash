@@ -3,22 +3,8 @@ import 'dart:io';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-class _FakePathProvider extends PathProviderPlatform {
-  _FakePathProvider(this.root);
-
-  final String root;
-
-  @override
-  Future<String?> getTemporaryPath() async => root;
-
-  @override
-  Future<String?> getApplicationSupportPath() async => root;
-
-  @override
-  Future<String?> getApplicationCachePath() async => root;
-}
+import '../helpers/app_paths.dart';
 
 class _RecordedRun {
   const _RecordedRun(this.executable, this.arguments);
@@ -116,9 +102,9 @@ void main() {
   String? password;
   final readEffectiveUid = system.readEffectiveUid;
 
-  setUpAll(() {
+  setUpAll(() async {
     root = Directory.systemTemp.createTempSync('system_test');
-    PathProviderPlatform.instance = _FakePathProvider(root.path);
+    await useAppPaths(root);
   });
 
   tearDownAll(() {

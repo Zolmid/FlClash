@@ -197,8 +197,10 @@ class AppInstaller {
   }
 
   Future<String> _tempDirectoryPath() async {
-    final root = await (tempDirectory?.call() ?? appPath.tempDir.future);
-    final directory = Directory(path.join(root.path, 'app-updates'));
+    final root = tempDirectory == null
+        ? await appPath.tempPath
+        : (await tempDirectory!()).path;
+    final directory = Directory(path.join(root, 'app-updates'));
     await directory.create(recursive: true);
     return directory.path;
   }

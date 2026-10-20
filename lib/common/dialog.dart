@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:animations/animations.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -11,22 +10,32 @@ import 'package:url_launcher/url_launcher.dart';
 class Dialogs {
   Dialogs._();
 
-  BuildContext get _context => rootNavigatorKey.currentContext!;
+  // Focus identifies the active sheet's navigator for nested alerts.
+  BuildContext get _context {
+    var context = FocusManager.instance.primaryFocus?.context;
+    while (context != null) {
+      final route = ModalRoute.of(context);
+      if (route is AlertHostRoute) {
+        final host = route.navigator;
+        if (host != null && host.mounted) {
+          return host.context;
+        }
+        break;
+      }
+      context = route?.navigator?.context;
+    }
+    return rootNavigatorKey.currentContext!;
+  }
 
   Future<T?> showCommonDialog<T>({
     required Widget child,
     BuildContext? context,
     bool? dismissible,
   }) async {
-    final host = context ?? _context;
-    return showModal<T>(
-      useRootNavigator: false,
-      context: host,
-      configuration: FadeScaleTransitionConfiguration(
-        barrierColor: host.colorScheme.modalScrim,
-        barrierDismissible: dismissible ?? true,
-      ),
-      builder: (_) => child,
+    return showFloatingDialog<T>(
+      context: context ?? _context,
+      child: child,
+      dismissible: dismissible ?? true,
     );
   }
 
@@ -39,6 +48,7 @@ class Dialogs {
     Widget? leadingAction,
     bool cancelable = true,
     bool? dismissible,
+    bool destructive = false,
   }) async {
     return showCommonDialog<bool>(
       context: context,
@@ -48,6 +58,7 @@ class Dialogs {
           final appLocalizations = context.appLocalizations;
           return CommonDialog(
             title: title ?? appLocalizations.tip,
+            destructive: destructive,
             actions: [
               ?leadingAction,
               if (cancelable)
@@ -64,18 +75,9 @@ class Dialogs {
                 child: Text(confirmText ?? appLocalizations.confirm),
               ),
             ],
-            child: Container(
-              width: 300,
-              constraints: const BoxConstraints(maxHeight: 200),
-              child: SingleChildScrollView(
-                child: SelectableText.rich(
-                  TextSpan(
-                    style: Theme.of(context).textTheme.labelLarge,
-                    children: [message],
-                  ),
-                  style: const TextStyle(overflow: TextOverflow.visible),
-                ),
-              ),
+            child: SelectableText.rich(
+              TextSpan(children: [message]),
+              style: const TextStyle(overflow: TextOverflow.visible),
             ),
           );
         },
@@ -133,49 +135,6 @@ class Dialogs {
         validator: (value) => value == null || value.trim().isEmpty
             ? appLocalizations.emptyTip(appLocalizations.ageSecretKey)
             : null,
-      ),
-    );
-  }
-
-  Future<NamedUrl?> showNamedUrlInput({
-    required String title,
-    String label = '',
-    String url = '',
-    FormFieldValidator<String>? labelValidator,
-    FormFieldValidator<String>? urlValidator,
-  }) async {
-    final res = await showCommonDialog<List<NamedUrl>>(
-      child: NamedUrlDialog(
-        title: title,
-        label: label,
-        url: url,
-        labelValidator: labelValidator,
-        urlValidator: urlValidator,
-      ),
-    );
-    return res?.single;
-  }
-
-  /// A batch skips the urls in [existingUrls].
-  Future<List<NamedUrl>?> showNamedUrlsInput({
-    required String title,
-    String? urlLabel,
-    String? batchTip,
-    FormFieldValidator<String>? labelValidator,
-    FormFieldValidator<String>? urlValidator,
-    Set<String> existingUrls = const {},
-    bool withAgeSecretKey = false,
-  }) {
-    return showCommonDialog<List<NamedUrl>>(
-      child: NamedUrlDialog(
-        title: title,
-        urlLabel: urlLabel,
-        batchTip: batchTip,
-        labelValidator: labelValidator,
-        urlValidator: urlValidator,
-        batch: true,
-        existingUrls: existingUrls,
-        withAgeSecretKey: withAgeSecretKey,
       ),
     );
   }
@@ -249,10 +208,10 @@ class _FailureDetailsSheet extends StatelessWidget {
             horizontal: 16,
           ).copyWith(top: context.contentTopPadding, bottom: 20),
           itemCount: groups.length,
-          separatorBuilder: (_, _) => SizedBox(height: 24.mAp),
+          separatorBuilder: (_, _) => SizedBox(height: 24.mAp(context)),
           itemBuilder: (_, index) {
             final MapEntry(key: message, value: labels) = groups[index];
-            return generateSectionV3(
+            return generateSection(
               items: [
                 for (final label in labels)
                   DecorationListItem(

@@ -1,6 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/widgets/widgets.dart';
-import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 class FilterChipData {
@@ -73,7 +73,7 @@ class FilterChipBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final showBar = visible || active;
     return AnimatedSwitcher(
-      duration: animateDuration,
+      duration: commonDuration,
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (child, animation) {
@@ -109,12 +109,14 @@ class FilterChipBar extends StatelessWidget {
                                 context.appLocalizations.noFilterCondition,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: context.textTheme.bodyMedium?.copyWith(
-                                  color: context
-                                      .colorScheme
-                                      .onSurfaceVariant
-                                      .opacity60,
-                                ),
+                                style: AppTextStyle.body
+                                    .of(context)
+                                    .copyWith(
+                                      color: context
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                          .opacity60,
+                                    ),
                               )
                             : _ChipRowFade(
                                 child: SingleChildScrollView(

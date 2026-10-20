@@ -12,7 +12,7 @@ import 'package:fl_clash/views/config/rules.dart';
 import 'package:fl_clash/views/profiles/extend/extend.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_clash/icons/icons.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
@@ -489,7 +489,6 @@ class _RuleItem extends ConsumerWidget {
     }
 
     return RecordListItem(
-      tone: rule.disabled ? RecordTone.muted : RecordTone.neutral,
       onTap: () => showInSheet<void>(
         context,
         builder: (_) => CommonScaffold(
@@ -501,7 +500,7 @@ class _RuleItem extends ConsumerWidget {
         trailing: Text(
           '${l10n.ruleHits} ${rule.hitCount} · ${l10n.ruleMisses} ${rule.missCount}',
           textAlign: TextAlign.end,
-          style: styles.muted,
+          style: styles.secondary,
         ),
         children: [
           Text('#${rule.index + 1}'),
@@ -523,10 +522,7 @@ class _RuleItem extends ConsumerWidget {
               tooltip: '${l10n.sync}: ${provider.name}',
               onPressed: updating ? null : () => onUpdate(provider),
               icon: updating
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const CommonCircleLoading(size: 24)
                   : const GlyphIcon(AppGlyphs.sync),
             ),
           Semantics(
@@ -546,7 +542,7 @@ class _RuleItem extends ConsumerWidget {
                       TextSpan(text: '${rule.type}('),
                       TextSpan(
                         text: rule.payload,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        style: AppTextStyle.body.of(context, emphasized: true),
                       ),
                       const TextSpan(text: ')'),
                     ],
@@ -577,7 +573,7 @@ class _RuleDetails extends StatelessWidget {
         horizontal: 16,
       ).copyWith(top: context.contentTopPadding, bottom: 16),
       children: [
-        generateSectionV3(
+        generateSection(
           title: l10n.basicInfo,
           items: [
             for (final (title, value) in [

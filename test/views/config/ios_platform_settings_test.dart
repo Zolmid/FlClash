@@ -1,15 +1,11 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/models/models.dart';
-import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/about.dart';
 import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/views/config/network.dart';
 import 'package:fl_clash/views/config/on_demand.dart';
-import 'package:fl_clash/views/dashboard/widgets/start_button.dart';
-import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -150,47 +146,4 @@ void main() {
     expect(find.text('Telegram'), findsOneWidget);
     expect(find.text(currentAppLocalizations.checkUpdate), findsNothing);
   });
-
-  for (final result in [TunnelState.connected, TunnelState.disconnected]) {
-    testWidgets('tunnel pending prevents repeat starts and clears on $result', (
-      tester,
-    ) async {
-      container.dispose();
-      container = ProviderContainer(
-        overrides: [
-          profilesProvider.overrideWithValue([
-            const Profile(id: 1, autoUpdateDuration: Duration.zero),
-          ]),
-          suspendProvider.overrideWithValue(false),
-          tunnelStateProvider.overrideWithValue(TunnelState.pending),
-        ],
-      );
-      globalState.container = container;
-      await pumpView(
-        tester,
-        const Scaffold(floatingActionButton: StartButton()),
-      );
-      await tester.pump(const Duration(milliseconds: 400));
-
-      final button = find.byType(FloatingActionButton);
-      expect(tester.widget<FloatingActionButton>(button).onPressed, isNull);
-      expect(find.byType(CommonCircleLoading), findsOneWidget);
-      expect(
-        find.byTooltip(currentAppLocalizations.connecting),
-        findsOneWidget,
-      );
-
-      container.updateOverrides([
-        profilesProvider.overrideWithValue([
-          const Profile(id: 1, autoUpdateDuration: Duration.zero),
-        ]),
-        suspendProvider.overrideWithValue(false),
-        tunnelStateProvider.overrideWithValue(result),
-      ]);
-      await tester.pumpAndSettle();
-
-      expect(tester.widget<FloatingActionButton>(button).onPressed, isNotNull);
-      expect(find.byType(CommonCircleLoading), findsNothing);
-    });
-  }
 }

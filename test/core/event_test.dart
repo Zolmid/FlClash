@@ -13,6 +13,7 @@ class _RecordingListener with CoreEventListener {
 
   @override
   void onLog(Log log) => logs.add(log);
+  final List<Map<String, RequestTraffic>> requestTraffic = [];
 
   @override
   void onLoaded(String providerName) {
@@ -23,6 +24,11 @@ class _RecordingListener with CoreEventListener {
   @override
   void onDialerLoop(String proxyName) {
     dialerLoops.add(proxyName);
+  }
+
+  @override
+  void onRequestTraffic(Map<String, RequestTraffic> traffic) {
+    requestTraffic.add(traffic);
   }
 }
 
@@ -98,5 +104,24 @@ void main() {
     await pumpEventQueue();
 
     expect(listener.dialerLoops, ['Front']);
+  });
+
+  test('the traffic of requests reaches the listeners by id', () async {
+    final listener = _RecordingListener();
+    coreEventManager.addListener(listener);
+    addTearDown(() => coreEventManager.removeListener(listener));
+
+    coreEventsFromData({
+      'type': 'requestTraffic',
+      'data': [
+        {'id': 'a', 'upload': 460, 'download': 257835},
+        {'id': 'b', 'upload': 0, 'download': 12},
+      ],
+    }).forEach(coreEventManager.sendEvent);
+    await pumpEventQueue();
+
+    expect(listener.requestTraffic, [
+      {'a': (upload: 460, download: 257835), 'b': (upload: 0, download: 12)},
+    ]);
   });
 }

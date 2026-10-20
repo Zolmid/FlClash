@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/common.dart';
-import 'package:fl_clash/widgets/dialog.dart';
+import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
 
 typedef DownloadProgress = ({int received, int total});
@@ -111,7 +111,7 @@ class _UpdateProgressDialogState<T> extends State<UpdateProgressDialog<T>> {
                 total > 0
                     ? '${received.traffic.show} / ${total.traffic.show}'
                     : received.traffic.show,
-                style: context.textTheme.bodySmall,
+                style: AppTextStyle.footnote.of(context),
               ),
             ],
           );

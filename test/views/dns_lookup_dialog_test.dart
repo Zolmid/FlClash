@@ -20,7 +20,7 @@ void main() {
         overrides: [
           viewSizeProvider.overrideWithBuild((_, _) => const Size(800, 1000)),
         ],
-        child: DnsLookupDialog(onQuery: onQuery),
+        child: DnsLookupForm(onQuery: onQuery),
       ),
     );
     await tester.pumpAndSettle();
@@ -38,14 +38,14 @@ void main() {
       return response.future;
     });
     final l = currentAppLocalizations;
-    await tester.tap(find.text(l.query));
+    await tester.tap(find.byTooltip(l.query));
     await tester.pump();
     expect(calls, 0);
 
-    await tester.enterText(find.byType(TextFormField), ' example.com ');
-    await tester.tap(find.text(l.query));
+    await tester.enterText(find.byType(TextField), ' example.com ');
+    await tester.tap(find.byTooltip(l.query));
     await tester.pump();
-    await tester.tap(find.text(l.query));
+    await tester.tap(find.byTooltip(l.query));
     await tester.pump();
     expect(calls, 1);
     expect(find.byType(CommonCircleLoading), findsOneWidget);
@@ -74,13 +74,13 @@ void main() {
       throw StateError('lookup failed');
     });
     final l = currentAppLocalizations;
-    await tester.enterText(find.byType(TextFormField), 'example.com');
-    await tester.tap(find.text(l.query));
+    await tester.enterText(find.byType(TextField), 'example.com');
+    await tester.tap(find.byTooltip(l.query));
     await tester.pumpAndSettle();
     expect(find.textContaining('lookup failed'), findsOneWidget);
     expect(find.byType(CommonCircleLoading), findsNothing);
 
-    await tester.tap(find.text(l.query));
+    await tester.tap(find.byTooltip(l.query));
     await tester.pumpAndSettle();
     expect(calls, 2);
     expect(tester.takeException(), isNull);

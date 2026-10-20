@@ -5,6 +5,9 @@ private enum AppCoreMethod: String {
   case initClash
   case getIsInit
   case validateConfig
+  case getProfileBase
+  case getProfileOutbounds
+  case buildProfile
   case decryptConfig
   case generateAgeKeyPair
   case convertAgeSecretKeyToPublicKey

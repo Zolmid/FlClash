@@ -1,8 +1,8 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'chip.dart';
 import 'record.dart';
 
 class ProxyChain extends StatefulWidget {
@@ -64,18 +64,20 @@ class _ProxyChainState extends State<ProxyChain> {
               Flexible(
                 child: name == null
                     ? Tooltip(
-                        message: context.appLocalizations.expand,
+                        message: context.appLocalizations.showMore,
                         child: TonalChip(
                           label: '...',
-                          color: colorScheme.secondaryContainer,
-                          foregroundColor: colorScheme.onSecondaryContainer,
+                          color: context.raisedSurfaceLevel.colorOf(
+                            colorScheme,
+                          ),
+                          foregroundColor: colorScheme.onSurfaceVariant,
                           onPressed: () => setState(() => _expanded = true),
                         ),
                       )
                     : TonalChip(
                         label: name,
-                        color: colorScheme.secondaryContainer,
-                        foregroundColor: colorScheme.onSecondaryContainer,
+                        color: context.raisedSurfaceLevel.colorOf(colorScheme),
+                        foregroundColor: colorScheme.onSurfaceVariant,
                         onPressed:
                             onSelected == null ||
                                 !(widget.canSelect?.call(name) ?? true)
