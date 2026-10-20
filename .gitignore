@@ -1,0 +1,4 @@
+*.zip
+.zolnit-*/
+__pycache__/
+ZolNit-Workspace/
