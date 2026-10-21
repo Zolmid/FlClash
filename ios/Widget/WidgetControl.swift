@@ -12,7 +12,7 @@ struct WidgetControl: ControlWidget {
       provider: VPNStatusProvider()
     ) { status in
       ControlWidgetToggle(
-        "FlClash",
+        "ZolNit",
         isOn: status.isOn,
         action: SetVPNIntent()
       ) { isRunning in
@@ -26,7 +26,7 @@ struct WidgetControl: ControlWidget {
         )
       }
     }
-    .displayName("FlClash")
+    .displayName("ZolNit")
     .description(LocalizedStringResource("toggleVPNDescription"))
   }
 }

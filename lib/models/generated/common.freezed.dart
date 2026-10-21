@@ -2884,7 +2884,7 @@ return $default(_that.uri,_that.user,_that.password,_that.fileName,_that.directo
 @JsonSerializable()
 
 class _DAVProps extends DAVProps {
-  const _DAVProps({required this.uri, required this.user, @JsonKey(fromJson: _decodeDavPassword, toJson: _encodeDavPassword) this.password = '', this.fileName = defaultDavFileName, this.directory = '/FlClash'}): super._();
+  const _DAVProps({required this.uri, required this.user, @JsonKey(fromJson: _decodeDavPassword, toJson: _encodeDavPassword) this.password = '', this.fileName = defaultDavFileName, this.directory = '/ZolNit'}): super._();
   factory _DAVProps.fromJson(Map<String, dynamic> json) => _$DAVPropsFromJson(json);
 
 @override final  String uri;

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:fl_clash/common/app_update_client.dart';
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/request.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,7 @@ class _HostAdapter implements HttpClientAdapter {
   _HostAdapter(this.byHost);
 
   final Map<String, ResponseBody Function()> byHost;
+  final requests = <RequestOptions>[];
 
   @override
   Future<ResponseBody> fetch(
@@ -31,6 +33,7 @@ class _HostAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    requests.add(options);
     return byHost[options.uri.host]!();
   }
 
@@ -94,55 +97,102 @@ void main() {
     );
   });
 
-  group('latestRelease', () {
-    Request requestAnswering(Map<String, ResponseBody Function()> byHost) {
-      return Request()..dio.httpClientAdapter = _HostAdapter(byHost);
+  group('website update lookup', () {
+    const metadataUrl = 'https://link.zolmid.com/client/releases.json';
+    const disabled = {
+      'schema_version': 1,
+      'app_id': 'com.zolmid.zolnit',
+      'updates_enabled': false,
+      'releases': <Object>[],
+    };
+
+    (Request, _HostAdapter, _HostAdapter) requestAnswering(
+      ResponseBody Function() answer,
+    ) {
+      final website = _HostAdapter({'link.zolmid.com': answer});
+      final legacy = _HostAdapter({});
+      final client = AppUpdateClient(dio: Dio()..httpClientAdapter = website);
+      addTearDown(client.close);
+      final request = Request(updateClient: client)
+        ..dio.httpClientAdapter = legacy;
+      return (request, website, legacy);
     }
 
-    test('reads the release from the API', () async {
-      final request = requestAnswering({
-        'api.github.com': () => ResponseBody.fromString(
-          '{"tag_name":"v1.2.3","body":"notes"}',
-          200,
-          headers: {
-            Headers.contentTypeHeader: [Headers.jsonContentType],
-          },
-        ),
-      });
+    void expectWebsiteOnly(_HostAdapter website, _HostAdapter legacy) {
+      expect(website.requests, hasLength(1));
+      final sent = website.requests.single;
+      expect(sent.method, 'GET');
+      expect(sent.uri.toString(), metadataUrl);
+      expect(sent.followRedirects, isFalse);
+      expect(sent.validateStatus(HttpStatus.movedTemporarily), isFalse);
+      expect(
+        sent.headers.entries
+            .singleWhere(
+              (entry) => entry.key.toLowerCase() == HttpHeaders.userAgentHeader,
+            )
+            .value,
+        'ZolNit/0',
+      );
+      expect(
+        sent.headers.keys.map((key) => key.toLowerCase()),
+        isNot(contains(HttpHeaders.authorizationHeader)),
+      );
+      expect(
+        sent.headers.keys.map((key) => key.toLowerCase()),
+        isNot(contains(HttpHeaders.cookieHeader)),
+      );
+      expect(legacy.requests, isEmpty);
+    }
 
-      expect(await request.latestRelease(), {
-        'tag_name': 'v1.2.3',
-        'body': 'notes',
-      });
+    test('disabled empty website metadata offers no release', () async {
+      final (request, website, legacy) = requestAnswering(
+        () => ResponseBody.fromString(jsonEncode(disabled), 200),
+      );
+      expect(await request.latestRelease(), isNull);
+      expectWebsiteOnly(website, legacy);
     });
 
-    test(
-      'falls back to the release page when the API is rate limited',
-      () async {
-        final request = requestAnswering({
-          'api.github.com': () => ResponseBody.fromString('{}', 403),
-          'github.com': () => ResponseBody.fromString(
-            '',
-            302,
-            headers: {
-              HttpHeaders.locationHeader: [
-                'https://github.com/owner/repo/releases/tag/v1.2.4',
-              ],
-            },
-          ),
-        });
+    test('missing and wrong schema offer no release', () async {
+      for (final metadata in [
+        {'schema_version': 1},
+        {...disabled, 'schema_version': 2},
+        {...disabled, 'app_id': 'com.follow.clash'},
+      ]) {
+        final (request, website, legacy) = requestAnswering(
+          () => ResponseBody.fromString(jsonEncode(metadata), 200),
+        );
+        expect(await request.latestRelease(), isNull);
+        expectWebsiteOnly(website, legacy);
+      }
+    });
 
-        expect(await request.latestRelease(), {'tag_name': 'v1.2.4'});
-      },
-    );
-
-    test('fails instead of answering when neither endpoint does', () async {
-      final request = requestAnswering({
-        'api.github.com': () => ResponseBody.fromString('{}', 403),
-        'github.com': () => ResponseBody.fromString('', 503),
-      });
-
-      await expectLater(request.latestRelease(), throwsA(isA<DioException>()));
+    test('enabled entries and HTTP errors have no GitHub fallback', () async {
+      for (final answer in <ResponseBody Function()>[
+        () => ResponseBody.fromString(
+          jsonEncode({
+            ...disabled,
+            'updates_enabled': true,
+            'releases': [
+              {'tag': 'v99.0.0'},
+            ],
+          }),
+          200,
+        ),
+        () => ResponseBody.fromString('', 404),
+        () => ResponseBody.fromString(
+          '',
+          302,
+          headers: {
+            HttpHeaders.locationHeader: [
+              'https://github.com/Zolmid/FlClash/releases/latest',
+            ],
+          },
+        ),
+      ]) {
+        final (request, website, legacy) = requestAnswering(answer);
+        expect(await request.latestRelease(), isNull);
+        expectWebsiteOnly(website, legacy);
+      }
     });
   });
 

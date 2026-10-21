@@ -1,6 +1,6 @@
-package com.follow.clash
+package com.zolmid.zolnit
 
-import com.follow.clash.models.SharedState
+import com.zolmid.zolnit.models.SharedState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -25,13 +25,125 @@ PaymentQr? _qr(Json json) {
 }
 
 class XboardCheckoutBackend implements CheckoutBackend {
-  const XboardCheckoutBackend(this.api);
+  const XboardCheckoutBackend(this.api, {this.confirmRecurring});
 
   final XboardClient api;
+  final Future<bool> Function(Json intent)? confirmRecurring;
 
   @override
   Future<CheckoutAction> start(String tradeNo, int methodId) async {
-    final response = await api.checkout(tradeNo, methodId);
+    final generation = api.generation;
+    void ensureCurrent() {
+      if (api.generation != generation) {
+        throw const ClientFailure('superseded');
+      }
+    }
+
+    if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(tradeNo)) {
+      throw const ClientFailure('invalid_path');
+    }
+    final detail = await api.order(tradeNo);
+    ensureCurrent();
+    if (detail is! Json || detail['trade_no'] != tradeNo) {
+      throw const ClientFailure('invalid_billing_response');
+    }
+    dynamic intent;
+    try {
+      intent = await api.request(
+        '/api/v1/zolnit-stripe/recurring-orders/$tradeNo',
+      );
+      ensureCurrent();
+    } on ClientFailure catch (error) {
+      ensureCurrent();
+      if (error.statusCode != 404) rethrow;
+      final response = await api.checkout(tradeNo, methodId);
+      ensureCurrent();
+      return _checkout(response, tradeNo);
+    }
+    if (intent is! Json ||
+        intent['recurring'] != true ||
+        intent['trade_no'] != tradeNo ||
+        intent['period'] != 'monthly' ||
+        intent['status'] != 0 ||
+        intent['charge_currency'] != 'SGD') {
+      throw const ClientFailure('invalid_billing_response');
+    }
+    for (final key in ['payment_id', 'plan_id', 'quote_id']) {
+      if (intent[key] is! int || (intent[key] as int) <= 0) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+    }
+    for (final key in [
+      'price_cents',
+      'handling_amount_cents',
+      'total_cents',
+      'charge_amount_cents',
+      'first_total_cents',
+      'first_charge_amount_cents',
+      'surplus_amount_cents',
+      'surplus_credit_cents',
+    ]) {
+      if (intent[key] is! int || (intent[key] as int) < 0) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+    }
+    final body = <String, dynamic>{
+      'payment_id': intent['payment_id'],
+      'plan_id': intent['plan_id'],
+      'period': intent['period'],
+      'quote_id': intent['quote_id'],
+      'trade_no': tradeNo,
+      'consent': true,
+    };
+    final confirm = confirmRecurring;
+    if (confirm == null) {
+      throw const ClientFailure('recurring_consent_required');
+    }
+    final consent = await confirm(Map<String, dynamic>.unmodifiable(intent));
+    ensureCurrent();
+    if (!consent) throw const ClientFailure('recurring_consent_required');
+    ensureCurrent();
+    final value = await api.request(
+      '/api/v1/zolnit-stripe/subscribe',
+      method: 'POST',
+      body: body,
+    );
+    ensureCurrent();
+    if (value is! Json) {
+      throw const ClientFailure('invalid_billing_response');
+    }
+    _rejectEmbedded(value);
+    if (value['checkout_mode'] != 'hosted' ||
+        value['session_id'] is! String ||
+        !RegExp(
+          r'^cs_[A-Za-z0-9_]+$',
+        ).hasMatch(value['session_id'] as String) ||
+        value['contract_id'] is! int ||
+        (value['contract_id'] as int) <= 0 ||
+        (value.containsKey('trade_no') && value['trade_no'] != tradeNo)) {
+      throw const ClientFailure('invalid_billing_response');
+    }
+    return _hosted(value);
+  }
+
+  void _rejectEmbedded(Json value) {
+    if (value['checkout_mode'] == 'embedded' || value['kind'] == 'embedded') {
+      throw const ClientFailure('unsupported_embedded_checkout');
+    }
+  }
+
+  HostedCheckout _hosted(Json value) {
+    final uri = Uri.tryParse(_string(value, 'checkout_url'));
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      throw const ClientFailure('invalid_billing_response');
+    }
+    return HostedCheckout(uri, fallbackQr: _qr(value));
+  }
+
+  CheckoutAction _checkout(Json response, String tradeNo) {
     if (response['type'] == -1 && response['data'] == true) {
       return const StatusOnlyCheckout();
     }
@@ -39,6 +151,16 @@ class XboardCheckoutBackend implements CheckoutBackend {
       return HostedCheckout(Uri.parse(response['data'] as String));
     }
     final value = response['data'];
+    if (value is Json) {
+      _rejectEmbedded(value);
+      if (value.containsKey('trade_no') && value['trade_no'] != tradeNo) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+      if (response['type'] == 1 &&
+          {'hosted', 'legacy_hosted'}.contains(value['checkout_mode'])) {
+        return _hosted(value);
+      }
+    }
     if (value is! Json || value['trade_no'] != tradeNo) {
       throw const ClientFailure('invalid_billing_response');
     }

@@ -68,9 +68,9 @@ class WindowsScheduledAutostart implements AutostartRegistration {
     return _sid = match.group(1)!;
   }
 
-  String _taskName(String sid) => 'FlClash_AutoLaunch_${sid}_$_installation';
+  String _taskName(String sid) => 'ZolNit_AutoLaunch_${sid}_$_installation';
   String _source(String sid) =>
-      'com.follow.clash.autostart.v1/$sid/$_installation';
+      'com.zolmid.zolnit.autostart.v1/$sid/$_installation';
 
   Future<({String sid, bool exists, bool enabled})> _query() async {
     final sid = await _currentSid();
@@ -137,7 +137,7 @@ class WindowsScheduledAutostart implements AutostartRegistration {
     final current = await _query();
     if (current.enabled) return true;
     final temporary = await (temporaryDirectory ?? Directory.systemTemp)
-        .createTemp('flclash_autostart_');
+        .createTemp('zolnit_autostart_');
     try {
       final file = File(p.join(temporary.path, 'task.xml'));
       final content = _taskXml(current.sid);

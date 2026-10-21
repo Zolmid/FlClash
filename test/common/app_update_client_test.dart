@@ -7,13 +7,21 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/app_installer.dart';
 import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_client.dart';
-import 'package:fl_clash/common/constant.dart' show repository;
+import 'package:fl_clash/common/constant.dart' show browserUa, repository;
+import 'package:fl_clash/common/request.dart';
 import 'package:test/test.dart';
 
 const _hash =
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
 const _name = 'FlClash-0.9.4-android-arm64-v8a.apk';
 const _url = 'https://github.com/$repository/releases/download/v0.9.4/$_name';
+const _metadataUrl = 'https://link.zolmid.com/client/releases.json';
+const _disabledMetadata = {
+  'schema_version': 1,
+  'app_id': 'com.zolmid.zolnit',
+  'updates_enabled': false,
+  'releases': <Object>[],
+};
 
 class _Adapter implements HttpClientAdapter {
   _Adapter(this.respond);
@@ -51,10 +59,12 @@ ResponseBody _json(Object value) => ResponseBody.fromString(
 );
 
 AppUpdateClient _client(
-  FutureOr<ResponseBody> Function(RequestOptions) respond,
-) {
+  FutureOr<ResponseBody> Function(RequestOptions) respond, {
+  Map<String, dynamic>? headers,
+}) {
   final client = AppUpdateClient(
-    dio: Dio()..httpClientAdapter = _Adapter(respond),
+    dio: Dio(BaseOptions(headers: headers))
+      ..httpClientAdapter = _Adapter(respond),
   );
   addTearDown(client.close);
   return client;
@@ -105,117 +115,119 @@ void main() {
     },
   );
 
-  group('release source', () {
-    test('a repository without a formal release has no update', () async {
-      final client = _client((_) => ResponseBody.fromString('', 404));
-      expect(await client.checkForUpdate(currentVersion: '0.9.0'), isNull);
-    });
-
-    test('uses the official API digest without querying a manifest', () async {
-      final requests = <Uri>[];
+  group('website release metadata', () {
+    test('uses one fixed GET without credentials or redirects', () async {
+      final requests = <RequestOptions>[];
       final client = _client((options) {
-        requests.add(options.uri);
-        return _json({
-          'tag_name': 'v0.9.4',
-          'body': 'notes',
-          'assets': [
-            {
-              'name': _name,
-              'browser_download_url': _url,
-              'size': 3,
-              'digest': 'sha256:$_hash',
-            },
-          ],
-        });
-      });
-      final release = await client.checkForUpdate(
-        currentVersion: '0.9.4-pre.1',
-      );
-      expect(release?.assets.single.sha256, _hash);
+        requests.add(options);
+        return _json(_disabledMetadata);
+      }, headers: {'User-Agent': browserUa});
+
+      expect(await client.checkForUpdate(currentVersion: '0.9.0'), isNull);
+      expect(requests, hasLength(1));
+      final request = requests.single;
+      expect(request.method, 'GET');
+      expect(request.uri.toString(), _metadataUrl);
+      expect(request.followRedirects, isFalse);
+      expect(request.validateStatus(HttpStatus.movedTemporarily), isFalse);
       expect(
-        requests.single.toString(),
-        'https://api.github.com/repos/$repository/releases/latest',
+        request.headers.entries
+            .singleWhere(
+              (entry) => entry.key.toLowerCase() == HttpHeaders.userAgentHeader,
+            )
+            .value,
+        'ZolNit/0.9.0',
       );
-      expect(
-        release?.releaseUri.toString(),
-        'https://github.com/$repository/releases/tag/v0.9.4',
-      );
+      final headerNames = request.headers.keys.map((key) => key.toLowerCase());
+      expect(headerNames, isNot(contains(HttpHeaders.authorizationHeader)));
+      expect(headerNames, isNot(contains(HttpHeaders.cookieHeader)));
     });
 
-    test('a release without a digest remains a browser update', () async {
-      var requests = 0;
-      final client = _client((_) {
-        requests++;
-        return _json({
-          'tag_name': 'v0.9.4',
-          'assets': [
-            {'name': _name, 'browser_download_url': _url, 'size': 3},
-          ],
-        });
+    test('the legacy release lookup uses the same client', () async {
+      final requests = <RequestOptions>[];
+      final client = _client((options) {
+        requests.add(options);
+        return _json(_disabledMetadata);
       });
-      final release = (await client.latestRelease())!;
-      expect(release.assets, isEmpty);
-      expect(requests, 1);
-      expect(browserDownloadUri(null, release: release), release.releaseUri);
+      final legacy = Request(updateClient: client);
+
+      expect(await legacy.latestRelease(), isNull);
+      expect(requests.single.uri.toString(), _metadataUrl);
+      expect(
+        requests.single.headers.entries
+            .singleWhere(
+              (entry) => entry.key.toLowerCase() == HttpHeaders.userAgentHeader,
+            )
+            .value,
+        'ZolNit/0',
+      );
     });
 
     test(
-      'uses the same repository manifest only when the API is unavailable',
+      'rejects malformed, wrong identity, schema and enabled entries',
       () async {
-        final requests = <String>[];
-        final client = _client((options) {
-          requests.add(options.uri.toString());
-          if (options.uri.host == 'api.github.com') {
-            return ResponseBody.fromString('{}', 403);
-          }
-          return _json({
-            'tag': 'v0.9.4',
-            'assets': [
-              {'name': _name, 'url': _url, 'size': 3, 'sha256': _hash},
+        final invalid = <ResponseBody>[
+          ResponseBody.fromString('not json', 200),
+          _json({'schema_version': 1}),
+          _json({..._disabledMetadata, 'app_id': 'com.follow.clash'}),
+          _json({..._disabledMetadata, 'schema_version': 2}),
+          _json({
+            ..._disabledMetadata,
+            'releases': ['unexpected'],
+          }),
+          _json({..._disabledMetadata, 'updates_enabled': true}),
+          _json({
+            ..._disabledMetadata,
+            'updates_enabled': true,
+            'releases': [
+              {'tag': 'v99.0.0', 'assets': []},
             ],
+          }),
+        ];
+        for (final body in invalid) {
+          final requests = <Uri>[];
+          final client = _client((options) {
+            requests.add(options.uri);
+            return body;
           });
-        });
-        expect((await client.latestRelease())!.assets.single.url, _url);
-        expect(
-          requests.last,
-          'https://github.com/$repository/releases/latest/download/version.json',
-        );
+          expect(await client.checkForUpdate(currentVersion: '0.9.0'), isNull);
+          expect(requests, [Uri.parse(_metadataUrl)]);
+        }
       },
     );
 
-    test('redirect fallback refuses a different repository', () async {
-      final client = _client((options) {
-        if (options.uri.path.endsWith('/version.json')) {
-          return ResponseBody.fromString('', 404);
-        }
-        if (options.uri.host == 'api.github.com') {
-          return ResponseBody.fromString('', 403);
-        }
-        return ResponseBody.fromString(
-          '',
-          302,
-          headers: {
-            HttpHeaders.locationHeader: [
-              'https://github.com/someone/FlClash/releases/tag/v0.9.4',
-            ],
-          },
-        );
-      });
-      await expectLater(client.latestRelease(), throwsFormatException);
+    test('HTTP errors and redirects have no GitHub fallback', () async {
+      for (final status in [302, 403, 404, 503]) {
+        final requests = <Uri>[];
+        final client = _client((options) {
+          requests.add(options.uri);
+          return ResponseBody.fromString(
+            '',
+            status,
+            headers: {
+              if (status == 302)
+                HttpHeaders.locationHeader: [
+                  'https://github.com/$repository/releases/latest',
+                ],
+            },
+          );
+        });
+        expect(await client.latestRelease(), isNull);
+        expect(requests, [Uri.parse(_metadataUrl)]);
+      }
     });
 
-    test('keeps the typed final network error', () async {
-      final client = _client((_) => ResponseBody.fromString('', 503));
-      await expectLater(
-        client.latestRelease(),
-        throwsA(
-          isA<DioException>().having(
-            (error) => error.response?.statusCode,
-            'status',
-            503,
-          ),
-        ),
-      );
+    test('network errors have no fallback', () async {
+      final requests = <Uri>[];
+      final client = _client((options) {
+        requests.add(options.uri);
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        );
+      });
+      expect(await client.latestRelease(), isNull);
+      expect(requests, [Uri.parse(_metadataUrl)]);
     });
   });
 

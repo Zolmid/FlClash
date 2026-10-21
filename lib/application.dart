@@ -11,13 +11,13 @@ import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/manager/manager.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'pages/pages.dart';
+import 'package:fl_clash/views/zolnit/home.dart';
 
 Widget buildManagerStack({
   required bool isDesktop,
@@ -103,38 +103,47 @@ class ApplicationState extends ConsumerState<Application>
   }
 
   void _initLink() {
-    linkManager.initAppLinksListen((url) async {
-      unawaited(window?.show());
-      final message = currentAppLocalizations.createProfileFromUrlTip(url);
-      final parts = message.split(url);
-      final res = await dialogs.showMessage(
-        title: currentAppLocalizations.addProfile,
-        message: TextSpan(
-          children: [
-            TextSpan(text: parts.first),
-            TextSpan(
-              text: url,
-              style: TextStyle(
-                color: context.colorScheme.primary,
-                decoration: TextDecoration.underline,
-                decorationColor: context.colorScheme.primary,
+    linkManager.initAppLinksListen(
+      (url) async {
+        unawaited(window?.show());
+        final message = currentAppLocalizations.createProfileFromUrlTip(url);
+        final parts = message.split(url);
+        final res = await dialogs.showMessage(
+          title: currentAppLocalizations.addProfile,
+          message: TextSpan(
+            children: [
+              TextSpan(text: parts.first),
+              TextSpan(
+                text: url,
+                style: TextStyle(
+                  color: context.colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                  decorationColor: context.colorScheme.primary,
+                ),
               ),
-            ),
-            if (parts.length > 1) TextSpan(text: parts.last),
-          ],
-        ),
-      );
-      if (res != true) return;
-      unawaited(
-        ref.read(profilesActionProvider.notifier).addProfileFromLink(url),
-      );
-    });
+              if (parts.length > 1) TextSpan(text: parts.last),
+            ],
+          ),
+        );
+        if (res != true) return;
+        unawaited(
+          ref.read(profilesActionProvider.notifier).addProfileFromLink(url),
+        );
+      },
+      onPaymentReturn: () {
+        unawaited(window?.show());
+        final session = ref.read(zolnitSessionProvider);
+        if (session.authenticated) unawaited(session.refreshPayment());
+      },
+    );
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_profileAutoUpdater.check());
+      final session = ref.read(zolnitSessionProvider);
+      if (session.authenticated) unawaited(session.refreshPayment());
     }
   }
 
@@ -203,7 +212,7 @@ class ApplicationState extends ConsumerState<Application>
           home: KeyboardInsetHold(child: child!),
         );
       },
-      child: const HomePage(),
+      child: const ZolnitHomePage(),
     );
   }
 

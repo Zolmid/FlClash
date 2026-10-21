@@ -12,7 +12,7 @@ final class TunnelController {
   private var tunnelStatusObserver: NSObjectProtocol?
   private var appActiveObserver: NSObjectProtocol?
   private let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.follow.clash",
+    subsystem: Bundle.main.bundleIdentifier ?? "com.zolmid.zolnit",
     category: "TunnelController"
   )
 
@@ -28,7 +28,7 @@ final class TunnelController {
     let managerStore = TunnelManagerStore(
       sharedStateStore: sharedStateStore,
       networkExtensionIdentifier: networkExtensionIdentifier,
-      localizedDescription: "FlClash"
+      localizedDescription: "ZolNit"
     )
     self.sharedStateStore = sharedStateStore
     self.managerStore = managerStore

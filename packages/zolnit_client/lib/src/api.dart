@@ -9,9 +9,10 @@ import 'http_client.dart';
 typedef Json = Map<String, dynamic>;
 
 class ClientFailure implements Exception {
-  const ClientFailure(this.code);
+  const ClientFailure(this.code, {this.statusCode});
 
   final String code;
+  final int? statusCode;
 
   @override
   String toString() => 'ClientFailure($code)';
@@ -104,19 +105,21 @@ class XboardClient {
       if (body != null) 'Content-Type': 'application/json',
     });
     if (body != null) request.body = jsonEncode(body);
+    int? statusCode;
     try {
       final response = await (() async {
         final stream = await _client.send(request);
         return http.Response.fromStream(stream);
       })().timeout(timeout);
+      statusCode = response.statusCode;
       if (_closed || generation != _generation) {
         throw const ClientFailure('superseded');
       }
       if (response.statusCode == 401 || response.statusCode == 403) {
-        throw const ClientFailure('unauthenticated');
+        throw ClientFailure('unauthenticated', statusCode: statusCode);
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw const ClientFailure('api_error');
+        throw ClientFailure('api_error', statusCode: statusCode);
       }
       final value = response.bodyBytes.length > 65536
           ? await compute(jsonDecode, response.body)
@@ -126,7 +129,7 @@ class XboardClient {
       }
       if (value is! Map<String, dynamic> ||
           (unwrap && !value.containsKey('data'))) {
-        throw const ClientFailure('invalid_response');
+        throw ClientFailure('invalid_response', statusCode: statusCode);
       }
       return unwrap ? value['data'] : value;
     } catch (error) {
@@ -136,7 +139,7 @@ class XboardClient {
       if (error is ClientFailure) rethrow;
       if (error is TimeoutException) throw const ClientFailure('timeout');
       if (error is FormatException) {
-        throw const ClientFailure('invalid_response');
+        throw ClientFailure('invalid_response', statusCode: statusCode);
       }
       throw const ClientFailure('network');
     }

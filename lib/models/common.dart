@@ -452,7 +452,7 @@ abstract class DAVProps with _$DAVProps {
     @Default('')
     String password,
     @Default(defaultDavFileName) String fileName,
-    @Default('/FlClash') String directory,
+    @Default('/ZolNit') String directory,
   }) = _DAVProps;
 
   factory DAVProps.fromJson(Map<String, Object?> json) =>

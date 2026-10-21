@@ -86,16 +86,19 @@ class AppPath {
   Future<Directory> _resolveDataDirectory() async {
     final supportDir = await supportDirectory();
     if (!system.isIOS) {
+      if (kDebugMode && (system.isWindows || system.isLinux)) {
+        return Directory(join(supportDir.path, 'debug'));
+      }
       return supportDir;
     }
     final packageInfo = await PackageInfo.fromPlatform();
     final appGroupPath = await PathProviderFoundation().getContainerPath(
       appGroupIdentifier: 'group.${packageInfo.packageName}',
     );
-    return migrateIOSDataDirectory(
-      supportDirectory: supportDir,
-      appGroupPath: appGroupPath ?? '',
-    );
+    if (appGroupPath == null || appGroupPath.isEmpty) {
+      throw StateError('The iOS App Group container is unavailable');
+    }
+    return Directory(appGroupPath);
   }
 
   String get executableExtension {
@@ -137,7 +140,7 @@ class AppPath {
 
   Future<String> get lockFilePath async {
     final homeDirPath = await appPath.homeDirPath;
-    return join(homeDirPath, 'FlClash.lock');
+    return join(homeDirPath, 'ZolNit.lock');
   }
 
   Future<String> get configFilePath async {

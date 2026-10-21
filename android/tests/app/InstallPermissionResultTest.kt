@@ -1,4 +1,4 @@
-package com.follow.clash.plugins
+package com.zolmid.zolnit.plugins
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

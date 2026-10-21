@@ -95,6 +95,38 @@ void main() {
   });
 
   test(
+    'foreground payment returns notify without forwarding URL parameters',
+    () async {
+      var returns = 0;
+      await linkManager.initAppLinksListen(
+        received.add,
+        onPaymentReturn: () => returns++,
+      );
+      await emit('zolnit://safepay?trade_no=orderA&session_id=cs_fixture');
+      expect(returns, 1);
+      expect(received, isEmpty);
+    },
+  );
+
+  test(
+    'seeded payment returns notify once and never become subscriptions',
+    () async {
+      var returns = 0;
+      linkManager.seedInitialLink(['zolnit://safepay?trade_no=orderA']);
+      await linkManager.initAppLinksListen(
+        received.add,
+        onPaymentReturn: () => returns++,
+      );
+      await linkManager.initAppLinksListen(
+        received.add,
+        onPaymentReturn: () => returns++,
+      );
+      expect(returns, 1);
+      expect(received, isEmpty);
+    },
+  );
+
+  test(
     'a seeded launch argument is delivered once a listener attaches',
     () async {
       linkManager.seedInitialLink([

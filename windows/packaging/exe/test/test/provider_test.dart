@@ -64,7 +64,7 @@ void main() {
       ..remove('publisher_name')
       ..['publisher'] = 'chen08209';
     expect(MakeExeConfig.fromJson(legacy).publisherName, isNull);
-    expect(MakeExeConfig.fromJson(values).publisherName, 'chen08209');
+    expect(MakeExeConfig.fromJson(values).publisherName, 'Zolmid');
     expect(values, isNot(contains('publisher')));
   });
 
@@ -79,25 +79,14 @@ void main() {
         ..outputDirectory = Directory('dist');
       final script = await InnoSetupScript.fromMakeConfig(config).createFile();
       final content = script.readAsStringSync();
-      expect(content, contains('AppPublisher=chen08209\n'));
-      expect(content, contains('AppId=728B3532-C74B-4870-9068-BE70FE12A3E6\n'));
-      expect(content, contains('AppName=FlClash\n'));
+      expect(content, contains('AppPublisher=Zolmid\n'));
+      expect(content, contains('AppId=7E377047-604E-4B03-92EB-162519361748\n'));
+      expect(content, contains('AppName=ZolNit\n'));
       expect(content, contains('PrivilegesRequired=admin\n'));
-      final constants = File(
-        p.join(repository.path, 'lib/common/constant.dart'),
-      ).readAsStringSync();
-      String constant(String name) =>
-          RegExp("const $name = '([^']+)';").firstMatch(constants)!.group(1)!;
-      final publisherUrl =
-          'https://github.com/${constant('upstreamRepository')}';
+      const publisherUrl = 'https://link.zolmid.com';
       expect(content, contains('AppPublisherURL=$publisherUrl\n'));
       expect(content, contains('AppSupportURL=$publisherUrl\n'));
-      expect(
-        content,
-        contains(
-          'AppUpdatesURL=https://github.com/${constant('repository')}/releases/latest\n',
-        ),
-      );
+      expect(content, contains('AppUpdatesURL=https://link.zolmid.com\n'));
       for (final language in [
         'english',
         'japanese',
@@ -119,7 +108,7 @@ void main() {
         contains("ExpandConstant('{srcexe}') + '.' + Nonce + '.ready'"),
       );
       expect(content, contains('if not WaitForParentAcknowledgement then'));
-      expect(content, contains("ExpandConstant('{app}\\FlClash.exe')"));
+      expect(content, contains("ExpandConstant('{app}\\ZolNit.exe')"));
       final cleanup = content.substring(
         content.indexOf('procedure RemoveUserRegistrations;'),
         content.indexOf('function IsAppUpdate: Boolean;'),

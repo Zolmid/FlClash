@@ -2812,5 +2812,126 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("Sí"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chino simplificado"),
     "zhTW": MessageLookupByLibrary.simpleMessage("Chino tradicional"),
+    "zolnitActivating": MessageLookupByLibrary.simpleMessage("Activando"),
+    "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("Ajustes avanzados"),
+    "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Importe a pagar"),
+    "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Los datos de renovación no están disponibles temporalmente.",
+    ),
+    "zolnitBuy": MessageLookupByLibrary.simpleMessage("Crear pedido"),
+    "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage(
+      "Cancelar pedido",
+    ),
+    "zolnitCancelOrderTip": MessageLookupByLibrary.simpleMessage(
+      "¿Cancelar este pedido sin pagar?",
+    ),
+    "zolnitCancelRenewal": MessageLookupByLibrary.simpleMessage(
+      "Cancelar renovación automática",
+    ),
+    "zolnitCancelRenewalTip": MessageLookupByLibrary.simpleMessage(
+      "Se detendrán los próximos cargos automáticos. También se cancelará un primer pedido sin pagar. El acceso ya pagado depende del resultado del servidor.",
+    ),
+    "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Cancelado"),
+    "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completado"),
+    "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
+      "Introduce un correo válido y una contraseña de al menos ocho caracteres.",
+    ),
+    "zolnitCredited": MessageLookupByLibrary.simpleMessage("Compensado"),
+    "zolnitEmail": MessageLookupByLibrary.simpleMessage("Correo electrónico"),
+    "zolnitFailure": MessageLookupByLibrary.simpleMessage(
+      "No se pudo completar la solicitud. Comprueba los datos o la conexión e inténtalo de nuevo.",
+    ),
+    "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("Primer pago"),
+    "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage(
+      "Pagos posteriores",
+    ),
+    "zolnitGift": MessageLookupByLibrary.simpleMessage("Acceso de regalo"),
+    "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("Cada seis meses"),
+    "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
+      "Registrarse o recuperar la contraseña",
+    ),
+    "zolnitMonthly": MessageLookupByLibrary.simpleMessage("Mensual"),
+    "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage(
+      "Próxima renovación",
+    ),
+    "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
+      "No hay métodos de pago disponibles",
+    ),
+    "zolnitNoNodes": MessageLookupByLibrary.simpleMessage(
+      "No hay nodos disponibles para esta suscripción.",
+    ),
+    "zolnitNoOrders": MessageLookupByLibrary.simpleMessage(
+      "Aún no hay pedidos",
+    ),
+    "zolnitNoPlan": MessageLookupByLibrary.simpleMessage(
+      "No hay ningún plan activo",
+    ),
+    "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
+      "No hay contratos de renovación automática",
+    ),
+    "zolnitOneTime": MessageLookupByLibrary.simpleMessage("Pago único"),
+    "zolnitOrders": MessageLookupByLibrary.simpleMessage("Pedidos"),
+    "zolnitPaid": MessageLookupByLibrary.simpleMessage("Acceso pagado"),
+    "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage(
+      "Acceso pagado hasta",
+    ),
+    "zolnitPay": MessageLookupByLibrary.simpleMessage("Pagar pedido"),
+    "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
+      "El estado del pedido debe confirmarse al volver del pago.",
+    ),
+    "zolnitPaymentStatus": MessageLookupByLibrary.simpleMessage(
+      "Estado del pago",
+    ),
+    "zolnitPaymentUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Este método de pago aún no está disponible.",
+    ),
+    "zolnitPending": MessageLookupByLibrary.simpleMessage("Pendiente de pago"),
+    "zolnitPlans": MessageLookupByLibrary.simpleMessage("Planes"),
+    "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
+      "Los nodos y las reglas de enrutamiento se sincronizan automáticamente desde ZolNit.",
+    ),
+    "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Trimestral"),
+    "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
+      "Acepto los pagos recurrentes de este pedido según las condiciones de renovación mostradas.",
+    ),
+    "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualizar"),
+    "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
+      "Renovación automática",
+    ),
+    "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage(
+      "Restablecer tráfico",
+    ),
+    "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage(
+      "Reanudar renovación automática",
+    ),
+    "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
+      "Reanudar los cargos automáticos según el plan autorizado.",
+    ),
+    "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
+      "La sesión permanecerá abierta hasta que cierres la aplicación.",
+    ),
+    "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Iniciar sesión"),
+    "zolnitSignOut": MessageLookupByLibrary.simpleMessage("Cerrar sesión"),
+    "zolnitSync": MessageLookupByLibrary.simpleMessage(
+      "Sincronizar perfil de conexión",
+    ),
+    "zolnitSynced": MessageLookupByLibrary.simpleMessage(
+      "Perfil de conexión sincronizado",
+    ),
+    "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
+      "Sincronizando perfil de conexión…",
+    ),
+    "zolnitTagline": MessageLookupByLibrary.simpleMessage(
+      "Conectarse vuelve a ser sencillo.",
+    ),
+    "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("Cada tres años"),
+    "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("Cada dos años"),
+    "zolnitWebsite": MessageLookupByLibrary.simpleMessage(
+      "Abrir el sitio de ZolNit",
+    ),
+    "zolnitWelcome": MessageLookupByLibrary.simpleMessage(
+      "Te damos la bienvenida",
+    ),
+    "zolnitYearly": MessageLookupByLibrary.simpleMessage("Anual"),
   };
 }

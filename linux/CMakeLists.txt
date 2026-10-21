@@ -4,10 +4,13 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "FlClash")
+set(BINARY_NAME "ZolNit")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.follow.clash")
+set(APPLICATION_ID "com.zolmid.zolnit")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(APPLICATION_ID "com.zolmid.zolnit.debug")
+endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -111,7 +114,7 @@ endforeach(bundled_library)
 set(CORE_ARTIFACTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libclash/linux")
 install(PROGRAMS
   "${CORE_ARTIFACTS_DIR}/FlClashCore"
-  "${CORE_ARTIFACTS_DIR}/FlClashHelperService"
+  "${CORE_ARTIFACTS_DIR}/ZolNitHelperService"
   DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 install(FILES "${CORE_ARTIFACTS_DIR}/manifest.json"

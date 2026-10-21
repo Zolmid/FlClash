@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 
 const _sid = 'S-1-5-21-123-456-789-1001';
-const _executable = r'C:\Apps & Tools\FlClash\FlClash.exe';
+const _executable = r'C:\Apps & Tools\ZolNit\ZolNit.exe';
 
 class _Scheduler {
   final calls = <(String, List<String>)>[];
@@ -30,7 +30,7 @@ class _Scheduler {
     }
     expect(executable, 'schtasks.exe');
     final task = arguments[arguments.indexOf('/TN') + 1];
-    expect(task, startsWith('FlClash_AutoLaunch_${_sid}_'));
+    expect(task, startsWith('ZolNit_AutoLaunch_${_sid}_'));
     switch (arguments.first) {
       case '/Query':
         expect(arguments, contains('/XML'));
@@ -135,7 +135,7 @@ void main() {
             element.name.local: element.innerText,
         };
         expect(values['Command'], _executable);
-        expect(values['WorkingDirectory'], r'C:\Apps & Tools\FlClash');
+        expect(values['WorkingDirectory'], r'C:\Apps & Tools\ZolNit');
         expect(values['RunLevel'], 'LeastPrivilege');
         expect(values['LogonType'], 'InteractiveToken');
         expect(values['UserId'], _sid);
@@ -198,7 +198,7 @@ void main() {
       await task.enable();
       final name = scheduler.tasks.keys.single;
       scheduler.tasks[name] = scheduler.tasks[name]!.replaceFirst(
-        'com.follow.clash.autostart.v1',
+        'com.zolmid.zolnit.autostart.v1',
         'other.application',
       );
       scheduler.calls.clear();
@@ -226,7 +226,7 @@ void main() {
             '</Command><Arguments>--other</Arguments>',
           ),
           original.replaceFirst('LeastPrivilege', 'HighestAvailable'),
-          original.replaceFirst('FlClash.exe', 'Other.exe'),
+          original.replaceFirst('ZolNit.exe', 'Other.exe'),
         ]) {
           scheduler.tasks[name] = changed;
           await expectLater(task.disable(), throwsA(isA<AutostartException>()));

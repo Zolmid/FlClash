@@ -188,7 +188,7 @@ unsigned int CleanupMessage() {
   const auto installation = InstallationHash(ExecutablePath());
   if (installation.empty()) return 0;
   return RegisterWindowMessageW(
-      (L"FlClash.RemoveScheduledAutostart." + installation).c_str());
+      (L"ZolNit.RemoveScheduledAutostart." + installation).c_str());
 }
 
 bool RemoveCurrentUserTask() {

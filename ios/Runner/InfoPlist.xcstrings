@@ -7,31 +7,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash"
+            "value" : "ZolNit"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash"
+            "value" : "ZolNit"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash"
+            "value" : "ZolNit"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash"
+            "value" : "ZolNit"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash"
+            "value" : "ZolNit"
           }
         }
       }
@@ -54,31 +54,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash requests this permission to scan QR code."
+            "value" : "ZolNit requests this permission to scan QR code."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash は QR コードをスキャンするためにこの権限が必要です。"
+            "value" : "ZolNit は QR コードをスキャンするためにこの権限が必要です。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash запрашивает это разрешение для сканирования QR-кода."
+            "value" : "ZolNit запрашивает это разрешение для сканирования QR-кода."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 需要此权限以扫描二维码。"
+            "value" : "ZolNit 需要此权限以扫描二维码。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 需要此權限以掃描 QR 碼。"
+            "value" : "ZolNit 需要此權限以掃描 QR 碼。"
           }
         }
       }
@@ -89,31 +89,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash requests this permission to connect with servers on your local network."
+            "value" : "ZolNit requests this permission to connect with servers on your local network."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash はローカルネットワーク上のサーバーに接続するためにこの権限が必要です。"
+            "value" : "ZolNit はローカルネットワーク上のサーバーに接続するためにこの権限が必要です。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash запрашивает это разрешение для подключения к серверам в вашей локальной сети."
+            "value" : "ZolNit запрашивает это разрешение для подключения к серверам в вашей локальной сети."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 需要此权限以连接本地网络中的服务器。"
+            "value" : "ZolNit 需要此权限以连接本地网络中的服务器。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 需要此權限以連線至區域網路中的伺服器。"
+            "value" : "ZolNit 需要此權限以連線至區域網路中的伺服器。"
           }
         }
       }
@@ -124,31 +124,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash requests this permission to fetch Wi-Fi SSID."
+            "value" : "ZolNit requests this permission to fetch Wi-Fi SSID."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash は Wi-Fi SSID を取得するためにこの権限が必要です。"
+            "value" : "ZolNit は Wi-Fi SSID を取得するためにこの権限が必要です。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash запрашивает это разрешение для получения SSID Wi-Fi."
+            "value" : "ZolNit запрашивает это разрешение для получения SSID Wi-Fi."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 需要此权限以获取 Wi-Fi SSID。"
+            "value" : "ZolNit 需要此权限以获取 Wi-Fi SSID。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 需要此權限以取得 Wi-Fi SSID。"
+            "value" : "ZolNit 需要此權限以取得 Wi-Fi SSID。"
           }
         }
       }

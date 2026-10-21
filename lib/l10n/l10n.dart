@@ -10898,6 +10898,506 @@ class AppLocalizations {
   String get features {
     return Intl.message('Features', name: 'features', desc: '', args: []);
   }
+
+  /// `Welcome back`
+  String get zolnitWelcome {
+    return Intl.message(
+      'Welcome back',
+      name: 'zolnitWelcome',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Let connection feel simple.`
+  String get zolnitTagline {
+    return Intl.message(
+      'Let connection feel simple.',
+      name: 'zolnitTagline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Email`
+  String get zolnitEmail {
+    return Intl.message('Email', name: 'zolnitEmail', desc: '', args: []);
+  }
+
+  /// `Sign in`
+  String get zolnitSignIn {
+    return Intl.message('Sign in', name: 'zolnitSignIn', desc: '', args: []);
+  }
+
+  /// `Sign out`
+  String get zolnitSignOut {
+    return Intl.message('Sign out', name: 'zolnitSignOut', desc: '', args: []);
+  }
+
+  /// `You stay signed in until you close the app.`
+  String get zolnitSessionOnly {
+    return Intl.message(
+      'You stay signed in until you close the app.',
+      name: 'zolnitSessionOnly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Plans`
+  String get zolnitPlans {
+    return Intl.message('Plans', name: 'zolnitPlans', desc: '', args: []);
+  }
+
+  /// `Orders`
+  String get zolnitOrders {
+    return Intl.message('Orders', name: 'zolnitOrders', desc: '', args: []);
+  }
+
+  /// `Refresh`
+  String get zolnitRefresh {
+    return Intl.message('Refresh', name: 'zolnitRefresh', desc: '', args: []);
+  }
+
+  /// `Sync connection profile`
+  String get zolnitSync {
+    return Intl.message(
+      'Sync connection profile',
+      name: 'zolnitSync',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connection profile synced`
+  String get zolnitSynced {
+    return Intl.message(
+      'Connection profile synced',
+      name: 'zolnitSynced',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Syncing connection profile…`
+  String get zolnitSyncing {
+    return Intl.message(
+      'Syncing connection profile…',
+      name: 'zolnitSyncing',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No nodes are available for this subscription.`
+  String get zolnitNoNodes {
+    return Intl.message(
+      'No nodes are available for this subscription.',
+      name: 'zolnitNoNodes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No active plan`
+  String get zolnitNoPlan {
+    return Intl.message(
+      'No active plan',
+      name: 'zolnitNoPlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No orders yet`
+  String get zolnitNoOrders {
+    return Intl.message(
+      'No orders yet',
+      name: 'zolnitNoOrders',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic renewal`
+  String get zolnitRenewals {
+    return Intl.message(
+      'Automatic renewal',
+      name: 'zolnitRenewals',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No automatic renewal contracts`
+  String get zolnitNoRenewals {
+    return Intl.message(
+      'No automatic renewal contracts',
+      name: 'zolnitNoRenewals',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Next renewal`
+  String get zolnitNextRenewal {
+    return Intl.message(
+      'Next renewal',
+      name: 'zolnitNextRenewal',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paid through`
+  String get zolnitPaidThrough {
+    return Intl.message(
+      'Paid through',
+      name: 'zolnitPaidThrough',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Cancel automatic renewal`
+  String get zolnitCancelRenewal {
+    return Intl.message(
+      'Cancel automatic renewal',
+      name: 'zolnitCancelRenewal',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Resume automatic renewal`
+  String get zolnitResumeRenewal {
+    return Intl.message(
+      'Resume automatic renewal',
+      name: 'zolnitResumeRenewal',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.`
+  String get zolnitCancelRenewalTip {
+    return Intl.message(
+      'Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.',
+      name: 'zolnitCancelRenewalTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Resume automatic charges under the authorized plan.`
+  String get zolnitResumeRenewalTip {
+    return Intl.message(
+      'Resume automatic charges under the authorized plan.',
+      name: 'zolnitResumeRenewalTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not complete the request. Check your details or connection and try again.`
+  String get zolnitFailure {
+    return Intl.message(
+      'Could not complete the request. Check your details or connection and try again.',
+      name: 'zolnitFailure',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Renewal details are temporarily unavailable.`
+  String get zolnitBillingUnavailable {
+    return Intl.message(
+      'Renewal details are temporarily unavailable.',
+      name: 'zolnitBillingUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Gifted access`
+  String get zolnitGift {
+    return Intl.message(
+      'Gifted access',
+      name: 'zolnitGift',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paid access`
+  String get zolnitPaid {
+    return Intl.message('Paid access', name: 'zolnitPaid', desc: '', args: []);
+  }
+
+  /// `Advanced settings`
+  String get zolnitAdvanced {
+    return Intl.message(
+      'Advanced settings',
+      name: 'zolnitAdvanced',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open ZolNit website`
+  String get zolnitWebsite {
+    return Intl.message(
+      'Open ZolNit website',
+      name: 'zolnitWebsite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign up or recover your password`
+  String get zolnitLoginWebsite {
+    return Intl.message(
+      'Sign up or recover your password',
+      name: 'zolnitLoginWebsite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Create order`
+  String get zolnitBuy {
+    return Intl.message('Create order', name: 'zolnitBuy', desc: '', args: []);
+  }
+
+  /// `Pay order`
+  String get zolnitPay {
+    return Intl.message('Pay order', name: 'zolnitPay', desc: '', args: []);
+  }
+
+  /// `Cancel order`
+  String get zolnitCancelOrder {
+    return Intl.message(
+      'Cancel order',
+      name: 'zolnitCancelOrder',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Cancel this unpaid order?`
+  String get zolnitCancelOrderTip {
+    return Intl.message(
+      'Cancel this unpaid order?',
+      name: 'zolnitCancelOrderTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This payment option is not ready.`
+  String get zolnitPaymentUnavailable {
+    return Intl.message(
+      'This payment option is not ready.',
+      name: 'zolnitPaymentUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Monthly`
+  String get zolnitMonthly {
+    return Intl.message('Monthly', name: 'zolnitMonthly', desc: '', args: []);
+  }
+
+  /// `Quarterly`
+  String get zolnitQuarterly {
+    return Intl.message(
+      'Quarterly',
+      name: 'zolnitQuarterly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Every six months`
+  String get zolnitHalfYearly {
+    return Intl.message(
+      'Every six months',
+      name: 'zolnitHalfYearly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Yearly`
+  String get zolnitYearly {
+    return Intl.message('Yearly', name: 'zolnitYearly', desc: '', args: []);
+  }
+
+  /// `Every two years`
+  String get zolnitTwoYearly {
+    return Intl.message(
+      'Every two years',
+      name: 'zolnitTwoYearly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Every three years`
+  String get zolnitThreeYearly {
+    return Intl.message(
+      'Every three years',
+      name: 'zolnitThreeYearly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `One time`
+  String get zolnitOneTime {
+    return Intl.message('One time', name: 'zolnitOneTime', desc: '', args: []);
+  }
+
+  /// `Reset traffic`
+  String get zolnitResetTraffic {
+    return Intl.message(
+      'Reset traffic',
+      name: 'zolnitResetTraffic',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Amount due`
+  String get zolnitAmountDue {
+    return Intl.message(
+      'Amount due',
+      name: 'zolnitAmountDue',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Awaiting payment`
+  String get zolnitPending {
+    return Intl.message(
+      'Awaiting payment',
+      name: 'zolnitPending',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Activating`
+  String get zolnitActivating {
+    return Intl.message(
+      'Activating',
+      name: 'zolnitActivating',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Completed`
+  String get zolnitCompleted {
+    return Intl.message(
+      'Completed',
+      name: 'zolnitCompleted',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Canceled`
+  String get zolnitCanceled {
+    return Intl.message('Canceled', name: 'zolnitCanceled', desc: '', args: []);
+  }
+
+  /// `Credited`
+  String get zolnitCredited {
+    return Intl.message('Credited', name: 'zolnitCredited', desc: '', args: []);
+  }
+
+  /// `No payment methods available`
+  String get zolnitNoMethods {
+    return Intl.message(
+      'No payment methods available',
+      name: 'zolnitNoMethods',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Payment status`
+  String get zolnitPaymentStatus {
+    return Intl.message(
+      'Payment status',
+      name: 'zolnitPaymentStatus',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter a valid email and a password of at least eight characters.`
+  String get zolnitCredentialsInvalid {
+    return Intl.message(
+      'Enter a valid email and a password of at least eight characters.',
+      name: 'zolnitCredentialsInvalid',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nodes and routing rules sync automatically from ZolNit.`
+  String get zolnitProfileSource {
+    return Intl.message(
+      'Nodes and routing rules sync automatically from ZolNit.',
+      name: 'zolnitProfileSource',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your order still needs confirmation after returning from payment.`
+  String get zolnitPaymentReturn {
+    return Intl.message(
+      'Your order still needs confirmation after returning from payment.',
+      name: 'zolnitPaymentReturn',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `First payment`
+  String get zolnitFirstCharge {
+    return Intl.message(
+      'First payment',
+      name: 'zolnitFirstCharge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Following payments`
+  String get zolnitFollowingCharge {
+    return Intl.message(
+      'Following payments',
+      name: 'zolnitFollowingCharge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `I agree to continuous payments under this existing order and the displayed renewal terms.`
+  String get zolnitRecurringConsent {
+    return Intl.message(
+      'I agree to continuous payments under this existing order and the displayed renewal terms.',
+      name: 'zolnitRecurringConsent',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

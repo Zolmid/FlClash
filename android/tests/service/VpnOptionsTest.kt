@@ -1,6 +1,6 @@
-package com.follow.clash.service.models
+package com.zolmid.zolnit.service.models
 
-import com.follow.clash.common.AccessControlMode
+import com.zolmid.zolnit.common.AccessControlMode
 import com.google.gson.JsonParser
 import java.net.Inet4Address
 import java.net.Inet6Address

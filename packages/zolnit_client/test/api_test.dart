@@ -157,10 +157,47 @@ void main() {
     client.close();
   });
 
+  for (final status in [401, 403, 404, 409, 500, 503]) {
+    test(
+      'HTTP $status retains safe metadata and existing error code',
+      () async {
+        final client = XboardClient(
+          origin: origin,
+          client: MockClient(
+            (_) async => http.Response('private-response-secret', status),
+          ),
+        );
+        addTearDown(client.close);
+        client.setAuthorization('Bearer token');
+        final code = {401, 403}.contains(status)
+            ? 'unauthenticated'
+            : 'api_error';
+        await expectLater(
+          client.account(),
+          throwsA(
+            isA<ClientFailure>()
+                .having((e) => e.code, 'code', code)
+                .having((e) => e.statusCode, 'statusCode', status)
+                .having((e) => e.toString(), 'message', 'ClientFailure($code)'),
+          ),
+        );
+      },
+    );
+  }
+
   test('checkout preserves its nonstandard type/data envelope', () async {
     final client = XboardClient(
       origin: origin,
       client: MockClient((request) async {
+        if (request.url.path == '/api/v1/user/order/detail') {
+          expect(request.url.queryParameters, {'trade_no': 'orderA'});
+          return http.Response('{"data":{"trade_no":"orderA"}}', 200);
+        }
+        if (request.url.path ==
+            '/api/v1/zolnit-stripe/recurring-orders/orderA') {
+          return http.Response('{}', 404);
+        }
+        expect(request.url.path, '/api/v1/user/order/checkout');
         expect(request.method, 'POST');
         expect(jsonDecode(request.body), {'trade_no': 'orderA', 'method': 2});
         return http.Response(
@@ -178,12 +215,19 @@ void main() {
   test('typed actions must belong to the requested order', () async {
     final client = XboardClient(
       origin: origin,
-      client: MockClient(
-        (_) async => http.Response(
+      client: MockClient((request) async {
+        if (request.url.path == '/api/v1/user/order/detail') {
+          return http.Response('{"data":{"trade_no":"orderA"}}', 200);
+        }
+        if (request.url.path ==
+            '/api/v1/zolnit-stripe/recurring-orders/orderA') {
+          return http.Response('{}', 404);
+        }
+        return http.Response(
           '{"type":3,"data":{"trade_no":"orderB","kind":"hosted","url":"https://checkout.stripe.com/pay"}}',
           200,
-        ),
-      ),
+        );
+      }),
     );
     client.setAuthorization('Bearer token');
     await expectLater(

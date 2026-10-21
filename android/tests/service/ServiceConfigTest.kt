@@ -1,9 +1,9 @@
-package com.follow.clash.service
+package com.zolmid.zolnit.service
 
-import com.follow.clash.common.AccessControlMode
-import com.follow.clash.service.models.AccessControlProps
-import com.follow.clash.service.models.NotificationParams
-import com.follow.clash.service.models.VpnOptions
+import com.zolmid.zolnit.common.AccessControlMode
+import com.zolmid.zolnit.service.models.AccessControlProps
+import com.zolmid.zolnit.service.models.NotificationParams
+import com.zolmid.zolnit.service.models.VpnOptions
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
@@ -33,7 +33,7 @@ class ServiceConfigTest {
     fun `notification params default to the app name and stop label`() {
         val defaults = NotificationParams()
 
-        assertEquals("FlClash", defaults.title)
+        assertEquals("ZolNit", defaults.title)
         assertEquals("STOP", defaults.stopText)
         assertEquals(false, defaults.onlyStatisticsProxy)
         assertEquals(true, defaults.showStopAction)

@@ -115,7 +115,7 @@ Future<void> main(List<String> args) async {
       exit(
         await packageIOSNoSign(
           rootDir: rootDir,
-          appBundleId: bundleId ?? 'com.follow.clash',
+          appBundleId: bundleId ?? 'com.zolmid.zolnit',
           iosDevelopmentTeam: team,
           verbose: verbose,
         ),
@@ -678,7 +678,7 @@ Future<int> packageIOSNoSign({
     return 1;
   }
 
-  final tempDir = await Directory.systemTemp.createTemp('flclash_nosign_');
+  final tempDir = await Directory.systemTemp.createTemp('zolnit_nosign_');
   try {
     final signingTargets = createIOSNoSignSigningTargets(
       rootDir: rootDir,
@@ -745,7 +745,7 @@ Future<int> packageIOSNoSign({
     final outputDir = Directory(p.join(rootDir, 'dist'));
     await outputDir.create(recursive: true);
     final output = File(
-      p.join(outputDir.path, 'FlClash-$version-ios-arm64-unsigned.ipa'),
+      p.join(outputDir.path, 'ZolNit-$version-ios-arm64-unsigned.ipa'),
     );
     if (await output.exists()) {
       await output.delete();

@@ -7,7 +7,7 @@ namespace {
 
 const autostart::Identity identity{
     L"S-1-5-21-123-456-789-1001", L"3f728a9b45b4e123",
-    L"c:\\apps & tools\\flclash\\flclash.exe"};
+    L"c:\\apps & tools\\flclash\\zolnit.exe"};
 
 autostart::Task OwnedTask() {
   return {identity.TaskName(), identity.Source(), identity.sid, identity.sid,
@@ -29,7 +29,7 @@ bool Run(const std::string& name) {
   }
   if (name == "other_install") {
     const autostart::Identity other{identity.sid, L"f0123456789abcde",
-                                    L"c:\\other\\flclash.exe"};
+                                    L"c:\\other\\zolnit.exe"};
     return !autostart::OwnsTask(other, task);
   }
   if (name == "source") {
@@ -40,7 +40,7 @@ bool Run(const std::string& name) {
     return !autostart::OwnsTask(identity, task);
   }
   if (name == "command") {
-    task.executable = L"c:\\other\\flclash.exe";
+    task.executable = L"c:\\other\\zolnit.exe";
     return !autostart::OwnsTask(identity, task);
   }
   if (name == "shape") {
@@ -69,9 +69,9 @@ bool Run(const std::string& name) {
   }
 #ifdef _WIN32
   if (name == "native_hash") {
-    return autostart::InstallationHash(L"C:\\Apps & Tools\\FlClash\\FlClash.exe") ==
+    return autostart::InstallationHash(L"C:\\Apps & Tools\\ZolNit\\ZolNit.exe") ==
                L"7c2bd91a33ca0799" &&
-           autostart::InstallationHash(L"C:\\\u5e94\u7528 & Tools\\FlClash.exe") ==
+           autostart::InstallationHash(L"C:\\\u5e94\u7528 & Tools\\ZolNit.exe") ==
                L"a907a4e11ae7fbe9";
   }
 #endif

@@ -11,7 +11,7 @@ struct WidgetStatus: Widget {
     StaticConfiguration(kind: Self.kind, provider: Provider()) { entry in
       WidgetStatusView(entry: entry)
     }
-    .configurationDisplayName("FlClash")
+    .configurationDisplayName("ZolNit")
     .description(LocalizedStringResource("widgetDescription"))
     .supportedFamilies([.systemSmall, .systemMedium])
   }
@@ -27,7 +27,7 @@ extension WidgetStatus {
 
   struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> Entry {
-      Entry(date: .now, isOn: false, profileName: "FlClash", theme: nil)
+      Entry(date: .now, isOn: false, profileName: "ZolNit", theme: nil)
     }
 
     func getSnapshot(
@@ -59,7 +59,7 @@ extension WidgetStatus {
       return Entry(
         date: .now,
         isOn: isOn,
-        profileName: profileName.isEmpty ? "FlClash" : profileName,
+        profileName: profileName.isEmpty ? "ZolNit" : profileName,
         theme: state?.widgetTheme
       )
     }

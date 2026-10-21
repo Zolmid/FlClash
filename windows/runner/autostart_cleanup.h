@@ -15,11 +15,11 @@ struct Identity {
   std::wstring executable;
 
   std::wstring TaskName() const {
-    return L"FlClash_AutoLaunch_" + sid + L"_" + installation;
+    return L"ZolNit_AutoLaunch_" + sid + L"_" + installation;
   }
 
   std::wstring Source() const {
-    return L"com.follow.clash.autostart.v1/" + sid + L"/" + installation;
+    return L"com.zolmid.zolnit.autostart.v1/" + sid + L"/" + installation;
   }
 };
 

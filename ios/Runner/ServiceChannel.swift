@@ -34,7 +34,7 @@ final class ServiceChannel {
   private static var instance: ServiceChannel?
   private static var pendingQuickAction: QuickAction?
 
-  private static let packageName = "com.follow.clash"
+  private static let packageName = "com.zolmid.zolnit"
   private let channel: FlutterMethodChannel
   private let tileChannel: FlutterMethodChannel
   private let sharedStateStore: SharedStateStore
@@ -43,7 +43,7 @@ final class ServiceChannel {
   private let coreEventRelay: CoreEventRelay
   private var isInitialized = false
   private let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.follow.clash",
+    subsystem: Bundle.main.bundleIdentifier ?? "com.zolmid.zolnit",
     category: "ServiceChannel"
   )
 

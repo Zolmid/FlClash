@@ -53,7 +53,7 @@ final class CoreMessageRouter {
     }
   )
   private let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.follow.clash",
+    subsystem: Bundle.main.bundleIdentifier ?? "com.zolmid.zolnit",
     category: "CoreMessageRouter"
   )
 
