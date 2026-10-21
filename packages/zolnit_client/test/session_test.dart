@@ -49,7 +49,11 @@ class _Checkout extends CheckoutController {
   String? get tradeNo => trade;
 
   @override
-  Future<void> start(String tradeNo, int methodId) async {
+  Future<void> start(
+    String tradeNo,
+    int methodId, {
+    Json? recurringTerms,
+  }) async {
     starts++;
     trade = tradeNo;
     value = CheckoutStage.awaitingPayment;

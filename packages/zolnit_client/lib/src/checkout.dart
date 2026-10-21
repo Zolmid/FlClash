@@ -94,6 +94,14 @@ abstract interface class CheckoutBackend {
   Future<int> status(String tradeNo);
 }
 
+abstract interface class RecurringCheckoutBackend implements CheckoutBackend {
+  Future<CheckoutAction> startRecurring(
+    String tradeNo,
+    int methodId, {
+    required Json approvedTerms,
+  });
+}
+
 abstract interface class CheckoutPlatform {
   Future<bool> open(Uri uri);
   Future<void> confirmStripe(
@@ -121,10 +129,12 @@ class CheckoutController extends ChangeNotifier {
   PaymentQr? _qr;
   String? _tradeNo;
   String? _failure;
+  String? _failureMessage;
   CheckoutStage get stage => _stage;
   PaymentQr? get qr => _qr;
   String? get tradeNo => _tradeNo;
   String? get failure => _failure;
+  String? get failureMessage => _failureMessage;
   int _generation = 0;
   bool _disposed = false;
   Future<void>? _active;
@@ -137,7 +147,7 @@ class CheckoutController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> start(String tradeNo, int methodId) {
+  Future<void> start(String tradeNo, int methodId, {Json? recurringTerms}) {
     if (_disposed) return Future.error(const ClientFailure('closed'));
     if (!allowStripe) {
       return Future.error(
@@ -154,8 +164,9 @@ class CheckoutController extends ChangeNotifier {
     final generation = ++_generation;
     _qr = null;
     _failure = null;
+    _failureMessage = null;
     final operation = Future<void>.microtask(
-      () => _start(tradeNo, methodId, generation),
+      () => _start(tradeNo, methodId, generation, recurringTerms),
     );
     _active = operation;
     return operation.whenComplete(() {
@@ -163,13 +174,30 @@ class CheckoutController extends ChangeNotifier {
     });
   }
 
-  Future<void> _start(String tradeNo, int methodId, int generation) async {
+  Future<void> _start(
+    String tradeNo,
+    int methodId,
+    int generation,
+    Json? recurringTerms,
+  ) async {
     if (!_current(generation)) return;
     _set(CheckoutStage.launching);
     if (!_current(generation)) return;
     CheckoutAction? action;
     try {
-      action = await backend.start(tradeNo, methodId);
+      if (recurringTerms != null) {
+        final recurringBackend = backend;
+        if (recurringBackend is! RecurringCheckoutBackend) {
+          throw const ClientFailure('recurring_unavailable');
+        }
+        action = await recurringBackend.startRecurring(
+          tradeNo,
+          methodId,
+          approvedTerms: recurringTerms,
+        );
+      } else {
+        action = await backend.start(tradeNo, methodId);
+      }
       if (!_current(generation)) return;
       switch (action) {
         case HostedCheckout(:final uri):
@@ -199,6 +227,7 @@ class CheckoutController extends ChangeNotifier {
     } on ClientFailure catch (error) {
       if (!_current(generation)) return;
       _failure = error.code;
+      _failureMessage = error.serverMessage;
       if ({'user_cancelled', 'confirmation_pending'}.contains(error.code)) {
         _qr = action?.fallbackQr;
         _set(CheckoutStage.awaitingPayment);
@@ -321,6 +350,7 @@ class CheckoutController extends ChangeNotifier {
     _tradeNo = null;
     _qr = null;
     _failure = null;
+    _failureMessage = null;
     if (!_disposed) _set(CheckoutStage.idle);
   }
 

@@ -111,4 +111,23 @@ void main() {
     expect(macDirect.allowStripe, isTrue);
     expect(macDirect.allowAppleIap, isFalse);
   });
+
+  test('Android Stripe is unavailable by default, available with flag', () {
+    const blocked = ClientPaymentPolicy(
+      platform: TargetPlatform.android,
+      isWeb: false,
+      distribution: ClientDistribution.direct,
+    );
+    expect(blocked.allowStripe, isFalse);
+    expect(blocked.allowAndroidSdk, isFalse);
+
+    const enabled = ClientPaymentPolicy(
+      platform: TargetPlatform.android,
+      isWeb: false,
+      distribution: ClientDistribution.direct,
+      androidNativeStripe: true,
+    );
+    expect(enabled.allowStripe, isTrue);
+    expect(enabled.allowAndroidSdk, isTrue);
+  });
 }

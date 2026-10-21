@@ -71,6 +71,37 @@ subscriptions 返回 subscriptions 列表和独立 entitlement；权限使用服
 checkout；401/403/409、超时、5xx 和畸形响应均不回退。连续付费即使金额为零也必须展示服务端首期、后续、
 结算与抵扣信息，经明确同意后调用 subscribe，携带原 trade_no、quote_id 等字段及 consent=true，不创建替代订单。
 
+## 新连续包月流程
+
+1. 用户在套餐页选择已就绪的 Stripe 渠道（来自已登录的 `zolnit-stripe/config`，enabled 且 configured）。
+2. `GET zolnit-stripe/plans?payment_id=&plan_id=&period=monthly` 取得服务端报价；`available:false`、字段缺失、
+   `quote_expires_at` 已过期都直接失败，不降级为普通订单。金额、9 折、手续费、首期付款、原套餐余值抵扣、赠送权益替换、
+   立即切换和下次扣款时间全部以服务端为准，客户端不自行计算。
+3. 展示首期 / 后续 / 抵扣条款并取得明确同意；拒绝则不发任何写请求。
+4. `POST zolnit-stripe/recurring-orders {payment_id, plan_id, quote_id, consent:true}` 创建原生订单，返回 trade_no。
+5. 同一进程内为该 trade_no 记住已批准的条款，付款时读取 `recurring-orders/{tradeNo}`；其 quote_id 与金额字段和已批准条款
+   一致就不再重复确认，任一字段变化则重新展示并要求同意，拒绝即停止。
+6. `POST zolnit-stripe/subscribe` 取得 Hosted 收银台并在系统浏览器打开；返回后只靠订单状态查询确认交付。
+   已知的连续包月订单若意图返回 404 或任何错误，都不会回退到普通 checkout。
+
+## 服务端错误提示
+
+非 2xx 响应按 UTF-8 解析 JSON，`ClientFailure.serverMessage` 只在可安全展示时才有值：非空、不超过 300 字符、无控制字符、
+不含堆栈 / SQL / 文件路径特征，也不是通用的 “Server Error”。`toString()` 永远不包含该文本。401 / 403 一律只给
+`unauthenticated`，不带服务端文本。
+
+- 原生 XBoard 路径：业务错误（例如存在未支付订单）常以 HTTP 500 返回，4xx / 5xx 的可展示 message 都保留；服务端按请求头
+  `Content-Language` 本地化，客户端按当前界面语言发送 zh-CN / zh-TW / ja-JP / ko-KR / ru-RU / en-US。
+- 插件路径（`/api/v1/zolnit-stripe/`）：仅读取 4xx，按与网站 `public/entry.js` 的 checkoutError 相同的顺序映射为
+  `pending_order`、`quote_expired`、`checkout_exists`、`checkout_processing`、`rate_limited`，界面显示本地化文案；
+  消息含中文时原样显示，其余不显示服务端文本。
+
+## Android 原生 Stripe
+
+后端尚未提供 README 草案中的 `type:3 / kind:stripe_android` 动作，Android direct 请求目前只会得到 Embedded 结果，
+被客户端按设计拒绝。因此 Android 的 Stripe 入口默认如实显示为不可用；仅在后端就绪后用
+`--dart-define=ZOLNIT_ANDROID_NATIVE_STRIPE=true` 联调，桌面与 Apple 渠道策略不受影响。
+
 桌面 Hosted Checkout 消费 type:1,data:HTTPS-url 或已确认的 hosted 对象。运维会话已确认该后端适配上线，
 并独立验证测试会话及清理；这不等于客户端界面或真实扣款验收。既有 Embedded 会话仍使用网站继续，不能为桌面重复创建付款。
 Embedded 的 cs_ client_secret 不属于 PaymentIntent，客户端明确拒绝将其送进原生 Stripe SDK。

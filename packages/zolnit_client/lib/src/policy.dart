@@ -9,9 +9,14 @@ class ClientPaymentPolicy {
     required this.platform,
     required this.isWeb,
     required this.distribution,
+    this.androidNativeStripe = false,
   });
 
-  factory ClientPaymentPolicy.fromEnvironment() {
+  factory ClientPaymentPolicy.fromEnvironment({
+    bool androidNativeStripe = const bool.fromEnvironment(
+      'ZOLNIT_ANDROID_NATIVE_STRIPE',
+    ),
+  }) {
     const channel = String.fromEnvironment('ZOLNIT_DISTRIBUTION');
     final apple =
         {
@@ -30,18 +35,22 @@ class ClientPaymentPolicy {
       platform: defaultTargetPlatform,
       isWeb: kIsWeb,
       distribution: distribution,
+      androidNativeStripe: androidNativeStripe,
     );
   }
 
   final TargetPlatform platform;
   final bool isWeb;
   final ClientDistribution distribution;
+  final bool androidNativeStripe;
 
   String get platformHeader => isWeb ? 'web' : platform.name;
   String get distributionHeader =>
       distribution == ClientDistribution.direct ? 'direct' : 'apple-app-store';
 
-  bool get allowStripe => distribution == ClientDistribution.direct;
+  bool get allowStripe =>
+      distribution == ClientDistribution.direct &&
+      (platform != TargetPlatform.android || isWeb || androidNativeStripe);
   bool get allowAndroidSdk =>
       allowStripe && !isWeb && platform == TargetPlatform.android;
   bool get allowAppleIap =>

@@ -19,6 +19,7 @@ class ZolnitSessionController extends ChangeNotifier {
     required this.api,
     required ZolnitBillingClient billing,
     required this.checkout,
+    this.confirmRecurring,
   }) : _billing = billing {
     checkout.addListener(_checkoutChanged);
   }
@@ -26,6 +27,7 @@ class ZolnitSessionController extends ChangeNotifier {
   final XboardClient api;
   final ZolnitBillingClient _billing;
   final CheckoutController checkout;
+  final Future<bool> Function(Json terms)? confirmRecurring;
   final Map<String, Future<dynamic>> _flights = {};
   final Map<String, String?> _intents = {};
   bool _disposed = false;
@@ -41,6 +43,8 @@ class ZolnitSessionController extends ChangeNotifier {
   int _billingSequence = 0;
   String? _failure;
   String? _billingFailure;
+  String? _failureMessage;
+  String? _billingFailureMessage;
   Json? _account;
   Json? _subscription;
   List<Json> _nodes = const [];
@@ -48,12 +52,16 @@ class ZolnitSessionController extends ChangeNotifier {
   List<Json> _orders = const [];
   List<Json> _paymentMethods = const [];
   Json? _billingOverview;
+  Json? _recurringConfig;
+  final Map<String, Json> _recurringTerms = {};
   String? _completedTrade;
 
   bool get authenticated => _authenticated;
   bool get busy => _flights.isNotEmpty;
   String? get failure => _failure;
   String? get billingFailure => _billingFailure;
+  String? get failureMessage => _failureMessage;
+  String? get billingFailureMessage => _billingFailureMessage;
   Json? get account => _account;
   Json? get subscription => _subscription;
   List<Json> get nodes => _nodes;
@@ -61,6 +69,25 @@ class ZolnitSessionController extends ChangeNotifier {
   List<Json> get orders => _orders;
   List<Json> get paymentMethods => _paymentMethods;
   Json? get billingOverview => _billingOverview;
+  List<Json> get recurringMethods {
+    final config = _recurringConfig;
+    final channels = config?['channels'];
+    if (config?['enabled'] != true ||
+        config?['configured'] != true ||
+        channels is! List) {
+      return const [];
+    }
+    return channels
+        .whereType<Json>()
+        .where(
+          (channel) =>
+              channel['id'] is int &&
+              (channel['id'] as int) > 0 &&
+              channel['enabled'] == true &&
+              channel['configured'] == true,
+        )
+        .toList(growable: false);
+  }
 
   bool _current(_SessionWork work) =>
       !_disposed && work.epoch == _epoch && work.generation == api.generation;
@@ -74,6 +101,9 @@ class ZolnitSessionController extends ChangeNotifier {
           RegExp(r'^[a-z][a-z0-9_]{0,63}$').hasMatch(error.code)
       ? error.code
       : 'client_error';
+
+  static String? _message(Object error) =>
+      error is ClientFailure ? error.serverMessage : null;
 
   Future<T> _run<T>(
     String key,
@@ -104,9 +134,11 @@ class ZolnitSessionController extends ChangeNotifier {
         if (billing) {
           _billingSequence = work.sequence;
           _billingFailure = null;
+          _billingFailureMessage = null;
         } else {
           _coreSequence = work.sequence;
           _failure = null;
+          _failureMessage = null;
         }
         notifyListeners();
         if (!_current(work)) return fallback;
@@ -118,8 +150,10 @@ class ZolnitSessionController extends ChangeNotifier {
         if (_current(work)) {
           if (billing && work.sequence == _billingSequence) {
             _billingFailure = _code(error);
+            _billingFailureMessage = _message(error);
           } else if (!billing && work.sequence == _coreSequence) {
             _failure = _code(error);
+            _failureMessage = _message(error);
           }
         }
         return fallback;
@@ -173,6 +207,8 @@ class ZolnitSessionController extends ChangeNotifier {
     _orders = const [];
     _paymentMethods = const [];
     _billingOverview = null;
+    _recurringConfig = null;
+    _recurringTerms.clear();
     _completedTrade = null;
   }
 
@@ -184,6 +220,8 @@ class ZolnitSessionController extends ChangeNotifier {
     _clearSnapshots();
     _failure = null;
     _billingFailure = null;
+    _failureMessage = null;
+    _billingFailureMessage = null;
     _invalidating = true;
     try {
       checkout.reset();
@@ -253,6 +291,13 @@ class ZolnitSessionController extends ChangeNotifier {
   Future<void> refreshBilling() =>
       _run<void>('billing', null, _loadBilling, billing: true);
 
+  Future<void> refreshRecurringOptions() =>
+      _run<void>('recurringOptions', null, (work) async {
+        _recurringConfig = null;
+        final config = await _billing.config(authenticated: true);
+        if (_current(work)) _recurringConfig = _object(config);
+      }, billing: true);
+
   Future<void> cancelRenewal(int id) => _renewal(id, resume: false);
 
   Future<void> resumeRenewal(int id) => _renewal(id, resume: true);
@@ -299,6 +344,35 @@ class ZolnitSessionController extends ChangeNotifier {
     return _current(work) ? trade : null;
   }, intent: '$planId:$period:${coupon ?? ''}');
 
+  Future<String?> createMonthlyOrder({
+    required int planId,
+    required int paymentId,
+  }) => _run<String?>('createOrder', null, (work) async {
+    if (!checkout.allowStripe) throw const ClientFailure('payment_disallowed');
+    final confirm = confirmRecurring;
+    if (confirm == null) {
+      throw const ClientFailure('recurring_consent_required');
+    }
+    final config = await _billing.config(authenticated: true);
+    if (!_current(work)) return null;
+    _recurringConfig = _object(config);
+    if (!recurringMethods.any((channel) => channel['id'] == paymentId)) {
+      throw const ClientFailure('recurring_unavailable');
+    }
+    final quote = await _billing.monthlyQuote(
+      paymentId: paymentId,
+      planId: planId,
+    );
+    if (!_current(work)) return null;
+    final approved = await confirm(quote.terms);
+    if (!_current(work) || !approved) return null;
+    final trade = await _billing.createRecurringOrder(quote, consent: true);
+    if (!_current(work)) return null;
+    _recurringTerms[trade] = quote.terms;
+    await _loadOrders(work);
+    return _current(work) ? trade : null;
+  }, intent: 'monthly:$planId:$paymentId');
+
   Future<void> _reconcilePayment(_SessionWork work) async {
     final trade = checkout.tradeNo;
     if (checkout.stage != CheckoutStage.completed ||
@@ -315,11 +389,18 @@ class ZolnitSessionController extends ChangeNotifier {
 
   Future<void> payOrder(String tradeNo, int methodId) =>
       _run<void>('payment', null, (work) async {
-        await checkout.start(tradeNo, methodId);
+        await checkout.start(
+          tradeNo,
+          methodId,
+          recurringTerms: _recurringTerms[tradeNo],
+        );
         if (!_current(work)) return;
         if (checkout.failure != null &&
             checkout.stage != CheckoutStage.completed) {
-          throw ClientFailure(checkout.failure!);
+          throw ClientFailure(
+            checkout.failure!,
+            serverMessage: checkout.failureMessage,
+          );
         }
         await _reconcilePayment(work);
       }, intent: '$tradeNo:$methodId');
@@ -337,7 +418,10 @@ class ZolnitSessionController extends ChangeNotifier {
     await checkout.refresh();
     if (!_current(work)) return;
     if (checkout.failure != null && checkout.stage != CheckoutStage.completed) {
-      throw ClientFailure(checkout.failure!);
+      throw ClientFailure(
+        checkout.failure!,
+        serverMessage: checkout.failureMessage,
+      );
     }
     await _reconcilePayment(work);
   });

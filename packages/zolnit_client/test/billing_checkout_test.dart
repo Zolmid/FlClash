@@ -90,6 +90,19 @@ class _Harness {
 
 void main() {
   test(
+    'known recurring order never falls back when its intent is missing',
+    () async {
+      final h = _Harness(probe: (_) async => http.Response('{}', 404));
+      await expectLater(
+        h.backend.startRecurring('orderA', 2, approvedTerms: _intent()),
+        throwsA(isA<ClientFailure>()),
+      );
+      expect(h.paths, [_detail, _probe]);
+      expect(h.posts, isEmpty);
+    },
+  );
+
+  test(
     'owned detail then explicit 404 permits ordinary zero checkout',
     () async {
       final h = _Harness(probe: (_) async => http.Response('{}', 404));

@@ -9,6 +9,22 @@ import 'package:zolnit_client/zolnit_client.dart';
 void main() {
   final origin = Uri.parse('https://panel.example');
   test(
+    'JSON is read as UTF-8 even when the server omits its charset',
+    () async {
+      final client = XboardClient(
+        origin: origin,
+        client: MockClient(
+          (_) async => http.Response.bytes(
+            utf8.encode('{"data":{"email":"用户@example.com"}}'),
+            200,
+          ),
+        ),
+      )..setAuthorization('Bearer sessionA');
+      expect(await client.account(), {'email': '用户@example.com'});
+      client.close();
+    },
+  );
+  test(
     'network failures from an old login session are superseded too',
     () async {
       final response = Completer<http.Response>();

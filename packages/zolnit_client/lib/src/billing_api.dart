@@ -24,14 +24,45 @@ PaymentQr? _qr(Json json) {
   );
 }
 
-class XboardCheckoutBackend implements CheckoutBackend {
+class XboardCheckoutBackend implements RecurringCheckoutBackend {
   const XboardCheckoutBackend(this.api, {this.confirmRecurring});
 
   final XboardClient api;
   final Future<bool> Function(Json intent)? confirmRecurring;
 
   @override
-  Future<CheckoutAction> start(String tradeNo, int methodId) async {
+  Future<CheckoutAction> start(String tradeNo, int methodId) =>
+      _start(tradeNo, methodId, null, recurring: false);
+
+  @override
+  Future<CheckoutAction> startRecurring(
+    String tradeNo,
+    int methodId, {
+    required Json approvedTerms,
+  }) => _start(tradeNo, methodId, approvedTerms, recurring: true);
+
+  static const _termFields = [
+    'quote_id',
+    'first_total_cents',
+    'first_charge_amount_cents',
+    'total_cents',
+    'charge_amount_cents',
+    'surplus_amount_cents',
+    'surplus_credit_cents',
+    'gift_replacement',
+    'switch_immediately',
+    'next_charge_at',
+  ];
+
+  static bool _sameTerms(Json approved, Json intent) =>
+      _termFields.every((key) => approved[key] == intent[key]);
+
+  Future<CheckoutAction> _start(
+    String tradeNo,
+    int methodId,
+    Json? approved, {
+    required bool recurring,
+  }) async {
     final generation = api.generation;
     void ensureCurrent() {
       if (api.generation != generation) {
@@ -55,7 +86,7 @@ class XboardCheckoutBackend implements CheckoutBackend {
       ensureCurrent();
     } on ClientFailure catch (error) {
       ensureCurrent();
-      if (error.statusCode != 404) rethrow;
+      if (error.statusCode != 404 || recurring) rethrow;
       final response = await api.checkout(tradeNo, methodId);
       ensureCurrent();
       return _checkout(response, tradeNo);
@@ -99,9 +130,12 @@ class XboardCheckoutBackend implements CheckoutBackend {
     if (confirm == null) {
       throw const ClientFailure('recurring_consent_required');
     }
-    final consent = await confirm(Map<String, dynamic>.unmodifiable(intent));
-    ensureCurrent();
-    if (!consent) throw const ClientFailure('recurring_consent_required');
+    final alreadyApproved = approved != null && _sameTerms(approved, intent);
+    if (!alreadyApproved) {
+      final consent = await confirm(Map<String, dynamic>.unmodifiable(intent));
+      ensureCurrent();
+      if (!consent) throw const ClientFailure('recurring_consent_required');
+    }
     ensureCurrent();
     final value = await api.request(
       '/api/v1/zolnit-stripe/subscribe',
