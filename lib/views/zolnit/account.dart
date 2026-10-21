@@ -91,7 +91,15 @@ class ZolnitAccountPage extends StatelessWidget {
         const SizedBox(height: 24),
         Text(text.zolnitRenewals, style: AppTextStyle.title2.of(context)),
         const SizedBox(height: 12),
-        if (session.billingFailure != null) Text(text.zolnitBillingUnavailable),
+        if (session.billingFailure != null)
+          Text(
+            zolnitFailureText(
+              context,
+              session.billingFailure,
+              session.billingFailureMessage,
+              fallback: text.zolnitBillingUnavailable,
+            ),
+          ),
         if (contracts.isEmpty && session.billingFailure == null)
           Text(text.zolnitNoRenewals),
         for (final contract in contracts) ...[
@@ -132,7 +140,10 @@ class ZolnitAccountPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
-        ZolnitFailureMessage(visible: session.failure != null),
+        ZolnitFailureMessage(
+          code: session.failure,
+          serverMessage: session.failureMessage,
+        ),
       ],
     );
   }

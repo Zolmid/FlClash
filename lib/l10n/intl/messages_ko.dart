@@ -2153,21 +2153,42 @@ class MessageLookup extends MessageLookupByLibrary {
       "향후 자동 결제가 중단됩니다. 첫 주문이 미결제 상태라면 해당 주문도 취소됩니다. 결제된 이용 권한은 서버 결과에 따릅니다.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("취소됨"),
+    "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
+      "이미 진행 중인 결제가 있습니다. 계정에서 상태를 확인하고 다시 제출하지 마세요.",
+    ),
+    "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
+      "결제를 준비하거나 확인하는 중입니다. 잠시 후 다시 시도하세요.",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("완료"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "유효한 이메일과 8자 이상의 비밀번호를 입력하세요.",
     ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("상계 완료"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("이메일"),
+    "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("모든 화면에서 익숙한 경험"),
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "요청을 완료하지 못했습니다. 입력 내용이나 연결을 확인한 후 다시 시도하세요.",
     ),
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("첫 결제"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage("이후 결제"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("선물 이용 권한"),
+    "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
+      "첫 결제가 확인되면 유료 기간이 시작되고 남은 무료 기간을 대체합니다.",
+    ),
+    "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage("엄선한 글로벌 회선"),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("6개월마다"),
+    "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
+      "복잡한 설정 없이 한 번의 연결로 세상과 만나세요.",
+    ),
+    "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
+      "당신의 세상에 한 걸음 더 가까이",
+    ),
+    "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
+      "로그인하여 요금제와 연결을 관리하세요.",
+    ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("가입 또는 비밀번호 찾기"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("매월"),
+    "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage("매월 자동 결제"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("다음 갱신일"),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 결제 수단이 없습니다",
@@ -2191,13 +2212,31 @@ class MessageLookup extends MessageLookupByLibrary {
       "이 결제 수단은 아직 준비되지 않았습니다.",
     ),
     "zolnitPending": MessageLookupByLibrary.simpleMessage("결제 대기"),
+    "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
+      "처리 중인 주문이 있습니다. 주문 목록에서 결제를 이어가거나 닫은 뒤 다시 주문하세요.",
+    ),
+    "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
+      "첫 결제 또는 기존 요금제의 잔여 가치 차감이 확인되면 새 요금제가 시작됩니다.",
+    ),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("요금제"),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "노드와 라우팅 규칙은 ZolNit에서 자동으로 동기화됩니다.",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("3개월마다"),
+    "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
+      "자동 갱신에 동의하기 전에 서버 견적을 확인하세요.",
+    ),
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
+      "견적이 만료되었습니다. 요금제로 돌아가 다시 선택하세요.",
+    ),
+    "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
+      "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+    ),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
-      "현재 주문과 표시된 갱신 조건에 따른 정기 결제에 동의합니다.",
+      "표시된 첫 결제 및 갱신 조건에 따라 이 요금제의 정기 결제에 동의합니다.",
+    ),
+    "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
+      "현재 이 요금제는 월 자동 결제를 사용할 수 없습니다.",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("새로고침"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신"),
@@ -2217,6 +2256,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("연결을 더 간편하게."),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3년마다"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("2년마다"),
+    "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("월간 견적 보기"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("ZolNit 웹사이트 열기"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("다시 오신 것을 환영합니다"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("매년"),

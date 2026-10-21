@@ -2832,12 +2832,21 @@ class MessageLookup extends MessageLookupByLibrary {
       "Se detendrán los próximos cargos automáticos. También se cancelará un primer pedido sin pagar. El acceso ya pagado depende del resultado del servidor.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Cancelado"),
+    "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
+      "Ya hay un pago en curso. Consulta su estado en Cuenta y no lo envíes de nuevo.",
+    ),
+    "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
+      "El pago se está preparando o verificando. Inténtalo de nuevo en unos instantes.",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completado"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "Introduce un correo válido y una contraseña de al menos ocho caracteres.",
     ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("Compensado"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("Correo electrónico"),
+    "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
+      "Una experiencia familiar en cada pantalla",
+    ),
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "No se pudo completar la solicitud. Comprueba los datos o la conexión e inténtalo de nuevo.",
     ),
@@ -2846,11 +2855,29 @@ class MessageLookup extends MessageLookupByLibrary {
       "Pagos posteriores",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Acceso de regalo"),
+    "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
+      "El periodo de pago comienza al confirmar el primer pago y sustituye el tiempo gratuito restante.",
+    ),
+    "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage(
+      "Rutas globales seleccionadas",
+    ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("Cada seis meses"),
+    "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
+      "Olvida los ajustes complicados. Tu mundo está a una conexión.",
+    ),
+    "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
+      "Un poco más cerca de tu mundo",
+    ),
+    "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Inicia sesión para gestionar tu plan y tus conexiones.",
+    ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
       "Registrarse o recuperar la contraseña",
     ),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("Mensual"),
+    "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage(
+      "Facturación mensual automática",
+    ),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage(
       "Próxima renovación",
     ),
@@ -2886,13 +2913,31 @@ class MessageLookup extends MessageLookupByLibrary {
       "Este método de pago aún no está disponible.",
     ),
     "zolnitPending": MessageLookupByLibrary.simpleMessage("Pendiente de pago"),
+    "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
+      "Tienes un pedido pendiente. Continúa el pago o ciérralo en Pedidos antes de hacer otro.",
+    ),
+    "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
+      "El nuevo plan comienza al confirmar el primer pago o el crédito del valor restante.",
+    ),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("Planes"),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "Los nodos y las reglas de enrutamiento se sincronizan automáticamente desde ZolNit.",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Trimestral"),
+    "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
+      "Revisa la cotización del servidor antes de autorizar la renovación automática.",
+    ),
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
+      "La cotización ha caducado. Vuelve a Planes y elige de nuevo.",
+    ),
+    "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
+      "Demasiados intentos. Inténtalo de nuevo en un momento.",
+    ),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
-      "Acepto los pagos recurrentes de este pedido según las condiciones de renovación mostradas.",
+      "Acepto los pagos recurrentes de este plan según las condiciones mostradas del primer pago y las renovaciones.",
+    ),
+    "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
+      "La facturación mensual automática no está disponible para este plan por ahora.",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualizar"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
@@ -2926,6 +2971,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("Cada tres años"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("Cada dos años"),
+    "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
+      "Ver cotización mensual",
+    ),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage(
       "Abrir el sitio de ZolNit",
     ),

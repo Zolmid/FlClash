@@ -97,6 +97,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
       _orders = false;
     });
     if (index == 3) unawaited(ref.read(zolnitSessionProvider).refreshBilling());
+    if (index == 2) {
+      unawaited(ref.read(zolnitSessionProvider).refreshRecurringOptions());
+    }
   }
 
   void _showOrders() {
@@ -235,13 +238,13 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                   return Row(
                     children: [
                       SizedBox(
-                        width: 220,
+                        width: 228,
                         child: ColoredBox(
                           color: colors.chromeSurface,
                           child: Column(
                             children: [
                               const Padding(
-                                padding: EdgeInsets.all(24),
+                                padding: EdgeInsets.fromLTRB(16, 24, 16, 20),
                                 child: ZolnitBrand(),
                               ),
                               Expanded(
@@ -359,7 +362,8 @@ class _Dashboard extends ConsumerWidget {
                 ),
               ),
               ZolnitFailureMessage(
-                visible: syncFailed || session.failure != null,
+                code: syncFailed ? 'profile_sync_failed' : session.failure,
+                serverMessage: syncFailed ? null : session.failureMessage,
               ),
             ],
           ),

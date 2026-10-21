@@ -1341,5 +1341,21 @@
   "zolnitPaymentReturn": "Your order still needs confirmation after returning from payment.",
   "zolnitFirstCharge": "First payment",
   "zolnitFollowingCharge": "Following payments",
-  "zolnitRecurringConsent": "I agree to continuous payments under this existing order and the displayed renewal terms."
+  "zolnitRecurringConsent": "I agree to continuous payments for this plan under the displayed first-payment and renewal terms.",
+  "zolnitLoginEyebrow": "A little closer to your world",
+  "zolnitLoginDescription": "Skip the complicated setup. Your world is one connection away.",
+  "zolnitLoginSubtitle": "Sign in to manage your plan and connections.",
+  "zolnitGlobalRoutes": "Selected global routes",
+  "zolnitEveryScreen": "Familiar on every screen",
+  "zolnitMonthlyEnrollment": "Continuous monthly billing",
+  "zolnitQuoteBeforeConsent": "Review the server quote before authorizing automatic renewal.",
+  "zolnitViewMonthlyQuote": "View monthly quote",
+  "zolnitGiftReplacement": "Paid access starts after the first payment replaces the remaining gifted time.",
+  "zolnitPlanSwitch": "The new plan starts after the first payment or remaining-value credit is confirmed.",
+  "zolnitPendingOrder": "You have a pending order. Continue paying or close it in Orders before placing another.",
+  "zolnitQuoteExpired": "The quote has expired. Go back to Plans and choose again.",
+  "zolnitCheckoutExists": "A checkout is already in progress. Check its status in Account and do not submit it again.",
+  "zolnitCheckoutProcessing": "The checkout is being prepared or verified. Try again shortly.",
+  "zolnitRateLimited": "Too many attempts. Please try again in a moment.",
+  "zolnitRecurringUnavailable": "Monthly billing is not available for this plan right now."
 }

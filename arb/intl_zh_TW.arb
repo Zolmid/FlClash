@@ -1341,5 +1341,21 @@
   "zolnitPaymentReturn": "付款返回後仍需確認訂單狀態。",
   "zolnitFirstCharge": "首期付款",
   "zolnitFollowingCharge": "後續付款",
-  "zolnitRecurringConsent": "我同意按照目前訂單及以下續訂條款連續付款。"
+  "zolnitRecurringConsent": "我同意按所顯示的首期付款及後續續費條款為此方案連續付款。",
+  "zolnitLoginEyebrow": "離你的世界，再近一點",
+  "zolnitLoginDescription": "不必研究複雜設定。你想去的世界，輕輕一點就到。",
+  "zolnitLoginSubtitle": "登入你的帳戶，管理方案與連線。",
+  "zolnitGlobalRoutes": "全球優選線路",
+  "zolnitEveryScreen": "熟悉的多端體驗",
+  "zolnitMonthlyEnrollment": "連續包月",
+  "zolnitQuoteBeforeConsent": "先查看伺服器報價，再授權自動續費。",
+  "zolnitViewMonthlyQuote": "查看包月報價",
+  "zolnitGiftReplacement": "首期付款確認後開始付費週期，並取代剩餘贈送時間。",
+  "zolnitPlanSwitch": "首期付款或原方案剩餘價值折抵確認後，開始新方案週期。",
+  "zolnitPendingOrder": "你有一筆待處理訂單，請在「訂單」中繼續付款或關閉後再下單。",
+  "zolnitQuoteExpired": "結算報價已過期，請返回方案頁重新選擇。",
+  "zolnitCheckoutExists": "已有一筆結算正在處理，請在帳號頁查看狀態，請勿重複提交。",
+  "zolnitCheckoutProcessing": "結算工作階段正在準備或核對，請稍後重試。",
+  "zolnitRateLimited": "操作過於頻繁，請稍後重試。",
+  "zolnitRecurringUnavailable": "目前暫時無法為此方案開通連續包月。"
 }

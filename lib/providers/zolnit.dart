@@ -18,6 +18,8 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
     origin: Uri.parse('https://link.zolmid.com'),
     clientPlatform: policy.platformHeader,
     distribution: policy.distributionHeader,
+    userAgent: globalState.ua,
+    contentLanguage: _contentLanguage,
   );
   final checkout = CheckoutController(
     backend: XboardCheckoutBackend(api, confirmRecurring: _confirmRecurring),
@@ -32,10 +34,20 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
     api: api,
     billing: ZolnitBillingClient(api),
     checkout: checkout,
+    confirmRecurring: _confirmRecurring,
   );
   ref.onDispose(session.dispose);
   return session;
 });
+
+String _contentLanguage() => switch (Intl.getCurrentLocale()) {
+  'zh_CN' => 'zh-CN',
+  'zh_TW' => 'zh-TW',
+  'ja' => 'ja-JP',
+  'ko' => 'ko-KR',
+  'ru' => 'ru-RU',
+  _ => 'en-US',
+};
 
 Future<bool> _confirmRecurring(Json intent) async {
   const fields = [
@@ -60,6 +72,10 @@ Future<bool> _confirmRecurring(Json intent) async {
         '${text.zolnitFirstCharge}: ${money('first_total_cents', 'CNY')} / ${money('first_charge_amount_cents', 'SGD')}',
         '${text.zolnitFollowingCharge}: ${money('total_cents', 'CNY')} / ${money('charge_amount_cents', 'SGD')}',
         '${text.zolnitCredited}: ${money('surplus_credit_cents', 'CNY')}',
+        if (intent['next_charge_at'] is int)
+          '${text.zolnitNextRenewal}: ${DateFormat.yMMMd().format(DateTime.fromMillisecondsSinceEpoch((intent['next_charge_at'] as int) * 1000))}',
+        if (intent['gift_replacement'] == true) text.zolnitGiftReplacement,
+        if (intent['switch_immediately'] == true) text.zolnitPlanSwitch,
       ].join('\n\n'),
     ),
   );

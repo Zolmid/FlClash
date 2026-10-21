@@ -1341,5 +1341,21 @@
   "zolnitPaymentReturn": "결제에서 돌아온 후에도 주문 상태를 확인해야 합니다.",
   "zolnitFirstCharge": "첫 결제",
   "zolnitFollowingCharge": "이후 결제",
-  "zolnitRecurringConsent": "현재 주문과 표시된 갱신 조건에 따른 정기 결제에 동의합니다."
+  "zolnitRecurringConsent": "표시된 첫 결제 및 갱신 조건에 따라 이 요금제의 정기 결제에 동의합니다.",
+  "zolnitLoginEyebrow": "당신의 세상에 한 걸음 더 가까이",
+  "zolnitLoginDescription": "복잡한 설정 없이 한 번의 연결로 세상과 만나세요.",
+  "zolnitLoginSubtitle": "로그인하여 요금제와 연결을 관리하세요.",
+  "zolnitGlobalRoutes": "엄선한 글로벌 회선",
+  "zolnitEveryScreen": "모든 화면에서 익숙한 경험",
+  "zolnitMonthlyEnrollment": "매월 자동 결제",
+  "zolnitQuoteBeforeConsent": "자동 갱신에 동의하기 전에 서버 견적을 확인하세요.",
+  "zolnitViewMonthlyQuote": "월간 견적 보기",
+  "zolnitGiftReplacement": "첫 결제가 확인되면 유료 기간이 시작되고 남은 무료 기간을 대체합니다.",
+  "zolnitPlanSwitch": "첫 결제 또는 기존 요금제의 잔여 가치 차감이 확인되면 새 요금제가 시작됩니다.",
+  "zolnitPendingOrder": "처리 중인 주문이 있습니다. 주문 목록에서 결제를 이어가거나 닫은 뒤 다시 주문하세요.",
+  "zolnitQuoteExpired": "견적이 만료되었습니다. 요금제로 돌아가 다시 선택하세요.",
+  "zolnitCheckoutExists": "이미 진행 중인 결제가 있습니다. 계정에서 상태를 확인하고 다시 제출하지 마세요.",
+  "zolnitCheckoutProcessing": "결제를 준비하거나 확인하는 중입니다. 잠시 후 다시 시도하세요.",
+  "zolnitRateLimited": "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+  "zolnitRecurringUnavailable": "현재 이 요금제는 월 자동 결제를 사용할 수 없습니다."
 }

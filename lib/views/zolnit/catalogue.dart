@@ -60,6 +60,21 @@ class ZolnitPlansPage extends StatelessWidget {
   final ZolnitSessionController session;
   final VoidCallback onOrderCreated;
 
+  Future<void> _monthly(BuildContext context, int planId, int paymentId) async {
+    final generation = session.api.generation;
+    final trade = await session.createMonthlyOrder(
+      planId: planId,
+      paymentId: paymentId,
+    );
+    if (trade == null ||
+        !context.mounted ||
+        session.api.generation != generation) {
+      return;
+    }
+    onOrderCreated();
+    await session.payOrder(trade, paymentId);
+  }
+
   Future<void> _create(BuildContext context, Json plan, String period) async {
     final text = context.appLocalizations;
     final generation = session.api.generation;
@@ -149,6 +164,32 @@ class ZolnitPlansPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                if (plan['id'] is int && plan['month_price'] is num) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    text.zolnitMonthlyEnrollment,
+                    style: AppTextStyle.headline.of(context),
+                  ),
+                  Text(text.zolnitQuoteBeforeConsent),
+                  if (session.recurringMethods.isEmpty)
+                    Text(text.zolnitPaymentUnavailable),
+                  for (final method in session.recurringMethods)
+                    TextButton(
+                      key: ValueKey(
+                        'zolnit-monthly-${plan['id']}-${method['id']}',
+                      ),
+                      onPressed: session.busy || !session.checkout.allowStripe
+                          ? null
+                          : () => _monthly(
+                              context,
+                              plan['id'] as int,
+                              method['id'] as int,
+                            ),
+                      child: Text(
+                        '${text.zolnitViewMonthlyQuote} · ${method['name'] is String ? method['name'] : text.unknown}',
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
@@ -156,7 +197,19 @@ class ZolnitPlansPage extends StatelessWidget {
             Text(text.zolnitPaymentUnavailable),
           const SizedBox(height: 16),
         ],
-        ZolnitFailureMessage(visible: session.failure != null),
+        ZolnitFailureMessage(
+          code: session.failure,
+          serverMessage: session.failureMessage,
+        ),
+        if (session.billingFailure != null)
+          Text(
+            zolnitFailureText(
+              context,
+              session.billingFailure,
+              session.billingFailureMessage,
+              fallback: text.zolnitBillingUnavailable,
+            ),
+          ),
       ],
     );
   }
@@ -284,7 +337,10 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                         const SizedBox(height: 12),
                         Text(text.zolnitPaymentReturn),
                         if (session.checkout.failure != null)
-                          Text(text.zolnitFailure),
+                          ZolnitFailureMessage(
+                            code: session.checkout.failure,
+                            serverMessage: session.checkout.failureMessage,
+                          ),
                         TextButton(
                           onPressed: session.busy
                               ? null
@@ -299,7 +355,10 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
             ),
             const SizedBox(height: 16),
           ],
-        ZolnitFailureMessage(visible: session.failure != null),
+        ZolnitFailureMessage(
+          code: session.failure,
+          serverMessage: session.failureMessage,
+        ),
       ],
     );
   }

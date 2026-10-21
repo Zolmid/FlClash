@@ -1970,19 +1970,38 @@ class MessageLookup extends MessageLookupByLibrary {
       "停止後續自動扣款；首期尚未付款的訂單也會取消。已付權益以伺服器結果為準。",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("已取消"),
+    "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
+      "已有一筆結算正在處理，請在帳號頁查看狀態，請勿重複提交。",
+    ),
+    "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
+      "結算工作階段正在準備或核對，請稍後重試。",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("已完成"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "請輸入有效電子郵件和至少八位密碼。",
     ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("已折抵"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("電子郵件"),
+    "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("熟悉的多端體驗"),
     "zolnitFailure": MessageLookupByLibrary.simpleMessage("操作未完成，請檢查輸入或網路後重試。"),
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("首期付款"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage("後續付款"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("贈送權益"),
+    "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
+      "首期付款確認後開始付費週期，並取代剩餘贈送時間。",
+    ),
+    "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage("全球優選線路"),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("半年付"),
+    "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
+      "不必研究複雜設定。你想去的世界，輕輕一點就到。",
+    ),
+    "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage("離你的世界，再近一點"),
+    "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
+      "登入你的帳戶，管理方案與連線。",
+    ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("註冊或找回密碼"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月付"),
+    "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage("連續包月"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("下次續訂"),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage("暫無可用付款方式"),
     "zolnitNoNodes": MessageLookupByLibrary.simpleMessage("目前訂閱暫無可用節點。"),
@@ -2002,13 +2021,29 @@ class MessageLookup extends MessageLookupByLibrary {
       "此付款方式尚未就緒。",
     ),
     "zolnitPending": MessageLookupByLibrary.simpleMessage("待付款"),
+    "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
+      "你有一筆待處理訂單，請在「訂單」中繼續付款或關閉後再下單。",
+    ),
+    "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
+      "首期付款或原方案剩餘價值折抵確認後，開始新方案週期。",
+    ),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("方案"),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "節點與分流規則由 ZolNit 自動同步。",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("季付"),
+    "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
+      "先查看伺服器報價，再授權自動續費。",
+    ),
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
+      "結算報價已過期，請返回方案頁重新選擇。",
+    ),
+    "zolnitRateLimited": MessageLookupByLibrary.simpleMessage("操作過於頻繁，請稍後重試。"),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
-      "我同意按照目前訂單及以下續訂條款連續付款。",
+      "我同意按所顯示的首期付款及後續續費條款為此方案連續付款。",
+    ),
+    "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
+      "目前暫時無法為此方案開通連續包月。",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("重新整理"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自動續訂"),
@@ -2028,6 +2063,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("讓連線回歸簡單。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("三年付"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("兩年付"),
+    "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("查看包月報價"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("開啟 ZolNit 網站"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("歡迎回來"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("年付"),

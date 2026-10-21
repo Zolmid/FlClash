@@ -30,6 +30,27 @@ String zolnitOrderStatus(BuildContext context, dynamic status) {
   };
 }
 
+/// Known failure codes get localized text; others show the server's reason.
+String zolnitFailureText(
+  BuildContext context,
+  String? code,
+  String? serverMessage, {
+  String? fallback,
+}) {
+  final text = context.appLocalizations;
+  return switch (code) {
+    'pending_order' => text.zolnitPendingOrder,
+    'quote_expired' || 'recurring_quote_expired' => text.zolnitQuoteExpired,
+    'checkout_exists' => text.zolnitCheckoutExists,
+    'checkout_processing' => text.zolnitCheckoutProcessing,
+    'rate_limited' => text.zolnitRateLimited,
+    'recurring_unavailable' => text.zolnitRecurringUnavailable,
+    'payment_disallowed' ||
+    'stripe_disabled_for_distribution' => text.zolnitPaymentUnavailable,
+    _ => serverMessage ?? fallback ?? text.zolnitFailure,
+  };
+}
+
 class ZolnitValue extends StatelessWidget {
   const ZolnitValue({super.key, required this.label, required this.value});
 

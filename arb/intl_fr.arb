@@ -1341,5 +1341,21 @@
   "zolnitPaymentReturn": "L’état de la commande doit encore être confirmé après votre retour du paiement.",
   "zolnitFirstCharge": "Premier paiement",
   "zolnitFollowingCharge": "Paiements suivants",
-  "zolnitRecurringConsent": "J’accepte les paiements récurrents pour cette commande selon les conditions de renouvellement affichées."
+  "zolnitRecurringConsent": "J’accepte les paiements récurrents de ce forfait selon les conditions affichées du premier paiement et des renouvellements.",
+  "zolnitLoginEyebrow": "Un peu plus près de votre monde",
+  "zolnitLoginDescription": "Oubliez les réglages compliqués. Votre monde est à une connexion.",
+  "zolnitLoginSubtitle": "Connectez-vous pour gérer votre forfait et vos connexions.",
+  "zolnitGlobalRoutes": "Des routes mondiales sélectionnées",
+  "zolnitEveryScreen": "Une expérience familière sur chaque écran",
+  "zolnitMonthlyEnrollment": "Facturation mensuelle automatique",
+  "zolnitQuoteBeforeConsent": "Consultez le devis du serveur avant d’autoriser le renouvellement automatique.",
+  "zolnitViewMonthlyQuote": "Voir le devis mensuel",
+  "zolnitGiftReplacement": "La période payante commence après confirmation du premier paiement et remplace le temps offert restant.",
+  "zolnitPlanSwitch": "Le nouveau forfait commence après confirmation du premier paiement ou du crédit de la valeur restante.",
+  "zolnitPendingOrder": "Vous avez une commande en attente. Poursuivez le paiement ou fermez-la dans Commandes avant d’en passer une autre.",
+  "zolnitQuoteExpired": "Le devis a expiré. Revenez aux forfaits et choisissez à nouveau.",
+  "zolnitCheckoutExists": "Un paiement est déjà en cours. Consultez son état dans Compte sans le soumettre à nouveau.",
+  "zolnitCheckoutProcessing": "Le paiement est en préparation ou en vérification. Réessayez dans un instant.",
+  "zolnitRateLimited": "Trop de tentatives. Réessayez dans un instant.",
+  "zolnitRecurringUnavailable": "La facturation mensuelle automatique n’est pas disponible pour ce forfait pour le moment."
 }

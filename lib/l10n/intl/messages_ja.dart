@@ -2203,21 +2203,42 @@ class MessageLookup extends MessageLookupByLibrary {
       "今後の自動請求を停止します。初回の未払い注文も取り消されます。支払済みの利用権はサーバーの結果に従います。",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("取り消し済み"),
+    "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
+      "決済がすでに処理中です。アカウントで状況を確認し、重複して送信しないでください。",
+    ),
+    "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
+      "決済を準備または確認しています。しばらくしてからもう一度お試しください。",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("完了"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "有効なメールアドレスと8文字以上のパスワードを入力してください。",
     ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("相殺済み"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("メールアドレス"),
+    "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("どの画面でも使い慣れた操作"),
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "処理を完了できませんでした。入力内容と接続を確認し、もう一度お試しください。",
     ),
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("初回の支払い"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage("次回以降の支払い"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("ギフト利用権"),
+    "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
+      "初回支払いの確認後に有料期間が始まり、残りの無料期間が置き換わります。",
+    ),
+    "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage("厳選された世界の回線"),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("6か月ごと"),
+    "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
+      "複雑な設定は不要。ワンタッチで世界につながります。",
+    ),
+    "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
+      "あなたの世界を、もっと近くに",
+    ),
+    "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
+      "ログインしてプランと接続を管理します。",
+    ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("新規登録・パスワード再設定"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月払い"),
+    "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage("毎月の自動支払い"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("次回の更新"),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage("利用できる支払い方法はありません"),
     "zolnitNoNodes": MessageLookupByLibrary.simpleMessage(
@@ -2239,13 +2260,31 @@ class MessageLookup extends MessageLookupByLibrary {
       "この支払い方法はまだ利用できません。",
     ),
     "zolnitPending": MessageLookupByLibrary.simpleMessage("支払い待ち"),
+    "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
+      "保留中の注文があります。「注文」で支払いを続けるか閉じてから、もう一度お試しください。",
+    ),
+    "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
+      "初回支払いまたは旧プランの残存価値の充当が確認されると、新しいプランが始まります。",
+    ),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("プラン"),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "ノードと振り分けルールは ZolNit から自動同期されます。",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("3か月ごと"),
+    "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
+      "自動更新に同意する前にサーバーの見積もりを確認してください。",
+    ),
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
+      "見積もりの有効期限が切れました。プランに戻って選び直してください。",
+    ),
+    "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
+      "操作が多すぎます。しばらくしてからもう一度お試しください。",
+    ),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
-      "この注文と表示された更新条件に基づく継続的な支払いに同意します。",
+      "表示された初回支払いと更新の条件に基づき、このプランの継続支払いに同意します。",
+    ),
+    "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
+      "現在、このプランでは毎月の自動支払いをご利用いただけません。",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("更新"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自動更新"),
@@ -2265,6 +2304,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("接続を、もっとシンプルに。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3年ごと"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("2年ごと"),
+    "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
+      "月額の見積もりを表示",
+    ),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("ZolNit サイトを開く"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("おかえりなさい"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("年払い"),

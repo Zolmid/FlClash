@@ -1341,5 +1341,21 @@
   "zolnitPaymentReturn": "El estado del pedido debe confirmarse al volver del pago.",
   "zolnitFirstCharge": "Primer pago",
   "zolnitFollowingCharge": "Pagos posteriores",
-  "zolnitRecurringConsent": "Acepto los pagos recurrentes de este pedido según las condiciones de renovación mostradas."
+  "zolnitRecurringConsent": "Acepto los pagos recurrentes de este plan según las condiciones mostradas del primer pago y las renovaciones.",
+  "zolnitLoginEyebrow": "Un poco más cerca de tu mundo",
+  "zolnitLoginDescription": "Olvida los ajustes complicados. Tu mundo está a una conexión.",
+  "zolnitLoginSubtitle": "Inicia sesión para gestionar tu plan y tus conexiones.",
+  "zolnitGlobalRoutes": "Rutas globales seleccionadas",
+  "zolnitEveryScreen": "Una experiencia familiar en cada pantalla",
+  "zolnitMonthlyEnrollment": "Facturación mensual automática",
+  "zolnitQuoteBeforeConsent": "Revisa la cotización del servidor antes de autorizar la renovación automática.",
+  "zolnitViewMonthlyQuote": "Ver cotización mensual",
+  "zolnitGiftReplacement": "El periodo de pago comienza al confirmar el primer pago y sustituye el tiempo gratuito restante.",
+  "zolnitPlanSwitch": "El nuevo plan comienza al confirmar el primer pago o el crédito del valor restante.",
+  "zolnitPendingOrder": "Tienes un pedido pendiente. Continúa el pago o ciérralo en Pedidos antes de hacer otro.",
+  "zolnitQuoteExpired": "La cotización ha caducado. Vuelve a Planes y elige de nuevo.",
+  "zolnitCheckoutExists": "Ya hay un pago en curso. Consulta su estado en Cuenta y no lo envíes de nuevo.",
+  "zolnitCheckoutProcessing": "El pago se está preparando o verificando. Inténtalo de nuevo en unos instantes.",
+  "zolnitRateLimited": "Demasiados intentos. Inténtalo de nuevo en un momento.",
+  "zolnitRecurringUnavailable": "La facturación mensual automática no está disponible para este plan por ahora."
 }

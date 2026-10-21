@@ -11389,11 +11389,171 @@ class AppLocalizations {
     );
   }
 
-  /// `I agree to continuous payments under this existing order and the displayed renewal terms.`
+  /// `I agree to continuous payments for this plan under the displayed first-payment and renewal terms.`
   String get zolnitRecurringConsent {
     return Intl.message(
-      'I agree to continuous payments under this existing order and the displayed renewal terms.',
+      'I agree to continuous payments for this plan under the displayed first-payment and renewal terms.',
       name: 'zolnitRecurringConsent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `A little closer to your world`
+  String get zolnitLoginEyebrow {
+    return Intl.message(
+      'A little closer to your world',
+      name: 'zolnitLoginEyebrow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Skip the complicated setup. Your world is one connection away.`
+  String get zolnitLoginDescription {
+    return Intl.message(
+      'Skip the complicated setup. Your world is one connection away.',
+      name: 'zolnitLoginDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign in to manage your plan and connections.`
+  String get zolnitLoginSubtitle {
+    return Intl.message(
+      'Sign in to manage your plan and connections.',
+      name: 'zolnitLoginSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Selected global routes`
+  String get zolnitGlobalRoutes {
+    return Intl.message(
+      'Selected global routes',
+      name: 'zolnitGlobalRoutes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Familiar on every screen`
+  String get zolnitEveryScreen {
+    return Intl.message(
+      'Familiar on every screen',
+      name: 'zolnitEveryScreen',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Continuous monthly billing`
+  String get zolnitMonthlyEnrollment {
+    return Intl.message(
+      'Continuous monthly billing',
+      name: 'zolnitMonthlyEnrollment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Review the server quote before authorizing automatic renewal.`
+  String get zolnitQuoteBeforeConsent {
+    return Intl.message(
+      'Review the server quote before authorizing automatic renewal.',
+      name: 'zolnitQuoteBeforeConsent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View monthly quote`
+  String get zolnitViewMonthlyQuote {
+    return Intl.message(
+      'View monthly quote',
+      name: 'zolnitViewMonthlyQuote',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Paid access starts after the first payment replaces the remaining gifted time.`
+  String get zolnitGiftReplacement {
+    return Intl.message(
+      'Paid access starts after the first payment replaces the remaining gifted time.',
+      name: 'zolnitGiftReplacement',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The new plan starts after the first payment or remaining-value credit is confirmed.`
+  String get zolnitPlanSwitch {
+    return Intl.message(
+      'The new plan starts after the first payment or remaining-value credit is confirmed.',
+      name: 'zolnitPlanSwitch',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `You have a pending order. Continue paying or close it in Orders before placing another.`
+  String get zolnitPendingOrder {
+    return Intl.message(
+      'You have a pending order. Continue paying or close it in Orders before placing another.',
+      name: 'zolnitPendingOrder',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The quote has expired. Go back to Plans and choose again.`
+  String get zolnitQuoteExpired {
+    return Intl.message(
+      'The quote has expired. Go back to Plans and choose again.',
+      name: 'zolnitQuoteExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `A checkout is already in progress. Check its status in Account and do not submit it again.`
+  String get zolnitCheckoutExists {
+    return Intl.message(
+      'A checkout is already in progress. Check its status in Account and do not submit it again.',
+      name: 'zolnitCheckoutExists',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The checkout is being prepared or verified. Try again shortly.`
+  String get zolnitCheckoutProcessing {
+    return Intl.message(
+      'The checkout is being prepared or verified. Try again shortly.',
+      name: 'zolnitCheckoutProcessing',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Too many attempts. Please try again in a moment.`
+  String get zolnitRateLimited {
+    return Intl.message(
+      'Too many attempts. Please try again in a moment.',
+      name: 'zolnitRateLimited',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Monthly billing is not available for this plan right now.`
+  String get zolnitRecurringUnavailable {
+    return Intl.message(
+      'Monthly billing is not available for this plan right now.',
+      name: 'zolnitRecurringUnavailable',
       desc: '',
       args: [],
     );

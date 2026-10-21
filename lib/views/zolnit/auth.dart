@@ -51,27 +51,9 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
         return Row(
           children: [
             if (wide)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(48),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const ZolnitBrand(width: 210),
-                      const SizedBox(height: 48),
-                      Text(
-                        text.zolnitTagline,
-                        style: AppTextStyle.largeTitle.of(context),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        text.zolnitProfileSource,
-                        style: AppTextStyle.body.of(context),
-                      ),
-                    ],
-                  ),
-                ),
+              const Expanded(
+                key: ValueKey('zolnit-brand-panel'),
+                child: ZolnitBrandRegion(),
               ),
             Expanded(
               child: Center(
@@ -87,12 +69,26 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!wide) ...[
-                              const ZolnitBrand(),
+                              const Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: ZolnitBrand(width: 227),
+                              ),
                               const SizedBox(height: 32),
                             ],
                             Text(
                               text.zolnitWelcome,
                               style: AppTextStyle.title1.of(context),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              text.zolnitLoginSubtitle,
+                              style: AppTextStyle.footnote
+                                  .of(context)
+                                  .copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                             const SizedBox(height: 24),
                             TextFormField(
@@ -123,7 +119,8 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
                               onFieldSubmitted: (_) => _login(),
                             ),
                             ZolnitFailureMessage(
-                              visible: session.failure != null,
+                              code: session.failure,
+                              serverMessage: session.failureMessage,
                             ),
                             const SizedBox(height: 24),
                             FilledButton(

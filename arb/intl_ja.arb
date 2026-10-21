@@ -1341,5 +1341,21 @@
   "zolnitPaymentReturn": "支払いから戻った後も注文状況の確認が必要です。",
   "zolnitFirstCharge": "初回の支払い",
   "zolnitFollowingCharge": "次回以降の支払い",
-  "zolnitRecurringConsent": "この注文と表示された更新条件に基づく継続的な支払いに同意します。"
+  "zolnitRecurringConsent": "表示された初回支払いと更新の条件に基づき、このプランの継続支払いに同意します。",
+  "zolnitLoginEyebrow": "あなたの世界を、もっと近くに",
+  "zolnitLoginDescription": "複雑な設定は不要。ワンタッチで世界につながります。",
+  "zolnitLoginSubtitle": "ログインしてプランと接続を管理します。",
+  "zolnitGlobalRoutes": "厳選された世界の回線",
+  "zolnitEveryScreen": "どの画面でも使い慣れた操作",
+  "zolnitMonthlyEnrollment": "毎月の自動支払い",
+  "zolnitQuoteBeforeConsent": "自動更新に同意する前にサーバーの見積もりを確認してください。",
+  "zolnitViewMonthlyQuote": "月額の見積もりを表示",
+  "zolnitGiftReplacement": "初回支払いの確認後に有料期間が始まり、残りの無料期間が置き換わります。",
+  "zolnitPlanSwitch": "初回支払いまたは旧プランの残存価値の充当が確認されると、新しいプランが始まります。",
+  "zolnitPendingOrder": "保留中の注文があります。「注文」で支払いを続けるか閉じてから、もう一度お試しください。",
+  "zolnitQuoteExpired": "見積もりの有効期限が切れました。プランに戻って選び直してください。",
+  "zolnitCheckoutExists": "決済がすでに処理中です。アカウントで状況を確認し、重複して送信しないでください。",
+  "zolnitCheckoutProcessing": "決済を準備または確認しています。しばらくしてからもう一度お試しください。",
+  "zolnitRateLimited": "操作が多すぎます。しばらくしてからもう一度お試しください。",
+  "zolnitRecurringUnavailable": "現在、このプランでは毎月の自動支払いをご利用いただけません。"
 }

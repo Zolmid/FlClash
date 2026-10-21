@@ -2596,12 +2596,21 @@ class MessageLookup extends MessageLookupByLibrary {
       "Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Canceled"),
+    "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
+      "A checkout is already in progress. Check its status in Account and do not submit it again.",
+    ),
+    "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
+      "The checkout is being prepared or verified. Try again shortly.",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completed"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "Enter a valid email and a password of at least eight characters.",
     ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("Credited"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("Email"),
+    "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
+      "Familiar on every screen",
+    ),
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "Could not complete the request. Check your details or connection and try again.",
     ),
@@ -2610,13 +2619,31 @@ class MessageLookup extends MessageLookupByLibrary {
       "Following payments",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Gifted access"),
+    "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
+      "Paid access starts after the first payment replaces the remaining gifted time.",
+    ),
+    "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage(
+      "Selected global routes",
+    ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
       "Every six months",
+    ),
+    "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
+      "Skip the complicated setup. Your world is one connection away.",
+    ),
+    "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
+      "A little closer to your world",
+    ),
+    "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Sign in to manage your plan and connections.",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
       "Sign up or recover your password",
     ),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("Monthly"),
+    "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage(
+      "Continuous monthly billing",
+    ),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("Next renewal"),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
       "No payment methods available",
@@ -2644,13 +2671,31 @@ class MessageLookup extends MessageLookupByLibrary {
       "This payment option is not ready.",
     ),
     "zolnitPending": MessageLookupByLibrary.simpleMessage("Awaiting payment"),
+    "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
+      "You have a pending order. Continue paying or close it in Orders before placing another.",
+    ),
+    "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
+      "The new plan starts after the first payment or remaining-value credit is confirmed.",
+    ),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("Plans"),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "Nodes and routing rules sync automatically from ZolNit.",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Quarterly"),
+    "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
+      "Review the server quote before authorizing automatic renewal.",
+    ),
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
+      "The quote has expired. Go back to Plans and choose again.",
+    ),
+    "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
+      "Too many attempts. Please try again in a moment.",
+    ),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
-      "I agree to continuous payments under this existing order and the displayed renewal terms.",
+      "I agree to continuous payments for this plan under the displayed first-payment and renewal terms.",
+    ),
+    "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Monthly billing is not available for this plan right now.",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Refresh"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("Automatic renewal"),
@@ -2682,6 +2727,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Every three years",
     ),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("Every two years"),
+    "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
+      "View monthly quote",
+    ),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage(
       "Open ZolNit website",
     ),
