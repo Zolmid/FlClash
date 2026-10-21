@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'app_update.dart';
 import 'constant.dart';
@@ -40,6 +41,9 @@ class AppUpdateClient {
   final Dio _dio;
   ProviderReader? _read;
   bool _downloading = false;
+
+  @visibleForTesting
+  Dio get dio => _dio;
 
   void attach(ProviderReader read) => _read = read;
 

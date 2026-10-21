@@ -86,9 +86,6 @@ class AppPath {
   Future<Directory> _resolveDataDirectory() async {
     final supportDir = await supportDirectory();
     if (!system.isIOS) {
-      if (kDebugMode && (system.isWindows || system.isLinux)) {
-        return Directory(join(supportDir.path, 'debug'));
-      }
       return supportDir;
     }
     final packageInfo = await PackageInfo.fromPlatform();

@@ -70,9 +70,9 @@ bool Run(const std::string& name) {
 #ifdef _WIN32
   if (name == "native_hash") {
     return autostart::InstallationHash(L"C:\\Apps & Tools\\ZolNit\\ZolNit.exe") ==
-               L"7c2bd91a33ca0799" &&
+               L"a112fefe32e15d63" &&
            autostart::InstallationHash(L"C:\\\u5e94\u7528 & Tools\\ZolNit.exe") ==
-               L"a907a4e11ae7fbe9";
+               L"810c40bce6cbe3f1";
   }
 #endif
   return false;

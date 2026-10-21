@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:fl_clash/common/app_update_client.dart';
+import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/l10n_labels.dart';
-import 'package:fl_clash/common/request.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/l10n/l10n.dart';
@@ -225,10 +226,10 @@ void main() {
     tester,
   ) async {
     final container = _containerFor(tester);
-    final originalAdapter = request.dio.httpClientAdapter;
-    addTearDown(() => request.dio.httpClientAdapter = originalAdapter);
+    final originalAdapter = appUpdateClient.dio.httpClientAdapter;
+    addTearDown(() => appUpdateClient.dio.httpClientAdapter = originalAdapter);
     final adapter = _PendingAdapter();
-    request.dio.httpClientAdapter = adapter;
+    appUpdateClient.dio.httpClientAdapter = adapter;
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -249,7 +250,12 @@ void main() {
 
     adapter.response.complete(
       ResponseBody.fromString(
-        jsonEncode({'tag_name': 'v0.0.0'}),
+        jsonEncode({
+          'schema_version': 1,
+          'app_id': packageName,
+          'updates_enabled': false,
+          'releases': <Object>[],
+        }),
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
