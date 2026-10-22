@@ -606,4 +606,53 @@ void main() {
       expect(fixture.checkout.disposals, 1);
     },
   );
+
+  test(
+    'typed lists follow the panel and are rebuilt only on refresh',
+    () async {
+      fixture.override = (request) async {
+        final path = request.url.path;
+        if (path.endsWith('/notice/fetch')) {
+          return _data([
+            {
+              'id': 1,
+              'title': 'Maintenance',
+              'content': '<p>Tonight</p>',
+              'tags': ['news'],
+              'created_at': 1700000000,
+            },
+            'not a notice',
+          ]);
+        }
+        if (path.endsWith('/server/fetch')) {
+          return _data([
+            {'id': 5, 'name': 'Tokyo 01', 'rate': '1.5'},
+          ]);
+        }
+        return null;
+      };
+      await fixture.login();
+      final session = fixture.session;
+      expect(session.noticeList.single.title, 'Maintenance');
+      expect(session.noticeList.single.body, 'Tonight');
+      expect(session.nodeList.single.countryCode, 'JP');
+      expect(session.planList.single.prices['month_price'], 1200);
+      expect(session.usage?.planId, 1);
+      expect(identical(session.nodeList, session.nodeList), isTrue);
+      final before = session.nodeList;
+      await session.refresh();
+      expect(identical(session.nodeList, before), isFalse);
+    },
+  );
+
+  test('a failing notice request does not block sign-in', () async {
+    fixture.override = (request) async =>
+        request.url.path.endsWith('/notice/fetch')
+        ? http.Response('{"message":"unavailable"}', 500)
+        : null;
+    await fixture.login();
+    expect(fixture.session.authenticated, isTrue);
+    expect(fixture.session.failure, isNull);
+    expect(fixture.session.noticeList, isEmpty);
+  });
 }

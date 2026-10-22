@@ -285,6 +285,7 @@ class XboardClient {
   Future<dynamic> subscription() => request('/api/v1/user/getSubscribe');
   Future<dynamic> plans() => request('/api/v1/user/plan/fetch');
   Future<dynamic> nodes() => request('/api/v1/user/server/fetch');
+  Future<dynamic> notices() => request('/api/v1/user/notice/fetch');
   Future<dynamic> orders() => request('/api/v1/user/order/fetch');
   Future<dynamic> paymentMethods() =>
       request('/api/v1/user/order/getPaymentMethod');

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'api.dart';
+import 'catalog.dart';
 import 'checkout.dart';
 import 'subscriptions.dart';
 
@@ -49,12 +50,21 @@ class ZolnitSessionController extends ChangeNotifier {
   Json? _subscription;
   List<Json> _nodes = const [];
   List<Json> _plans = const [];
+  List<Json> _notices = const [];
   List<Json> _orders = const [];
   List<Json> _paymentMethods = const [];
   Json? _billingOverview;
   Json? _recurringConfig;
   final Map<String, Json> _recurringTerms = {};
   String? _completedTrade;
+  Object? _nodesSource;
+  Object? _plansSource;
+  Object? _noticesSource;
+  Object? _usageSource;
+  List<ZolnitNode> _nodeModels = const [];
+  List<ZolnitPlan> _planModels = const [];
+  List<ZolnitNotice> _noticeModels = const [];
+  ZolnitUsage? _usageModel;
 
   bool get authenticated => _authenticated;
   bool get busy => _flights.isNotEmpty;
@@ -66,7 +76,44 @@ class ZolnitSessionController extends ChangeNotifier {
   Json? get subscription => _subscription;
   List<Json> get nodes => _nodes;
   List<Json> get plans => _plans;
+  List<Json> get notices => _notices;
   List<Json> get orders => _orders;
+
+  List<ZolnitNode> get nodeList {
+    if (!identical(_nodesSource, _nodes)) {
+      _nodesSource = _nodes;
+      _nodeModels = List.unmodifiable(_nodes.map(ZolnitNode.fromJson));
+    }
+    return _nodeModels;
+  }
+
+  List<ZolnitPlan> get planList {
+    if (!identical(_plansSource, _plans)) {
+      _plansSource = _plans;
+      _planModels = List.unmodifiable(_plans.map(ZolnitPlan.fromJson));
+    }
+    return _planModels;
+  }
+
+  List<ZolnitNotice> get noticeList {
+    if (!identical(_noticesSource, _notices)) {
+      _noticesSource = _notices;
+      _noticeModels = List.unmodifiable(_notices.map(ZolnitNotice.fromJson));
+    }
+    return _noticeModels;
+  }
+
+  ZolnitUsage? get usage {
+    final source = _subscription;
+    if (!identical(_usageSource, source)) {
+      _usageSource = source;
+      _usageModel = source == null
+          ? null
+          : ZolnitUsage.fromSubscription(source);
+    }
+    return _usageModel;
+  }
+
   List<Json> get paymentMethods => _paymentMethods;
   Json? get billingOverview => _billingOverview;
   List<Json> get recurringMethods {
@@ -204,6 +251,7 @@ class ZolnitSessionController extends ChangeNotifier {
     _subscription = null;
     _nodes = const [];
     _plans = const [];
+    _notices = const [];
     _orders = const [];
     _paymentMethods = const [];
     _billingOverview = null;
@@ -259,6 +307,7 @@ class ZolnitSessionController extends ChangeNotifier {
       api.plans(),
       api.orders(),
       api.paymentMethods(),
+      api.notices().then<dynamic>((value) => value, onError: (_) => null),
     ]);
     if (!_current(work)) return;
     final account = _object(values[0]);
@@ -267,12 +316,16 @@ class ZolnitSessionController extends ChangeNotifier {
     final plans = _list(values[3]);
     final orders = _list(values[4]);
     final methods = _list(values[5]);
+    final notices = values[6] is List
+        ? List<Json>.unmodifiable((values[6] as List).whereType<Json>())
+        : const <Json>[];
     if (read == _coreRead) {
       _account = account;
       _subscription = subscription;
       _nodes = nodes;
       _plans = plans;
       _paymentMethods = methods;
+      _notices = notices;
     }
     if (read == _ordersRead) _orders = orders;
   }
