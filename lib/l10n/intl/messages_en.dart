@@ -238,6 +238,30 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m87(count) => "${Intl.plural(count, other: '${count}y ago')}";
 
+  static String m88(amount, cycle) => "${amount} per ${cycle}, paid at once";
+
+  static String m89(date) => "Expires ${date}. Upgrade or renew right here.";
+
+  static String m90(plan) => "Current plan · ${plan}";
+
+  static String m91(days) => "${days} days left";
+
+  static String m92(date) => "Expires ${date}";
+
+  static String m93(count) => "Up to ${count} devices online at once";
+
+  static String m94(mbps) => "Speed up to ${mbps} Mbps";
+
+  static String m95(gb) => "${gb} GB of high-speed data per month";
+
+  static String m96(name) => "Hello, ${name}.";
+
+  static String m97(count) => "/ ${count}";
+
+  static String m98(days) => "Resets in ${days} days";
+
+  static String m99(percent) => "Save ${percent}%";
+
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
     "about": MessageLookupByLibrary.simpleMessage("About"),
@@ -2580,7 +2604,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zhTW": MessageLookupByLibrary.simpleMessage("Traditional Chinese"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("Activating"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("Advanced settings"),
+    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("All nodes"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Amount due"),
+    "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
+      "Billed monthly, an easy start",
+    ),
+    "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
       "Renewal details are temporarily unavailable.",
     ),
@@ -2602,18 +2631,42 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
       "The checkout is being prepared or verified. Try again shortly.",
     ),
+    "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Choose plan"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completed"),
+    "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
+      "One tap, instantly connected",
+    ),
+    "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
+      "Pick your route and leave the rest to ZolNit.",
+    ),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "Enter a valid email and a password of at least eight characters.",
     ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("Credited"),
+    "zolnitCurrentBadge": MessageLookupByLibrary.simpleMessage("Current plan"),
+    "zolnitCurrentPlanHint": m89,
+    "zolnitCurrentPlanLine": m90,
+    "zolnitCurrentSelection": MessageLookupByLibrary.simpleMessage("Selected"),
+    "zolnitCycleHalfYear": MessageLookupByLibrary.simpleMessage("half year"),
+    "zolnitCycleQuarter": MessageLookupByLibrary.simpleMessage("quarter"),
+    "zolnitCycleThreeYears": MessageLookupByLibrary.simpleMessage(
+      "three years",
+    ),
+    "zolnitCycleTwoYears": MessageLookupByLibrary.simpleMessage("two years"),
+    "zolnitCycleYear": MessageLookupByLibrary.simpleMessage("year"),
+    "zolnitDaysLeftLabel": m91,
+    "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("days"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("Email"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
       "Familiar on every screen",
     ),
+    "zolnitExpiresOn": m92,
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "Could not complete the request. Check your details or connection and try again.",
     ),
+    "zolnitFeatureDevices": m93,
+    "zolnitFeatureSpeed": m94,
+    "zolnitFeatureTraffic": m95,
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("First payment"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage(
       "Following payments",
@@ -2625,8 +2678,17 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage(
       "Selected global routes",
     ),
+    "zolnitGreeting": m96,
+    "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage(
+      "Ready to see a bigger world.",
+    ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
       "Every six months",
+    ),
+    "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("Help & support"),
+    "zolnitLatency": MessageLookupByLibrary.simpleMessage("Latency"),
+    "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
+      "Latest notices",
     ),
     "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
       "Skip the complicated setup. Your world is one connection away.",
@@ -2640,24 +2702,43 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
       "Sign up or recover your password",
     ),
+    "zolnitMembershipEyebrow": MessageLookupByLibrary.simpleMessage(
+      "YOUR MEMBERSHIP",
+    ),
+    "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
+    "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("Smart routing"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("Monthly"),
     "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage(
       "Continuous monthly billing",
     ),
+    "zolnitMySpace": MessageLookupByLibrary.simpleMessage("My space"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("Next renewal"),
+    "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
+      "You have no active plan yet. Pick one below to get started.",
+    ),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
       "No payment methods available",
     ),
     "zolnitNoNodes": MessageLookupByLibrary.simpleMessage(
       "No nodes are available for this subscription.",
     ),
+    "zolnitNoNotices": MessageLookupByLibrary.simpleMessage("No notices yet"),
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("No orders yet"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("No active plan"),
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
       "No automatic renewal contracts",
     ),
+    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Node"),
+    "zolnitNotConnected": MessageLookupByLibrary.simpleMessage(
+      "Not connected yet",
+    ),
+    "zolnitNotices": MessageLookupByLibrary.simpleMessage("Notices"),
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("One time"),
+    "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage(
+      "Devices online",
+    ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Orders"),
+    "zolnitOutOfDevices": m97,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Paid access"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("Paid through"),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Pay order"),
@@ -2674,10 +2755,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
       "You have a pending order. Continue paying or close it in Orders before placing another.",
     ),
+    "zolnitPerMonth": MessageLookupByLibrary.simpleMessage("/ month"),
     "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
       "The new plan starts after the first payment or remaining-value credit is confirmed.",
     ),
+    "zolnitPlanValidity": MessageLookupByLibrary.simpleMessage("Plan validity"),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("Plans"),
+    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage(
+      "The right plan, the right freedom.",
+    ),
+    "zolnitPlansSub": MessageLookupByLibrary.simpleMessage(
+      "From everyday browsing to smooth streaming, pick the connection that fits you.",
+    ),
+    "zolnitPreferences": MessageLookupByLibrary.simpleMessage("Preferences"),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "Nodes and routing rules sync automatically from ZolNit.",
     ),
@@ -2691,6 +2781,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "Too many attempts. Please try again in a moment.",
     ),
+    "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage(
+      "Recommended nodes",
+    ),
+    "zolnitRecommendedNodesSub": MessageLookupByLibrary.simpleMessage(
+      "Nearest first, so connecting is quicker",
+    ),
+    "zolnitRecommendedRoute": MessageLookupByLibrary.simpleMessage(
+      "Recommended",
+    ),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
       "I agree to continuous payments for this plan under the displayed first-payment and renewal terms.",
     ),
@@ -2698,7 +2797,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Monthly billing is not available for this plan right now.",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Refresh"),
+    "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
+      "Renew current plan",
+    ),
+    "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("Renew plan"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("Automatic renewal"),
+    "zolnitResetInDays": m98,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("Reset traffic"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage(
       "Resume automatic renewal",
@@ -2706,11 +2810,22 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "Resume automatic charges under the authorized plan.",
     ),
+    "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
+      "Safe mode never changes the system network.",
+    ),
+    "zolnitSavePercent": m99,
+    "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("Select"),
     "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
       "You stay signed in until you close the app.",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Sign in"),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("Sign out"),
+    "zolnitStatusActive": MessageLookupByLibrary.simpleMessage("Active"),
+    "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("Expired"),
+    "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("No plan"),
+    "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage(
+      "Choose a plan",
+    ),
     "zolnitSync": MessageLookupByLibrary.simpleMessage(
       "Sync connection profile",
     ),
@@ -2726,6 +2841,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage(
       "Every three years",
     ),
+    "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("Traffic left"),
+    "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage(
+      "Used this cycle",
+    ),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("Every two years"),
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
       "View monthly quote",
@@ -2734,6 +2853,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Open ZolNit website",
     ),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("Welcome back"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("Yearly"),
   };
 }

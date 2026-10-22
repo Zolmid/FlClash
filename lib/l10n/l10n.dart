@@ -11558,6 +11558,546 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `YOUR WORKSPACE`
+  String get zolnitWorkspace {
+    return Intl.message(
+      'YOUR WORKSPACE',
+      name: 'zolnitWorkspace',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Help & support`
+  String get zolnitHelpSupport {
+    return Intl.message(
+      'Help & support',
+      name: 'zolnitHelpSupport',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Preferences`
+  String get zolnitPreferences {
+    return Intl.message(
+      'Preferences',
+      name: 'zolnitPreferences',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Notices`
+  String get zolnitNotices {
+    return Intl.message('Notices', name: 'zolnitNotices', desc: '', args: []);
+  }
+
+  /// `Hello, {name}.`
+  String zolnitGreeting(Object name) {
+    return Intl.message(
+      'Hello, $name.',
+      name: 'zolnitGreeting',
+      desc: '',
+      args: [name],
+    );
+  }
+
+  /// `Ready to see a bigger world.`
+  String get zolnitGreetingSub {
+    return Intl.message(
+      'Ready to see a bigger world.',
+      name: 'zolnitGreetingSub',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not connected yet`
+  String get zolnitNotConnected {
+    return Intl.message(
+      'Not connected yet',
+      name: 'zolnitNotConnected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `One tap, instantly connected`
+  String get zolnitConnectHeadline {
+    return Intl.message(
+      'One tap, instantly connected',
+      name: 'zolnitConnectHeadline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pick your route and leave the rest to ZolNit.`
+  String get zolnitConnectSub {
+    return Intl.message(
+      'Pick your route and leave the rest to ZolNit.',
+      name: 'zolnitConnectSub',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Smart routing`
+  String get zolnitModeSmart {
+    return Intl.message(
+      'Smart routing',
+      name: 'zolnitModeSmart',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Global`
+  String get zolnitModeGlobal {
+    return Intl.message('Global', name: 'zolnitModeGlobal', desc: '', args: []);
+  }
+
+  /// `Selected`
+  String get zolnitCurrentSelection {
+    return Intl.message(
+      'Selected',
+      name: 'zolnitCurrentSelection',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Recommended`
+  String get zolnitRecommendedRoute {
+    return Intl.message(
+      'Recommended',
+      name: 'zolnitRecommendedRoute',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Safe mode never changes the system network.`
+  String get zolnitSafeModeConnect {
+    return Intl.message(
+      'Safe mode never changes the system network.',
+      name: 'zolnitSafeModeConnect',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `YOUR MEMBERSHIP`
+  String get zolnitMembershipEyebrow {
+    return Intl.message(
+      'YOUR MEMBERSHIP',
+      name: 'zolnitMembershipEyebrow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Active`
+  String get zolnitStatusActive {
+    return Intl.message(
+      'Active',
+      name: 'zolnitStatusActive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Expired`
+  String get zolnitStatusExpired {
+    return Intl.message(
+      'Expired',
+      name: 'zolnitStatusExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No plan`
+  String get zolnitStatusNoPlan {
+    return Intl.message(
+      'No plan',
+      name: 'zolnitStatusNoPlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Used this cycle`
+  String get zolnitTrafficUsed {
+    return Intl.message(
+      'Used this cycle',
+      name: 'zolnitTrafficUsed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Resets in {days} days`
+  String zolnitResetInDays(Object days) {
+    return Intl.message(
+      'Resets in $days days',
+      name: 'zolnitResetInDays',
+      desc: '',
+      args: [days],
+    );
+  }
+
+  /// `Expires {date}`
+  String zolnitExpiresOn(Object date) {
+    return Intl.message(
+      'Expires $date',
+      name: 'zolnitExpiresOn',
+      desc: '',
+      args: [date],
+    );
+  }
+
+  /// `{days} days left`
+  String zolnitDaysLeftLabel(Object days) {
+    return Intl.message(
+      '$days days left',
+      name: 'zolnitDaysLeftLabel',
+      desc: '',
+      args: [days],
+    );
+  }
+
+  /// `Renew plan`
+  String get zolnitRenewPlan {
+    return Intl.message(
+      'Renew plan',
+      name: 'zolnitRenewPlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose a plan`
+  String get zolnitSubscribePlan {
+    return Intl.message(
+      'Choose a plan',
+      name: 'zolnitSubscribePlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Traffic left`
+  String get zolnitTrafficLeft {
+    return Intl.message(
+      'Traffic left',
+      name: 'zolnitTrafficLeft',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Plan validity`
+  String get zolnitPlanValidity {
+    return Intl.message(
+      'Plan validity',
+      name: 'zolnitPlanValidity',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `days`
+  String get zolnitDaysUnit {
+    return Intl.message('days', name: 'zolnitDaysUnit', desc: '', args: []);
+  }
+
+  /// `Devices online`
+  String get zolnitOnlineDevices {
+    return Intl.message(
+      'Devices online',
+      name: 'zolnitOnlineDevices',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `/ {count}`
+  String zolnitOutOfDevices(Object count) {
+    return Intl.message(
+      '/ $count',
+      name: 'zolnitOutOfDevices',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `Recommended nodes`
+  String get zolnitRecommendedNodes {
+    return Intl.message(
+      'Recommended nodes',
+      name: 'zolnitRecommendedNodes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nearest first, so connecting is quicker`
+  String get zolnitRecommendedNodesSub {
+    return Intl.message(
+      'Nearest first, so connecting is quicker',
+      name: 'zolnitRecommendedNodesSub',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All nodes`
+  String get zolnitAllNodes {
+    return Intl.message(
+      'All nodes',
+      name: 'zolnitAllNodes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Node`
+  String get zolnitNodeName {
+    return Intl.message('Node', name: 'zolnitNodeName', desc: '', args: []);
+  }
+
+  /// `Latency`
+  String get zolnitLatency {
+    return Intl.message('Latency', name: 'zolnitLatency', desc: '', args: []);
+  }
+
+  /// `Select`
+  String get zolnitSelectColumn {
+    return Intl.message(
+      'Select',
+      name: 'zolnitSelectColumn',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Latest notices`
+  String get zolnitLatestNotices {
+    return Intl.message(
+      'Latest notices',
+      name: 'zolnitLatestNotices',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No notices yet`
+  String get zolnitNoNotices {
+    return Intl.message(
+      'No notices yet',
+      name: 'zolnitNoNotices',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The right plan, the right freedom.`
+  String get zolnitPlansHeadline {
+    return Intl.message(
+      'The right plan, the right freedom.',
+      name: 'zolnitPlansHeadline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `From everyday browsing to smooth streaming, pick the connection that fits you.`
+  String get zolnitPlansSub {
+    return Intl.message(
+      'From everyday browsing to smooth streaming, pick the connection that fits you.',
+      name: 'zolnitPlansSub',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current plan · {plan}`
+  String zolnitCurrentPlanLine(Object plan) {
+    return Intl.message(
+      'Current plan · $plan',
+      name: 'zolnitCurrentPlanLine',
+      desc: '',
+      args: [plan],
+    );
+  }
+
+  /// `Expires {date}. Upgrade or renew right here.`
+  String zolnitCurrentPlanHint(Object date) {
+    return Intl.message(
+      'Expires $date. Upgrade or renew right here.',
+      name: 'zolnitCurrentPlanHint',
+      desc: '',
+      args: [date],
+    );
+  }
+
+  /// `You have no active plan yet. Pick one below to get started.`
+  String get zolnitNoCurrentPlanHint {
+    return Intl.message(
+      'You have no active plan yet. Pick one below to get started.',
+      name: 'zolnitNoCurrentPlanHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Save {percent}%`
+  String zolnitSavePercent(Object percent) {
+    return Intl.message(
+      'Save $percent%',
+      name: 'zolnitSavePercent',
+      desc: '',
+      args: [percent],
+    );
+  }
+
+  /// `/ month`
+  String get zolnitPerMonth {
+    return Intl.message('/ month', name: 'zolnitPerMonth', desc: '', args: []);
+  }
+
+  /// `Billed monthly, an easy start`
+  String get zolnitBilledMonthly {
+    return Intl.message(
+      'Billed monthly, an easy start',
+      name: 'zolnitBilledMonthly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{amount} per {cycle}, paid at once`
+  String zolnitBilledOnce(Object amount, Object cycle) {
+    return Intl.message(
+      '$amount per $cycle, paid at once',
+      name: 'zolnitBilledOnce',
+      desc: '',
+      args: [amount, cycle],
+    );
+  }
+
+  /// `quarter`
+  String get zolnitCycleQuarter {
+    return Intl.message(
+      'quarter',
+      name: 'zolnitCycleQuarter',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `half year`
+  String get zolnitCycleHalfYear {
+    return Intl.message(
+      'half year',
+      name: 'zolnitCycleHalfYear',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `year`
+  String get zolnitCycleYear {
+    return Intl.message('year', name: 'zolnitCycleYear', desc: '', args: []);
+  }
+
+  /// `two years`
+  String get zolnitCycleTwoYears {
+    return Intl.message(
+      'two years',
+      name: 'zolnitCycleTwoYears',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `three years`
+  String get zolnitCycleThreeYears {
+    return Intl.message(
+      'three years',
+      name: 'zolnitCycleThreeYears',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{gb} GB of high-speed data per month`
+  String zolnitFeatureTraffic(Object gb) {
+    return Intl.message(
+      '$gb GB of high-speed data per month',
+      name: 'zolnitFeatureTraffic',
+      desc: '',
+      args: [gb],
+    );
+  }
+
+  /// `Up to {count} devices online at once`
+  String zolnitFeatureDevices(Object count) {
+    return Intl.message(
+      'Up to $count devices online at once',
+      name: 'zolnitFeatureDevices',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `Speed up to {mbps} Mbps`
+  String zolnitFeatureSpeed(Object mbps) {
+    return Intl.message(
+      'Speed up to $mbps Mbps',
+      name: 'zolnitFeatureSpeed',
+      desc: '',
+      args: [mbps],
+    );
+  }
+
+  /// `Choose plan`
+  String get zolnitChoosePlan {
+    return Intl.message(
+      'Choose plan',
+      name: 'zolnitChoosePlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Renew current plan`
+  String get zolnitRenewCurrent {
+    return Intl.message(
+      'Renew current plan',
+      name: 'zolnitRenewCurrent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current plan`
+  String get zolnitCurrentBadge {
+    return Intl.message(
+      'Current plan',
+      name: 'zolnitCurrentBadge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `My space`
+  String get zolnitMySpace {
+    return Intl.message('My space', name: 'zolnitMySpace', desc: '', args: []);
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {
