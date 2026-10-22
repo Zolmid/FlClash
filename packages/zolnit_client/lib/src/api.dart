@@ -355,7 +355,44 @@ class XboardClient {
       request('/api/v1/user/ticket/close', method: 'POST', body: {'id': id});
 
   Future<dynamic> invite() => request('/api/v1/user/invite/fetch');
+  Future<dynamic> createInviteCode() => request('/api/v1/user/invite/save');
+
+  /// The panel answers this one as `{data: [...], total: n}`, so it is not unwrapped.
+  Future<Json> inviteDetails({int page = 1, int pageSize = 10}) async =>
+      await request(
+            '/api/v1/user/invite/details',
+            query: {'current': '$page', 'page_size': '$pageSize'},
+            unwrap: false,
+          )
+          as Json;
+
   Future<dynamic> traffic() => request('/api/v1/user/stat/getTrafficLog');
+
+  Future<dynamic> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) => request(
+    '/api/v1/user/changePassword',
+    method: 'POST',
+    body: {'old_password': oldPassword, 'new_password': newPassword},
+  );
+
+  Future<dynamic> updateReminders({bool? expiry, bool? traffic}) => request(
+    '/api/v1/user/update',
+    method: 'POST',
+    body: {
+      'remind_expire': ?(expiry == null ? null : (expiry ? 1 : 0)),
+      'remind_traffic': ?(traffic == null ? null : (traffic ? 1 : 0)),
+    },
+  );
+
+  Future<dynamic> activeSessions() => request('/api/v1/user/getActiveSession');
+
+  Future<dynamic> removeActiveSession(String id) => request(
+    '/api/v1/user/removeActiveSession',
+    method: 'POST',
+    body: {'session_id': id},
+  );
 
   void close() {
     _closed = true;

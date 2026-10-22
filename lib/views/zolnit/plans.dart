@@ -622,16 +622,19 @@ class _PlanCard extends StatelessWidget {
               ),
     };
     final lines = plan.contentLines;
-    final subtitle = lines.firstOrNull;
+    final subtitle = plan.tagline ?? plan.badge ?? lines.firstOrNull;
     final gb = plan.transferGb;
-    final features = [
-      if (gb != null) text.zolnitFeatureTraffic(_trimmed(gb, decimals: 1)),
-      if (plan.deviceLimit != null)
-        text.zolnitFeatureDevices(plan.deviceLimit!),
-      if (plan.speedLimitMbps != null)
-        text.zolnitFeatureSpeed(plan.speedLimitMbps!),
-      ...lines.skip(1),
-    ];
+    final features = plan.features.isNotEmpty
+        ? [?plan.allowance, ...plan.features]
+        : [
+            if (gb != null)
+              text.zolnitFeatureTraffic(_trimmed(gb, decimals: 1)),
+            if (plan.deviceLimit != null)
+              text.zolnitFeatureDevices(plan.deviceLimit!),
+            if (plan.speedLimitMbps != null)
+              text.zolnitFeatureSpeed(plan.speedLimitMbps!),
+            ...lines.skip(1),
+          ];
     final (name, nameWeight, priceSize, priceWeight) = switch (skin) {
       ZolnitSkin.macos ||
       ZolnitSkin.windows => (17.0, FontWeight.w600, 36.0, FontWeight.w500),
@@ -801,6 +804,13 @@ class _PlanCard extends StatelessWidget {
               ),
             ),
           ),
+          if (plan.note case final note?) ...[
+            const SizedBox(height: 16),
+            Text(
+              note,
+              style: zolnitText(context, 11, leading: 18, color: colors.muted),
+            ),
+          ],
           if (equalHeight) const Spacer() else const SizedBox(height: 28),
           const SizedBox(height: 14),
           ZolnitButton(

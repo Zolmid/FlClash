@@ -71,6 +71,50 @@ void main() {
     },
   );
 
+  testWidgets('site plan markup preserves total quotas and purchase notes', (
+    tester,
+  ) async {
+    const note = '总流量不按月清零。再次购买会重置额度，余量不叠加。';
+    harness.panel = (request) => request.url.path.endsWith('/plan/fetch')
+        ? zolnitJson([
+            {
+              'id': 7,
+              'name': '按量 · 轻用',
+              'content':
+                  '<div class="zn-plan">'
+                  '<span class="zn-plan-badge">不限时</span>'
+                  '<p class="zn-plan-scene">偶尔使用，按需连接</p>'
+                  '<p class="zn-plan-metric">'
+                  '<strong>200</strong><span>GiB / 总量</span></p>'
+                  '<p class="zn-plan-metric-label">不限时 · 用完为止</p>'
+                  '<ul class="zn-plan-features">'
+                  '<li>最高 200 Mbps</li><li>2 个同时在线 IP</li>'
+                  '<li>REALITY / HY2 双协议</li></ul>'
+                  '<p class="zn-plan-note">$note</p></div>',
+              'transfer_enable': 200,
+              'device_limit': 2,
+              'speed_limit': 200,
+              'onetime_price': 1900,
+            },
+          ])
+        : zolnitPanelFixture(request);
+    await harness.relogin();
+    for (final skin in [ZolnitSkin.macos, ZolnitSkin.ios]) {
+      await openPlans(tester, skin);
+      expect(find.text('偶尔使用，按需连接'), findsOneWidget);
+      expect(find.text('200 GiB / 总量 · 不限时 · 用完为止'), findsOneWidget);
+      expect(find.text('最高 200 Mbps'), findsOneWidget);
+      expect(find.text('2 个同时在线 IP'), findsOneWidget);
+      expect(find.text('REALITY / HY2 双协议'), findsOneWidget);
+      expect(find.text(note), findsOneWidget);
+      expect(find.text('每月 200 GB 高速流量'), findsNothing);
+      expect(find.text('支持 2 台设备同时在线'), findsNothing);
+      expect(find.text('19'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+    expect(saved(), 0);
+  });
+
   testWidgets('a confirmed purchase creates the order and opens the orders', (
     tester,
   ) async {

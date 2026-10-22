@@ -9,6 +9,11 @@
 
 - `XboardClient`：账户、套餐、订阅、节点、订单、支付方式、优惠券、工单、邀请、流量接口；Bearer 仅在内存中。
 - `ZolnitSessionController`：登录、退出、账户快照、套餐/节点/订单、续费操作及付款返回后的服务端状态同步。
+- `ZolnitOrdersClient`：类型化订单和支付方式查询，详情响应必须匹配请求的订单号。
+- `ZolnitAccountClient`：账户资料、登录会话查询和撤销、修改密码及到期/流量提醒设置。
+- `ZolnitSupportClient`：工单列表、按时间排序的消息、创建、回复和关闭。
+- `ZolnitInviteClient`：邀请码、固定顺序的奖励统计、佣金分页和生成邀请码；邀请链接沿用网站的 `/#/register?code=`。
+- `ZolnitTrafficClient`：面板流量明细；上传/下载字节已计入节点倍率，不再次乘算。
 - `ZolnitBillingClient`：现有插件的公开配置、权益、可购续费报价、合约查询、取消和恢复。
 - `XboardCheckoutBackend`：校验本人订单并探测连续付费 intent，保留既有 checkout 外层 `type/data`。
 - `CheckoutController`：支付动作 single-flight、返回后查询、有限轮询、过期 QR、账户代际与 dispose 保护。
@@ -49,6 +54,14 @@ onetime_price/reset_price 兼容字段，单位为分；普通 order/save 使用
 收到 purchased/restored 后提交 SDK 的 serverVerificationData；仅服务端确认该账户/商品/交易已开通时完成 native transaction。
 服务端不可达、尚未开通或身份不匹配时保留未完成交易，可重试或通过恢复购买再次验证；不会在客户端延长有效期。
 `restored` 仅表示系统恢复调用已结束，不表示已授予任何权益。正式账户页面还需依实际后端能力接入注销。
+
+账户、工单、邀请和流量模块依据 `references/Xboard` 中的既有控制器及资源结构适配，当前供后续页面接入，
+没有自动创建工单、生成邀请码、撤销会话或修改账户。对应写操作仅使用 MockClient 验证请求字段与错误传递，
+尚未做真实账户验收；不会把测试通过当作这些接口已在部署环境确认。列表忽略缺少标识的记录，畸形响应报错，
+缺失的佣金统计保持未知；写操作仅接受服务端明确的 `data:true`。
+
+套餐模型保留网站 `zn-plan-*` 内容中的说明、月/总流量标签、特性和购买提示，现有套餐页按这些字段展示，
+避免把按量套餐写成月流量或重复列出设备数与速度。未使用该结构的普通面板内容仍按纯文本显示。
 
 ## 已对照现有服务端的接口
 

@@ -1,64 +1,23 @@
 import 'dart:convert';
 
 import 'api.dart' show Json;
-
-String? _text(Object? value) {
-  if (value is! String) return null;
-  final text = value.trim();
-  return text.isEmpty ? null : text;
-}
-
-int? _whole(Object? value) {
-  if (value is int) return value;
-  if (value is num) return value.isFinite ? value.toInt() : null;
-  if (value is String) return int.tryParse(value.trim());
-  return null;
-}
-
-double? _decimal(Object? value) {
-  if (value is num) return value.isFinite ? value.toDouble() : null;
-  if (value is String) return double.tryParse(value.trim());
-  return null;
-}
-
-bool? _flag(Object? value) {
-  if (value is bool) return value;
-  if (value is num) return value != 0;
-  if (value is String) {
-    return switch (value.trim().toLowerCase()) {
-      '1' || 'true' => true,
-      '0' || 'false' => false,
-      _ => null,
-    };
-  }
-  return null;
-}
-
-List<String> _strings(Object? value) {
-  if (value is! List) return const [];
-  return [for (final entry in value) ?_text(entry)];
-}
-
-DateTime? _seconds(Object? value) {
-  final seconds = _whole(value);
-  if (seconds == null || seconds <= 0 || seconds > 253402300799) return null;
-  return DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
-}
-
-int? _positive(int? value) => value != null && value > 0 ? value : null;
-
-int _nonNegative(Object? value) {
-  final number = _whole(value) ?? 0;
-  return number < 0 ? 0 : number;
-}
+import 'parse.dart';
 
 final _tag = RegExp(r'<[^>]*>');
 final _lineBreak = RegExp(
-  r'<\s*(?:br\s*/?|/p|/li|/div|/h[1-6])\s*>',
+  r'<\s*(?:br\s*/?|/?(?:p|div|ul|ol|li|h[1-6])(?:\s[^>]*)?)\s*>',
   caseSensitive: false,
 );
-final _listOpen = RegExp(r'<\s*li[^>]*>', caseSensitive: false);
 final _listMarker = RegExp(r'^\s*(?:[-*•]|\d+[.)])\s+');
+final _classed = RegExp(
+  r'<(p|span|ul)\b[^>]*?\bclass\s*=\s*"([^"]*)"[^>]*>(.*?)</\1\s*>',
+  caseSensitive: false,
+  dotAll: true,
+);
+final _inlineEdge = RegExp(
+  r'(</(?:strong|span|b|em)>)\s*(?=<)',
+  caseSensitive: false,
+);
 
 String _decode(String text) => text
     .replaceAll('&nbsp;', ' ')
@@ -94,7 +53,7 @@ List<String> plainLines(
       // Plain text that merely starts with a bracket.
     }
   }
-  source = source.replaceAll(_lineBreak, '\n').replaceAll(_listOpen, '\n');
+  source = source.replaceAll(_lineBreak, '\n');
   final lines = <String>[];
   for (final raw in _decode(
     source.replaceAll(_tag, ''),
@@ -194,7 +153,7 @@ class ZolnitNode {
   });
 
   factory ZolnitNode.fromJson(Json json) {
-    final raw = _text(json['name']) ?? '';
+    final raw = textOrNull(json['name']) ?? '';
     var title = raw;
     String? code;
     final runes = raw.runes.toList();
@@ -220,9 +179,9 @@ class ZolnitNode {
       title: title.isEmpty ? raw : title,
       region: match?.name ?? code ?? fallback,
       countryCode: code ?? match?.code,
-      rate: _decimal(json['rate']) ?? 1,
-      tags: _strings(json['tags']),
-      online: _flag(json['is_online']),
+      rate: decimalOrNull(json['rate']) ?? 1,
+      tags: textList(json['tags']),
+      online: flagOrNull(json['is_online']),
     );
   }
 
@@ -272,11 +231,33 @@ double? _planGigabytes(double? value) {
   return value / 1073741824;
 }
 
+Map<String, String> _planBlocks(String html) {
+  final blocks = <String, String>{};
+  for (final match in _classed.allMatches(html)) {
+    for (final token in match.group(2)!.split(RegExp(r'\s+'))) {
+      if (token.startsWith('zn-plan-')) {
+        blocks.putIfAbsent(token, () => match.group(3)!);
+      }
+    }
+  }
+  return blocks;
+}
+
+String? _joined(Iterable<String> lines, [String separator = ' ']) {
+  final text = lines.join(separator);
+  return text.isEmpty ? null : text;
+}
+
 class ZolnitPlan {
   const ZolnitPlan({
     required this.id,
     required this.name,
     this.contentLines = const [],
+    this.badge,
+    this.tagline,
+    this.allowance,
+    this.features = const [],
+    this.note,
     this.transferGb,
     this.deviceLimit,
     this.speedLimitMbps,
@@ -291,13 +272,35 @@ class ZolnitPlan {
         prices[key] = value.round();
       }
     }
+    final content = json['content'];
+    final blocks = content is String
+        ? _planBlocks(content)
+        : const <String, String>{};
+    String? first(String key) =>
+        plainLines(blocks[key], maxLines: 1, maxLength: 80).firstOrNull;
+    final metric = plainLines(
+      blocks['zn-plan-metric']?.replaceAllMapped(
+        _inlineEdge,
+        (match) => '${match[1]} ',
+      ),
+      maxLines: 2,
+    );
     return ZolnitPlan(
-      id: _whole(json['id']),
-      name: _text(json['name']) ?? '',
-      contentLines: plainLines(json['content']),
-      transferGb: _planGigabytes(_decimal(json['transfer_enable'])),
-      deviceLimit: _positive(_whole(json['device_limit'])),
-      speedLimitMbps: _positive(_whole(json['speed_limit'])),
+      id: wholeOrNull(json['id']),
+      name: textOrNull(json['name']) ?? '',
+      contentLines: plainLines(content),
+      badge: first('zn-plan-badge'),
+      tagline: first('zn-plan-scene'),
+      allowance: metric.isEmpty
+          ? null
+          : _joined([...metric, ?first('zn-plan-metric-label')], ' · '),
+      features: plainLines(blocks['zn-plan-features'], maxLines: 10),
+      note: _joined(
+        plainLines(blocks['zn-plan-note'], maxLines: 4, maxLength: 240),
+      ),
+      transferGb: _planGigabytes(decimalOrNull(json['transfer_enable'])),
+      deviceLimit: positiveOrNull(wholeOrNull(json['device_limit'])),
+      speedLimitMbps: positiveOrNull(wholeOrNull(json['speed_limit'])),
       prices: Map.unmodifiable(prices),
     );
   }
@@ -305,6 +308,11 @@ class ZolnitPlan {
   final int? id;
   final String name;
   final List<String> contentLines;
+  final String? badge;
+  final String? tagline;
+  final String? allowance;
+  final List<String> features;
+  final String? note;
   final double? transferGb;
   final int? deviceLimit;
   final int? speedLimitMbps;
@@ -335,10 +343,10 @@ class ZolnitNotice {
 
   factory ZolnitNotice.fromJson(Json json) => ZolnitNotice(
     id: '${json['id'] ?? json['title'] ?? ''}',
-    title: _text(json['title']) ?? '',
+    title: textOrNull(json['title']) ?? '',
     body: plainLines(json['content'], maxLines: 40, maxLength: 400).join('\n'),
-    tags: _strings(json['tags']),
-    createdAt: _seconds(json['created_at']),
+    tags: textList(json['tags']),
+    createdAt: secondsToDate(json['created_at']),
   );
 
   final String id;
@@ -364,17 +372,19 @@ class ZolnitUsage {
   factory ZolnitUsage.fromSubscription(Json json) {
     final plan = json['plan'];
     return ZolnitUsage(
-      usedBytes: _nonNegative(json['u']) + _nonNegative(json['d']),
-      totalBytes: _nonNegative(json['transfer_enable']),
-      expiresAt: _seconds(json['expired_at']),
-      resetDay: _whole(json['reset_day']),
+      usedBytes: nonNegativeInt(json['u']) + nonNegativeInt(json['d']),
+      totalBytes: nonNegativeInt(json['transfer_enable']),
+      expiresAt: secondsToDate(json['expired_at']),
+      resetDay: wholeOrNull(json['reset_day']),
       deviceLimit:
-          _positive(_whole(json['device_limit'])) ??
-          (plan is Map ? _positive(_whole(plan['device_limit'])) : null),
-      onlineDevices: _whole(json['alive_ip']),
-      planId: _whole(json['plan_id']),
-      planName: plan is Map ? _text(plan['name']) : null,
-      email: _text(json['email']),
+          positiveOrNull(wholeOrNull(json['device_limit'])) ??
+          (plan is Map
+              ? positiveOrNull(wholeOrNull(plan['device_limit']))
+              : null),
+      onlineDevices: wholeOrNull(json['alive_ip']),
+      planId: wholeOrNull(json['plan_id']),
+      planName: plan is Map ? textOrNull(plan['name']) : null,
+      email: textOrNull(json['email']),
     );
   }
 

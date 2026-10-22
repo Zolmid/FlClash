@@ -1,6 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
+const _monthlyPlanHtml =
+    r'''<div class="zn-plan" data-tier="light"><span class="zn-plan-badge">轻松起步</span><p class="zn-plan-scene">日常浏览与轻量使用</p><p class="zn-plan-metric"><strong>100</strong><span>GiB / 月</span></p><p class="zn-plan-metric-label">每月流量</p><ul class="zn-plan-features"><li>最高 100 Mbps</li><li>2 个同时在线 IP</li><li>普通线路 · 1× 计量</li><li>REALITY / HY2 双协议</li><li>IPv4 / IPv6 双栈支持</li></ul><p class="zn-plan-note">普通线路按 1× 计量。流量与速率以套餐为准。 季付、半年付、年付均为一次性付款，流量仍按月重置，到期后手动续费。</p></div>''';
+
+const _totalPlanHtml =
+    r'''<div class="zn-plan" data-tier="light"><span class="zn-plan-badge">不限时</span><p class="zn-plan-scene">偶尔使用，按需连接</p><p class="zn-plan-metric"><strong>200</strong><span>GiB / 总量</span></p><p class="zn-plan-metric-label">不限时 · 用完为止</p><ul class="zn-plan-features"><li>最高 200 Mbps</li><li>2 个同时在线 IP</li><li>普通线路 · 1× 计量</li><li>REALITY / HY2 双协议</li><li>IPv4 / IPv6 双栈支持</li></ul><p class="zn-plan-note">普通线路按 1× 计量。总流量不按月清零。建议用完再购：再次购买会重置额度，余量不叠加；换套餐会替换当前订阅。</p></div>''';
+
 void main() {
   group('ZolnitNode', () {
     test(
@@ -48,6 +54,31 @@ void main() {
   });
 
   group('ZolnitPlan', () {
+    test('ignores malformed numeric limits without losing valid values', () {
+      final malformed = ZolnitPlan.fromJson({
+        'id': 2.5,
+        'name': 'x',
+        'transfer_enable': 'NaN',
+        'device_limit': 1.5,
+        'speed_limit': double.infinity,
+      });
+      expect(malformed.id, isNull);
+      expect(malformed.transferGb, isNull);
+      expect(malformed.deviceLimit, isNull);
+      expect(malformed.speedLimitMbps, isNull);
+      expect(
+        ZolnitPlan.fromJson({
+          'name': 'x',
+          'transfer_enable': 'Infinity',
+        }).transferGb,
+        isNull,
+      );
+      expect(
+        ZolnitPlan.fromJson({'name': 'x', 'device_limit': 2.0}).deviceLimit,
+        2,
+      );
+    });
+
     test('keeps positive prices and reads the panel content as lines', () {
       final plan = ZolnitPlan.fromJson({
         'id': '3',
@@ -187,5 +218,68 @@ void main() {
     expect(formatBytes(2 * 1099511627776).toString(), '2.00 TB');
     expect(formatBytes(double.nan).toString(), '0.00 GB');
     expect(formatBytes(-5).toString(), '0.00 GB');
+  });
+
+  group('ZolnitPlan written in the site markup', () {
+    test('reads the badge, tagline, allowance, features and note', () {
+      final plan = ZolnitPlan.fromJson({
+        'id': 1,
+        'name': '轻量',
+        'content': _monthlyPlanHtml,
+        'transfer_enable': 100,
+        'month_price': 500,
+      });
+      expect(plan.badge, '轻松起步');
+      expect(plan.tagline, '日常浏览与轻量使用');
+      expect(plan.allowance, '100 GiB / 月 · 每月流量');
+      expect(plan.features, [
+        '最高 100 Mbps',
+        '2 个同时在线 IP',
+        '普通线路 · 1× 计量',
+        'REALITY / HY2 双协议',
+        'IPv4 / IPv6 双栈支持',
+      ]);
+      expect(plan.note, startsWith('普通线路按 1× 计量。'));
+      expect(plan.note, contains('到期后手动续费'));
+      expect(plan.contentLines.take(2), ['轻松起步', '日常浏览与轻量使用']);
+    });
+
+    test('keeps the validity label of a total allowance', () {
+      final plan = ZolnitPlan.fromJson({
+        'id': 7,
+        'name': '按量 · 轻用',
+        'content': _totalPlanHtml,
+        'onetime_price': 1900,
+      });
+      expect(plan.badge, '不限时');
+      expect(plan.allowance, '200 GiB / 总量 · 不限时 · 用完为止');
+      expect(plan.features, hasLength(5));
+      expect(plan.prices, {'onetime_price': 1900});
+    });
+
+    test(
+      'markup without the site classes leaves the structured fields empty',
+      () {
+        final plan = ZolnitPlan.fromJson({
+          'name': 'x',
+          'content': '<div><p>第一行</p><p>第二行</p><ul><li>特点</li></ul></div>',
+        });
+        expect(plan.badge, isNull);
+        expect(plan.tagline, isNull);
+        expect(plan.allowance, isNull);
+        expect(plan.features, isEmpty);
+        expect(plan.note, isNull);
+        expect(plan.contentLines, ['第一行', '第二行', '特点']);
+      },
+    );
+
+    test('adjacent blocks never run into one line', () {
+      expect(plainLines('<span>标签</span><p>说明</p><div>更多</div>'), [
+        '标签',
+        '说明',
+        '更多',
+      ]);
+      expect(plainLines('<pre>a</pre>'), ['a']);
+    });
   });
 }
