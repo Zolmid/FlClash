@@ -1927,6 +1927,90 @@ abstract final class AppGlyphs {
     ], role: GlyphRole.line),
   ]);
 
+  static const power = Glyph([
+    GlyphArc(12, 12.6, 7.6, -math.pi / 3, math.pi * 5 / 3),
+    GlyphPolyline([
+      GlyphVertex(12, 3.4),
+      GlyphVertex(12, 11.6),
+    ], role: GlyphRole.line),
+  ]);
+
+  static const home = Glyph([
+    GlyphPolyline([
+      GlyphVertex(4, 10.4, 1),
+      GlyphVertex(12, 3.6, 1.2),
+      GlyphVertex(20, 10.4, 1),
+      GlyphVertex(20, 19, 2.5),
+      GlyphVertex(4, 19, 2.5),
+    ], closed: true),
+    GlyphPolyline([
+      GlyphVertex(9.7, 19),
+      GlyphVertex(9.7, 14.2, 1.2),
+      GlyphVertex(14.3, 14.2, 1.2),
+      GlyphVertex(14.3, 19),
+    ], role: GlyphRole.detail),
+  ]);
+
+  static const calendar = Glyph([
+    GlyphBox(3.5, 5, 20.5, 20.5, 3),
+    GlyphPolyline([
+      GlyphVertex(3.5, 10.2),
+      GlyphVertex(20.5, 10.2),
+    ], role: GlyphRole.detail),
+    GlyphPolyline([
+      GlyphVertex(8, 2.8),
+      GlyphVertex(8, 6.6),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(16, 2.8),
+      GlyphVertex(16, 6.6),
+    ], role: GlyphRole.line),
+  ]);
+
+  static const gift = Glyph([
+    GlyphBox(4, 10.2, 20, 20.6, 2),
+    GlyphBox(3, 7, 21, 10.2, 1.2),
+    GlyphPolyline([
+      GlyphVertex(12, 7),
+      GlyphVertex(12, 20.6),
+    ], role: GlyphRole.detail),
+    GlyphPath(
+      'M12 7 C10.4 7 7.6 6.8 7.4 5 C7.2 3.2 9.6 2.8 10.8 4 C11.6 4.8 12 7 12 7 Z',
+      role: GlyphRole.detail,
+    ),
+    GlyphPath(
+      'M12 7 C13.6 7 16.4 6.8 16.6 5 C16.8 3.2 14.4 2.8 13.2 4 C12.4 4.8 12 7 12 7 Z',
+      role: GlyphRole.detail,
+    ),
+  ]);
+
+  static const bell = Glyph([
+    GlyphPath('M6 16.4 V11 A6 6 0 0 1 18 11 V16.4 L19.6 18.2 H4.4 Z'),
+    GlyphPath('M10 20.8 A2.2 2.2 0 0 0 14 20.8', role: GlyphRole.line),
+  ]);
+
+  static const help = Glyph([
+    GlyphCircle(12, 12, 8.8),
+    GlyphPath(
+      'M9.6 9.8 A2.4 2.4 0 0 1 12 7.6 A2.4 2.4 0 0 1 14.4 9.8 '
+      'C14.4 11.6 12 11.8 12 13.6',
+      role: GlyphRole.detail,
+    ),
+    GlyphCircle(12, 16.6, 0.9, role: GlyphRole.detail, solid: true),
+  ]);
+
+  static const arrowForward = Glyph([
+    GlyphPolyline([
+      GlyphVertex(5, 12),
+      GlyphVertex(19, 12),
+    ], role: GlyphRole.line),
+    GlyphPolyline([
+      GlyphVertex(12.5, 5.5),
+      GlyphVertex(19, 12, 0.4),
+      GlyphVertex(12.5, 18.5),
+    ], role: GlyphRole.line),
+  ], matchTextDirection: true);
+
   static const iconTile = Glyph([
     GlyphBox(3, 3, 21, 21, 5),
     GlyphPolyline([

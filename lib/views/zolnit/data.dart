@@ -18,6 +18,12 @@ String zolnitBytes(dynamic bytes) => bytes is num
     ? '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB'
     : '—';
 
+String zolnitDotDate(DateTime date) {
+  final local = date.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${local.year}.${two(local.month)}.${two(local.day)}';
+}
+
 String zolnitOrderStatus(BuildContext context, dynamic status) {
   final text = context.appLocalizations;
   return switch (status) {

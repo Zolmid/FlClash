@@ -10,16 +10,19 @@ import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:zolnit_client/zolnit_client.dart';
 
 import 'account.dart';
 import 'auth.dart';
-import 'brand.dart';
 import 'catalogue.dart';
-import 'data.dart';
+import 'connect.dart';
+import 'notices.dart';
+import 'shell.dart';
+import 'skin.dart';
 
 class ZolnitHomePage extends ConsumerStatefulWidget {
-  const ZolnitHomePage({super.key});
+  const ZolnitHomePage({super.key, this.skin});
+
+  final ZolnitSkin? skin;
 
   @override
   ConsumerState<ZolnitHomePage> createState() => _ZolnitHomePageState();
@@ -29,7 +32,6 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   int _selected = 0;
   bool _orders = false;
   bool _syncing = false;
-  bool _synced = false;
   bool _syncFailed = false;
   int? _syncGeneration;
 
@@ -54,7 +56,6 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
     });
     try {
       final id = await ref.read(zolnitSyncProfileProvider)();
-      if (current()) setState(() => _synced = id != null);
       return id;
     } catch (_) {
       if (current()) setState(() => _syncFailed = true);
@@ -113,7 +114,6 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
     setState(() {
       _selected = 0;
       _orders = false;
-      _synced = false;
       _syncFailed = false;
       _syncing = false;
       _syncGeneration = null;
@@ -135,263 +135,137 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
               ? const Color(0xff151e24)
               : const Color(0xfff3f1eb),
         );
-    return Theme(
-      data: Theme.of(context)
-          .copyWith(
-            colorScheme: colors,
-            scaffoldBackgroundColor: colors.surface,
-          )
-          .withAppSurfaces,
-      child: Builder(
-        builder: (context) => Material(
-          color: colors.surface,
-          child: ListenableBuilder(
-            listenable: session,
-            builder: (context, _) {
-              if (!session.authenticated) {
-                return ZolnitLoginPage(
-                  session: session,
-                  onSignedIn: _signedIn,
-                  openWebsite: () => unawaited(_website()),
-                );
-              }
-              final text = context.appLocalizations;
-              final labels = [
-                text.connection,
-                text.nodes,
-                text.zolnitPlans,
-                text.account,
-              ];
-              final glyphs = [
-                AppGlyphs.dashboard,
-                AppGlyphs.proxies,
-                AppGlyphs.profiles,
-                AppGlyphs.account,
-              ];
-              final title = _orders ? text.zolnitOrders : labels[_selected];
-              final page = _orders
-                  ? ZolnitOrdersPage(session: session)
-                  : switch (_selected) {
-                      0 => _Dashboard(
-                        session: session,
-                        syncing: _syncing,
-                        synced: _synced,
-                        syncFailed: _syncFailed,
-                        sync: _sync,
-                        connect: _connect,
-                      ),
-                      1 => ZolnitNodesPage(session: session, sync: _sync),
-                      2 => ZolnitPlansPage(
-                        session: session,
-                        onOrderCreated: _showOrders,
-                      ),
-                      _ => ZolnitAccountPage(
-                        session: session,
-                        showOrders: _showOrders,
-                        logout: _logout,
-                      ),
-                    };
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final desktop = constraints.maxWidth >= 760;
-                  final content = Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: AppTextStyle.pageTitle.of(context),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: text.zolnitRefresh,
-                              onPressed: session.busy || _syncing
-                                  ? null
-                                  : _refresh,
-                              icon: const GlyphIcon(AppGlyphs.refresh),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(child: page),
-                      if (!desktop)
-                        SafeArea(
-                          top: false,
-                          child: NavigationDock(
-                            selectedIndex: _selected,
-                            onSelected: _select,
-                            destinations: [
-                              for (var i = 0; i < labels.length; i++)
-                                NavigationDockDestination(
-                                  glyph: glyphs[i],
-                                  label: labels[i],
-                                ),
-                            ],
-                          ),
-                        ),
-                    ],
+    return ZolnitSkinScope(
+      skin: widget.skin ?? ZolnitSkin.host,
+      child: Theme(
+        data: Theme.of(context)
+            .copyWith(
+              colorScheme: colors,
+              scaffoldBackgroundColor: colors.surface,
+            )
+            .withAppSurfaces,
+        child: Builder(
+          builder: (context) => Material(
+            color: colors.surface,
+            child: ListenableBuilder(
+              listenable: session,
+              builder: (context, _) {
+                if (!session.authenticated) {
+                  return ZolnitLoginPage(
+                    session: session,
+                    onSignedIn: _signedIn,
+                    openWebsite: () => unawaited(_website()),
                   );
-                  if (!desktop) return content;
-                  return Row(
-                    children: [
-                      SizedBox(
-                        width: 228,
-                        child: ColoredBox(
-                          color: colors.chromeSurface,
-                          child: Column(
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.fromLTRB(16, 24, 16, 20),
-                                child: ZolnitBrand(),
+                }
+                final text = context.appLocalizations;
+                final labels = [
+                  text.connection,
+                  text.nodes,
+                  text.zolnitPlans,
+                  text.account,
+                ];
+                final glyphs = [
+                  AppGlyphs.home,
+                  AppGlyphs.proxies,
+                  AppGlyphs.layers,
+                  AppGlyphs.account,
+                ];
+                final title = _orders ? text.zolnitOrders : labels[_selected];
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final desktop = constraints.maxWidth >= 760;
+                    final page = _orders
+                        ? ZolnitOrdersPage(session: session)
+                        : switch (_selected) {
+                            0 => ZolnitConnectPage(
+                              session: session,
+                              compact: !desktop,
+                              syncing: _syncing,
+                              syncFailed: _syncFailed,
+                              connect: _connect,
+                              openNodes: () => _select(1),
+                              openPlans: () => _select(2),
+                              openNotice: (notice) =>
+                                  unawaited(showZolnitNotice(context, notice)),
+                              openNotices: () => unawaited(
+                                showZolnitNotices(context, session.noticeList),
                               ),
-                              Expanded(
-                                child: NavigationSidebar(
-                                  expanded: true,
-                                  selectedIndex: _selected,
-                                  onSelected: _select,
-                                  destinations: [
-                                    for (var i = 0; i < labels.length; i++)
-                                      SidebarDestination(
-                                        glyph: glyphs[i],
-                                        label: labels[i],
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => unawaited(_website()),
-                                child: Text(text.zolnitWebsite),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const HomePage(),
+                            ),
+                            1 => ZolnitNodesPage(session: session, sync: _sync),
+                            2 => ZolnitPlansPage(
+                              session: session,
+                              onOrderCreated: _showOrders,
+                              compact: !desktop,
+                            ),
+                            _ => ZolnitAccountPage(
+                              session: session,
+                              showOrders: _showOrders,
+                              logout: _logout,
+                            ),
+                          };
+                    final name = zolnitDisplayName(
+                      session.account,
+                      session.usage,
+                    );
+                    final content = Column(
+                      children: [
+                        ZolnitTopBar(
+                          compact: !desktop,
+                          title: title,
+                          showBrand:
+                              (_selected == 0 || _selected == 2) && !_orders,
+                          initial: name.substring(0, 1),
+                          busy: session.busy || _syncing,
+                          onRefresh: _refresh,
+                          onNotices: () => unawaited(
+                            showZolnitNotices(context, session.noticeList),
+                          ),
+                          onHelp: () => unawaited(_website()),
+                          onAccount: () => _select(3),
+                        ),
+                        Expanded(child: page),
+                        if (!desktop)
+                          SafeArea(
+                            top: false,
+                            child: NavigationDock(
+                              selectedIndex: _selected,
+                              onSelected: _select,
+                              destinations: [
+                                for (var i = 0; i < labels.length; i++)
+                                  NavigationDockDestination(
+                                    glyph: glyphs[i],
+                                    label: labels[i],
                                   ),
-                                ),
-                                child: Text(text.zolnitAdvanced),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
+                              ],
+                            ),
+                          ),
+                      ],
+                    );
+                    if (!desktop) return content;
+                    return Row(
+                      children: [
+                        ZolnitSidebar(
+                          labels: labels,
+                          glyphs: glyphs,
+                          selected: _selected,
+                          onSelected: _select,
+                          onHelp: () => unawaited(_website()),
+                          onPreferences: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const HomePage(),
+                            ),
                           ),
                         ),
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(child: content),
-                    ],
-                  );
-                },
-              );
-            },
+                        Expanded(child: content),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Dashboard extends ConsumerWidget {
-  const _Dashboard({
-    required this.session,
-    required this.syncing,
-    required this.synced,
-    required this.syncFailed,
-    required this.sync,
-    required this.connect,
-  });
-
-  final ZolnitSessionController session;
-  final bool syncing;
-  final bool synced;
-  final bool syncFailed;
-  final Future<int?> Function() sync;
-  final Future<void> Function() connect;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final text = context.appLocalizations;
-    final subscription = session.subscription;
-    final plan = subscription?['plan'];
-    final uploaded = subscription?['u'];
-    final downloaded = subscription?['d'];
-    final used =
-        (uploaded is num ? uploaded : 0) + (downloaded is num ? downloaded : 0);
-    final status = ref.watch(coreStatusProvider);
-    final safe = ref.watch(safeModeProvider);
-    final label = switch (status) {
-      CoreStatus.connected => text.connected,
-      CoreStatus.connecting => text.connecting,
-      _ => text.disconnected,
-    };
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        ZolnitPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(text.zolnitTagline, style: AppTextStyle.title1.of(context)),
-              const SizedBox(height: 24),
-              Text(label, style: AppTextStyle.headline.of(context)),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed:
-                    safe ||
-                        syncing ||
-                        status == CoreStatus.connecting ||
-                        session.nodes.isEmpty
-                    ? null
-                    : connect,
-                icon: const GlyphIcon(AppGlyphs.vpn, fill: 1),
-                label: Text(label),
-              ),
-              const SizedBox(height: 12),
-              Text(text.zolnitProfileSource),
-              if (session.nodes.isEmpty) Text(text.zolnitNoNodes),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: syncing || session.busy ? null : sync,
-                child: Text(
-                  syncing
-                      ? text.zolnitSyncing
-                      : synced
-                      ? text.zolnitSynced
-                      : text.zolnitSync,
-                ),
-              ),
-              ZolnitFailureMessage(
-                code: syncFailed ? 'profile_sync_failed' : session.failure,
-                serverMessage: syncFailed ? null : session.failureMessage,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        ZolnitPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                plan is Json && plan['name'] is String
-                    ? plan['name'] as String
-                    : text.zolnitNoPlan,
-                style: AppTextStyle.title2.of(context),
-              ),
-              ZolnitValue(
-                label: text.trafficUsage,
-                value:
-                    '${zolnitBytes(used)} / ${zolnitBytes(subscription?['transfer_enable'])}',
-              ),
-              ZolnitValue(
-                label: text.subscriptionInfo,
-                value: zolnitDate(subscription?['expired_at']),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

@@ -6,8 +6,9 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/state.dart';
-import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
+import 'package:fl_clash/views/zolnit/brand.dart';
+import 'package:fl_clash/views/zolnit/connect_art.dart';
 import 'package:fl_clash/views/zolnit/home.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -447,14 +448,14 @@ void main() {
       expect(session.authenticated, isTrue);
       expect(
         find.text('No nodes are available for this subscription.'),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
       await capture(tester, 'dashboard-desktop-light');
       await tester.tap(find.text('Plans').first);
       await tester.pumpAndSettle();
       expect(find.text('Test Plan'), findsOneWidget);
-      expect(find.textContaining('12.00'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
       await capture(tester, 'plans-desktop-light');
       await tester.tap(find.text('Account').first);
       await tester.pumpAndSettle();
@@ -472,8 +473,9 @@ void main() {
       await mount(tester);
       await tester.tap(find.text('Plans').first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Create order'));
+      await tester.tap(find.text('Choose plan'));
       await tester.pumpAndSettle();
+      expect(find.text('Test Plan · ¥12.00'), findsOneWidget);
       expect(
         requests.where((request) => request.url.path.endsWith('/order/save')),
         isEmpty,
@@ -553,7 +555,7 @@ void main() {
       find.text(
         '\u5f53\u524d\u8ba2\u9605\u6682\u65e0\u53ef\u7528\u8282\u70b9\u3002',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     await capture(tester, 'dashboard-desktop-zh-light');
   });
@@ -669,7 +671,7 @@ void main() {
       await populatedSession.refreshBilling();
       await mountPopulated(tester);
       expect(find.text('\u5168\u7403\u7545\u8054'), findsWidgets);
-      expect(find.text('10.00 GB / 100.00 GB'), findsOneWidget);
+      expect(find.text('10 / 100 GB'), findsOneWidget);
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
       await capture(tester, 'dashboard-populated-zh-light');
     });
@@ -680,7 +682,7 @@ void main() {
       await tester.tap(find.text('\u5957\u9910').first);
       await tester.pumpAndSettle();
       expect(find.text('\u5168\u7403\u7545\u8054'), findsWidgets);
-      expect(find.textContaining('38.00'), findsOneWidget);
+      expect(find.text('38'), findsOneWidget);
       await capture(tester, 'plans-populated-zh-light');
     });
 
@@ -767,13 +769,8 @@ void main() {
       (tester) async {
         await signInPopulated();
         await mountPopulated(tester);
-        final button = tester.widget<FilledButton>(
-          find
-              .ancestor(
-                of: find.byType(GlyphIcon),
-                matching: find.byType(FilledButton),
-              )
-              .first,
+        final button = tester.widget<ZolnitPowerButton>(
+          find.byType(ZolnitPowerButton),
         );
         expect(button.onPressed, isNull);
       },
@@ -783,6 +780,7 @@ void main() {
       await signInPopulated();
       await mountPopulated(tester, phone: true, dark: true);
       expect(find.text('\u5168\u7403\u7545\u8054'), findsWidgets);
+      expect(find.byType(ZolnitBrand), findsOneWidget);
       await capture(tester, 'dashboard-populated-phone-dark');
     });
   });
