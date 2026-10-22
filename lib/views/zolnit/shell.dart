@@ -378,17 +378,20 @@ class ZolnitTopBar extends StatelessWidget {
         color: background,
         border: Border(bottom: BorderSide(color: colors.line(0.06 * side))),
       ),
-      child: SizedBox(
-        height: height,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: phone && skin.desktop ? 20 : skin.gutter,
-          ),
-          child: Row(
-            children: [
-              Expanded(child: leading),
-              trailing,
-            ],
+      child: Padding(
+        padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+        child: SizedBox(
+          height: height,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: phone && skin.desktop ? 20 : skin.gutter,
+            ),
+            child: Row(
+              children: [
+                Expanded(child: leading),
+                trailing,
+              ],
+            ),
           ),
         ),
       ),

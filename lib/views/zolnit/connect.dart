@@ -4,6 +4,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
+import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
@@ -17,13 +18,14 @@ import 'skin.dart';
 
 String zolnitDisplayName(Json? account, ZolnitUsage? usage) {
   final raw = account?['email'];
-  final email = raw is String ? raw : usage?.email ?? '';
+  final email = raw is String && raw.isNotEmpty ? raw : usage?.email ?? '';
   final local = email.split('@').first.trim();
   if (local.isEmpty) return 'ZolNit';
   final word = local
       .split(RegExp(r'[._+\-]'))
       .firstWhere((part) => part.isNotEmpty, orElse: () => local);
-  return word.substring(0, 1).toUpperCase() + word.substring(1);
+  final letters = word.characters;
+  return letters.first.toUpperCase() + letters.skip(1).string;
 }
 
 String _longDate(DateTime date) {
@@ -59,9 +61,18 @@ class ZolnitConnectPage extends ConsumerWidget {
   final VoidCallback openNotices;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
+    builder: (context, constraints) => _layout(
+      context,
+      stacked:
+          compact ||
+          !ZolnitSkin.of(context).desktop ||
+          constraints.maxWidth < 820,
+    ),
+  );
+
+  Widget _layout(BuildContext context, {required bool stacked}) {
     final skin = ZolnitSkin.of(context);
-    final stacked = compact || !skin.desktop;
     final usage = session.usage;
     final connectPanel = _ConnectPanel(
       session: session,
@@ -628,7 +639,7 @@ class ZolnitMembershipCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(text.zolnitTrafficUsed, style: small(1)),
-                    if (current?.resetDay != null)
+                    if ((current?.resetDay ?? 0) > 0)
                       Text(
                         text.zolnitResetInDays(current!.resetDay!),
                         style: small(1),
@@ -735,6 +746,22 @@ class _NodesPanel extends ConsumerWidget {
     final nodes = session.nodeList.take(3).toList();
     final selection = _selectionOf(ref, session.nodeList);
     final head = zolnitText(context, 11, color: colors.muted);
+    final group = ref.watch(currentGroupsStateProvider).value.firstOrNull;
+    void choose(ZolnitNode node) {
+      if (group != null &&
+          group.type == GroupType.Selector &&
+          group.all.any((proxy) => proxy.name == node.name)) {
+        selectGroupProxy(
+          ref,
+          groupName: group.name,
+          groupType: group.type,
+          proxyName: node.name,
+        );
+      } else {
+        openNodes();
+      }
+    }
+
     return ZolnitCard(
       padding: EdgeInsets.all(skin.desktop ? 23 : 22),
       child: Column(
@@ -783,7 +810,7 @@ class _NodesPanel extends ConsumerWidget {
               _NodeRow(
                 node: node,
                 selected: selection.chosen && selection.node?.name == node.name,
-                onTap: openNodes,
+                onTap: () => choose(node),
               ),
           ],
         ],

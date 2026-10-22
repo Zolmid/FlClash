@@ -1,3 +1,5 @@
+import 'package:fl_clash/views/zolnit/brand.dart';
+import 'package:fl_clash/views/zolnit/catalogue.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -58,7 +60,43 @@ void main() {
     await harness.capture(tester, 'connect-macos-empty');
   });
 
+  testWidgets('a narrow desktop window stacks the dashboard without overflow', (
+    tester,
+  ) async {
+    await harness.mount(tester, ZolnitSkin.windows, size: const Size(900, 700));
+    expect(find.text('你好，Lin。'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await harness.capture(tester, 'connect-windows-narrow');
+  });
+
+  testWidgets('a phone keeps its top bar below the status bar', (tester) async {
+    const inset = FakeViewPadding(top: 47);
+    tester.view.padding = inset;
+    tester.view.viewPadding = inset;
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    await harness.mount(tester, ZolnitSkin.ios);
+    expect(
+      tester.getTopLeft(find.byType(ZolnitBrand)).dy,
+      greaterThanOrEqualTo(47),
+    );
+  });
+
+  testWidgets('without a running Core a node row opens the nodes page', (
+    tester,
+  ) async {
+    await harness.mount(tester, ZolnitSkin.macos);
+    expect(find.byType(ZolnitNodesPage), findsNothing);
+    final row = find.text('日本 · 东京 01');
+    await tester.ensureVisible(row);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(find.byType(ZolnitNodesPage), findsOneWidget);
+  });
+
   testWidgets('English labels fit a 320 dp wide phone', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     for (final skin in [ZolnitSkin.ios, ZolnitSkin.android]) {
       await harness.mount(
         tester,

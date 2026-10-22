@@ -159,6 +159,7 @@ void main() {
   });
 
   testWidgets('English labels fit a 320 dp wide phone', (tester) async {
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     for (final skin in [ZolnitSkin.ios, ZolnitSkin.android]) {
       await openPlans(
         tester,
@@ -167,7 +168,12 @@ void main() {
         size: const Size(320, 640),
         label: 'Plans',
       );
-      expect(find.text('Current plan · 轻享'), findsOneWidget);
+      tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Current plan · 轻享', skipOffstage: false),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     }
   });

@@ -214,7 +214,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                           title: title,
                           showBrand:
                               (_selected == 0 || _selected == 2) && !_orders,
-                          initial: name.substring(0, 1),
+                          initial: name.characters.first,
                           busy: session.busy || _syncing,
                           onRefresh: _refresh,
                           onNotices: () => unawaited(
