@@ -230,11 +230,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "こんにちは、${name}さん。";
 
-  static String m97(count) => "/ ${count}台";
+  static String m97(rate) => "${rate}× 計量";
 
-  static String m98(days) => "${days}日後にリセット";
+  static String m98(count) => "${count} 個のノード";
 
-  static String m99(percent) => "${percent}%お得";
+  static String m99(count) => "/ ${count}台";
+
+  static String m100(days) => "${days}日後にリセット";
+
+  static String m101(percent) => "${percent}%お得";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2211,10 +2215,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("はい"),
     "zhCN": MessageLookupByLibrary.simpleMessage("簡体字中国語"),
     "zhTW": MessageLookupByLibrary.simpleMessage("繁体字中国語"),
+    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage(
+      "お困りですか？ サポートします",
+    ),
+    "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
+      "開通・更新の注文を確認",
+    ),
+    "zolnitAccountPassword": MessageLookupByLibrary.simpleMessage("ログインパスワード"),
+    "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
+      "いつもの使い方で接続",
+    ),
+    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage(
+      "あなた専用の接続スペース。",
+    ),
+    "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("マイアカウント"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("有効化中"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("詳細設定"),
+    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage(
+      "接続プロファイルとその他のオプションを表示",
+    ),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("すべてのノード"),
+    "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("すべての地域"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("支払い金額"),
+    "zolnitBalance": MessageLookupByLibrary.simpleMessage("アカウント残高"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage("月払いで、気軽にスタート"),
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
@@ -2230,6 +2253,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "今後の自動請求を停止します。初回の未払い注文も取り消されます。支払済みの利用権はサーバーの結果に従います。",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("取り消し済み"),
+    "zolnitChangePassword": MessageLookupByLibrary.simpleMessage("パスワードを変更"),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "決済がすでに処理中です。アカウントで状況を確認し、重複して送信しないでください。",
     ),
@@ -2240,6 +2264,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("完了"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "ワンタップですぐに接続",
+    ),
+    "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage("起動後に自動接続"),
+    "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
+      "前回選択したサブスクリプションのプロファイルを使用します。",
     ),
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "ルートを選ぶだけ。あとは ZolNit にお任せください。",
@@ -2259,6 +2287,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCycleYear": MessageLookupByLibrary.simpleMessage("1年"),
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("日"),
+    "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
+      "アカウントのログインセッションを表示します。ノードのオンライン IP 数とは異なります。",
+    ),
+    "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("ログインセッション"),
+    "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
+      "ログインセッションを取得できません。もう一度お試しください。",
+    ),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("メールアドレス"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("どの画面でも使い慣れた操作"),
     "zolnitExpiresOn": m92,
@@ -2270,6 +2305,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitFeatureTraffic": m95,
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("初回の支払い"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage("次回以降の支払い"),
+    "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
+      "パスワードをお忘れですか？",
+    ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("ギフト利用権"),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "初回支払いの確認後に有料期間が始まり、残りの無料期間が置き換わります。",
@@ -2301,9 +2339,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月払い"),
     "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage("毎月の自動支払い"),
     "zolnitMySpace": MessageLookupByLibrary.simpleMessage("マイスペース"),
+    "zolnitNewPassword": MessageLookupByLibrary.simpleMessage("新しいパスワード"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("次回の更新"),
     "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
       "有効なプランがありません。下から選んで始めましょう。",
+    ),
+    "zolnitNoDevices": MessageLookupByLibrary.simpleMessage(
+      "表示できるログインセッションはありません。",
+    ),
+    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
+      "一致するノードがありません。別のキーワードや地域をお試しください。",
     ),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage("利用できる支払い方法はありません"),
     "zolnitNoNodes": MessageLookupByLibrary.simpleMessage(
@@ -2313,15 +2358,36 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("注文はまだありません"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("有効なプランはありません"),
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage("自動更新の契約はありません"),
+    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
+      "遅延は直近の実測値を表示します。未測定の場合は — と表示されます。",
+    ),
+    "zolnitNodeMultiplier": m97,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("ノード名"),
+    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
+      "サブスクリプションを同期したら、プロファイル内のノードを選択します。",
+    ),
+    "zolnitNodesCount": m98,
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage(
+      "あなたの世界は、ここから始まる。",
+    ),
+    "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "お好みの回線を選んで、かんたんに接続。",
+    ),
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage("まだ接続されていません"),
     "zolnitNotices": MessageLookupByLibrary.simpleMessage("お知らせ"),
+    "zolnitOldPassword": MessageLookupByLibrary.simpleMessage("現在のパスワード"),
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("一回払い"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("オンラインのデバイス"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("注文履歴"),
-    "zolnitOutOfDevices": m97,
+    "zolnitOutOfDevices": m99,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("支払済み利用権"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("支払済み利用期限"),
+    "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
+      "現在のパスワードと、8文字以上で異なる新しいパスワードを入力してください。",
+    ),
+    "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage(
+      "パスワードを更新しました。",
+    ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("支払いへ"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "支払いから戻った後も注文状況の確認が必要です。",
@@ -2347,6 +2413,15 @@ class MessageLookup extends MessageLookupByLibrary {
       "普段のブラウジングから快適な動画視聴まで、あなたに合った接続を選べます。",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("環境設定"),
+    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
+      "いつもの使い方で接続。",
+    ),
+    "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
+      "セーフモードでは設定は保持されますが、自動接続やシステムネットワークの変更は行われません。",
+    ),
+    "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "本当に必要な設定だけを残しました。",
+    ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "ノードと振り分けルールは ZolNit から自動同期されます。",
     ),
@@ -2374,25 +2449,45 @@ class MessageLookup extends MessageLookupByLibrary {
       "現在、このプランでは毎月の自動支払いをご利用いただけません。",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("更新"),
+    "zolnitRegister": MessageLookupByLibrary.simpleMessage("新規登録"),
+    "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
+      "新規登録とパスワードの再設定は、ZolNit 公式サイトでメールとセキュリティの確認を行います。",
+    ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("現在のプランを更新"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("プランを更新"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自動更新"),
-    "zolnitResetInDays": m98,
+    "zolnitResetInDays": m100,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("通信量をリセット"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("自動更新を再開"),
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "承認済みプランに基づく自動請求を再開します。",
     ),
+    "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
+      "このセッションからログアウト",
+    ),
+    "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(
+      "ログインセッションを終了しました。",
+    ),
+    "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
+      "このログインセッションを終了しますか？アカウントを管理するには、そのデバイスで再ログインが必要です。",
+    ),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "セーフモードではシステムのネットワーク設定は変更されません。",
     ),
-    "zolnitSavePercent": m99,
+    "zolnitSavePercent": m101,
+    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("ノードまたは地域を検索"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("選択"),
     "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
       "アプリを閉じるまでログイン状態を保持します。",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("ログイン"),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("ログアウト"),
+    "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage(
+      "起動時に ZolNit を開始",
+    ),
+    "zolnitStartOnBootHint": MessageLookupByLibrary.simpleMessage(
+      "デバイスの起動後、ZolNit をあらかじめ準備します。",
+    ),
     "zolnitStatusActive": MessageLookupByLibrary.simpleMessage("利用中"),
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("期限切れ"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("未契約"),
@@ -2405,6 +2500,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("残りの通信量"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage("今期の使用量"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("2年ごと"),
+    "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage("ログインセッション"),
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
       "月額の見積もりを表示",
     ),

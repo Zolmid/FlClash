@@ -8,6 +8,7 @@ import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/brand.dart';
+import 'package:fl_clash/views/zolnit/account.dart';
 import 'package:fl_clash/views/zolnit/connect_art.dart';
 import 'package:fl_clash/views/zolnit/home.dart';
 import 'package:flutter/rendering.dart';
@@ -460,6 +461,16 @@ void main() {
       await tester.tap(find.text('Account').first);
       await tester.pumpAndSettle();
       expect(find.text('client@example.com'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Existing Plan'),
+        250,
+        scrollable: find
+            .descendant(
+              of: find.byType(ZolnitAccountPage),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       expect(find.text('Existing Plan'), findsOneWidget);
       expect(find.textContaining('UUID_DO_NOT_RENDER'), findsNothing);
       await capture(tester, 'account-desktop-light');
@@ -498,6 +509,17 @@ void main() {
       await session.refreshBilling();
       await mount(tester);
       await tester.tap(find.text('Account').first);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Cancel automatic renewal'),
+        250,
+        scrollable: find
+            .descendant(
+              of: find.byType(ZolnitAccountPage),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel automatic renewal'));
       await tester.pumpAndSettle();

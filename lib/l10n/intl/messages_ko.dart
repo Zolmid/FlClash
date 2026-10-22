@@ -232,11 +232,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "안녕하세요, ${name}님.";
 
-  static String m97(count) => "/ ${count}대";
+  static String m97(rate) => "${rate}× 계량";
 
-  static String m98(days) => "${days}일 후 초기화";
+  static String m98(count) => "노드 ${count}개";
 
-  static String m99(percent) => "${percent}% 절약";
+  static String m99(count) => "/ ${count}대";
+
+  static String m100(days) => "${days}일 후 초기화";
+
+  static String m101(percent) => "${percent}% 절약";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2161,10 +2165,27 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("예"),
     "zhCN": MessageLookupByLibrary.simpleMessage("중국어 간체"),
     "zhTW": MessageLookupByLibrary.simpleMessage("중국어 번체"),
+    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage(
+      "궁금한 점이 있으신가요? 도와드릴게요",
+    ),
+    "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
+      "개통 및 갱신 주문 보기",
+    ),
+    "zolnitAccountPassword": MessageLookupByLibrary.simpleMessage("로그인 비밀번호"),
+    "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
+      "내 방식대로 연결",
+    ),
+    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage("나만의 연결 공간."),
+    "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("내 계정"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("활성화 중"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("고급 설정"),
+    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage(
+      "연결 프로필 및 추가 옵션 보기",
+    ),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("전체 노드"),
+    "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("전체 지역"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("결제 금액"),
+    "zolnitBalance": MessageLookupByLibrary.simpleMessage("계정 잔액"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "월 단위 결제로 부담 없이 시작",
     ),
@@ -2182,6 +2203,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "향후 자동 결제가 중단됩니다. 첫 주문이 미결제 상태라면 해당 주문도 취소됩니다. 결제된 이용 권한은 서버 결과에 따릅니다.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("취소됨"),
+    "zolnitChangePassword": MessageLookupByLibrary.simpleMessage("비밀번호 변경"),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "이미 진행 중인 결제가 있습니다. 계정에서 상태를 확인하고 다시 제출하지 마세요.",
     ),
@@ -2192,6 +2214,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("완료"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "탭 한 번으로 바로 연결",
+    ),
+    "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage("실행 후 자동 연결"),
+    "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
+      "마지막으로 선택한 구독 프로필을 사용합니다.",
     ),
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "경로를 선택하면 나머지는 ZolNit이 알아서 처리합니다.",
@@ -2211,6 +2237,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCycleYear": MessageLookupByLibrary.simpleMessage("1년"),
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("일"),
+    "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
+      "계정의 로그인 세션을 표시합니다. 노드의 온라인 IP 수와는 다릅니다.",
+    ),
+    "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("로그인 세션"),
+    "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
+      "지금은 로그인 세션을 불러올 수 없습니다. 다시 시도해 주세요.",
+    ),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("이메일"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("모든 화면에서 익숙한 경험"),
     "zolnitExpiresOn": m92,
@@ -2222,6 +2255,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitFeatureTraffic": m95,
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("첫 결제"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage("이후 결제"),
+    "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
+      "비밀번호를 잊으셨나요?",
+    ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("선물 이용 권한"),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "첫 결제가 확인되면 유료 기간이 시작되고 남은 무료 기간을 대체합니다.",
@@ -2253,9 +2289,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("매월"),
     "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage("매월 자동 결제"),
     "zolnitMySpace": MessageLookupByLibrary.simpleMessage("내 공간"),
+    "zolnitNewPassword": MessageLookupByLibrary.simpleMessage("새 비밀번호"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("다음 갱신일"),
     "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
       "활성 요금제가 없습니다. 아래에서 하나를 선택해 시작하세요.",
+    ),
+    "zolnitNoDevices": MessageLookupByLibrary.simpleMessage(
+      "표시할 로그인 세션이 없습니다.",
+    ),
+    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
+      "일치하는 노드가 없습니다. 다른 키워드나 지역을 시도해 보세요.",
     ),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 결제 수단이 없습니다",
@@ -2267,15 +2310,36 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("아직 주문이 없습니다"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("활성 요금제가 없습니다"),
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신 계약이 없습니다"),
+    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
+      "지연 시간은 가장 최근 실제 측정값 기준이며, 측정 전에는 —로 표시됩니다.",
+    ),
+    "zolnitNodeMultiplier": m97,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("노드"),
+    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
+      "구독을 동기화한 후 프로필의 노드를 선택하세요.",
+    ),
+    "zolnitNodesCount": m98,
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage(
+      "당신의 세상, 여기서 시작됩니다.",
+    ),
+    "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "마음에 드는 노선을 골라 간편하게 연결하세요.",
+    ),
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage("아직 연결되지 않았습니다"),
     "zolnitNotices": MessageLookupByLibrary.simpleMessage("공지사항"),
+    "zolnitOldPassword": MessageLookupByLibrary.simpleMessage("현재 비밀번호"),
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("일회성"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("온라인 기기"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("주문 내역"),
-    "zolnitOutOfDevices": m97,
+    "zolnitOutOfDevices": m99,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("결제된 이용 권한"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("결제된 이용 만료일"),
+    "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
+      "현재 비밀번호를 입력하고, 8자 이상의 다른 새 비밀번호를 사용하세요.",
+    ),
+    "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage(
+      "비밀번호가 변경되었습니다.",
+    ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("주문 결제"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "결제에서 돌아온 후에도 주문 상태를 확인해야 합니다.",
@@ -2301,6 +2365,15 @@ class MessageLookup extends MessageLookupByLibrary {
       "일상적인 웹 서핑부터 매끄러운 스트리밍까지, 나에게 맞는 연결을 선택하세요.",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("환경설정"),
+    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
+      "내 방식대로 연결.",
+    ),
+    "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
+      "안전 모드는 설정을 유지하지만 자동으로 연결하거나 시스템 네트워크를 변경하지 않습니다.",
+    ),
+    "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "꼭 필요한 설정만 남겼습니다.",
+    ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "노드와 라우팅 규칙은 ZolNit에서 자동으로 동기화됩니다.",
     ),
@@ -2326,25 +2399,41 @@ class MessageLookup extends MessageLookupByLibrary {
       "현재 이 요금제는 월 자동 결제를 사용할 수 없습니다.",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("새로고침"),
+    "zolnitRegister": MessageLookupByLibrary.simpleMessage("회원가입"),
+    "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
+      "회원가입 및 비밀번호 복구는 ZolNit 웹사이트에서 이메일 및 보안 인증을 진행합니다.",
+    ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("현재 요금제 갱신"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("요금제 갱신"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신"),
-    "zolnitResetInDays": m98,
+    "zolnitResetInDays": m100,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("트래픽 초기화"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("자동 갱신 재개"),
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "승인한 요금제에 따라 자동 결제를 재개합니다.",
     ),
+    "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage("이 세션 로그아웃"),
+    "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(
+      "로그인 세션이 종료되었습니다.",
+    ),
+    "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
+      "이 로그인 세션을 종료할까요? 해당 기기는 계정을 관리하려면 다시 로그인해야 합니다.",
+    ),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "보안 모드는 시스템 네트워크를 변경하지 않습니다.",
     ),
-    "zolnitSavePercent": m99,
+    "zolnitSavePercent": m101,
+    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("노드 또는 지역 검색"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("선택"),
     "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
       "앱을 닫을 때까지 로그인 상태가 유지됩니다.",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("로그인"),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("로그아웃"),
+    "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage("시작 시 ZolNit 실행"),
+    "zolnitStartOnBootHint": MessageLookupByLibrary.simpleMessage(
+      "기기를 켜면 ZolNit이 미리 준비됩니다.",
+    ),
     "zolnitStatusActive": MessageLookupByLibrary.simpleMessage("이용 중"),
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("만료됨"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("요금제 없음"),
@@ -2357,6 +2446,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("남은 트래픽"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage("이번 주기 사용량"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("2년마다"),
+    "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage("로그인 세션"),
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("월간 견적 보기"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("ZolNit 웹사이트 열기"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("다시 오신 것을 환영합니다"),

@@ -43,6 +43,8 @@ class SecretTextFormField extends StatefulWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final FormFieldValidator<String>? validator;
   final bool autofocus;
+  final bool enabled;
+  final Iterable<String>? autofillHints;
 
   const SecretTextFormField({
     super.key,
@@ -56,6 +58,8 @@ class SecretTextFormField extends StatefulWidget {
     this.onFieldSubmitted,
     this.validator,
     this.autofocus = false,
+    this.enabled = true,
+    this.autofillHints,
   });
 
   @override
@@ -69,11 +73,13 @@ class _SecretTextFormFieldState extends State<SecretTextFormField> {
   Widget build(BuildContext context) {
     final localizations = UiLocalizations.of(context);
     return TextFormField(
+      enabled: widget.enabled,
       autofocus: widget.autofocus,
       focusNode: widget.focusNode,
       controller: widget.controller,
       obscureText: _obscure,
       keyboardType: TextInputType.visiblePassword,
+      autofillHints: widget.autofillHints,
       maxLines: _obscure ? 1 : widget.maxLines,
       minLines: 1,
       inputFormatters: _limited(widget.inputFormatters, widget.maxLength),
@@ -86,11 +92,13 @@ class _SecretTextFormFieldState extends State<SecretTextFormField> {
               ? localizations.showPassword
               : localizations.hidePassword,
           icon: GlyphIcon(_obscure ? AppGlyphs.eye : AppGlyphs.eyeOff),
-          onPressed: () {
-            setState(() {
-              _obscure = !_obscure;
-            });
-          },
+          onPressed: !widget.enabled
+              ? null
+              : () {
+                  setState(() {
+                    _obscure = !_obscure;
+                  });
+                },
         ),
       ),
     );

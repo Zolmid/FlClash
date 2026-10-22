@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -16,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart' show Override;
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
@@ -55,7 +57,12 @@ http.Response zolnitPanelFixture(http.Request request) {
   final now = DateTime.now();
   dynamic data;
   if (path.endsWith('/user/info')) {
-    data = {'email': 'lin@example.com'};
+    data = {'email': 'lin@example.com', 'balance': 0};
+  } else if (path.endsWith('/getActiveSession')) {
+    data = [
+      {'id': 41, 'name': 'MacBook Air', 'last_used_at': '2026-10-22T17:00:00Z'},
+      {'id': 42, 'name': 'iPhone', 'last_used_at': '2026-10-21T12:00:00Z'},
+    ];
   } else if (path.endsWith('/getSubscribe')) {
     data = {
       'plan_id': 1,
@@ -161,7 +168,7 @@ http.Response zolnitPanelFixture(http.Request request) {
   } else if (path.endsWith('/zolnit-stripe/config')) {
     data = {'enabled': false, 'configured': false};
   } else if (path.endsWith('/subscriptions')) {
-    data = {'subscriptions': <Json>[]};
+    data = {'subscriptions': <Json>[], 'entitlement': <String, dynamic>{}};
   } else {
     return http.Response('{}', 404);
   }
@@ -207,16 +214,18 @@ const zolnitViewports = <ZolnitSkin, (Size, TargetPlatform)>{
 /// Set ZOLNIT_CAPTURE_DIR to write PNGs; ZOLNIT_FONT_PATH,
 /// ZOLNIT_CJK_FONT_PATH and ZOLNIT_CJK_BOLD_FONT_PATH name the fonts to load.
 class ZolnitHarness {
-  ZolnitHarness._();
+  ZolnitHarness._(this.overrides);
+
+  final List<Override> overrides;
 
   late ZolnitSessionController session;
   late ProviderContainer container;
   late Directory _paths;
-  http.Response Function(http.Request) panel = zolnitPanelFixture;
+  FutureOr<http.Response> Function(http.Request) panel = zolnitPanelFixture;
   final requests = <http.Request>[];
 
-  static ZolnitHarness register() {
-    final harness = ZolnitHarness._();
+  static ZolnitHarness register({List<Override> overrides = const []}) {
+    final harness = ZolnitHarness._(overrides);
     setUpAll(harness._loadFonts);
     setUp(harness._start);
     tearDown(harness._stop);
@@ -266,6 +275,7 @@ class ZolnitHarness {
         zolnitSessionProvider.overrideWithValue(session),
         zolnitSyncProfileProvider.overrideWithValue(() async => null),
         safeModeProvider.overrideWithValue(true),
+        ...overrides,
       ],
     );
     globalState.container = container;
@@ -293,6 +303,7 @@ class ZolnitHarness {
     bool dark = false,
     Locale locale = const Locale('zh', 'CN'),
     Size? size,
+    Widget? child,
   }) async {
     final (viewport, platform) = zolnitViewports[skin]!;
     tester.view.devicePixelRatio = 1;
@@ -313,7 +324,12 @@ class ZolnitHarness {
           ).withAppShapes.withAppTypography.withAppSurfaces,
           child: RepaintBoundary(
             key: const ValueKey('zolnit-capture'),
-            child: ZolnitHomePage(skin: skin),
+            child: child == null
+                ? ZolnitHomePage(skin: skin)
+                : ZolnitSkinScope(
+                    skin: skin,
+                    child: Material(child: child),
+                  ),
           ),
         ),
       ),

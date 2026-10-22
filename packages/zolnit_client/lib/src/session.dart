@@ -67,6 +67,7 @@ class ZolnitSessionController extends ChangeNotifier {
   ZolnitUsage? _usageModel;
 
   bool get authenticated => _authenticated;
+  int get accountGeneration => _epoch;
   bool get busy => _flights.isNotEmpty;
   String? get failure => _failure;
   String? get billingFailure => _billingFailure;

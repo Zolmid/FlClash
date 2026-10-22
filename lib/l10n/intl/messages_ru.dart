@@ -256,11 +256,15 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "Здравствуйте, ${name}.";
 
-  static String m97(count) => "/ ${count}";
+  static String m97(rate) => "Учёт ×${rate}";
 
-  static String m98(days) => "Сброс через ${days} дн.";
+  static String m98(count) => "Узлов: ${count}";
 
-  static String m99(percent) => "Выгода ${percent}%";
+  static String m99(count) => "/ ${count}";
+
+  static String m100(days) => "Сброс через ${days} дн.";
+
+  static String m101(percent) => "Выгода ${percent}%";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2762,12 +2766,33 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("Да"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Упрощённый китайский"),
     "zhTW": MessageLookupByLibrary.simpleMessage("Традиционный китайский"),
+    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage(
+      "Есть вопросы? Мы на связи",
+    ),
+    "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
+      "Просмотр заказов на подключение и продление",
+    ),
+    "zolnitAccountPassword": MessageLookupByLibrary.simpleMessage(
+      "Пароль для входа",
+    ),
+    "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
+      "Подключайтесь по-своему",
+    ),
+    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Ваше пространство подключения.",
+    ),
+    "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("Мой аккаунт"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("Активация"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage(
       "Дополнительные настройки",
     ),
+    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage(
+      "Просмотр профилей подключения и других параметров",
+    ),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Все узлы"),
+    "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("Все регионы"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("К оплате"),
+    "zolnitBalance": MessageLookupByLibrary.simpleMessage("Баланс аккаунта"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "Оплата помесячно — удобное начало",
     ),
@@ -2787,6 +2812,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Будущие автоматические списания прекратятся. Неоплаченный первый заказ тоже будет отменён. Оплаченный доступ определяется результатом сервера.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Отменён"),
+    "zolnitChangePassword": MessageLookupByLibrary.simpleMessage(
+      "Изменить пароль",
+    ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "Оплата уже обрабатывается. Проверьте статус в разделе «Аккаунт» и не отправляйте повторно.",
     ),
@@ -2797,6 +2825,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Завершён"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Одно касание — и вы на связи",
+    ),
+    "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage(
+      "Автоподключение при запуске",
+    ),
+    "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
+      "Используется последний выбранный профиль подписки.",
     ),
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "Выберите маршрут, остальное сделает ZolNit.",
@@ -2816,6 +2850,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCycleYear": MessageLookupByLibrary.simpleMessage("год"),
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("дн."),
+    "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
+      "Здесь показаны сеансы входа в аккаунт; это не то же самое, что число онлайн-IP узла.",
+    ),
+    "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("Сеансы входа"),
+    "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Сейчас не удаётся загрузить сеансы входа. Повторите попытку.",
+    ),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("Электронная почта"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
       "Привычный интерфейс на каждом экране",
@@ -2830,6 +2871,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("Первый платёж"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage(
       "Последующие платежи",
+    ),
+    "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
+      "Забыли пароль?",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Подарочный доступ"),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
@@ -2874,11 +2918,18 @@ class MessageLookup extends MessageLookupByLibrary {
       "Ежемесячная автоматическая оплата",
     ),
     "zolnitMySpace": MessageLookupByLibrary.simpleMessage("Моё пространство"),
+    "zolnitNewPassword": MessageLookupByLibrary.simpleMessage("Новый пароль"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage(
       "Следующее продление",
     ),
     "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
       "У вас пока нет активного тарифа. Выберите его ниже, чтобы начать.",
+    ),
+    "zolnitNoDevices": MessageLookupByLibrary.simpleMessage(
+      "Нет сеансов входа для отображения.",
+    ),
+    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
+      "Подходящих узлов нет. Попробуйте другие ключевые слова или регионы.",
     ),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
       "Нет доступных способов оплаты",
@@ -2896,19 +2947,40 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
       "Нет договоров автопродления",
     ),
+    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
+      "Задержка показывает результат последней реальной проверки; если проверки не было, отображается —.",
+    ),
+    "zolnitNodeMultiplier": m97,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Узел"),
+    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
+      "После синхронизации подписки выберите узел из профиля.",
+    ),
+    "zolnitNodesCount": m98,
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage(
+      "Ваш мир начинается здесь.",
+    ),
+    "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Выберите подходящий маршрут и подключайтесь без усилий.",
+    ),
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage(
       "Подключение пока не выполнено",
     ),
     "zolnitNotices": MessageLookupByLibrary.simpleMessage("Объявления"),
+    "zolnitOldPassword": MessageLookupByLibrary.simpleMessage("Текущий пароль"),
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("Разовый платёж"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage(
       "Устройства онлайн",
     ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Заказы"),
-    "zolnitOutOfDevices": m97,
+    "zolnitOutOfDevices": m99,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Оплаченный доступ"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("Оплачено до"),
+    "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
+      "Введите текущий пароль и другой новый пароль не короче восьми символов.",
+    ),
+    "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage(
+      "Пароль обновлён.",
+    ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Оплатить заказ"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "После возвращения с оплаты статус заказа ещё нужно подтвердить.",
@@ -2938,6 +3010,15 @@ class MessageLookup extends MessageLookupByLibrary {
       "От повседневного просмотра сайтов до плавного стриминга — выберите подходящее подключение.",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("Настройки"),
+    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
+      "Подключайтесь по-своему.",
+    ),
+    "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
+      "Безопасный режим сохраняет настройки, но не подключается автоматически и не меняет сеть системы.",
+    ),
+    "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Только действительно нужные настройки.",
+    ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "Узлы и правила маршрутизации автоматически синхронизируются с ZolNit.",
     ),
@@ -2967,6 +3048,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Ежемесячная автоматическая оплата для этого тарифа сейчас недоступна.",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Обновить"),
+    "zolnitRegister": MessageLookupByLibrary.simpleMessage("Регистрация"),
+    "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
+      "Регистрация и восстановление пароля выполняются на сайте ZolNit с проверкой почты и безопасности.",
+    ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
       "Продлить текущий тариф",
     ),
@@ -2974,7 +3059,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
       "Автоматическое продление",
     ),
-    "zolnitResetInDays": m98,
+    "zolnitResetInDays": m100,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage(
       "Сбросить трафик",
     ),
@@ -2984,16 +3069,34 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "Возобновить автоматические списания по одобренному тарифу.",
     ),
+    "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
+      "Выйти из этого сеанса",
+    ),
+    "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(
+      "Сеанс входа завершён.",
+    ),
+    "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
+      "Завершить этот сеанс входа? Чтобы управлять аккаунтом, на этом устройстве потребуется войти снова.",
+    ),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Безопасный режим не меняет сетевые настройки системы.",
     ),
-    "zolnitSavePercent": m99,
+    "zolnitSavePercent": m101,
+    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
+      "Поиск узлов или регионов",
+    ),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("Выбор"),
     "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
       "Вы останетесь в аккаунте до закрытия приложения.",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Войти"),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("Выйти"),
+    "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage(
+      "Запускать ZolNit при старте системы",
+    ),
+    "zolnitStartOnBootHint": MessageLookupByLibrary.simpleMessage(
+      "ZolNit будет готов сразу после включения устройства.",
+    ),
     "zolnitStatusActive": MessageLookupByLibrary.simpleMessage("Активен"),
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("Истёк"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("Нет тарифа"),
@@ -3020,6 +3123,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Использовано за период",
     ),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("Раз в два года"),
+    "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage("Сеанс входа"),
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
       "Посмотреть месячный расчёт",
     ),

@@ -16,8 +16,11 @@ import 'auth.dart';
 import 'catalogue.dart';
 import 'connect.dart';
 import 'notices.dart';
+import 'preferences.dart';
 import 'shell.dart';
 import 'skin.dart';
+
+enum _AccountSection { overview, orders, preferences }
 
 class ZolnitHomePage extends ConsumerStatefulWidget {
   const ZolnitHomePage({super.key, this.skin});
@@ -30,14 +33,14 @@ class ZolnitHomePage extends ConsumerStatefulWidget {
 
 class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   int _selected = 0;
-  bool _orders = false;
+  _AccountSection _accountSection = _AccountSection.overview;
   bool _syncing = false;
   bool _syncFailed = false;
   int? _syncGeneration;
 
-  Future<void> _website() async {
+  Future<void> _website([String path = '/']) async {
     await launchUrl(
-      Uri.parse('https://link.zolmid.com'),
+      Uri.parse('https://link.zolmid.com').replace(fragment: path),
       mode: LaunchMode.externalApplication,
     );
   }
@@ -95,7 +98,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   void _select(int index) {
     setState(() {
       _selected = index;
-      _orders = false;
+      _accountSection = _AccountSection.overview;
     });
     if (index == 3) unawaited(ref.read(zolnitSessionProvider).refreshBilling());
     if (index == 2) {
@@ -106,14 +109,27 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   void _showOrders() {
     setState(() {
       _selected = 3;
-      _orders = true;
+      _accountSection = _AccountSection.orders;
     });
+  }
+
+  void _showPreferences() {
+    setState(() {
+      _selected = 3;
+      _accountSection = _AccountSection.preferences;
+    });
+  }
+
+  void _advanced() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const HomePage()));
   }
 
   void _logout() {
     setState(() {
       _selected = 0;
-      _orders = false;
+      _accountSection = _AccountSection.overview;
       _syncFailed = false;
       _syncing = false;
       _syncGeneration = null;
@@ -155,6 +171,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                     session: session,
                     onSignedIn: _signedIn,
                     openWebsite: () => unawaited(_website()),
+                    openRegistration: () => unawaited(_website('/register')),
+                    openRecovery: () => unawaited(_website('/forgetpassword')),
                   );
                 }
                 final text = context.appLocalizations;
@@ -170,11 +188,21 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                   AppGlyphs.layers,
                   AppGlyphs.account,
                 ];
-                final title = _orders ? text.zolnitOrders : labels[_selected];
+                final title = _accountSection == _AccountSection.preferences
+                    ? text.zolnitPreferences
+                    : _accountSection == _AccountSection.orders
+                    ? text.zolnitOrders
+                    : labels[_selected];
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final desktop = constraints.maxWidth >= 760;
-                    final page = _orders
+                    final page = _accountSection == _AccountSection.preferences
+                        ? ZolnitPreferencesPage(
+                            compact: !desktop,
+                            openAdvanced: _advanced,
+                            openWebsite: () => unawaited(_website()),
+                          )
+                        : _accountSection == _AccountSection.orders
                         ? ZolnitOrdersPage(session: session)
                         : switch (_selected) {
                             0 => ZolnitConnectPage(
@@ -191,7 +219,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                                 showZolnitNotices(context, session.noticeList),
                               ),
                             ),
-                            1 => ZolnitNodesPage(session: session, sync: _sync),
+                            1 => ZolnitNodesPage(
+                              session: session,
+                              sync: _sync,
+                              compact: !desktop,
+                            ),
                             2 => ZolnitPlansPage(
                               session: session,
                               onOrderCreated: _showOrders,
@@ -200,6 +232,10 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                             _ => ZolnitAccountPage(
                               session: session,
                               showOrders: _showOrders,
+                              showPlans: () => _select(2),
+                              showPreferences: _showPreferences,
+                              openHelp: () => unawaited(_website()),
+                              compact: !desktop,
                               logout: _logout,
                             ),
                           };
@@ -213,7 +249,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                           compact: !desktop,
                           title: title,
                           showBrand:
-                              (_selected == 0 || _selected == 2) && !_orders,
+                              (_selected == 0 || _selected == 2) &&
+                              _accountSection == _AccountSection.overview,
                           initial: name.characters.first,
                           busy: session.busy || _syncing,
                           onRefresh: _refresh,
@@ -250,11 +287,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                           selected: _selected,
                           onSelected: _select,
                           onHelp: () => unawaited(_website()),
-                          onPreferences: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const HomePage(),
-                            ),
-                          ),
+                          onPreferences: _showPreferences,
                         ),
                         Expanded(child: content),
                       ],

@@ -12098,6 +12098,401 @@ class AppLocalizations {
   String get zolnitMySpace {
     return Intl.message('My space', name: 'zolnitMySpace', desc: '', args: []);
   }
+
+  /// `Your world starts here.`
+  String get zolnitNodesHeadline {
+    return Intl.message(
+      'Your world starts here.',
+      name: 'zolnitNodesHeadline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pick a route you like and connect with ease.`
+  String get zolnitNodesSubtitle {
+    return Intl.message(
+      'Pick a route you like and connect with ease.',
+      name: 'zolnitNodesSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All regions`
+  String get zolnitAllRegions {
+    return Intl.message(
+      'All regions',
+      name: 'zolnitAllRegions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search nodes or regions`
+  String get zolnitSearchNodes {
+    return Intl.message(
+      'Search nodes or regions',
+      name: 'zolnitSearchNodes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No matching nodes. Try other keywords or regions.`
+  String get zolnitNoMatchingNodes {
+    return Intl.message(
+      'No matching nodes. Try other keywords or regions.',
+      name: 'zolnitNoMatchingNodes',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{rate}× metering`
+  String zolnitNodeMultiplier(Object rate) {
+    return Intl.message(
+      '$rate× metering',
+      name: 'zolnitNodeMultiplier',
+      desc: '',
+      args: [rate],
+    );
+  }
+
+  /// `Latency reflects the most recent actual test; shows — if not tested.`
+  String get zolnitNodeMeasurementHint {
+    return Intl.message(
+      'Latency reflects the most recent actual test; shows — if not tested.',
+      name: 'zolnitNodeMeasurementHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `After syncing your subscription, choose a node from the profile.`
+  String get zolnitNodeSyncHint {
+    return Intl.message(
+      'After syncing your subscription, choose a node from the profile.',
+      name: 'zolnitNodeSyncHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{count} nodes`
+  String zolnitNodesCount(Object count) {
+    return Intl.message(
+      '$count nodes',
+      name: 'zolnitNodesCount',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `My account`
+  String get zolnitAccountTitle {
+    return Intl.message(
+      'My account',
+      name: 'zolnitAccountTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your own connection space.`
+  String get zolnitAccountSubtitle {
+    return Intl.message(
+      'Your own connection space.',
+      name: 'zolnitAccountSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Account balance`
+  String get zolnitBalance {
+    return Intl.message(
+      'Account balance',
+      name: 'zolnitBalance',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Login password`
+  String get zolnitAccountPassword {
+    return Intl.message(
+      'Login password',
+      name: 'zolnitAccountPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Change password`
+  String get zolnitChangePassword {
+    return Intl.message(
+      'Change password',
+      name: 'zolnitChangePassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current password`
+  String get zolnitOldPassword {
+    return Intl.message(
+      'Current password',
+      name: 'zolnitOldPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `New password`
+  String get zolnitNewPassword {
+    return Intl.message(
+      'New password',
+      name: 'zolnitNewPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Password updated.`
+  String get zolnitPasswordUpdated {
+    return Intl.message(
+      'Password updated.',
+      name: 'zolnitPasswordUpdated',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter your current password and a different new password of at least eight characters.`
+  String get zolnitPasswordInvalid {
+    return Intl.message(
+      'Enter your current password and a different new password of at least eight characters.',
+      name: 'zolnitPasswordInvalid',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Login sessions`
+  String get zolnitDevicesTitle {
+    return Intl.message(
+      'Login sessions',
+      name: 'zolnitDevicesTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `These are your account's login sessions, which differ from a node's online IP count.`
+  String get zolnitDevicesHint {
+    return Intl.message(
+      'These are your account\'s login sessions, which differ from a node\'s online IP count.',
+      name: 'zolnitDevicesHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No login sessions to show.`
+  String get zolnitNoDevices {
+    return Intl.message(
+      'No login sessions to show.',
+      name: 'zolnitNoDevices',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Login session`
+  String get zolnitUnknownDevice {
+    return Intl.message(
+      'Login session',
+      name: 'zolnitUnknownDevice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign out of this session`
+  String get zolnitRevokeDevice {
+    return Intl.message(
+      'Sign out of this session',
+      name: 'zolnitRevokeDevice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `End this login session? That device must sign in again to manage the account.`
+  String get zolnitRevokeDeviceTip {
+    return Intl.message(
+      'End this login session? That device must sign in again to manage the account.',
+      name: 'zolnitRevokeDeviceTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Login session ended.`
+  String get zolnitRevokeDeviceDone {
+    return Intl.message(
+      'Login session ended.',
+      name: 'zolnitRevokeDeviceDone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unable to load login sessions right now. Please try again.`
+  String get zolnitDevicesUnavailable {
+    return Intl.message(
+      'Unable to load login sessions right now. Please try again.',
+      name: 'zolnitDevicesUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View activation and renewal orders`
+  String get zolnitAccountOrdersHint {
+    return Intl.message(
+      'View activation and renewal orders',
+      name: 'zolnitAccountOrdersHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Questions? We're here`
+  String get zolnitAccountHelpHint {
+    return Intl.message(
+      'Questions? We\'re here',
+      name: 'zolnitAccountHelpHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connect the way you like`
+  String get zolnitAccountPreferencesHint {
+    return Intl.message(
+      'Connect the way you like',
+      name: 'zolnitAccountPreferencesHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connect the way you like.`
+  String get zolnitPreferencesHeadline {
+    return Intl.message(
+      'Connect the way you like.',
+      name: 'zolnitPreferencesHeadline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Keep only the preferences that really matter.`
+  String get zolnitPreferencesSubtitle {
+    return Intl.message(
+      'Keep only the preferences that really matter.',
+      name: 'zolnitPreferencesSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Launch ZolNit at startup`
+  String get zolnitStartOnBoot {
+    return Intl.message(
+      'Launch ZolNit at startup',
+      name: 'zolnitStartOnBoot',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Have ZolNit ready as soon as your device turns on.`
+  String get zolnitStartOnBootHint {
+    return Intl.message(
+      'Have ZolNit ready as soon as your device turns on.',
+      name: 'zolnitStartOnBootHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connect automatically on launch`
+  String get zolnitConnectOnLaunch {
+    return Intl.message(
+      'Connect automatically on launch',
+      name: 'zolnitConnectOnLaunch',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Uses the subscription profile you selected last time.`
+  String get zolnitConnectOnLaunchHint {
+    return Intl.message(
+      'Uses the subscription profile you selected last time.',
+      name: 'zolnitConnectOnLaunchHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Safe mode keeps your preferences but won't connect automatically or change system network settings.`
+  String get zolnitPreferencesSafeHint {
+    return Intl.message(
+      'Safe mode keeps your preferences but won\'t connect automatically or change system network settings.',
+      name: 'zolnitPreferencesSafeHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View connection profiles and more options`
+  String get zolnitAdvancedHint {
+    return Intl.message(
+      'View connection profiles and more options',
+      name: 'zolnitAdvancedHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign up`
+  String get zolnitRegister {
+    return Intl.message('Sign up', name: 'zolnitRegister', desc: '', args: []);
+  }
+
+  /// `Forgot password?`
+  String get zolnitForgotPassword {
+    return Intl.message(
+      'Forgot password?',
+      name: 'zolnitForgotPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign-up and password recovery open the ZolNit website for email and security verification.`
+  String get zolnitRegistrationWebsiteHint {
+    return Intl.message(
+      'Sign-up and password recovery open the ZolNit website for email and security verification.',
+      name: 'zolnitRegistrationWebsiteHint',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

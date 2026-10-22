@@ -1,9 +1,5 @@
 import 'package:fl_clash/common/context.dart';
-import 'package:fl_clash/providers/providers.dart';
-import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/ui/ui.dart';
-import 'package:fl_clash/views/proxies/proxies.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
@@ -11,46 +7,7 @@ import 'brand.dart';
 import 'data.dart';
 
 export 'plans.dart' show ZolnitPlansPage;
-
-class ZolnitNodesPage extends ConsumerWidget {
-  const ZolnitNodesPage({super.key, required this.session, required this.sync});
-
-  final ZolnitSessionController session;
-  final Future<int?> Function() sync;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final text = context.appLocalizations;
-    if (session.nodes.isNotEmpty) {
-      final profile = ref.watch(currentProfileProvider);
-      final groups = ref.watch(currentGroupsStateProvider).value;
-      if (profile?.label == zolnitProfileLabel(session) && groups.isNotEmpty) {
-        return const ProxiesView();
-      }
-    }
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(text.zolnitProfileSource),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: session.busy ? null : sync,
-          child: Text(text.zolnitSync),
-        ),
-        if (session.nodes.isEmpty) Text(text.zolnitNoNodes),
-        for (final node in session.nodes) ...[
-          ZolnitPanel(
-            child: Text(
-              node['name'] is String ? node['name'] as String : text.unknown,
-              style: AppTextStyle.headline.of(context),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
+export 'nodes.dart' show ZolnitNodesPage;
 
 class ZolnitOrdersPage extends StatefulWidget {
   const ZolnitOrdersPage({super.key, required this.session});
