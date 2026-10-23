@@ -48,13 +48,14 @@ if (-not (Test-Path $cppwinrt)) {
   throw 'Pinned Microsoft.Windows.CppWinRT package did not contain cppwinrt.exe.'
 }
 
-# Microsoft.UI.Xaml/Text live in lib\uap10.0; Microsoft.UI (Content, Dispatching,
+# Microsoft.UI.Xaml/Text and MRTCore live in lib\uap10.0; Microsoft.UI (Content, Dispatching,
 # WindowId), Microsoft.Foundation and Microsoft.Graphics live in lib\uap10.0.18362.
 $winmd = Join-Path $packageDir 'lib\uap10.0'
 $winmd18362 = Join-Path $packageDir 'lib\uap10.0.18362'
 $inputs = @(
   (Join-Path $winmd 'Microsoft.UI.Xaml.winmd'),
   (Join-Path $winmd 'Microsoft.UI.Text.winmd'),
+  (Join-Path $winmd 'Microsoft.Windows.ApplicationModel.Resources.winmd'),
   (Join-Path $winmd18362 'Microsoft.UI.winmd'),
   (Join-Path $winmd18362 'Microsoft.Foundation.winmd'),
   (Join-Path $winmd18362 'Microsoft.Graphics.winmd')
@@ -62,7 +63,7 @@ $inputs = @(
 foreach ($file in $inputs) {
   if (-not (Test-Path $file)) { throw "Missing metadata in pinned Windows App SDK package: $file" }
 }
-$marker = Join-Path $projectionDir '.zolnit-projection-v2'
+$marker = Join-Path $projectionDir '.zolnit-projection-v3'
 $expectedMarker = "$sdkSha256|$cppWinrtSha256|$webView2Sha256|$WebView2Winmd"
 $header = Join-Path $projectionDir 'winrt\Microsoft.UI.Xaml.h'
 if (-not (Test-Path $header) -or -not (Test-Path $marker) -or (Get-Content -Raw $marker).Trim() -ne $expectedMarker) {

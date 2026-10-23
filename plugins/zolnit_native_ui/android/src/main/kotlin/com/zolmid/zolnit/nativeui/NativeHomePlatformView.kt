@@ -57,11 +57,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
-import androidx.lifecycle.ViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.ViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import io.flutter.plugin.platform.PlatformView
 import org.json.JSONObject
 import java.text.NumberFormat
@@ -78,9 +78,9 @@ internal class NativeHomePlatformView(
     private var feedbackKey by mutableStateOf<String?>(null)
     private var renderedRevision = -1L
     private val composeView = ComposeView(context).apply {
-        context.findOwner<LifecycleOwner>()?.let { ViewTreeLifecycleOwner.set(this, it) }
-        context.findOwner<ViewModelStoreOwner>()?.let { ViewTreeViewModelStoreOwner.set(this, it) }
-        context.findOwner<SavedStateRegistryOwner>()?.let { ViewTreeSavedStateRegistryOwner.set(this, it) }
+        context.findOwner<LifecycleOwner>()?.let { setViewTreeLifecycleOwner(it) }
+        context.findOwner<ViewModelStoreOwner>()?.let { setViewTreeViewModelStoreOwner(it) }
+        context.findOwner<SavedStateRegistryOwner>()?.let { setViewTreeSavedStateRegistryOwner(it) }
         setContent { NativeHomeApp(snapshot, pendingAction, feedbackKey, ::issueCommand) }
     }
 
@@ -99,9 +99,9 @@ internal class NativeHomePlatformView(
 
     override fun dispose() {
         composeView.disposeComposition()
-        ViewTreeLifecycleOwner.set(composeView, null)
-        ViewTreeViewModelStoreOwner.set(composeView, null)
-        ViewTreeSavedStateRegistryOwner.set(composeView, null)
+        composeView.setViewTreeLifecycleOwner(null)
+        composeView.setViewTreeViewModelStoreOwner(null)
+        composeView.setViewTreeSavedStateRegistryOwner(null)
         onDispose()
     }
 

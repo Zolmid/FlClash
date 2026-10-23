@@ -95,7 +95,7 @@ private final class NativeHomePlatformView: NSObject, FlutterPlatformView {
     private let hostingController: UIHostingController<AnyView>
 
     init(frame: CGRect, content: NativeHomeView?) {
-        hostingController = UIHostingController(rootView: content.map(AnyView.init) ?? AnyView(NativeHomeUnavailableView()))
+        hostingController = UIHostingController(rootView: content.map { AnyView($0) } ?? AnyView(NativeHomeUnavailableView()))
         super.init()
         hostingController.view.frame = frame
         hostingController.view.backgroundColor = .clear
@@ -116,7 +116,7 @@ private final class NativeHomePlatformView: NSView {
     private let hostingController: NSHostingController<AnyView>
 
     init(content: NativeHomeView?) {
-        hostingController = NSHostingController(rootView: content.map(AnyView.init) ?? AnyView(NativeHomeUnavailableView()))
+        hostingController = NSHostingController(rootView: content.map { AnyView($0) } ?? AnyView(NativeHomeUnavailableView()))
         super.init(frame: .zero)
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hostingController.view)

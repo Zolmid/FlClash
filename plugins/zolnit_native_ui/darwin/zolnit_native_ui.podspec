@@ -9,7 +9,7 @@ Native SwiftUI presentation and Flutter platform-view bridge for ZolNit.
   s.license = { :file => '../LICENSE' }
   s.author = 'ZolNit contributors'
   s.source = { :path => '.' }
-  s.source_files = 'Sources/**/*'
+  s.source_files = 'Sources/**/*.swift'
   s.resources = 'Sources/ZolnitNativeUiCore/Resources/*.png'
   s.swift_version = '5.9'
   s.static_framework = true
