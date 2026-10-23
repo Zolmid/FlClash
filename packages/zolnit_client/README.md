@@ -126,6 +126,7 @@ checkout；401/403/409、超时、5xx 和畸形响应均不回退。连续付费
 桌面 Hosted Checkout 消费 type:1,data:HTTPS-url 或已确认的 hosted 对象。运维会话已确认该后端适配上线，
 并独立验证测试会话及清理；这不等于客户端界面或真实扣款验收。既有 Embedded 会话仍使用网站继续，不能为桌面重复创建付款。
 Embedded 的 cs_ client_secret 不属于 PaymentIntent，客户端明确拒绝将其送进原生 Stripe SDK。
+网站加密货币预览和 `cpmt_` 结果尚无完整客户端支付契约，当前不作为可用支付方式展示或调用。
 
 付款成功和取消均可通过站内 HTTPS 落地页唤起 zolnit://safepay；可含 trade_no/session_id，但不能携带 bearer
 或任何支付 secret。前台深链通知不转发原始 URL，App resumed 同样触发原订单查询；回跳参数不证明交付。

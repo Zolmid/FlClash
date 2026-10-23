@@ -1,11 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Logo glyph: two bars and a dot on a 30° lattice, pitch 61.76, radius 23.16.
-     The Android notification drawables ic.xml and ic_service.xml carry the same geometry as fill paths. -->
-<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
-  <title>glyph</title>
-  <g stroke-width="46.32" stroke-linecap="round">
-    <line x1="59.68" y1="100.95" x2="180.02" y2="31.47" stroke="#6666FB"/>
-    <line x1="90.56" y1="154.43" x2="150.74" y2="119.69" stroke="#336AB6"/>
-  </g>
-  <circle cx="121.44" cy="207.92" r="23.16" fill="#5CA8E9"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="190 190 644 644"><title>ZolNit</title><path d="M326 250H698C740 250 774 284 774 326S740 402 698 402H326C284 402 250 368 250 326S284 250 326 250Z" fill="#000000"/><path d="M645.67 273.67A74 74 0 0 1 750.33 378.33L378.33 750.33A74 74 0 0 1 273.67 645.67Z" fill="#000000"/><path d="M326 622H698C740 622 774 656 774 698S740 774 698 774H326C284 774 250 740 250 698S284 622 326 622Z" fill="#000000"/></svg>

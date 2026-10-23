@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 void main() {
@@ -111,6 +113,44 @@ void main() {
     expect(macDirect.allowStripe, isTrue);
     expect(macDirect.allowAppleIap, isFalse);
   });
+
+  test(
+    'all supported platform policies construct an API client with canonical headers',
+    () async {
+      for (final (platform, header) in [
+        (TargetPlatform.android, 'android'),
+        (TargetPlatform.iOS, 'ios'),
+        (TargetPlatform.macOS, 'macos'),
+        (TargetPlatform.windows, 'windows'),
+        (TargetPlatform.linux, 'linux'),
+      ]) {
+        debugDefaultTargetPlatformOverride = platform;
+        final policy = ClientPaymentPolicy.fromEnvironment();
+        expect(policy.platformHeader, header);
+        final api = XboardClient(
+          origin: Uri.parse('https://panel.example'),
+          clientPlatform: policy.platformHeader,
+          distribution: policy.distributionHeader,
+          client: MockClient((request) async {
+            expect(request.headers['X-ZolNit-Platform'], header);
+            expect(
+              request.headers['X-ZolNit-Distribution'],
+              policy.distributionHeader,
+            );
+            return http.Response('{"data":{}}', 200);
+          }),
+        );
+        await api.request('/api/v1/guest/comm/config', authenticated: false);
+        api.close();
+      }
+      const web = ClientPaymentPolicy(
+        platform: TargetPlatform.macOS,
+        isWeb: true,
+        distribution: ClientDistribution.direct,
+      );
+      expect(web.platformHeader, 'web');
+    },
+  );
 
   test('Android Stripe is unavailable by default, available with flag', () {
     const blocked = ClientPaymentPolicy(

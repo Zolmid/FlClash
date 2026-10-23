@@ -95,7 +95,7 @@ flutter run --dart-define-from-file=env.json --dart-define=SAFE_MODE=true
 
 `.run/main_safe_mode.run.xml` is the same launch for IntelliJ, and `Flutter App (Safe Mode)` in `.zed/debug.json` (debugger) or `flutter run (Safe Mode)` in `.zed/tasks.json`
 (plain run) for Zed. The build is bannered `SAFE MODE`, the tray shows the
-`status_4` bug icon with a menu of only show and exit and no traffic title, and the settings keep their values, so
+`status_4` ZolNit icon with a menu of only show and exit and no traffic title, and the settings keep their values, so
 nothing has to be flipped back before a normal run. See the safe mode section of `architecture.md` for the owners that consult the flag.
 
 ## Code Generation
@@ -133,6 +133,16 @@ the source of truth; the script needs `rsvg-convert` (librsvg) on `PATH`:
 ```bash
 dart run tool/generate_status_icons.dart
 ```
+
+To regenerate the ZolNit launchers, Apple splash/widget assets, Android notification vectors,
+and desktop tray assets together, use the unchanged official brand package and Python with Pillow:
+
+```bash
+python3 tool/generate_zolnit_icons.py ../brand-assets/zolnit-20261020/ZolNit-Brand-Package
+```
+
+The generator reads the supplied PNG/SVG files; it does not redraw the logo. Apple compiles the
+macOS app icon catalog and iOS Icon Composer source as part of the native build.
 
 It writes the tray PNGs with Flutter `2.0x/`–`4.0x/` resolution variants to `assets/images/tray/unix/`,
 multi-size tray `.ico` files to `assets/images/tray/windows/`, and `windows/runner/resources/app_icon.ico`

@@ -44,7 +44,7 @@ class ClientPaymentPolicy {
   final ClientDistribution distribution;
   final bool androidNativeStripe;
 
-  String get platformHeader => isWeb ? 'web' : platform.name;
+  String get platformHeader => isWeb ? 'web' : platform.name.toLowerCase();
   String get distributionHeader =>
       distribution == ClientDistribution.direct ? 'direct' : 'apple-app-store';
 
