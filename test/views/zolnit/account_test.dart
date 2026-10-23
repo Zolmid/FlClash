@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/views/zolnit/catalogue.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -10,6 +11,54 @@ import 'harness.dart';
 
 void main() {
   final harness = ZolnitHarness.register();
+
+  testWidgets('an order payment selection resets when the account changes', (
+    tester,
+  ) async {
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/getPaymentMethod')) {
+        return zolnitJson([
+          {'id': 1, 'name': 'First method'},
+          {'id': 2, 'name': 'Second method'},
+        ]);
+      }
+      if (request.url.path.endsWith('/order/fetch')) {
+        return zolnitJson([
+          {'trade_no': 'orderA', 'status': 0, 'total_amount': 1200},
+        ]);
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await harness.session.refreshBilling();
+    Future<void> mount() => harness.mount(
+      tester,
+      ZolnitSkin.macos,
+      child: ZolnitOrdersPage(session: harness.session),
+    );
+    await mount();
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Second method').last);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
+          .value,
+      2,
+    );
+
+    await harness.relogin();
+    await harness.session.refreshBilling();
+    await mount();
+    expect(
+      tester
+          .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
+          .value,
+      1,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   Future<void> openAccount(
     WidgetTester tester,
@@ -46,6 +95,9 @@ void main() {
     ) async {
       await openAccount(tester, skin);
       expect(find.text('我的账户'), findsOneWidget);
+      expect(find.text('账号信息'), findsOneWidget);
+      expect(find.text('订单记录'), findsOneWidget);
+      expect(find.text('邀请有礼'), findsOneWidget);
       expect(find.text('lin@example.com'), findsOneWidget);
       expect(find.text('¥0.00'), findsOneWidget);
       await harness.capture(tester, 'account-${skin.name}');
@@ -199,4 +251,21 @@ void main() {
       expect(harness.requests.where((r) => r.method == 'POST'), isEmpty);
     });
   }
+
+  testWidgets('switching to orders tab shows the orders page', (tester) async {
+    await openAccount(tester, ZolnitSkin.macos);
+    expect(find.text('账号信息'), findsOneWidget);
+    await tester.tap(find.text('订单记录'));
+    await tester.pumpAndSettle();
+    expect(find.text('暂无订单'), findsOneWidget);
+  });
+
+  testWidgets('switching to invite tab shows invite data', (tester) async {
+    await openAccount(tester, ZolnitSkin.macos);
+    await tester.tap(find.text('邀请有礼'));
+    await tester.pumpAndSettle();
+    expect(find.text('好体验，值得分享。'), findsOneWidget);
+    expect(find.text('TESTINVITE'), findsOneWidget);
+    expect(find.textContaining('12'), findsWidgets);
+  });
 }

@@ -2272,6 +2272,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "ルートを選ぶだけ。あとは ZolNit にお任せください。",
     ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("コードをコピー"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("リンクをコピー"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "有効なメールアドレスと8文字以上のパスワードを入力してください。",
     ),
@@ -2319,6 +2321,45 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("6か月ごと"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("ヘルプとサポート"),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("招待コード"),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
+      "招待コードをコピーしました",
+    ),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "利用可能な報酬",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "確定報酬",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "保留中の報酬",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage("報酬率"),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage("招待リンクをコピーしました"),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage("招待コードを作成"),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "招待コードの作成に失敗しました。もう一度お試しください。",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage(
+      "良い体験を、シェアしよう。",
+    ),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage("招待リンク"),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "招待データを読み込めませんでした。もう一度お試しください。",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage(
+      "友達を招待して始めましょう。",
+    ),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("人"),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage("登録済み"),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage("招待ルール"),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage("あなたの招待"),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "友達がリンクから登録しプランを購入すると、報酬が付与されます。",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "友達を招待して登録・購読すると、報酬がもらえます。",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("遅延"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage("最新のお知らせ"),
     "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
@@ -2495,6 +2536,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSync": MessageLookupByLibrary.simpleMessage("接続設定を同期"),
     "zolnitSynced": MessageLookupByLibrary.simpleMessage("接続設定を同期しました"),
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage("接続設定を同期中…"),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("アカウント情報"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("友達紹介"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("注文履歴"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("接続を、もっとシンプルに。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3年ごと"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("残りの通信量"),

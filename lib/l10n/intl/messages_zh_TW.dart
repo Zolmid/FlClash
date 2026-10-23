@@ -2031,6 +2031,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "選擇你的線路，剩下的交給 ZolNit。",
     ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("複製邀請碼"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("複製連結"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "請輸入有效電子郵件和至少八位密碼。",
     ),
@@ -2072,6 +2074,39 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage("準備好，去看看更大的世界。"),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("半年付"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("說明與支援"),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("邀請碼"),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage("邀請碼已複製"),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "可用佣金",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "已確認佣金",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "待確認佣金",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage("佣金比例"),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage("邀請連結已複製"),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage("產生邀請碼"),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "產生邀請碼失敗，請重試。",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage("好體驗，值得分享。"),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage("邀請連結"),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "暫時無法取得邀請資料，請重試。",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage("邀請好友，從這裡開始。"),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("人"),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage("已註冊"),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage("邀請規則"),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage("你的專屬邀請"),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "好友透過連結註冊並開通方案後，你將獲得邀請獎勵。",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "邀請好友註冊並開通方案，獲得一份獎勵。",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("延遲"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage("最新公告"),
     "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
@@ -2230,6 +2265,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSync": MessageLookupByLibrary.simpleMessage("同步連線設定"),
     "zolnitSynced": MessageLookupByLibrary.simpleMessage("連線設定已同步"),
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage("正在同步連線設定…"),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("帳戶資訊"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("邀請有禮"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("訂單記錄"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("讓連線回歸簡單。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("三年付"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("剩餘流量"),

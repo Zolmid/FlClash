@@ -277,11 +277,13 @@ class ZolnitSegmented<T> extends StatelessWidget {
     required this.options,
     required this.value,
     required this.onChanged,
+    this.underlined = false,
   });
 
   final List<(T, String)> options;
   final T value;
   final ValueChanged<T> onChanged;
+  final bool underlined;
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +323,7 @@ class ZolnitSegmented<T> extends StatelessWidget {
         0.0,
       ),
       ZolnitSkin.ios => (
-        const Color(0xffe8eceb),
+        colors.isDark ? colors.soft : const Color(0xffe8eceb),
         BorderSide.none,
         12.0,
         3.0,
@@ -340,12 +342,12 @@ class ZolnitSegmented<T> extends StatelessWidget {
     final onAccent = skin == ZolnitSkin.linux;
     return Container(
       clipBehavior: Clip.antiAlias,
-      padding: EdgeInsets.all(inset),
+      padding: EdgeInsets.all(underlined ? 0 : inset),
       decoration: ShapeDecoration(
-        color: track,
+        color: underlined ? Colors.transparent : track,
         shape: RoundedSuperellipseBorder(
-          borderRadius: AppRadius.all(corner),
-          side: side,
+          borderRadius: AppRadius.all(underlined ? AppCorner.none : corner),
+          side: underlined ? BorderSide.none : side,
         ),
       ),
       child: Row(
@@ -357,13 +359,29 @@ class ZolnitSegmented<T> extends StatelessWidget {
                 button: true,
                 selected: option == value,
                 child: Material(
-                  color: option == value ? selectedFill : Colors.transparent,
+                  color: !underlined && option == value
+                      ? selectedFill
+                      : Colors.transparent,
                   shape: AppShape.all(selectedCorner),
                   child: InkWell(
                     customBorder: AppShape.all(selectedCorner),
                     onTap: () => onChanged(option),
-                    child: SizedBox(
-                      height: phone ? (skin == ZolnitSkin.ios ? 44 : 48) : 28,
+                    child: Container(
+                      height: phone
+                          ? (skin == ZolnitSkin.ios ? 44 : 48)
+                          : (underlined ? 38 : 28),
+                      decoration: underlined
+                          ? BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: option == value
+                                      ? colors.accent
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            )
+                          : null,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: phone ? 14 : 11,
@@ -380,7 +398,11 @@ class ZolnitSegmented<T> extends StatelessWidget {
                               weight: option == value
                                   ? FontWeight.w600
                                   : FontWeight.w400,
-                              color: option == value && onAccent
+                              color: underlined
+                                  ? (option == value
+                                        ? colors.accent
+                                        : colors.muted)
+                                  : option == value && onAccent
                                   ? Colors.white
                                   : colors.ink,
                             ),

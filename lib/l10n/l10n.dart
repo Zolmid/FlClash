@@ -12493,6 +12493,241 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Account info`
+  String get zolnitTabAccount {
+    return Intl.message(
+      'Account info',
+      name: 'zolnitTabAccount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Orders`
+  String get zolnitTabOrders {
+    return Intl.message('Orders', name: 'zolnitTabOrders', desc: '', args: []);
+  }
+
+  /// `Invite & earn`
+  String get zolnitTabInvite {
+    return Intl.message(
+      'Invite & earn',
+      name: 'zolnitTabInvite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Share the connection, earn a bonus.`
+  String get zolnitInviteHeadline {
+    return Intl.message(
+      'Share the connection, earn a bonus.',
+      name: 'zolnitInviteHeadline',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite friends to register and subscribe through your link.`
+  String get zolnitInviteSubtitle {
+    return Intl.message(
+      'Invite friends to register and subscribe through your link.',
+      name: 'zolnitInviteSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Share your invite`
+  String get zolnitInviteShare {
+    return Intl.message(
+      'Share your invite',
+      name: 'zolnitInviteShare',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Friends register with your link. You earn a reward after they subscribe.`
+  String get zolnitInviteShareHint {
+    return Intl.message(
+      'Friends register with your link. You earn a reward after they subscribe.',
+      name: 'zolnitInviteShareHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite code`
+  String get zolnitInviteCode {
+    return Intl.message(
+      'Invite code',
+      name: 'zolnitInviteCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite link`
+  String get zolnitInviteLink {
+    return Intl.message(
+      'Invite link',
+      name: 'zolnitInviteLink',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite link copied`
+  String get zolnitInviteCopied {
+    return Intl.message(
+      'Invite link copied',
+      name: 'zolnitInviteCopied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite code copied`
+  String get zolnitInviteCodeCopied {
+    return Intl.message(
+      'Invite code copied',
+      name: 'zolnitInviteCodeCopied',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Create invite code`
+  String get zolnitInviteCreateCode {
+    return Intl.message(
+      'Create invite code',
+      name: 'zolnitInviteCreateCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite rules`
+  String get zolnitInviteRules {
+    return Intl.message(
+      'Invite rules',
+      name: 'zolnitInviteRules',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Registered`
+  String get zolnitInviteRegistered {
+    return Intl.message(
+      'Registered',
+      name: 'zolnitInviteRegistered',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Confirmed commission`
+  String get zolnitInviteCommissionConfirmed {
+    return Intl.message(
+      'Confirmed commission',
+      name: 'zolnitInviteCommissionConfirmed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pending commission`
+  String get zolnitInviteCommissionPending {
+    return Intl.message(
+      'Pending commission',
+      name: 'zolnitInviteCommissionPending',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Commission rate`
+  String get zolnitInviteCommissionRate {
+    return Intl.message(
+      'Commission rate',
+      name: 'zolnitInviteCommissionRate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Available commission`
+  String get zolnitInviteCommissionAvailable {
+    return Intl.message(
+      'Available commission',
+      name: 'zolnitInviteCommissionAvailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite your friends to get started.`
+  String get zolnitInviteNoData {
+    return Intl.message(
+      'Invite your friends to get started.',
+      name: 'zolnitInviteNoData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not create the invite code. Please try again.`
+  String get zolnitInviteCreateFailed {
+    return Intl.message(
+      'Could not create the invite code. Please try again.',
+      name: 'zolnitInviteCreateFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unable to load invite data right now. Please try again.`
+  String get zolnitInviteLoadFailed {
+    return Intl.message(
+      'Unable to load invite data right now. Please try again.',
+      name: 'zolnitInviteLoadFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `people`
+  String get zolnitInvitePeople {
+    return Intl.message(
+      'people',
+      name: 'zolnitInvitePeople',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy link`
+  String get zolnitCopyLink {
+    return Intl.message(
+      'Copy link',
+      name: 'zolnitCopyLink',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy code`
+  String get zolnitCopyCode {
+    return Intl.message(
+      'Copy code',
+      name: 'zolnitCopyCode',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

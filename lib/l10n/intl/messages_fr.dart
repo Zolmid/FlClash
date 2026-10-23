@@ -2918,6 +2918,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "Choisissez votre route, ZolNit s’occupe du reste.",
     ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("Copier le code"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("Copier le lien"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "Saisissez une adresse e-mail valide et un mot de passe d’au moins huit caractères.",
     ),
@@ -2982,6 +2984,57 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
       "Aide et assistance",
+    ),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage(
+      "Code d\'invitation",
+    ),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
+      "Code copié",
+    ),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "Commission disponible",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "Commission confirmée",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "Commission en attente",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage(
+      "Taux de commission",
+    ),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage("Lien copié"),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage(
+      "Créer un code d\'invitation",
+    ),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible de créer le code. Réessayez.",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage(
+      "Partagez la connexion, gagnez un bonus.",
+    ),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage(
+      "Lien d\'invitation",
+    ),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible de charger les données d\'invitation. Réessayez.",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage(
+      "Invitez vos amis pour commencer.",
+    ),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("pers."),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage("Inscrits"),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage(
+      "Règles de parrainage",
+    ),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage(
+      "Votre invitation",
+    ),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "Vos amis s\'inscrivent via le lien. Vous recevez une récompense après leur abonnement.",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Invitez des amis à s\'inscrire et à s\'abonner via votre lien.",
     ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("Latence"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
@@ -3215,6 +3268,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
       "Synchronisation du profil de connexion…",
     ),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("Compte"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("Parrainage"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("Commandes"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage(
       "La connexion, en toute simplicité.",
     ),

@@ -20,8 +20,6 @@ import 'preferences.dart';
 import 'shell.dart';
 import 'skin.dart';
 
-enum _AccountSection { overview, orders, preferences }
-
 class ZolnitHomePage extends ConsumerStatefulWidget {
   const ZolnitHomePage({super.key, this.skin});
 
@@ -33,7 +31,8 @@ class ZolnitHomePage extends ConsumerStatefulWidget {
 
 class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   int _selected = 0;
-  _AccountSection _accountSection = _AccountSection.overview;
+  ZolnitAccountTab _accountTab = ZolnitAccountTab.info;
+  bool _showingPreferences = false;
   bool _syncing = false;
   bool _syncFailed = false;
   int? _syncGeneration;
@@ -98,7 +97,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   void _select(int index) {
     setState(() {
       _selected = index;
-      _accountSection = _AccountSection.overview;
+      _accountTab = ZolnitAccountTab.info;
+      _showingPreferences = false;
     });
     if (index == 3) unawaited(ref.read(zolnitSessionProvider).refreshBilling());
     if (index == 2) {
@@ -109,14 +109,15 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   void _showOrders() {
     setState(() {
       _selected = 3;
-      _accountSection = _AccountSection.orders;
+      _accountTab = ZolnitAccountTab.orders;
+      _showingPreferences = false;
     });
   }
 
   void _showPreferences() {
     setState(() {
       _selected = 3;
-      _accountSection = _AccountSection.preferences;
+      _showingPreferences = true;
     });
   }
 
@@ -129,7 +130,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   void _logout() {
     setState(() {
       _selected = 0;
-      _accountSection = _AccountSection.overview;
+      _accountTab = ZolnitAccountTab.info;
+      _showingPreferences = false;
       _syncFailed = false;
       _syncing = false;
       _syncGeneration = null;
@@ -188,22 +190,18 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                   AppGlyphs.layers,
                   AppGlyphs.account,
                 ];
-                final title = _accountSection == _AccountSection.preferences
+                final title = _showingPreferences
                     ? text.zolnitPreferences
-                    : _accountSection == _AccountSection.orders
-                    ? text.zolnitOrders
                     : labels[_selected];
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final desktop = constraints.maxWidth >= 760;
-                    final page = _accountSection == _AccountSection.preferences
+                    final page = _showingPreferences
                         ? ZolnitPreferencesPage(
                             compact: !desktop,
                             openAdvanced: _advanced,
                             openWebsite: () => unawaited(_website()),
                           )
-                        : _accountSection == _AccountSection.orders
-                        ? ZolnitOrdersPage(session: session)
                         : switch (_selected) {
                             0 => ZolnitConnectPage(
                               session: session,
@@ -231,7 +229,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                             ),
                             _ => ZolnitAccountPage(
                               session: session,
-                              showOrders: _showOrders,
+                              tab: _accountTab,
+                              onTabChanged: (tab) => setState(() {
+                                _accountTab = tab;
+                                _showingPreferences = false;
+                              }),
                               showPlans: () => _select(2),
                               showPreferences: _showPreferences,
                               openHelp: () => unawaited(_website()),
@@ -250,7 +252,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                           title: title,
                           showBrand:
                               (_selected == 0 || _selected == 2) &&
-                              _accountSection == _AccountSection.overview,
+                              !_showingPreferences,
                           initial: name.characters.first,
                           busy: session.busy || _syncing,
                           onRefresh: _refresh,

@@ -169,6 +169,17 @@ http.Response zolnitPanelFixture(http.Request request) {
     data = {'enabled': false, 'configured': false};
   } else if (path.endsWith('/subscriptions')) {
     data = {'subscriptions': <Json>[], 'entitlement': <String, dynamic>{}};
+  } else if (path.endsWith('/invite/fetch')) {
+    data = {
+      'codes': <Json>[
+        {'code': 'TESTINVITE', 'pv': 3, 'created_at': _seconds(now)},
+      ],
+      'stat': [12, 4560, 1230, 10, 3330],
+    };
+  } else if (path.endsWith('/invite/save')) {
+    data = true;
+  } else if (path.endsWith('/invite/details')) {
+    data = {'data': <Json>[], 'total': 0};
   } else {
     return http.Response('{}', 404);
   }

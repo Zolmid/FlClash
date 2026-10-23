@@ -20,10 +20,28 @@ class ZolnitOrdersPage extends StatefulWidget {
 
 class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
   final Map<String, int> _methods = {};
+  late int _generation;
+
+  @override
+  void initState() {
+    super.initState();
+    _generation = widget.session.api.generation;
+  }
+
+  @override
+  void didUpdateWidget(covariant ZolnitOrdersPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.session != widget.session ||
+        _generation != widget.session.api.generation) {
+      _generation = widget.session.api.generation;
+      _methods.clear();
+    }
+  }
 
   Future<void> _cancel(String tradeNo) async {
     final text = context.appLocalizations;
-    final generation = widget.session.api.generation;
+    final session = widget.session;
+    final generation = session.api.generation;
     final approved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -43,8 +61,9 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
     );
     if (approved == true &&
         mounted &&
-        widget.session.api.generation == generation) {
-      await widget.session.cancelOrder(tradeNo);
+        widget.session == session &&
+        session.api.generation == generation) {
+      await session.cancelOrder(tradeNo);
     }
   }
 
@@ -65,9 +84,13 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
               child: Builder(
                 builder: (context) {
                   final tradeNo = order['trade_no'] as String;
+                  final preferred = _methods[tradeNo];
                   final selected =
-                      _methods[tradeNo] ??
-                      (methods.isNotEmpty ? methods.first['id'] as int : null);
+                      methods.any((method) => method['id'] == preferred)
+                      ? preferred
+                      : (methods.isNotEmpty
+                            ? methods.first['id'] as int
+                            : null);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

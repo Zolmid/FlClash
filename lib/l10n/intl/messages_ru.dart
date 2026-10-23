@@ -2835,6 +2835,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "Выберите маршрут, остальное сделает ZolNit.",
     ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("Копировать код"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("Копировать ссылку"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "Введите действующий адрес почты и пароль не короче восьми символов.",
     ),
@@ -2889,6 +2891,59 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("Раз в полгода"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
       "Помощь и поддержка",
+    ),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("Код приглашения"),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
+      "Код скопирован",
+    ),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "Доступная комиссия",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "Подтверждённая комиссия",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "Ожидающая комиссия",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage(
+      "Ставка комиссии",
+    ),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage(
+      "Ссылка скопирована",
+    ),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage(
+      "Создать код приглашения",
+    ),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось создать код приглашения. Попробуйте ещё раз.",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage(
+      "Делитесь подключением — получайте бонус.",
+    ),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage(
+      "Ссылка-приглашение",
+    ),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось загрузить данные приглашений. Попробуйте ещё раз.",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage(
+      "Пригласите друзей, чтобы начать.",
+    ),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("чел."),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage(
+      "Зарегистрировано",
+    ),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage(
+      "Правила приглашений",
+    ),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage(
+      "Ваше приглашение",
+    ),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "Друзья регистрируются по ссылке. Вы получаете вознаграждение после их подписки.",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Пригласите друзей зарегистрироваться и подписаться по вашей ссылке.",
     ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("Задержка"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
@@ -3112,6 +3167,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
       "Синхронизация профиля подключения…",
     ),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("Аккаунт"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("Приглашения"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("Заказы"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage(
       "Подключение без лишних сложностей.",
     ),

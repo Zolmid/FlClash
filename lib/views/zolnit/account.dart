@@ -8,17 +8,22 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'brand.dart';
+import 'catalogue.dart';
 import 'connect.dart' show zolnitDisplayName;
 import 'data.dart';
+import 'invite.dart';
 import 'kit.dart';
 import 'password.dart';
 import 'skin.dart';
+
+enum ZolnitAccountTab { info, orders, invite }
 
 class ZolnitAccountPage extends StatefulWidget {
   const ZolnitAccountPage({
     super.key,
     required this.session,
-    required this.showOrders,
+    required this.tab,
+    required this.onTabChanged,
     required this.showPlans,
     required this.showPreferences,
     required this.openHelp,
@@ -27,7 +32,8 @@ class ZolnitAccountPage extends StatefulWidget {
   });
 
   final ZolnitSessionController session;
-  final VoidCallback showOrders;
+  final ZolnitAccountTab tab;
+  final ValueChanged<ZolnitAccountTab> onTabChanged;
   final VoidCallback showPlans;
   final VoidCallback showPreferences;
   final VoidCallback openHelp;
@@ -39,6 +45,78 @@ class ZolnitAccountPage extends StatefulWidget {
 }
 
 class _ZolnitAccountPageState extends State<ZolnitAccountPage> {
+  @override
+  Widget build(BuildContext context) {
+    final text = context.appLocalizations;
+    final skin = ZolnitSkin.of(context);
+    final tabs = [
+      (ZolnitAccountTab.info, text.zolnitTabAccount),
+      (ZolnitAccountTab.orders, text.zolnitTabOrders),
+      (ZolnitAccountTab.invite, text.zolnitTabInvite),
+    ];
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: skin.gutter,
+            vertical: skin.desktop ? 8 : 12,
+          ),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: ZolnitSegmented<ZolnitAccountTab>(
+              options: tabs,
+              value: widget.tab,
+              onChanged: widget.onTabChanged,
+              underlined: skin != ZolnitSkin.macos && skin != ZolnitSkin.ios,
+            ),
+          ),
+        ),
+        Expanded(
+          child: switch (widget.tab) {
+            ZolnitAccountTab.info => _AccountInfoTab(
+              session: widget.session,
+              showPlans: widget.showPlans,
+              showPreferences: widget.showPreferences,
+              openHelp: widget.openHelp,
+              logout: widget.logout,
+              compact: widget.compact,
+            ),
+            ZolnitAccountTab.orders => ZolnitOrdersPage(
+              session: widget.session,
+            ),
+            ZolnitAccountTab.invite => ZolnitInviteTab(
+              session: widget.session,
+              compact: widget.compact,
+            ),
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _AccountInfoTab extends StatefulWidget {
+  const _AccountInfoTab({
+    required this.session,
+    required this.showPlans,
+    required this.showPreferences,
+    required this.openHelp,
+    required this.logout,
+    this.compact = false,
+  });
+
+  final ZolnitSessionController session;
+  final VoidCallback showPlans;
+  final VoidCallback showPreferences;
+  final VoidCallback openHelp;
+  final VoidCallback logout;
+  final bool compact;
+
+  @override
+  State<_AccountInfoTab> createState() => _AccountInfoTabState();
+}
+
+class _AccountInfoTabState extends State<_AccountInfoTab> {
   List<ZolnitDevice>? _devices;
   ClientFailure? _deviceFailure;
   bool _loading = false;
@@ -60,7 +138,7 @@ class _ZolnitAccountPageState extends State<ZolnitAccountPage> {
   }
 
   @override
-  void didUpdateWidget(covariant ZolnitAccountPage oldWidget) {
+  void didUpdateWidget(covariant _AccountInfoTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session ||
         _generation != widget.session.api.generation) {
@@ -331,58 +409,52 @@ class _ZolnitAccountPageState extends State<ZolnitAccountPage> {
         ],
       ),
     );
+    final actions = LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 460 ? 2 : 1;
+        final width = (constraints.maxWidth - (columns - 1) * 14) / columns;
+        final entries = [
+          (
+            AppGlyphs.layers,
+            text.zolnitPlans,
+            usage?.planName ?? text.zolnitNoPlan,
+            widget.showPlans,
+          ),
+          (
+            AppGlyphs.help,
+            text.zolnitHelpSupport,
+            text.zolnitAccountHelpHint,
+            widget.openHelp,
+          ),
+          (
+            AppGlyphs.settings,
+            text.zolnitPreferences,
+            text.zolnitAccountPreferencesHint,
+            widget.showPreferences,
+          ),
+        ];
+        return Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          children: [
+            for (final (glyph, title, hint, action) in entries)
+              SizedBox(
+                width: width,
+                child: _AccountAction(
+                  glyph: glyph,
+                  title: title,
+                  hint: hint,
+                  onTap: action,
+                ),
+              ),
+          ],
+        );
+      },
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide =
             skin.desktop && !widget.compact && constraints.maxWidth >= 1000;
-        final actions = LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 460 ? 2 : 1;
-            final width = (constraints.maxWidth - (columns - 1) * 14) / columns;
-            final entries = [
-              (
-                AppGlyphs.layers,
-                text.zolnitPlans,
-                usage?.planName ?? text.zolnitNoPlan,
-                widget.showPlans,
-              ),
-              (
-                AppGlyphs.clock,
-                text.zolnitOrders,
-                text.zolnitAccountOrdersHint,
-                widget.showOrders,
-              ),
-              (
-                AppGlyphs.help,
-                text.zolnitHelpSupport,
-                text.zolnitAccountHelpHint,
-                widget.openHelp,
-              ),
-              (
-                AppGlyphs.settings,
-                text.zolnitPreferences,
-                text.zolnitAccountPreferencesHint,
-                widget.showPreferences,
-              ),
-            ];
-            return Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              children: [
-                for (final (glyph, title, hint, action) in entries)
-                  SizedBox(
-                    width: width,
-                    child: _AccountAction(
-                      glyph: glyph,
-                      title: title,
-                      hint: hint,
-                      onTap: action,
-                    ),
-                  ),
-              ],
-            );
-          },
-        );
         final details = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [profile, const SizedBox(height: 20), actions],

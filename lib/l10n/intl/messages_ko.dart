@@ -2222,6 +2222,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "경로를 선택하면 나머지는 ZolNit이 알아서 처리합니다.",
     ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("코드 복사"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("링크 복사"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "유효한 이메일과 8자 이상의 비밀번호를 입력하세요.",
     ),
@@ -2269,6 +2271,49 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("6개월마다"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("도움말 및 지원"),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("초대 코드"),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
+      "초대 코드가 복사되었습니다",
+    ),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "사용 가능 커미션",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "확정 커미션",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "대기 중 커미션",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage(
+      "커미션 비율",
+    ),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage(
+      "초대 링크가 복사되었습니다",
+    ),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage("초대 코드 만들기"),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "초대 코드를 만들 수 없습니다. 다시 시도해 주세요.",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage(
+      "좋은 경험을 나누고 보상을 받으세요.",
+    ),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage("초대 링크"),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "초대 데이터를 불러올 수 없습니다. 다시 시도해 주세요.",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage(
+      "친구를 초대하여 시작하세요.",
+    ),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("명"),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage("가입 완료"),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage("초대 규칙"),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage("내 초대"),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "친구가 링크로 가입하고 플랜을 구매하면 보상이 지급됩니다.",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "친구를 초대해 가입하고 구독하면 보상을 받습니다.",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("지연 시간"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage("최신 공지"),
     "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
@@ -2441,6 +2486,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSync": MessageLookupByLibrary.simpleMessage("연결 프로필 동기화"),
     "zolnitSynced": MessageLookupByLibrary.simpleMessage("연결 프로필이 동기화되었습니다"),
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage("연결 프로필 동기화 중…"),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("계정 정보"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("친구 초대"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("주문 내역"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("연결을 더 간편하게."),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3년마다"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("남은 트래픽"),

@@ -2673,6 +2673,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "Pick your route and leave the rest to ZolNit.",
     ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("Copy code"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("Copy link"),
     "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
       "Enter a valid email and a password of at least eight characters.",
     ),
@@ -2732,6 +2734,55 @@ class MessageLookup extends MessageLookupByLibrary {
       "Every six months",
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("Help & support"),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("Invite code"),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
+      "Invite code copied",
+    ),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "Available commission",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "Confirmed commission",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "Pending commission",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage(
+      "Commission rate",
+    ),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage(
+      "Invite link copied",
+    ),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage(
+      "Create invite code",
+    ),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "Could not create the invite code. Please try again.",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage(
+      "Share the connection, earn a bonus.",
+    ),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage("Invite link"),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "Unable to load invite data right now. Please try again.",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage(
+      "Invite your friends to get started.",
+    ),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("people"),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage(
+      "Registered",
+    ),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage("Invite rules"),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage(
+      "Share your invite",
+    ),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "Friends register with your link. You earn a reward after they subscribe.",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Invite friends to register and subscribe through your link.",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("Latency"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
       "Latest notices",
@@ -2942,6 +2993,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
       "Syncing connection profile…",
     ),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("Account info"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("Invite & earn"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("Orders"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage(
       "Let connection feel simple.",
     ),
