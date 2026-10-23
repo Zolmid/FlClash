@@ -1,4 +1,4 @@
-package com.follow.clash
+package com.zolmid.zolnit
 
 import java.io.File
 import java.nio.file.Files
@@ -129,7 +129,7 @@ class ApkInstallPolicyTest {
         }
     }
 
-    private val installed = ApkIdentity("com.follow.clash", 10, setOf("current"))
+    private val installed = ApkIdentity("com.zolmid.zolnit", 10, setOf("current"))
 
     @Test
     fun `an upgrade signed by the current certificate is accepted`() {
@@ -152,7 +152,7 @@ class ApkInstallPolicyTest {
 
     @Test
     fun `single signer rotation requires both certificates in the verified lineage`() {
-        val rotated = ApkIdentity("com.follow.clash", 11, setOf("rotated"), setOf("current", "rotated"))
+        val rotated = ApkIdentity("com.zolmid.zolnit", 11, setOf("rotated"), setOf("current", "rotated"))
         assertTrue(ApkInstallPolicy.allowsUpdate(installed, rotated))
         assertFalse(ApkInstallPolicy.allowsUpdate(installed, rotated.copy(signingHistory = setOf("rotated"))))
         assertFalse(ApkInstallPolicy.allowsUpdate(installed, rotated.copy(signingHistory = setOf("current"))))
@@ -163,7 +163,7 @@ class ApkInstallPolicyTest {
         val multiple = installed.copy(signers = setOf("first", "second"))
         assertTrue(ApkInstallPolicy.allowsUpdate(multiple, multiple.copy(versionCode = 11)))
         assertFalse(ApkInstallPolicy.allowsUpdate(multiple, ApkIdentity(
-            "com.follow.clash", 11, setOf("third"), setOf("first", "second", "third"),
+            "com.zolmid.zolnit", 11, setOf("third"), setOf("first", "second", "third"),
         )))
     }
 }

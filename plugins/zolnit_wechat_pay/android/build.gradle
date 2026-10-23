@@ -1,0 +1,47 @@
+group 'com.zolnit.payments'
+version '0.1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:9.0.1'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20'
+    }
+}
+
+apply plugin: 'com.android.library'
+if (!providers.gradleProperty('android.builtInKotlin').getOrElse('true').toBoolean()) {
+    pluginManager.apply('org.jetbrains.kotlin.android')
+}
+
+android {
+    namespace 'com.zolnit.payments'
+    compileSdk 37
+    defaultConfig {
+        minSdk 24
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+plugins.withId('org.jetbrains.kotlin.android') {
+    kotlin {
+        compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
+    }
+}
+
+dependencies {
+    implementation('com.stripe:stripe-android:23.22.0') {
+        version { strictly '23.22.0' }
+    }
+    implementation('com.stripe:stripe-wechatpay:23.22.0') {
+        version { strictly '23.22.0' }
+    }
+    implementation 'com.tencent.mm.opensdk:wechat-sdk-android-without-mta:6.7.0'
+}

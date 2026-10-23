@@ -37,7 +37,11 @@ namespace
 constexpr int kMinProxyPort = 1;
 constexpr int kMaxProxyPort = 65535;
 constexpr wchar_t kProxyServerPrefix[] = L"127.0.0.1:";
-constexpr wchar_t kOwnershipKey[] = L"Software\\FlClash";
+#ifdef _DEBUG
+constexpr wchar_t kOwnershipKey[] = L"Software\\ZolNit.debug";
+#else
+constexpr wchar_t kOwnershipKey[] = L"Software\\ZolNit";
+#endif
 constexpr wchar_t kOwnedProxyServerValue[] = L"SystemProxyServer";
 constexpr wchar_t kOwnedProxyServersValue[] = L"SystemProxyServers";
 

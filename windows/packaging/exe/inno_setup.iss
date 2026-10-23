@@ -5,7 +5,7 @@ AppName={{DISPLAY_NAME}}
 AppPublisher={{PUBLISHER_NAME}}
 AppPublisherURL={{PUBLISHER_URL}}
 AppSupportURL={{PUBLISHER_URL}}
-AppUpdatesURL=https://github.com/Zolmid/FlClash/releases/latest
+AppUpdatesURL=https://link.zolmid.com
 DefaultDirName={{INSTALL_DIR_NAME}}
 DisableProgramGroupPage=yes
 CloseApplications=no
@@ -51,7 +51,7 @@ var
   i: Integer;
   ResultCode: Integer;
 begin
-  Processes := ['FlClash.exe', 'FlClashCore.exe', 'FlClashHelperService.exe'];
+  Processes := ['ZolNit.exe', 'ZolNitHelperService.exe'];
 
   for i := 0 to GetArrayLength(Processes)-1 do
   begin
@@ -64,7 +64,7 @@ var
   HelperPath: String;
   ResultCode: Integer;
 begin
-  HelperPath := ExpandConstant('{app}\\FlClashHelperService.exe');
+  HelperPath := ExpandConstant('{app}\\ZolNitHelperService.exe');
   if FileExists(HelperPath) then
   begin
     Exec(HelperPath, 'uninstall', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
@@ -113,7 +113,7 @@ begin
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run', '{{APP_NAME}}');
   end;
 
-  Schemes := ['clash', 'clashmeta', 'flclash'];
+  Schemes := ['zolnit'];
   for i := 0 to GetArrayLength(Schemes)-1 do
   begin
     if RegQueryStringValue(HKCU, 'Software\Classes\' + Schemes[i] + '\shell\open\command', '', Value) and PointsIntoApp(Value) then
@@ -223,7 +223,7 @@ begin
       end;
       if not WaitForAppExit then
       begin
-        Result := 'FlClash did not exit. Close it before retrying the update.';
+        Result := 'ZolNit did not exit. Close it before retrying the update.';
         Exit;
       end;
     finally

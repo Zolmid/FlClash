@@ -554,6 +554,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.0"
+  flutter_stripe:
+    dependency: transitive
+    description:
+      name: flutter_stripe
+      sha256: "6064e5f8b3c16b7cbeb5ced10246ffd63b47e2a642e1c0734ab60e8f47098343"
+      url: "https://pub.dev"
+    source: hosted
+    version: "14.2.0"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -621,7 +629,7 @@ packages:
     source: hosted
     version: "2.2.0"
   http:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -708,6 +716,38 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
+  in_app_purchase:
+    dependency: transitive
+    description:
+      name: in_app_purchase
+      sha256: d8317ec2ed6fe33199957d67ee67e08a4fd4871ef93b91d7611d8ee560892afc
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.3.1"
+  in_app_purchase_android:
+    dependency: transitive
+    description:
+      name: in_app_purchase_android
+      sha256: b76ab601573f8a848e72d015496257235066ba3479bef6300482239f417e0d72
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.5"
+  in_app_purchase_platform_interface:
+    dependency: transitive
+    description:
+      name: in_app_purchase_platform_interface
+      sha256: "0b0076cac8ce4fa7048f01e76af8b123aeb6a7c4e0dea2a5206d6664454f3e36"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.1"
+  in_app_purchase_storekit:
+    dependency: transitive
+    description:
+      name: in_app_purchase_storekit
+      sha256: "0d7506466d3865a2a5a3d414b90fb373f6b8908dbb6654dcb59e665e8a5b1105"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.14"
   intl:
     dependency: "direct main"
     description:
@@ -1092,6 +1132,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
+  qr:
+    dependency: transitive
+    description:
+      name: qr
+      sha256: "5a1d2586170e172b8a8c8470bbbffd5eb0cd38a66c0d77155ea138d3af3a4445"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.2"
+  qr_flutter:
+    dependency: transitive
+    description:
+      name: qr_flutter
+      sha256: "5095f0fc6e3f71d08adef8feccc8cea4f12eec18a2e31c2e8d82cb6019f4b097"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   re_highlight:
     dependency: "direct main"
     description:
@@ -1462,6 +1518,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  stripe_android:
+    dependency: transitive
+    description:
+      name: stripe_android
+      sha256: a027548e346821dd591eed596769eb49332155b5b3153340e14b4065ab68ba03
+      url: "https://pub.dev"
+    source: hosted
+    version: "14.2.0"
+  stripe_ios:
+    dependency: transitive
+    description:
+      name: stripe_ios
+      sha256: f0d3964a1c60303bd456215944974a0aa6f9d985fbf394cbac451975f42e18db
+      url: "https://pub.dev"
+    source: hosted
+    version: "14.2.0"
+  stripe_platform_interface:
+    dependency: transitive
+    description:
+      name: stripe_platform_interface
+      sha256: e35f2a0954d4a8872a61a4f251992cb3e1a3d9bbeed676f598e6206cc9fad270
+      url: "https://pub.dev"
+    source: hosted
+    version: "14.2.0"
   super_sliver_list:
     dependency: "direct main"
     description:
@@ -1763,6 +1843,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.4"
+  zolnit_client:
+    dependency: "direct main"
+    description:
+      path: "packages/zolnit_client"
+      relative: true
+    source: path
+    version: "0.1.0"
+  zolnit_wechat_pay:
+    dependency: transitive
+    description:
+      path: "plugins/zolnit_wechat_pay"
+      relative: true
+    source: path
+    version: "0.1.0"
 sdks:
   dart: ">=3.13.2 <4.0.0"
   flutter: ">=3.47.2"

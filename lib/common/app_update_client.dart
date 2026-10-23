@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'app_update.dart';
 import 'constant.dart';
@@ -41,6 +42,9 @@ class AppUpdateClient {
   ProviderReader? _read;
   bool _downloading = false;
 
+  @visibleForTesting
+  Dio get dio => _dio;
+
   void attach(ProviderReader read) => _read = read;
 
   void close() => _dio.close(force: true);
@@ -48,55 +52,30 @@ class AppUpdateClient {
   Future<ReleaseManifest?> checkForUpdate({
     required String currentVersion,
   }) async {
-    final release = await latestRelease();
+    final release = await latestRelease(currentVersion: currentVersion);
     return release != null && compareVersions(release.tag, currentVersion) > 0
         ? release
         : null;
   }
 
-  Future<ReleaseManifest?> latestRelease() async {
-    try {
-      final response = await _dio.get<Object?>(
-        'https://api.github.com/repos/$repository/releases/latest',
-        options: Options(responseType: ResponseType.json),
-      );
-      return ReleaseManifest.fromGitHubRelease(response.data);
-    } on DioException {
-      // Release downloads remain available when GitHub's API quota is exhausted.
-    } on FormatException {
-      // An invalid API response has no usable asset metadata.
-    }
+  Future<ReleaseManifest?> latestRelease({String? currentVersion}) async {
     try {
       final response = await _dio.get<String>(
-        'https://github.com/$repository/releases/latest/download/version.json',
-        options: Options(responseType: ResponseType.plain),
+        'https://link.zolmid.com/client/releases.json',
+        options: Options(
+          responseType: ResponseType.plain,
+          followRedirects: false,
+          headers: {'User-Agent': 'ZolNit/${currentVersion ?? '0'}'},
+          validateStatus: (status) => status == HttpStatus.ok,
+        ),
       );
-      return ReleaseManifest.fromJson(jsonDecode(response.data ?? ''));
+      _validateDisabledWebsiteMetadata(jsonDecode(response.data ?? ''));
     } on DioException {
-      // Older releases may not publish the optional manifest.
+      return null;
     } on FormatException {
-      // Never install an asset from an unreadable manifest.
+      return null;
     }
-    final response = await _dio.get<void>(
-      'https://github.com/$repository/releases/latest',
-      options: Options(
-        followRedirects: false,
-        validateStatus: (status) =>
-            status == HttpStatus.notFound || (status != null && status < 400),
-      ),
-    );
-    if (response.statusCode == HttpStatus.notFound) return null;
-    final location = response.headers.value(HttpHeaders.locationHeader);
-    final uri = Uri.parse('https://github.com').resolve(location ?? '');
-    final prefix = [...repository.split('/'), 'releases', 'tag'];
-    final segments = uri.pathSegments;
-    if (uri.scheme != 'https' ||
-        uri.host != 'github.com' ||
-        segments.length != prefix.length + 1 ||
-        prefix.indexed.any((part) => segments[part.$1] != part.$2)) {
-      throw FormatException('No release tag in the redirect', location);
-    }
-    return ReleaseManifest(tag: segments.last, notes: '');
+    return null;
   }
 
   Future<void> downloadFile(
@@ -307,6 +286,18 @@ Future<void> _waitRetry(Duration duration, CancelToken? token) async {
 }
 
 final appUpdateClient = AppUpdateClient();
+
+void _validateDisabledWebsiteMetadata(Object? value) {
+  if (value is Map &&
+      value['schema_version'] == 1 &&
+      value['app_id'] == packageName &&
+      value['updates_enabled'] == false &&
+      value['releases'] is List &&
+      (value['releases'] as List).isEmpty) {
+    return;
+  }
+  throw const FormatException('Unsupported website update metadata');
+}
 
 class _StrictHttpOverrides extends HttpOverrides {
   @override

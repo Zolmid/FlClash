@@ -39,11 +39,11 @@ void main() {
     config.parent.createSync(recursive: true);
     config.writeAsStringSync(
       'app_id: test-installation\n'
-      'executable_name: FlClash.exe\n'
+      'executable_name: ZolNit.exe\n'
       'script_template: inno_setup.iss\n',
     );
     final executable = File(
-      p.join(repository.path, 'build/windows/x64/runner/Release/FlClash.exe'),
+      p.join(repository.path, 'build/windows/x64/runner/Release/ZolNit.exe'),
     );
     executable.parent.createSync(recursive: true);
     executable.writeAsStringSync('existing Flutter bundle');
@@ -80,7 +80,7 @@ void main() {
         expect(config.appId, 'test-installation');
         expect(config.outputDirectory.path, p.join(repository.path, 'dist'));
         expect(config.buildOutputFiles, hasLength(1));
-        expect(p.basename(config.buildOutputFiles.single.path), 'FlClash.exe');
+        expect(p.basename(config.buildOutputFiles.single.path), 'ZolNit.exe');
         expect(
           config.buildOutputDirectory.path,
           p.join(repository.path, 'build/windows/x64/runner/Release'),

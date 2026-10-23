@@ -44,6 +44,8 @@ dependencies:
   animations: ^3.0.0
   package_info_plus: ^10.2.2
   url_launcher: ^6.3.3
+  zolnit_client:
+    path: packages/zolnit_client
   freezed_annotation: ^3.1.0
   image_picker: ^1.2.4
   ffi: ^2.2.0
@@ -78,6 +80,7 @@ dependencies:
   setup:
     path: plugins/setup
 dev_dependencies:
+  http: ^1.6.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

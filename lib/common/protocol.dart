@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:win32_registry/win32_registry.dart';
 
 import 'print.dart';
 
-const protocolSchemes = ['clash', 'clashmeta', 'flclash'];
+const protocolSchemes = ['clash', 'clashmeta', 'mihomo', 'flclash', 'zolnit'];
+const registeredProtocolSchemes = ['zolnit'];
 
 class ProtocolRegistrationPlan {
   final String scheme;
@@ -38,9 +40,13 @@ class LinuxProtocolRegistrationPlan {
     required this.schemes,
     required this.executable,
     required this.applicationsDir,
+    this.debugMode = kDebugMode,
   });
 
-  String get desktopId => 'flclash-url-handler.desktop';
+  final bool debugMode;
+
+  String get desktopId =>
+      'com.zolmid.zolnit${debugMode ? '.debug' : ''}.desktop';
 
   String get desktopPath => '$applicationsDir/$desktopId';
 
@@ -52,7 +58,7 @@ class LinuxProtocolRegistrationPlan {
   String get desktopEntry => [
     '[Desktop Entry]',
     'Type=Application',
-    'Name=FlClash',
+    'Name=ZolNit',
     'NoDisplay=true',
     'Exec=$exec',
     'MimeType=${mimeTypes.join(';')};',
@@ -82,6 +88,7 @@ class Protocol {
   }
 
   void register(String scheme) {
+    if (!registeredProtocolSchemes.contains(scheme)) return;
     final plan = ProtocolRegistrationPlan(
       scheme: scheme,
       executable: Platform.resolvedExecutable,
@@ -104,6 +111,10 @@ class Protocol {
   }
 
   Future<void> registerLinux(List<String> schemes) async {
+    final registered = schemes
+        .where(registeredProtocolSchemes.contains)
+        .toList();
+    if (registered.isEmpty) return;
     final env = Platform.environment;
     final home = env['HOME'];
     if (home == null || home.isEmpty) {
@@ -111,7 +122,7 @@ class Protocol {
     }
     final dataHome = env['XDG_DATA_HOME'];
     final plan = LinuxProtocolRegistrationPlan(
-      schemes: schemes,
+      schemes: registered,
       executable: env['APPIMAGE'] ?? Platform.resolvedExecutable,
       applicationsDir:
           '${dataHome?.isNotEmpty == true ? dataHome : '$home/.local/share'}/applications',

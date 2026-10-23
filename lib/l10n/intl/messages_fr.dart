@@ -248,6 +248,37 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m87(count) =>
       "${Intl.plural(count, other: 'il y a ${count} a')}";
 
+  static String m88(amount, cycle) =>
+      "${amount} pour ${cycle}, payé en une fois";
+
+  static String m89(date) =>
+      "Expire le ${date}. Passez à une offre supérieure ou renouvelez ici.";
+
+  static String m90(plan) => "Forfait actuel · ${plan}";
+
+  static String m91(days) => "${days} jours restants";
+
+  static String m92(date) => "Expire le ${date}";
+
+  static String m93(count) =>
+      "Jusqu’à ${count} appareils en ligne simultanément";
+
+  static String m94(mbps) => "Débit jusqu’à ${mbps} Mbit/s";
+
+  static String m95(gb) => "${gb} Go de données haut débit par mois";
+
+  static String m96(name) => "Bonjour, ${name}.";
+
+  static String m97(rate) => "Mesure ${rate}×";
+
+  static String m98(count) => "${count} nœuds";
+
+  static String m99(count) => "/ ${count}";
+
+  static String m100(days) => "Réinitialisation dans ${days} jours";
+
+  static String m101(percent) => "Économisez ${percent} %";
+
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
     "about": MessageLookupByLibrary.simpleMessage("À propos"),
@@ -2812,5 +2843,460 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("Oui"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Chinois simplifié"),
     "zhTW": MessageLookupByLibrary.simpleMessage("Chinois traditionnel"),
+    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage(
+      "Une question ? Nous sommes là",
+    ),
+    "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
+      "Voir les commandes d\'activation et de renouvellement",
+    ),
+    "zolnitAccountPassword": MessageLookupByLibrary.simpleMessage(
+      "Mot de passe de connexion",
+    ),
+    "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
+      "Connectez-vous à votre façon",
+    ),
+    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Votre espace de connexion.",
+    ),
+    "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("Mon compte"),
+    "zolnitActivating": MessageLookupByLibrary.simpleMessage(
+      "Activation en cours",
+    ),
+    "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("Réglages avancés"),
+    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage(
+      "Voir les profils de connexion et plus d\'options",
+    ),
+    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Tous les nœuds"),
+    "zolnitAllRegions": MessageLookupByLibrary.simpleMessage(
+      "Toutes les régions",
+    ),
+    "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Montant à payer"),
+    "zolnitBalance": MessageLookupByLibrary.simpleMessage("Solde du compte"),
+    "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
+      "Facturation mensuelle, pour bien commencer",
+    ),
+    "zolnitBilledOnce": m88,
+    "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Les informations de renouvellement sont temporairement indisponibles.",
+    ),
+    "zolnitBuy": MessageLookupByLibrary.simpleMessage("Créer une commande"),
+    "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage(
+      "Annuler la commande",
+    ),
+    "zolnitCancelOrderTip": MessageLookupByLibrary.simpleMessage(
+      "Annuler cette commande impayée ?",
+    ),
+    "zolnitCancelRenewal": MessageLookupByLibrary.simpleMessage(
+      "Annuler le renouvellement automatique",
+    ),
+    "zolnitCancelRenewalTip": MessageLookupByLibrary.simpleMessage(
+      "Les prochains prélèvements automatiques seront arrêtés. Une première commande impayée sera aussi annulée. Les droits déjà payés suivent le résultat du serveur.",
+    ),
+    "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Annulée"),
+    "zolnitChangePassword": MessageLookupByLibrary.simpleMessage(
+      "Modifier le mot de passe",
+    ),
+    "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
+      "Un paiement est déjà en cours. Consultez son état dans Compte sans le soumettre à nouveau.",
+    ),
+    "zolnitCheckoutProcessing": MessageLookupByLibrary.simpleMessage(
+      "Le paiement est en préparation ou en vérification. Réessayez dans un instant.",
+    ),
+    "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage(
+      "Choisir ce forfait",
+    ),
+    "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Terminée"),
+    "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
+      "Un geste, et vous êtes connecté",
+    ),
+    "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage(
+      "Connexion automatique au lancement",
+    ),
+    "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
+      "Utilise le dernier profil d\'abonnement sélectionné.",
+    ),
+    "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
+      "Choisissez votre route, ZolNit s’occupe du reste.",
+    ),
+    "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("Copier le code"),
+    "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("Copier le lien"),
+    "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
+      "Saisissez une adresse e-mail valide et un mot de passe d’au moins huit caractères.",
+    ),
+    "zolnitCredited": MessageLookupByLibrary.simpleMessage("Compensée"),
+    "zolnitCurrentBadge": MessageLookupByLibrary.simpleMessage(
+      "Forfait actuel",
+    ),
+    "zolnitCurrentPlanHint": m89,
+    "zolnitCurrentPlanLine": m90,
+    "zolnitCurrentSelection": MessageLookupByLibrary.simpleMessage(
+      "Sélectionné",
+    ),
+    "zolnitCycleHalfYear": MessageLookupByLibrary.simpleMessage("6 mois"),
+    "zolnitCycleQuarter": MessageLookupByLibrary.simpleMessage("1 trimestre"),
+    "zolnitCycleThreeYears": MessageLookupByLibrary.simpleMessage("3 ans"),
+    "zolnitCycleTwoYears": MessageLookupByLibrary.simpleMessage("2 ans"),
+    "zolnitCycleYear": MessageLookupByLibrary.simpleMessage("1 an"),
+    "zolnitDaysLeftLabel": m91,
+    "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("jours"),
+    "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
+      "Ce sont les sessions de connexion du compte, distinctes du nombre d\'IP en ligne d\'un nœud.",
+    ),
+    "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage(
+      "Sessions de connexion",
+    ),
+    "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Impossible de charger les sessions de connexion pour le moment. Veuillez réessayer.",
+    ),
+    "zolnitEmail": MessageLookupByLibrary.simpleMessage("Adresse e-mail"),
+    "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
+      "Une expérience familière sur chaque écran",
+    ),
+    "zolnitExpiresOn": m92,
+    "zolnitFailure": MessageLookupByLibrary.simpleMessage(
+      "Impossible de terminer la demande. Vérifiez vos informations ou votre connexion, puis réessayez.",
+    ),
+    "zolnitFeatureDevices": m93,
+    "zolnitFeatureSpeed": m94,
+    "zolnitFeatureTraffic": m95,
+    "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage(
+      "Premier paiement",
+    ),
+    "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage(
+      "Paiements suivants",
+    ),
+    "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
+      "Mot de passe oublié ?",
+    ),
+    "zolnitGift": MessageLookupByLibrary.simpleMessage("Accès offert"),
+    "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
+      "La période payante commence après confirmation du premier paiement et remplace le temps offert restant.",
+    ),
+    "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage(
+      "Des routes mondiales sélectionnées",
+    ),
+    "zolnitGreeting": m96,
+    "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage(
+      "Prêt à découvrir un monde plus vaste.",
+    ),
+    "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
+      "Tous les six mois",
+    ),
+    "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
+      "Aide et assistance",
+    ),
+    "zolnitInviteCode": MessageLookupByLibrary.simpleMessage(
+      "Code d\'invitation",
+    ),
+    "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
+      "Code copié",
+    ),
+    "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
+      "Commission disponible",
+    ),
+    "zolnitInviteCommissionConfirmed": MessageLookupByLibrary.simpleMessage(
+      "Commission confirmée",
+    ),
+    "zolnitInviteCommissionPending": MessageLookupByLibrary.simpleMessage(
+      "Commission en attente",
+    ),
+    "zolnitInviteCommissionRate": MessageLookupByLibrary.simpleMessage(
+      "Taux de commission",
+    ),
+    "zolnitInviteCopied": MessageLookupByLibrary.simpleMessage("Lien copié"),
+    "zolnitInviteCreateCode": MessageLookupByLibrary.simpleMessage(
+      "Créer un code d\'invitation",
+    ),
+    "zolnitInviteCreateFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible de créer le code. Réessayez.",
+    ),
+    "zolnitInviteHeadline": MessageLookupByLibrary.simpleMessage(
+      "Partagez la connexion, gagnez un bonus.",
+    ),
+    "zolnitInviteLink": MessageLookupByLibrary.simpleMessage(
+      "Lien d\'invitation",
+    ),
+    "zolnitInviteLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible de charger les données d\'invitation. Réessayez.",
+    ),
+    "zolnitInviteNoData": MessageLookupByLibrary.simpleMessage(
+      "Invitez vos amis pour commencer.",
+    ),
+    "zolnitInvitePeople": MessageLookupByLibrary.simpleMessage("pers."),
+    "zolnitInviteRegistered": MessageLookupByLibrary.simpleMessage("Inscrits"),
+    "zolnitInviteRules": MessageLookupByLibrary.simpleMessage(
+      "Règles de parrainage",
+    ),
+    "zolnitInviteShare": MessageLookupByLibrary.simpleMessage(
+      "Votre invitation",
+    ),
+    "zolnitInviteShareHint": MessageLookupByLibrary.simpleMessage(
+      "Vos amis s\'inscrivent via le lien. Vous recevez une récompense après leur abonnement.",
+    ),
+    "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Invitez des amis à s\'inscrire et à s\'abonner via votre lien.",
+    ),
+    "zolnitLatency": MessageLookupByLibrary.simpleMessage("Latence"),
+    "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
+      "Dernières annonces",
+    ),
+    "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(
+      "Oubliez les réglages compliqués. Votre monde est à une connexion.",
+    ),
+    "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
+      "Un peu plus près de votre monde",
+    ),
+    "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Connectez-vous pour gérer votre forfait et vos connexions.",
+    ),
+    "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
+      "S’inscrire ou récupérer son mot de passe",
+    ),
+    "zolnitMembershipEyebrow": MessageLookupByLibrary.simpleMessage(
+      "YOUR MEMBERSHIP",
+    ),
+    "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
+    "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
+      "Routage intelligent",
+    ),
+    "zolnitMonthly": MessageLookupByLibrary.simpleMessage("Mensuel"),
+    "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage(
+      "Facturation mensuelle automatique",
+    ),
+    "zolnitMySpace": MessageLookupByLibrary.simpleMessage("Mon espace"),
+    "zolnitNewPassword": MessageLookupByLibrary.simpleMessage(
+      "Nouveau mot de passe",
+    ),
+    "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage(
+      "Prochain renouvellement",
+    ),
+    "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
+      "Vous n’avez aucun forfait actif. Choisissez-en un ci-dessous pour commencer.",
+    ),
+    "zolnitNoDevices": MessageLookupByLibrary.simpleMessage(
+      "Aucune session de connexion à afficher.",
+    ),
+    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
+      "Aucun nœud correspondant. Essayez d\'autres mots-clés ou régions.",
+    ),
+    "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
+      "Aucun moyen de paiement disponible",
+    ),
+    "zolnitNoNodes": MessageLookupByLibrary.simpleMessage(
+      "Aucun nœud n’est disponible pour cet abonnement.",
+    ),
+    "zolnitNoNotices": MessageLookupByLibrary.simpleMessage(
+      "Aucune annonce pour le moment",
+    ),
+    "zolnitNoOrders": MessageLookupByLibrary.simpleMessage(
+      "Aucune commande pour le moment",
+    ),
+    "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("Aucun forfait actif"),
+    "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
+      "Aucun contrat de renouvellement automatique",
+    ),
+    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
+      "La latence reflète le dernier test réel ; affiche — si aucun test n\'a été fait.",
+    ),
+    "zolnitNodeMultiplier": m97,
+    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Nœud"),
+    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
+      "Après la synchronisation de l\'abonnement, choisissez un nœud du profil.",
+    ),
+    "zolnitNodesCount": m98,
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage(
+      "Votre monde commence ici.",
+    ),
+    "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Choisissez la route qui vous plaît et connectez-vous en toute simplicité.",
+    ),
+    "zolnitNotConnected": MessageLookupByLibrary.simpleMessage(
+      "Pas encore connecté",
+    ),
+    "zolnitNotices": MessageLookupByLibrary.simpleMessage("Annonces"),
+    "zolnitOldPassword": MessageLookupByLibrary.simpleMessage(
+      "Mot de passe actuel",
+    ),
+    "zolnitOneTime": MessageLookupByLibrary.simpleMessage("Paiement unique"),
+    "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage(
+      "Appareils en ligne",
+    ),
+    "zolnitOrders": MessageLookupByLibrary.simpleMessage("Commandes"),
+    "zolnitOutOfDevices": m99,
+    "zolnitPaid": MessageLookupByLibrary.simpleMessage("Accès payé"),
+    "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage(
+      "Accès payé jusqu’au",
+    ),
+    "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
+      "Saisissez votre mot de passe actuel et un nouveau mot de passe différent d\'au moins huit caractères.",
+    ),
+    "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage(
+      "Mot de passe mis à jour.",
+    ),
+    "zolnitPay": MessageLookupByLibrary.simpleMessage("Payer la commande"),
+    "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
+      "L’état de la commande doit encore être confirmé après votre retour du paiement.",
+    ),
+    "zolnitPaymentStatus": MessageLookupByLibrary.simpleMessage(
+      "État du paiement",
+    ),
+    "zolnitPaymentUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Ce moyen de paiement n’est pas encore disponible.",
+    ),
+    "zolnitPending": MessageLookupByLibrary.simpleMessage(
+      "En attente de paiement",
+    ),
+    "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
+      "Vous avez une commande en attente. Poursuivez le paiement ou fermez-la dans Commandes avant d’en passer une autre.",
+    ),
+    "zolnitPerMonth": MessageLookupByLibrary.simpleMessage("/ mois"),
+    "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
+      "Le nouveau forfait commence après confirmation du premier paiement ou du crédit de la valeur restante.",
+    ),
+    "zolnitPlanValidity": MessageLookupByLibrary.simpleMessage(
+      "Validité du forfait",
+    ),
+    "zolnitPlans": MessageLookupByLibrary.simpleMessage("Forfaits"),
+    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage(
+      "Le bon forfait, la bonne liberté.",
+    ),
+    "zolnitPlansSub": MessageLookupByLibrary.simpleMessage(
+      "De la navigation quotidienne au streaming fluide, choisissez la connexion qui vous convient.",
+    ),
+    "zolnitPreferences": MessageLookupByLibrary.simpleMessage("Préférences"),
+    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
+      "Connectez-vous à votre façon.",
+    ),
+    "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
+      "Le mode sécurisé conserve vos préférences, mais ne se connecte pas automatiquement et ne modifie pas le réseau du système.",
+    ),
+    "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Seulement les préférences vraiment utiles.",
+    ),
+    "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
+      "Les nœuds et les règles de routage sont synchronisés automatiquement depuis ZolNit.",
+    ),
+    "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Trimestriel"),
+    "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
+      "Consultez le devis du serveur avant d’autoriser le renouvellement automatique.",
+    ),
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
+      "Le devis a expiré. Revenez aux forfaits et choisissez à nouveau.",
+    ),
+    "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
+      "Trop de tentatives. Réessayez dans un instant.",
+    ),
+    "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage(
+      "Nœuds recommandés",
+    ),
+    "zolnitRecommendedNodesSub": MessageLookupByLibrary.simpleMessage(
+      "Les plus proches d’abord, pour se connecter plus vite",
+    ),
+    "zolnitRecommendedRoute": MessageLookupByLibrary.simpleMessage(
+      "Recommandé",
+    ),
+    "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
+      "J’accepte les paiements récurrents de ce forfait selon les conditions affichées du premier paiement et des renouvellements.",
+    ),
+    "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
+      "La facturation mensuelle automatique n’est pas disponible pour ce forfait pour le moment.",
+    ),
+    "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualiser"),
+    "zolnitRegister": MessageLookupByLibrary.simpleMessage("Créer un compte"),
+    "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
+      "La création du compte et la récupération du mot de passe se font sur le site ZolNit avec vérification de l’adresse e-mail et de sécurité.",
+    ),
+    "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
+      "Renouveler le forfait actuel",
+    ),
+    "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage(
+      "Renouveler le forfait",
+    ),
+    "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
+      "Renouvellement automatique",
+    ),
+    "zolnitResetInDays": m100,
+    "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage(
+      "Réinitialiser le trafic",
+    ),
+    "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage(
+      "Reprendre le renouvellement automatique",
+    ),
+    "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
+      "Reprendre les prélèvements automatiques selon le forfait autorisé.",
+    ),
+    "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
+      "Se déconnecter de cette session",
+    ),
+    "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(
+      "Session de connexion terminée.",
+    ),
+    "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
+      "Terminer cette session de connexion ? Cet appareil devra se reconnecter pour gérer le compte.",
+    ),
+    "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
+      "Le mode sécurisé ne modifie jamais le réseau du système.",
+    ),
+    "zolnitSavePercent": m101,
+    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
+      "Rechercher un nœud ou une région",
+    ),
+    "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("Choisir"),
+    "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
+      "Vous restez connecté jusqu’à la fermeture de l’application.",
+    ),
+    "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Se connecter"),
+    "zolnitSignOut": MessageLookupByLibrary.simpleMessage("Se déconnecter"),
+    "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage(
+      "Lancer ZolNit au démarrage",
+    ),
+    "zolnitStartOnBootHint": MessageLookupByLibrary.simpleMessage(
+      "ZolNit est prêt dès l\'allumage de l\'appareil.",
+    ),
+    "zolnitStatusActive": MessageLookupByLibrary.simpleMessage("Actif"),
+    "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("Expiré"),
+    "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("Aucun forfait"),
+    "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage(
+      "Choisir un forfait",
+    ),
+    "zolnitSync": MessageLookupByLibrary.simpleMessage(
+      "Synchroniser le profil de connexion",
+    ),
+    "zolnitSynced": MessageLookupByLibrary.simpleMessage(
+      "Profil de connexion synchronisé",
+    ),
+    "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
+      "Synchronisation du profil de connexion…",
+    ),
+    "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("Compte"),
+    "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("Parrainage"),
+    "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("Commandes"),
+    "zolnitTagline": MessageLookupByLibrary.simpleMessage(
+      "La connexion, en toute simplicité.",
+    ),
+    "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage(
+      "Tous les trois ans",
+    ),
+    "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("Trafic restant"),
+    "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage(
+      "Consommé sur la période",
+    ),
+    "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage(
+      "Tous les deux ans",
+    ),
+    "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage(
+      "Session de connexion",
+    ),
+    "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
+      "Voir le devis mensuel",
+    ),
+    "zolnitWebsite": MessageLookupByLibrary.simpleMessage(
+      "Ouvrir le site ZolNit",
+    ),
+    "zolnitWelcome": MessageLookupByLibrary.simpleMessage(
+      "Heureux de vous revoir",
+    ),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("VOTRE ESPACE"),
+    "zolnitYearly": MessageLookupByLibrary.simpleMessage("Annuel"),
   };
 }

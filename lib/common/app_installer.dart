@@ -73,7 +73,7 @@ pkg="$dir/$(basename "$src")"
 cp -- "$src" "$pkg"
 printf '%s  %s\n' "$sha256" "$pkg" | sha256sum -c --status -
 DEBIAN_FRONTEND=noninteractive "$@" "$pkg"
-systemctl --no-ask-password try-restart flclash-helper.service >/dev/null 2>&1 || true
+systemctl --no-ask-password try-restart zolnit-helper.service >/dev/null 2>&1 || true
 ''';
 
 const _appImageRuntimeVariables = {'APPDIR', 'APPIMAGE', 'ARGV0', 'OWD'};

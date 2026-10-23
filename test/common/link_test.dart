@@ -64,6 +64,23 @@ void main() {
     expect(received, isEmpty);
   });
 
+  test(
+    'payment returns are recognized before subscription-link processing',
+    () async {
+      final uri = Uri.parse(
+        'zolnit://safepay?payment_intent_client_secret=private-proof',
+      );
+      expect(isPaymentReturnLink(uri), isTrue);
+      expect(
+        isPaymentReturnLink(Uri.parse('zolnit://install-config')),
+        isFalse,
+      );
+      await listen();
+      await emit(uri.toString());
+      expect(received, isEmpty);
+    },
+  );
+
   test('listening again replaces the previous subscription', () async {
     await listen();
     final first = linkManager.subscription;
@@ -76,6 +93,38 @@ void main() {
 
     expect(received, ['https://example.com/a.yaml']);
   });
+
+  test(
+    'foreground payment returns notify without forwarding URL parameters',
+    () async {
+      var returns = 0;
+      await linkManager.initAppLinksListen(
+        received.add,
+        onPaymentReturn: () => returns++,
+      );
+      await emit('zolnit://safepay?trade_no=orderA&session_id=cs_fixture');
+      expect(returns, 1);
+      expect(received, isEmpty);
+    },
+  );
+
+  test(
+    'seeded payment returns notify once and never become subscriptions',
+    () async {
+      var returns = 0;
+      linkManager.seedInitialLink(['zolnit://safepay?trade_no=orderA']);
+      await linkManager.initAppLinksListen(
+        received.add,
+        onPaymentReturn: () => returns++,
+      );
+      await linkManager.initAppLinksListen(
+        received.add,
+        onPaymentReturn: () => returns++,
+      );
+      expect(returns, 1);
+      expect(received, isEmpty);
+    },
+  );
 
   test(
     'a seeded launch argument is delivered once a listener attaches',

@@ -11,6 +11,7 @@ import 'package:fl_clash/state.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 class Request {
+  final AppUpdateClient _updateClient;
   late final Dio dio;
   late final Dio _clashDio;
   String? userAgent;
@@ -21,7 +22,8 @@ class Request {
     _read = read;
   }
 
-  Request() {
+  Request({AppUpdateClient? updateClient})
+    : _updateClient = updateClient ?? appUpdateClient {
     dio = Dio(BaseOptions(headers: {'User-Agent': browserUa}));
     _clashDio = Dio();
     _clashDio.httpClientAdapter = IOHttpClientAdapter(
@@ -85,46 +87,12 @@ class Request {
     }
   }
 
-  /// Null when this build is current; throws when GitHub cannot be asked.
-  Future<Map<String, dynamic>?> checkForUpdate() async {
-    final release = await latestRelease();
-    final remoteVersion = release['tag_name'] as String;
-    final version = globalState.packageInfo.version;
-    final hasUpdate =
-        compareVersions(remoteVersion.replaceAll('v', ''), version) > 0;
-    return hasUpdate ? release : null;
-  }
+  Future<ReleaseManifest?> checkForUpdate() => _updateClient.checkForUpdate(
+    currentVersion: globalState.packageInfo.version,
+  );
 
-  /// The release page redirect still answers once the hourly API quota is spent.
   @visibleForTesting
-  Future<Map<String, dynamic>> latestRelease() async {
-    try {
-      final response = await dio.get<Map<String, dynamic>>(
-        'https://api.github.com/repos/$repository/releases/latest',
-        options: Options(responseType: ResponseType.json),
-      );
-      return response.data!;
-    } on DioException catch (error) {
-      commonPrint.log(
-        'latest release API failed: ${compactError(error)}',
-        logLevel: LogLevel.warning,
-      );
-    }
-    final response = await dio.get<void>(
-      'https://github.com/$repository/releases/latest',
-      options: Options(
-        followRedirects: false,
-        validateStatus: (status) => status != null && status < 400,
-      ),
-    );
-    final location = response.headers.value(HttpHeaders.locationHeader);
-    final segments = Uri.tryParse(location ?? '')?.pathSegments ?? const [];
-    final tagIndex = segments.indexOf('tag') + 1;
-    if (tagIndex == 0 || tagIndex >= segments.length) {
-      throw FormatException('No release tag in the redirect', location);
-    }
-    return {'tag_name': segments[tagIndex]};
-  }
+  Future<ReleaseManifest?> latestRelease() => _updateClient.latestRelease();
 }
 
 final request = Request();

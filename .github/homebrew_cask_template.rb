@@ -1,4 +1,4 @@
-cask "flclash" do
+cask "zolnit" do
   version "VERSION"
 
   on_macos do
@@ -7,12 +7,13 @@ cask "flclash" do
     sha256 arm:   "ARM_SHA256",
            intel: "AMD_SHA256"
 
-    url "https://github.com/chen08209/FlClash/releases/download/v#{version}/FlClash-#{version}-macos-#{arch}.dmg"
+    url "https://link.zolmid.com"
   end
 
-  name "FlClash"
+  name "ZolNit"
   desc "Multi-platform proxy client based on ClashMeta"
-  homepage "https://github.com/chen08209/FlClash"
+  homepage "https://link.zolmid.com"
+  disable! date: "2026-10-21", because: "no verified website release is available"
 
   livecheck do
     url :url
@@ -21,21 +22,21 @@ cask "flclash" do
 
   depends_on :macos
 
-  app "FlClash.app"
+  app "ZolNit.app"
 
   postflight_steps do
     run "/usr/bin/xattr",
-        args:           ["-rd", "com.apple.quarantine", "{{appdir}}/FlClash.app"],
-        writable_paths: ["FlClash.app"],
+        args:           ["-rd", "com.apple.quarantine", "{{appdir}}/ZolNit.app"],
+        writable_paths: ["ZolNit.app"],
         writable_base:  :appdir
   end
 
-  uninstall quit: "com.follow.clash"
+  uninstall quit: "com.zolmid.zolnit"
 
   zap trash: [
-    "~/Library/Application Support/com.follow.clash",
-    "~/Library/Caches/com.follow.clash",
-    "~/Library/Preferences/com.follow.clash.plist",
-    "~/Library/Saved Application State/com.follow.clash.savedState",
+    "~/Library/Application Support/com.zolmid.zolnit",
+    "~/Library/Caches/com.zolmid.zolnit",
+    "~/Library/Preferences/com.zolmid.zolnit.plist",
+    "~/Library/Saved Application State/com.zolmid.zolnit.savedState",
   ]
 end

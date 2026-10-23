@@ -10,7 +10,7 @@ final class TunnelCoordinator {
   private let onExternalStart: () -> Void
   private let onExternalStop: () -> Void
   private let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.follow.clash",
+    subsystem: Bundle.main.bundleIdentifier ?? "com.zolmid.zolnit",
     category: "TunnelCoordinator"
   )
 

@@ -1,4 +1,4 @@
 
--keep class com.follow.clash.models.** { *; }
+-keep class com.zolmid.zolnit.models.** { *; }
 
--keep class com.follow.clash.service.models.** { *; }
+-keep class com.zolmid.zolnit.service.models.** { *; }

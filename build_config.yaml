@@ -5,4 +5,4 @@ core_dir: core
 core_name: FlClashCore
 output_dir: libclash
 helper_dir: services/helper
-helper_name: FlClashHelperService
+helper_name: ZolNitHelperService

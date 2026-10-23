@@ -7,31 +7,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set FlClash"
+            "value" : "Set ZolNit"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash を設定"
+            "value" : "ZolNit を設定"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Установить FlClash"
+            "value" : "Установить ZolNit"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "设置 FlClash"
+            "value" : "设置 ZolNit"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定 FlClash"
+            "value" : "設定 ZolNit"
           }
         }
       }
@@ -42,31 +42,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Start FlClash connection."
+            "value" : "Start ZolNit connection."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 接続を開始します。"
+            "value" : "ZolNit 接続を開始します。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Запустить FlClash соединение."
+            "value" : "Запустить ZolNit соединение."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "启动 FlClash 连接。"
+            "value" : "启动 ZolNit 连接。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟動 FlClash 連線。"
+            "value" : "啟動 ZolNit 連線。"
           }
         }
       }
@@ -112,31 +112,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Start FlClash"
+            "value" : "Start ZolNit"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash を開始"
+            "value" : "ZolNit を開始"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Запустить FlClash"
+            "value" : "Запустить ZolNit"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "启动 FlClash"
+            "value" : "启动 ZolNit"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "啟動 FlClash"
+            "value" : "啟動 ZolNit"
           }
         }
       }
@@ -147,31 +147,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop FlClash connection."
+            "value" : "Stop ZolNit connection."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 接続を停止します。"
+            "value" : "ZolNit 接続を停止します。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Остановить FlClash соединение."
+            "value" : "Остановить ZolNit соединение."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "停止 FlClash 连接。"
+            "value" : "停止 ZolNit 连接。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "停止 FlClash 連線。"
+            "value" : "停止 ZolNit 連線。"
           }
         }
       }
@@ -188,7 +188,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash"
+            "value" : "ZolNit"
           }
         },
         "ru" : {
@@ -217,31 +217,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop FlClash"
+            "value" : "Stop ZolNit"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash を停止"
+            "value" : "ZolNit を停止"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Остановить FlClash"
+            "value" : "Остановить ZolNit"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "停止 FlClash"
+            "value" : "停止 ZolNit"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "停止 FlClash"
+            "value" : "停止 ZolNit"
           }
         }
       }
@@ -287,31 +287,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toggle FlClash connection."
+            "value" : "Toggle ZolNit connection."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash 接続を切り替えます。"
+            "value" : "ZolNit 接続を切り替えます。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Переключить FlClash соединение."
+            "value" : "Переключить ZolNit соединение."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切换 FlClash 连接。"
+            "value" : "切换 ZolNit 连接。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切換 FlClash 連線。"
+            "value" : "切換 ZolNit 連線。"
           }
         }
       }
@@ -357,31 +357,31 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toggle FlClash"
+            "value" : "Toggle ZolNit"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FlClash を切り替え"
+            "value" : "ZolNit を切り替え"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Переключить FlClash"
+            "value" : "Переключить ZolNit"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切换 FlClash"
+            "value" : "切换 ZolNit"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切換 FlClash"
+            "value" : "切換 ZolNit"
           }
         }
       }

@@ -178,7 +178,7 @@ _DAVProps _$DAVPropsFromJson(Map<String, dynamic> json) => _DAVProps(
       ? ''
       : _decodeDavPassword(json['password'] as String?),
   fileName: json['fileName'] as String? ?? defaultDavFileName,
-  directory: json['directory'] as String? ?? '/FlClash',
+  directory: json['directory'] as String? ?? '/ZolNit',
 );
 
 Map<String, dynamic> _$DAVPropsToJson(_DAVProps instance) => <String, dynamic>{

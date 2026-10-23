@@ -9,10 +9,10 @@
           "blend-mode": "normal",
           "glass": false,
           "hidden": false,
-          "image-name": "icon.svg",
+          "image-name": "icon.png",
           "name": "icon",
           "position": {
-            "scale": 1.3659999999999999,
+            "scale": 1,
             "translation-in-points": [
               0,
               0
@@ -22,10 +22,10 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.5
+        "opacity": 0
       },
       "translucency": {
-        "enabled": true,
+        "enabled": false,
         "value": 0.5
       }
     }

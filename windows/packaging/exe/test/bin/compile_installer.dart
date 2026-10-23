@@ -15,7 +15,7 @@ Future<void> compileInstaller({
   try {
     Directory.current = repository;
     final bundle = Directory('build/windows/x64/runner/Release').absolute;
-    final executable = File(p.join(bundle.path, 'FlClash.exe'));
+    final executable = File(p.join(bundle.path, 'ZolNit.exe'));
     if (!await executable.exists()) {
       throw StateError('Compile the Windows Release bundle first');
     }

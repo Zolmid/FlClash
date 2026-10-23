@@ -4,6 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
 void main() {
+  test('desktop installers consume the configured Helper output', () {
+    final config =
+        loadYaml(File('build_config.yaml').readAsStringSync()) as YamlMap;
+    final helper = config['helper_name'] as String;
+    expect(helper, 'ZolNitHelperService');
+    for (final platform in ['linux', 'windows']) {
+      final cmake = File('$platform/CMakeLists.txt').readAsStringSync();
+      expect(cmake, contains('/$helper${platform == 'windows' ? '.exe' : ''}'));
+    }
+  });
+
   group('Linux packaging teardown', () {
     for (final format in ['deb', 'rpm']) {
       test('$format removes the Helper unit only on a real uninstall', () {
@@ -20,7 +31,7 @@ void main() {
         expect(scripts.first, contains('exit 0'));
         expect(
           scripts,
-          contains('rm -f /etc/systemd/system/flclash-helper.service'),
+          contains('rm -f /etc/systemd/system/zolnit-helper.service'),
         );
         expect(
           scripts.any((script) => script.contains('systemctl daemon-reload')),

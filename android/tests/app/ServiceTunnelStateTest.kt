@@ -1,6 +1,6 @@
-package com.follow.clash.plugins
+package com.zolmid.zolnit.plugins
 
-import com.follow.clash.RunState
+import com.zolmid.zolnit.RunState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

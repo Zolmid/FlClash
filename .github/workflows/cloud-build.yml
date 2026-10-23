@@ -3,7 +3,7 @@ run-name: Cloud build · ${{ github.event_name == 'push' && (github.ref == 'refs
 
 on:
   push:
-    branches: [main, codex/patched-integration, codex/ios-support, codex/upstream-0.9.1]
+    branches: [main, codex/patched-integration, codex/ios-support, codex/upstream-0.9.1, codex/zolnit-client]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -40,6 +40,7 @@ jobs:
     env:
       PLATFORM: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}
       IOS_SOURCE: ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
+      CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' }}
     steps:
       - id: select
         run: |
@@ -51,13 +52,17 @@ jobs:
             {platform: 'android', os: 'ubuntu-24.04', arch: 'arm64'},
             {platform: 'macos', os: 'macos-26', arch: 'arm64'},
             {platform: 'macos', os: 'macos-15-intel', arch: 'x64'},
-          ].filter(t => process.env.PLATFORM === 'all' || t.platform === process.env.PLATFORM);
+          ].map(t => ({...t, safe_preview: false}))
+            .filter(t => process.env.PLATFORM === 'all' || t.platform === process.env.PLATFORM);
+          if (process.env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(process.env.PLATFORM)) {
+            targets.push({platform: 'macos', os: 'macos-26', arch: 'arm64', safe_preview: true});
+          }
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
             `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
           JS
 
   project:
-    name: FlClash · ${{ matrix.platform }} · ${{ matrix.arch }}
+    name: FlClash · ${{ matrix.platform }} · ${{ matrix.arch }}${{ matrix.safe_preview && ' · safe debug' || '' }}
     needs: select
     if: needs.select.outputs.enabled == 'true'
     runs-on: ${{ matrix.os }}
@@ -75,6 +80,7 @@ jobs:
       GOTOOLCHAIN: local
       TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_ARCH: ${{ matrix.arch }}
+      CLIENT_SAFE_PREVIEW: ${{ matrix.safe_preview }}
     steps:
       - name: Enable Windows long paths
         if: matrix.platform == 'windows'
@@ -99,7 +105,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cloud-${{ matrix.platform }}-${{ matrix.arch }}
+          key: cloud-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.safe_preview && '-safe-debug' || '' }}
           workspaces: |
             services/helper
             plugins/rust_api/rust
@@ -148,7 +154,12 @@ jobs:
 
       - name: Compile desktop
         if: matrix.platform != 'android'
-        run: flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev
+        run: |
+          if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
+            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct
+          else
+            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev
+          fi
 
       - name: Compile Windows installer for validation
         if: matrix.platform == 'windows'
@@ -194,7 +205,11 @@ jobs:
         if: matrix.platform == 'macos'
         run: |
           mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/FlClash.app "dist/FlClash-macos-$TARGET_ARCH-release.zip"
+          if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
+            ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Debug/ZolNit.app "dist/ZolNit-macos-$TARGET_ARCH-debug-safe.zip"
+          else
+            ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/ZolNit.app "dist/FlClash-macos-$TARGET_ARCH-release.zip"
+          fi
 
       - name: Archive Windows bundle
         if: matrix.platform == 'windows'
@@ -215,6 +230,10 @@ jobs:
             echo "source_repository=$GITHUB_REPOSITORY"
             echo "source_commit=$(git rev-parse HEAD)"
             echo "target=$TARGET_PLATFORM-$TARGET_ARCH"
+            echo "client_safe_preview=$CLIENT_SAFE_PREVIEW"
+            if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
+              echo 'client_defines=APP_ENV=dev;SAFE_MODE=true;ZOLNIT_DISTRIBUTION=direct'
+            fi
             echo "run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo 'distribution=development artifact; no production signing or notarization'
             git submodule status --recursive
@@ -232,7 +251,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: flclash-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.run_number }}
+          name: flclash-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.safe_preview && '-safe-debug' || '' }}-${{ github.run_number }}
           path: dist/
           if-no-files-found: error
           retention-days: 14

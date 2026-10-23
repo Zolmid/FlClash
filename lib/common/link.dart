@@ -36,6 +36,9 @@ String? _installConfigUrl(Uri uri) {
   return url == null || url.isEmpty ? null : url;
 }
 
+bool isPaymentReturnLink(Uri uri) =>
+    uri.scheme == 'zolnit' && uri.host == 'safepay';
+
 class LinkManager {
   static LinkManager? _instance;
   StreamSubscription? subscription;
@@ -50,7 +53,8 @@ class LinkManager {
   void seedInitialLink(List<String> args) {
     for (final arg in args) {
       final uri = Uri.tryParse(arg);
-      if (uri != null && protocolSchemes.contains(uri.scheme)) {
+      if (uri != null &&
+          (protocolSchemes.contains(uri.scheme) || isPaymentReturnLink(uri))) {
         _pendingUri = uri;
         return;
       }
@@ -58,21 +62,30 @@ class LinkManager {
   }
 
   Future<void> initAppLinksListen(
-    Function(String url) installConfigCallBack,
-  ) async {
+    Function(String url) installConfigCallBack, {
+    VoidCallback? onPaymentReturn,
+  }) async {
     destroy();
     subscription = uriLinkStream().listen((uri) {
-      _handle(uri, installConfigCallBack);
+      _handle(uri, installConfigCallBack, onPaymentReturn);
     });
     final pending = _pendingUri;
     _pendingUri = null;
     if (pending != null) {
-      _handle(pending, installConfigCallBack);
+      _handle(pending, installConfigCallBack, onPaymentReturn);
     }
   }
 
-  void _handle(Uri uri, Function(String url) installConfigCallBack) {
-    commonPrint.log('onAppLink: $uri');
+  void _handle(
+    Uri uri,
+    Function(String url) installConfigCallBack,
+    VoidCallback? onPaymentReturn,
+  ) {
+    if (isPaymentReturnLink(uri)) {
+      onPaymentReturn?.call();
+      return;
+    }
+    commonPrint.log('onAppLink received');
     final url = _installConfigUrl(uri);
     if (url != null) {
       installConfigCallBack(url);

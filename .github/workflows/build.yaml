@@ -91,6 +91,14 @@ jobs:
       - name: Validate local Flutter packages
         run: bash tool/check_plugins.sh
 
+      - name: Validate ZolNit client module
+        working-directory: packages/zolnit_client
+        run: |
+          flutter pub get --enforce-lockfile
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze --no-fatal-infos
+          flutter test --reporter expanded
+
       - name: Validate setup hooks package
         working-directory: plugins/setup/setup_hooks
         run: |

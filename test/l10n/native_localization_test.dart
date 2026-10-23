@@ -22,89 +22,86 @@ String _projectSection(String project, String section) => project.substring(
 );
 
 void main() {
-  test('Windows installer enables its five languages with valid local files', () {
-    final config =
-        loadYaml(
-              File('windows/packaging/exe/make_config.yaml').readAsStringSync(),
-            )
-            as YamlMap;
-    final locales = config['locales'] as YamlList;
-    const names = {
-      'en': 'english',
-      'ja': 'japanese',
-      'ru': 'russian',
-      'zh': 'chineseSimplified',
-      'zh_TW': 'chineseTraditional',
-    };
-    const builtinFiles = {
-      'en': r'compiler:Default.isl',
-      'ja': r'compiler:Languages\\Japanese.isl',
-      'ru': r'compiler:Languages\\Russian.isl',
-    };
-    expect(locales.map((locale) => locale['lang']).toSet(), names.keys.toSet());
-    final script = File(
-      'windows/packaging/exe/inno_setup.iss',
-    ).readAsStringSync();
-    final constants = File('lib/common/constant.dart').readAsStringSync();
-    String repository(String name) =>
-        RegExp("const $name = '([^']+)';").firstMatch(constants)!.group(1)!;
-    expect(config['publisher_name'], 'chen08209');
-    expect(config['publisher'], isNull);
-    expect(
-      config['publisher_url'],
-      'https://github.com/${repository('upstreamRepository')}',
-    );
-    expect(script, contains('AppPublisher={{PUBLISHER_NAME}}'));
-    expect(script, contains('AppPublisherURL={{PUBLISHER_URL}}'));
-    expect(script, contains('AppSupportURL={{PUBLISHER_URL}}'));
-    expect(
-      script,
-      contains(
-        'AppUpdatesURL=https://github.com/${repository('repository')}/releases/latest',
-      ),
-    );
-    final languages = script.substring(
-      script.indexOf('[Languages]'),
-      script.indexOf('[Tasks]'),
-    );
-    for (final locale in locales) {
-      final lang = locale['lang'] as String;
-      final branch = RegExp(
-        "\\{% if locale.lang == '$lang' %\\}([\\s\\S]*?)\\{% endif %\\}",
-      ).firstMatch(languages);
-      expect(branch, isNotNull, reason: '$lang requires an installer branch');
+  test(
+    'Windows installer enables its five languages with valid local files',
+    () {
+      final config =
+          loadYaml(
+                File(
+                  'windows/packaging/exe/make_config.yaml',
+                ).readAsStringSync(),
+              )
+              as YamlMap;
+      final locales = config['locales'] as YamlList;
+      const names = {
+        'en': 'english',
+        'ja': 'japanese',
+        'ru': 'russian',
+        'zh': 'chineseSimplified',
+        'zh_TW': 'chineseTraditional',
+      };
+      const builtinFiles = {
+        'en': r'compiler:Default.isl',
+        'ja': r'compiler:Languages\\Japanese.isl',
+        'ru': r'compiler:Languages\\Russian.isl',
+      };
       expect(
-        branch!.group(1),
-        contains('Name: "${names[lang]}"; MessagesFile:'),
+        locales.map((locale) => locale['lang']).toSet(),
+        names.keys.toSet(),
       );
-      final configuredFile = locale['file'] as String?;
-      if (configuredFile == null) {
+      final script = File(
+        'windows/packaging/exe/inno_setup.iss',
+      ).readAsStringSync();
+      expect(config['publisher_name'], 'Zolmid');
+      expect(config['publisher'], isNull);
+      expect(config['publisher_url'], 'https://link.zolmid.com');
+      expect(script, contains('AppPublisher={{PUBLISHER_NAME}}'));
+      expect(script, contains('AppPublisherURL={{PUBLISHER_URL}}'));
+      expect(script, contains('AppSupportURL={{PUBLISHER_URL}}'));
+      expect(script, contains('AppUpdatesURL=https://link.zolmid.com'));
+      final languages = script.substring(
+        script.indexOf('[Languages]'),
+        script.indexOf('[Tasks]'),
+      );
+      for (final locale in locales) {
+        final lang = locale['lang'] as String;
+        final branch = RegExp(
+          "\\{% if locale.lang == '$lang' %\\}([\\s\\S]*?)\\{% endif %\\}",
+        ).firstMatch(languages);
+        expect(branch, isNotNull, reason: '$lang requires an installer branch');
         expect(
-          branch.group(1),
-          contains('MessagesFile: "${builtinFiles[lang]}"'),
+          branch!.group(1),
+          contains('Name: "${names[lang]}"; MessagesFile:'),
         );
-        continue;
+        final configuredFile = locale['file'] as String?;
+        if (configuredFile == null) {
+          expect(
+            branch.group(1),
+            contains('MessagesFile: "${builtinFiles[lang]}"'),
+          );
+          continue;
+        }
+        expect(branch.group(1), contains('"{{ locale.file }}"'));
+        final pathFromDist = p.windows.normalize(
+          p.windows.join('dist', configuredFile),
+        );
+        final file = File(p.joinAll(p.windows.split(pathFromDist)));
+        expect(file.existsSync(), isTrue, reason: '$configuredFile from dist/');
+        final messages = file.readAsStringSync();
+        expect(
+          messages,
+          contains(lang == 'zh_TW' ? r'LanguageID=$0404' : r'LanguageID=$0804'),
+        );
+        for (final key in [
+          'CreateDesktopIcon',
+          'AdditionalIcons',
+          'LaunchProgram',
+        ]) {
+          expect(messages, matches(RegExp('^$key=.+', multiLine: true)));
+        }
       }
-      expect(branch.group(1), contains('"{{ locale.file }}"'));
-      final pathFromDist = p.windows.normalize(
-        p.windows.join('dist', configuredFile),
-      );
-      final file = File(p.joinAll(p.windows.split(pathFromDist)));
-      expect(file.existsSync(), isTrue, reason: '$configuredFile from dist/');
-      final messages = file.readAsStringSync();
-      expect(
-        messages,
-        contains(lang == 'zh_TW' ? r'LanguageID=$0404' : r'LanguageID=$0804'),
-      );
-      for (final key in [
-        'CreateDesktopIcon',
-        'AdditionalIcons',
-        'LaunchProgram',
-      ]) {
-        expect(messages, matches(RegExp('^$key=.+', multiLine: true)));
-      }
-    }
-  });
+    },
+  );
 
   test('Android common translates its existing notification channel keys', () {
     const resources = 'android/common/src/main/res';
@@ -118,10 +115,10 @@ void main() {
     final traditional = strings('$resources/values-b+zh+Hant/strings.xml');
     expect(traditional.keys.toSet(), defaults.keys.toSet());
     expect(traditional['app_name'], defaults['app_name']);
-    expect(traditional['service_channel_name'], 'FlClash 服務');
+    expect(traditional['service_channel_name'], 'ZolNit 服務');
     expect(
       File(
-        'android/common/src/main/java/com/follow/clash/common/Ext.kt',
+        'android/common/src/main/java/com/zolmid/zolnit/common/Ext.kt',
       ).readAsStringSync(),
       contains('getString(R.string.service_channel_name)'),
     );

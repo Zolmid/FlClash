@@ -1413,7 +1413,7 @@ rewritten; each owner reads the flag where it would otherwise act:
 - URL schemes and launcher shortcuts: `Window.init` skips the Windows registry and Linux desktop-entry registration
   of the `clash` schemes, and Android never calls `initShortcuts`.
 - Presentation: `AppEnvManager` shows a `SAFE MODE` banner ahead of the channel banner, and `TrayState.safeMode` gives
-  the tray the `status_4` bug icon, a suffixed tooltip and a menu of only show and exit. `trayStateProvider` and
+  the tray the `status_4` ZolNit icon, a suffixed tooltip and a menu of only show and exit. `trayStateProvider` and
   `trayTitleStateProvider` report `showTrayTitle: false`, so the macOS menu bar carries no traffic title.
 
 A new host integration, anything that changes the OS's routes, proxy, DNS, login items, privileges or VPN state, or
