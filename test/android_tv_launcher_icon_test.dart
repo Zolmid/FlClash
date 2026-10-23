@@ -78,8 +78,9 @@ Future<void> _expectLayer(String name, {required bool monochrome}) async {
       }
       if (alpha == 255) opaque++;
       if (pixels[offset] != pixels[offset + 1] ||
-          pixels[offset + 1] != pixels[offset + 2])
+          pixels[offset + 1] != pixels[offset + 2]) {
         colored = true;
+      }
       if (x < left) left = x;
       if (y < top) top = y;
       if (x + 1 > right) right = x + 1;
