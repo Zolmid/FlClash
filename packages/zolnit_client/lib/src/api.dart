@@ -202,7 +202,8 @@ class XboardClient {
     required List<int> bodyBytes,
   }) {
     final isPlugin = path.startsWith(_pluginPrefix);
-    if (statusCode == 401 || statusCode == 403) {
+    if (statusCode == 401 ||
+        (statusCode == 403 && path == '/api/v1/user/info')) {
       return ClientFailure('unauthenticated', statusCode: statusCode);
     }
     // XBoard reports business errors such as an unpaid order as HTTP 500; the

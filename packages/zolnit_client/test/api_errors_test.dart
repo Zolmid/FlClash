@@ -129,17 +129,45 @@ void main() {
     });
   });
 
-  test('authentication failures never expose the server text', () async {
-    for (final status in [401, 403]) {
-      for (final path in [_native, _plugin]) {
-        final error = await _failure(path, status, {
+  test(
+    'explicit authentication failures never expose the server text',
+    () async {
+      for (final path in [_native, _plugin, '/api/v1/user/info']) {
+        final error = await _failure(path, 401, {
           'message': 'PRIVATE_DO_NOT_RENDER',
         });
         expect(error.code, 'unauthenticated');
-        expect(error.statusCode, status);
+        expect(error.statusCode, 401);
         expect(error.serverMessage, isNull);
       }
+      final error = await _failure('/api/v1/user/info', 403, {
+        'message': 'PRIVATE_DO_NOT_RENDER',
+      });
+      expect(error.code, 'unauthenticated');
+      expect(error.statusCode, 403);
+      expect(error.serverMessage, isNull);
+    },
+  );
+
+  test('permission failures do not imply expired authentication', () async {
+    for (final path in [_native, '/api/v1/user/getSubscribe', _plugin]) {
+      final error = await _failure(path, 403, {'message': 'operation denied'});
+      expect(error.code, 'api_error');
+      expect(error.statusCode, 403);
+      expect(
+        error.serverMessage,
+        path == _plugin ? isNull : 'operation denied',
+      );
     }
+  });
+
+  test('plugin 403 keeps its business error mapping', () async {
+    final error = await _failure(_plugin, 403, {
+      'message': 'Resolve pending orders before subscribing',
+    });
+    expect(error.code, 'pending_order');
+    expect(error.statusCode, 403);
+    expect(error.serverMessage, isNull);
   });
 
   test('toString never includes the server message', () async {

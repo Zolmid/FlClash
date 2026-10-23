@@ -108,8 +108,9 @@ checkout；401/403/409、超时、5xx 和畸形响应均不回退。连续付费
 ## 服务端错误提示
 
 非 2xx 响应按 UTF-8 解析 JSON，`ClientFailure.serverMessage` 只在可安全展示时才有值：非空、不超过 300 字符、无控制字符、
-不含堆栈 / SQL / 文件路径特征，也不是通用的 “Server Error”。`toString()` 永远不包含该文本。401 / 403 一律只给
-`unauthenticated`，不带服务端文本。
+不含堆栈 / SQL / 文件路径特征，也不是通用的 “Server Error”。`toString()` 永远不包含该文本。401，以及账户身份查询
+`user/info` 的 403，只给 `unauthenticated`，不带服务端文本。订阅、订单及插件的其他 403 继续按业务错误处理，
+不能仅凭权限拒绝判定登录已失效；付款探测遇到 403 仍直接失败，不回退到普通结算。
 
 - 原生 XBoard 路径：业务错误（例如存在未支付订单）常以 HTTP 500 返回，4xx / 5xx 的可展示 message 都保留；服务端按请求头
   `Content-Language` 本地化，客户端按当前界面语言发送 zh-CN / zh-TW / ja-JP / ko-KR / ru-RU / en-US。
