@@ -202,7 +202,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                 final title = _showingPreferences
                     ? text.zolnitPreferences
                     : labels[_selected];
-                final fallback = LayoutBuilder(
+                Widget buildShell(Widget? nativeConnection) => LayoutBuilder(
                   builder: (context, constraints) {
                     final desktop = constraints.maxWidth >= 760;
                     final page = _showingPreferences
@@ -211,20 +211,26 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                             openWebsite: () => unawaited(_website()),
                           )
                         : switch (_selected) {
-                            0 => ZolnitConnectPage(
-                              session: session,
-                              compact: !desktop,
-                              syncing: _syncing,
-                              syncFailed: _syncFailed,
-                              connect: _connect,
-                              openNodes: () => _select(1),
-                              openPlans: () => _select(2),
-                              openNotice: (notice) =>
-                                  unawaited(showZolnitNotice(context, notice)),
-                              openNotices: () => unawaited(
-                                showZolnitNotices(context, session.noticeList),
-                              ),
-                            ),
+                            0 =>
+                              nativeConnection ??
+                                  ZolnitConnectPage(
+                                    session: session,
+                                    compact: !desktop,
+                                    syncing: _syncing,
+                                    syncFailed: _syncFailed,
+                                    connect: _connect,
+                                    openNodes: () => _select(1),
+                                    openPlans: () => _select(2),
+                                    openNotice: (notice) => unawaited(
+                                      showZolnitNotice(context, notice),
+                                    ),
+                                    openNotices: () => unawaited(
+                                      showZolnitNotices(
+                                        context,
+                                        session.noticeList,
+                                      ),
+                                    ),
+                                  ),
                             1 => ZolnitNodesPage(
                               session: session,
                               sync: _sync,
@@ -313,7 +319,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                   onRefresh: _refresh,
                   onPreferences: _showPreferences,
                   onHelp: _website,
-                  child: fallback,
+                  connectionBuilder: buildShell,
+                  child: buildShell(null),
                 );
               },
             ),

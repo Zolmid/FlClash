@@ -1353,12 +1353,12 @@
   "zolnitGlobalRoutes": "全球优选线路",
   "zolnitEveryScreen": "熟悉的多端体验",
   "zolnitMonthlyEnrollment": "连续包月",
-  "zolnitQuoteBeforeConsent": "先查看服务端报价，再授权自动续费。",
+  "zolnitQuoteBeforeConsent": "确认报价后，再授权自动续费。",
   "zolnitViewMonthlyQuote": "查看包月报价",
   "zolnitGiftReplacement": "首期付款确认后开始付费周期，并替换剩余赠送时间。",
   "zolnitPlanSwitch": "首期付款或原套餐余值抵扣确认后，开始新套餐周期。",
   "zolnitPendingOrder": "你有一笔待处理订单，请在“订单”中继续付款或关闭后再下单。",
-  "zolnitQuoteExpired": "结算报价已过期，请返回套餐页重新选择。",
+  "zolnitQuoteExpired": "报价已过期，请刷新后重试。",
   "zolnitCheckoutExists": "已有一笔结算正在处理，请在账号页查看状态，请勿重复提交。",
   "zolnitCheckoutProcessing": "结算会话正在准备或核对，请稍后重试。",
   "zolnitRateLimited": "操作过于频繁，请稍后重试。",
@@ -1486,5 +1486,8 @@
   "zolnitSignInRejected": "邮箱或密码不正确，请重试。",
   "zolnitSessionExpired": "登录已失效，请重新登录。",
   "zolnitSafeMode": "安全模式",
-  "zolnitConnectionPageUnavailable": "连接页面暂时无法显示，请重试。"
+  "zolnitConnectionPageUnavailable": "连接页面暂时无法显示，请重试。",
+  "zolnitQuoteLabel": "本次报价",
+  "zolnitQuoteUnavailable": "暂时无法获取报价，请重试。",
+  "zolnitAuthorizeMonthly": "授权连续包月"
 }

@@ -2232,6 +2232,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("すべてのサーバー"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("すべての地域"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("支払い金額"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage("月額自動更新を承認"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("アカウント残高"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage("月払いで、気軽にスタート"),
     "zolnitBilledOnce": m88,
@@ -2461,10 +2462,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("3か月ごと"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "自動更新に同意する前にサーバーの見積もりを確認してください。",
+      "見積りを確認してから自動更新を承認してください。",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "見積もりの有効期限が切れました。プランに戻って選び直してください。",
+      "見積りの有効期限が切れました。更新してください。",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("お見積り"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "見積りを取得できません。もう一度お試しください。",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "操作が多すぎます。しばらくしてからもう一度お試しください。",

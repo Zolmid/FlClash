@@ -1979,6 +1979,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部线路"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("全部地区"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("应付金额"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage("授权连续包月"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("账户余额"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage("按月付费，轻松开始"),
     "zolnitBilledOnce": m88,
@@ -2180,10 +2181,12 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("季付"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "先查看服务端报价，再授权自动续费。",
+      "确认报价后，再授权自动续费。",
     ),
-    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "结算报价已过期，请返回套餐页重新选择。",
+    "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage("报价已过期，请刷新后重试。"),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("本次报价"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "暂时无法获取报价，请重试。",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage("操作过于频繁，请稍后重试。"),
     "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage("推荐线路"),

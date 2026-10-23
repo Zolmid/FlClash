@@ -2182,6 +2182,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("모든 서버"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("전체 지역"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("결제 금액"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
+      "월 자동 결제 승인",
+    ),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("계정 잔액"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "월 단위 결제로 부담 없이 시작",
@@ -2419,10 +2422,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("3개월마다"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "자동 갱신에 동의하기 전에 서버 견적을 확인하세요.",
+      "견적을 확인한 후 자동 갱신을 승인하세요.",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "견적이 만료되었습니다. 요금제로 돌아가 다시 선택하세요.",
+      "견적이 만료되었습니다. 새로고침하세요.",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("견적"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "견적을 불러올 수 없습니다. 다시 시도하세요.",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",

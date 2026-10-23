@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:intl/intl.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'brand.dart';
@@ -79,6 +82,173 @@ class ZolnitPlansPage extends StatefulWidget {
 
 class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
   String? _chosen;
+  Object? _quoteContext;
+  int _quoteRequest = 0;
+  bool _quoteLoading = false;
+  String? _quoteFailure;
+  Map<int, String> _quoteErrors = const {};
+  Map<int, Map<int, RecurringPlanQuote>> _quotes = const {};
+  Timer? _quoteExpiry;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.session.addListener(_sessionChanged);
+    _syncQuotes();
+  }
+
+  @override
+  void didUpdateWidget(ZolnitPlansPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.session, widget.session)) {
+      oldWidget.session.removeListener(_sessionChanged);
+      widget.session.addListener(_sessionChanged);
+      _quoteContext = null;
+      _syncQuotes();
+    }
+  }
+
+  String? _selectedPeriod(List<ZolnitPlan> plans) {
+    final periods = [
+      for (final key in _periodKeys)
+        if (plans.any((plan) => plan.prices.containsKey(key))) key,
+    ];
+    return periods.contains(_chosen) ? _chosen : periods.firstOrNull;
+  }
+
+  Object _context() {
+    final session = widget.session;
+    final plans = session.planList;
+    return (
+      session,
+      session.accountGeneration,
+      session.api.generation,
+      session.quoteRevision,
+      session.authenticated,
+      _selectedPeriod(plans),
+      plans,
+      session.recurringMethods.map((method) => method['id']).join(','),
+    );
+  }
+
+  bool _currentQuote(int request, Object context) =>
+      mounted &&
+      _quoteRequest == request &&
+      _quoteContext == context &&
+      _context() == context;
+
+  void _sessionChanged() {
+    if (mounted) setState(_syncQuotes);
+  }
+
+  void _syncQuotes({bool refresh = false}) {
+    final context = _context();
+    if (!refresh && context == _quoteContext) return;
+    _quoteContext = context;
+    final request = ++_quoteRequest;
+    _quoteExpiry?.cancel();
+    _quoteExpiry = null;
+    _quotes = const {};
+    _quoteErrors = const {};
+    _quoteFailure = null;
+    final period =
+        recurringPeriodsByPrice[_selectedPeriod(widget.session.planList)];
+    _quoteLoading =
+        widget.session.authenticated &&
+        widget.session.checkout.allowStripe &&
+        period != null;
+    if (_quoteLoading) {
+      scheduleMicrotask(() => _loadQuotes(request, context, period!, refresh));
+    }
+  }
+
+  Future<void> _loadQuotes(
+    int request,
+    Object context,
+    String period,
+    bool refresh,
+  ) async {
+    final session = widget.session;
+    try {
+      await session.ensureRecurringOptions();
+      if (!_currentQuote(request, context)) return;
+      final methods = session.recurringMethods;
+      if (methods.isEmpty) {
+        setState(() {
+          _quoteLoading = false;
+          _quoteFailure = session.billingFailure;
+        });
+        return;
+      }
+      Future<({int id, Map<int, RecurringPlanQuote> quotes, String? error})>
+      load(Json method) async {
+        final id = method['id'] as int;
+        try {
+          final quotes = await session.quotePlans(
+            paymentId: id,
+            period: period,
+            refresh: refresh,
+          );
+          return (id: id, quotes: quotes, error: null);
+        } catch (error) {
+          return (
+            id: id,
+            quotes: <int, RecurringPlanQuote>{},
+            error: error is ClientFailure ? error.code : 'quote_unavailable',
+          );
+        }
+      }
+
+      final results = await Future.wait(methods.map(load));
+      if (!_currentQuote(request, context)) return;
+      setState(() {
+        _quoteLoading = false;
+        _quotes = {for (final result in results) result.id: result.quotes};
+        _quoteErrors = {for (final result in results) result.id: ?result.error};
+      });
+      final expirations = [
+        for (final result in results)
+          for (final option in result.quotes.values)
+            if (option.quote case final quote?)
+              quote.terms['quote_expires_at'] as int,
+      ];
+      if (expirations.isNotEmpty) {
+        final earliest = expirations.reduce((a, b) => a < b ? a : b);
+        final remaining =
+            earliest * 1000 - DateTime.now().millisecondsSinceEpoch;
+        _quoteExpiry = Timer(
+          Duration(milliseconds: remaining > 0 ? remaining : 0),
+          () {
+            if (_currentQuote(request, context)) {
+              setState(() {
+                _quotes = const {};
+                _quoteFailure = 'recurring_quote_expired';
+              });
+            }
+          },
+        );
+      }
+    } catch (error) {
+      if (_currentQuote(request, context)) {
+        setState(() {
+          _quoteLoading = false;
+          _quoteFailure = error is ClientFailure
+              ? error.code
+              : 'quote_unavailable';
+        });
+      }
+    }
+  }
+
+  void _retryQuotes() => setState(() => _syncQuotes(refresh: true));
+
+  @override
+  void dispose() {
+    _quoteRequest++;
+    _quoteExpiry?.cancel();
+    widget.session.removeListener(_sessionChanged);
+    super.dispose();
+  }
 
   Future<void> _monthly(int planId, int paymentId) async {
     final session = widget.session;
@@ -136,11 +306,13 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
       for (final key in _periodKeys)
         if (plans.any((plan) => plan.prices.containsKey(key))) key,
     ];
-    final period = periods.contains(_chosen)
-        ? _chosen
-        : periods.isEmpty
-        ? null
-        : periods.first;
+    final period = _selectedPeriod(plans);
+    final visiblePlans = plans
+        .where((plan) => period != null && plan.prices.containsKey(period))
+        .toList();
+    final quoteRequest = _quoteRequest;
+    final quoteContext = _quoteContext;
+
     final saving = <String, int>{
       for (final key in periods)
         if (plans
@@ -164,8 +336,14 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
             ? 3
             : 1;
         final cards = [
-          for (final (index, plan) in plans.indexed)
+          for (final (index, plan) in visiblePlans.indexed)
             _PlanCard(
+              key: ValueKey((
+                session.accountGeneration,
+                session.api.generation,
+                period,
+                plan.id,
+              )),
               plan: plan,
               index: index,
               period: period,
@@ -175,6 +353,18 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
               session: session,
               onBuy: period == null ? null : () => _create(plan, period),
               onMonthly: _monthly,
+              onOrders: widget.onOrderCreated,
+              quoteLoading: _quoteLoading,
+              quoteFailure: _quoteFailure,
+              quoteErrors: _quoteErrors,
+              quotes: {
+                for (final entry in _quotes.entries)
+                  entry.key: ?entry.value[plan.id],
+              },
+              quoteCurrent: () =>
+                  quoteContext != null &&
+                  _currentQuote(quoteRequest, quoteContext),
+              onQuoteRetry: _retryQuotes,
             ),
         ];
         final Widget grid;
@@ -239,12 +429,15 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
                     periods: periods,
                     selected: period,
                     saving: saving,
-                    onSelected: (key) => setState(() => _chosen = key),
+                    onSelected: (key) => setState(() {
+                      _chosen = key;
+                      _syncQuotes();
+                    }),
                   ),
                 ),
               ),
             SizedBox(height: periods.length > 1 ? 30 : 12),
-            if (plans.isEmpty)
+            if (visiblePlans.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 40),
                 child: Center(
@@ -578,6 +771,7 @@ class _BillingTabs extends StatelessWidget {
 
 class _PlanCard extends StatelessWidget {
   const _PlanCard({
+    super.key,
     required this.plan,
     required this.index,
     required this.period,
@@ -586,6 +780,13 @@ class _PlanCard extends StatelessWidget {
     required this.session,
     required this.onBuy,
     required this.onMonthly,
+    required this.onOrders,
+    required this.quoteLoading,
+    required this.quoteFailure,
+    required this.quoteErrors,
+    required this.quotes,
+    required this.quoteCurrent,
+    required this.onQuoteRetry,
   });
 
   final ZolnitPlan plan;
@@ -596,6 +797,13 @@ class _PlanCard extends StatelessWidget {
   final ZolnitSessionController session;
   final VoidCallback? onBuy;
   final Future<void> Function(int planId, int paymentId) onMonthly;
+  final VoidCallback onOrders;
+  final bool quoteLoading;
+  final String? quoteFailure;
+  final Map<int, String> quoteErrors;
+  final Map<int, RecurringPlanQuote> quotes;
+  final bool Function() quoteCurrent;
+  final VoidCallback onQuoteRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -658,11 +866,11 @@ class _PlanCard extends StatelessWidget {
         !session.busy &&
         session.checkout.allowStripe;
     final methods = session.recurringMethods;
-    final monthly =
-        period == 'month_price' &&
+    final showQuotes =
+        recurringPeriodsByPrice.containsKey(period) &&
         plan.id != null &&
-        plan.prices.containsKey('month_price') &&
-        methods.isNotEmpty;
+        session.checkout.allowStripe &&
+        (quoteLoading || quoteFailure != null || methods.isNotEmpty);
     final cardColor = !current
         ? colors.solid
         : skin == ZolnitSkin.android
@@ -820,36 +1028,47 @@ class _PlanCard extends StatelessWidget {
             glyph: AppGlyphs.arrowForward,
             onPressed: canBuy ? onBuy : null,
           ),
-          if (monthly) ...[
+          if (showQuotes) ...[
             const SizedBox(height: 14),
             Text(
-              text.zolnitMonthlyEnrollment,
+              period == 'month_price'
+                  ? text.zolnitMonthlyEnrollment
+                  : text.zolnitQuoteLabel,
               style: zolnitText(context, 11, weight: FontWeight.w600),
             ),
-            const SizedBox(height: 3),
-            Text(
-              text.zolnitQuoteBeforeConsent,
-              style: zolnitText(context, 11, leading: 16, color: colors.muted),
-            ),
+            const SizedBox(height: 6),
+            if (methods.isEmpty)
+              _QuoteDetails(
+                session: session,
+                name: '',
+                option: null,
+                loading: quoteLoading,
+                error: quoteFailure,
+                monthly: false,
+                onAuthorize: null,
+                onRetry: onQuoteRetry,
+                onOrders: onOrders,
+              ),
             for (final method in methods)
-              InkWell(
-                key: ValueKey('zolnit-monthly-${plan.id}-${method['id']}'),
-                customBorder: AppShape.sm,
-                onTap: session.busy || !session.checkout.allowStripe
-                    ? null
-                    : () => onMonthly(plan.id!, method['id'] as int),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(
-                    '${text.zolnitViewMonthlyQuote} · ${method['name'] is String ? method['name'] : text.unknown}',
-                    style: zolnitText(
-                      context,
-                      11,
-                      weight: FontWeight.w600,
-                      color: colors.accent,
-                    ),
-                  ),
+              _QuoteDetails(
+                key: ValueKey(
+                  period == 'month_price'
+                      ? 'zolnit-monthly-${plan.id}-${method['id']}'
+                      : 'zolnit-quote-$period-${plan.id}-${method['id']}',
                 ),
+                session: session,
+                name: method['name'] is String
+                    ? method['name'] as String
+                    : text.unknown,
+                option: quotes[method['id']],
+                loading: quoteLoading,
+                error: quoteFailure ?? quoteErrors[method['id']],
+                monthly: period == 'month_price',
+                onAuthorize: quoteCurrent()
+                    ? () => onMonthly(plan.id!, method['id'] as int)
+                    : null,
+                onRetry: onQuoteRetry,
+                onOrders: onOrders,
               ),
           ],
         ],
@@ -887,6 +1106,108 @@ class _PlanCard extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _QuoteDetails extends StatelessWidget {
+  const _QuoteDetails({
+    super.key,
+    required this.session,
+    required this.name,
+    required this.option,
+    required this.loading,
+    required this.error,
+    required this.monthly,
+    required this.onAuthorize,
+    required this.onRetry,
+    required this.onOrders,
+  });
+
+  final ZolnitSessionController session;
+  final String name;
+  final RecurringPlanQuote? option;
+  final bool loading;
+  final String? error;
+  final bool monthly;
+  final VoidCallback? onAuthorize;
+  final VoidCallback onRetry;
+  final VoidCallback onOrders;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.appLocalizations;
+    final colors = ZolnitColors.of(context);
+    final quote = option?.quote;
+    final reason = option?.unavailableReason;
+    final code =
+        error ??
+        switch (reason) {
+          'pending_order' ||
+          'unpaid_order' ||
+          'has_unpaid_orders' => 'pending_order',
+          'active_subscription' ||
+          'existing_subscription' ||
+          'checkout_exists' => 'checkout_exists',
+          _ => quote == null ? 'recurring_unavailable' : null,
+        };
+    final unavailable =
+        error == 'recurring_quote_expired' || error == 'quote_expired'
+        ? text.zolnitQuoteExpired
+        : code == 'pending_order' || code == 'checkout_exists'
+        ? zolnitFailureText(context, code, null)
+        : text.zolnitQuoteUnavailable;
+    String amount(String key, String currency) => NumberFormat.currency(
+      name: currency,
+      symbol: currency == 'CNY' ? '¥' : currency,
+    ).format((quote!.terms[key] as int) / 100);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 6,
+        children: [
+          if (name.isNotEmpty)
+            Text(name, style: zolnitText(context, 11, weight: FontWeight.w600)),
+          if (loading)
+            Text(
+              text.loading,
+              style: zolnitText(context, 11, color: colors.muted),
+            )
+          else if (code != null) ...[
+            Text(
+              unavailable,
+              style: zolnitText(context, 11, color: colors.muted),
+            ),
+            Wrap(
+              children: [
+                TextButton(onPressed: onRetry, child: Text(text.retry)),
+                if (code == 'pending_order' || code == 'checkout_exists')
+                  TextButton(
+                    onPressed: onOrders,
+                    child: Text(text.zolnitOrders),
+                  ),
+              ],
+            ),
+          ] else if (quote != null) ...[
+            Text(
+              '${text.zolnitFirstCharge}: ${amount('first_total_cents', 'CNY')} / ${amount('first_charge_amount_cents', 'SGD')}',
+              style: zolnitText(context, 11, color: colors.muted),
+            ),
+            Text(
+              '${text.zolnitFollowingCharge}: ${amount('total_cents', 'CNY')} / ${amount('charge_amount_cents', 'SGD')}',
+              style: zolnitText(context, 11, color: colors.muted),
+            ),
+            if (monthly)
+              TextButton(
+                onPressed: !session.busy && quote.validAt(DateTime.now())
+                    ? onAuthorize
+                    : null,
+                child: Text(text.zolnitAuthorizeMonthly),
+              ),
+          ],
+        ],
+      ),
     );
   }
 }

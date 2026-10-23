@@ -2,6 +2,13 @@ import XCTest
 @testable import ZolnitNativeUiCore
 
 final class NativeUiContractTests: XCTestCase {
+    func testBinaryByteTextPreservesUnknownAndMeasuredZero() {
+        XCTAssertEqual(NativeByteText.format(100 * 1024 * 1024 * 1024, locale: "en_US"), "100 GiB")
+        XCTAssertEqual(NativeByteText.format(1024, locale: "en_US"), "1 KiB")
+        XCTAssertEqual(NativeByteText.format(0, locale: "en_US"), "0 B")
+        XCTAssertEqual(NativeByteText.format(nil, locale: "en_US"), "—")
+    }
+
     func testUnknownMetricsRemainDistinctFromMeasuredZero() throws {
         let labels = NativeUiSnapshot.requiredLabels.reduce(into: [String: String]()) { $0[$1] = $1 }
         let snapshot = NativeUiSnapshot(

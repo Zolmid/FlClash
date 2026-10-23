@@ -12,11 +12,13 @@ class ZolnitNativeSurface extends StatelessWidget {
     super.key,
     required this.bridge,
     this.platform,
+    this.brightness,
     this.visible = true,
   });
 
   final NativeUiBridge bridge;
   final TargetPlatform? platform;
+  final Brightness? brightness;
   final bool visible;
 
   @override
@@ -37,9 +39,10 @@ class ZolnitNativeSurface extends StatelessWidget {
         creationParamsCodec: const StandardMessageCodec(),
       ),
       TargetPlatform.macOS => AppKitView(
+        key: ValueKey(brightness),
         viewType: nativeUiViewType,
         layoutDirection: Directionality.of(context),
-        creationParams: params,
+        creationParams: {'snapshot': params, 'brightness': brightness?.name},
         creationParamsCodec: const StandardMessageCodec(),
       ),
       TargetPlatform.windows => _WindowsSurface(bridge: bridge),

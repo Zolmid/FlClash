@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 
 import 'harness.dart';
@@ -19,6 +22,79 @@ void main() {
     await harness.mount(tester, skin, dark: dark, locale: locale, size: size);
     await tester.tap(find.text(label).first);
     await tester.pumpAndSettle();
+  }
+
+  Map<String, dynamic> quoteOffer(String period, {int? expiresAt}) => {
+    'available': true,
+    'period': period,
+    'months': {
+      'monthly': 1,
+      'quarterly': 3,
+      'half_yearly': 6,
+      'yearly': 12,
+      'two_yearly': 24,
+      'three_yearly': 36,
+    }[period],
+    'currency': 'CNY',
+    'charge_currency': 'SGD',
+    'price_cents': 2800,
+    'recurring_price_cents': 2520,
+    'handling_amount_cents': 0,
+    'recurring_total_cents': 2520,
+    'charge_amount_cents': 550,
+    'first_total_cents': 701,
+    'first_charge_amount_cents': 202,
+    'surplus_amount_cents': 1819,
+    'surplus_credit_cents': 0,
+    'quote_id': 81,
+    'quote_expires_at':
+        expiresAt ?? DateTime.now().millisecondsSinceEpoch ~/ 1000 + 300,
+    'gift_replacement': false,
+    'switch_immediately': true,
+    'next_charge_at': null,
+  };
+
+  Object quoteBody(
+    String period, {
+    int? expiresAt,
+    bool pendingOrder = false,
+  }) => {
+    'plans': [
+      for (final id in [1, 2, 3])
+        {
+          'id': id,
+          'periods': [
+            pendingOrder && id == 2
+                ? {
+                    'period': period,
+                    'available': false,
+                    'unavailable_reason': 'pending_order',
+                  }
+                : quoteOffer(period, expiresAt: expiresAt),
+          ],
+        },
+    ],
+  };
+
+  http.Response configuredChannels() => zolnitJson({
+    'enabled': true,
+    'configured': true,
+    'channels': [
+      {'id': 1, 'name': 'Stripe', 'enabled': true, 'configured': true},
+    ],
+  });
+
+  List<http.Request> quoteRequests() => harness.requests
+      .where((request) => request.url.path.endsWith('/zolnit-stripe/plans'))
+      .toList();
+  void expectReadOnly() {
+    expect(
+      harness.requests.where(
+        (request) =>
+            request.method != 'GET' && !request.url.path.endsWith('/login'),
+      ),
+      isEmpty,
+    );
   }
 
   int saved() => harness.requests
@@ -183,7 +259,13 @@ void main() {
       expect(find.byKey(ValueKey('zolnit-monthly-$plan-1')), findsOneWidget);
       expect(find.byKey(ValueKey('zolnit-monthly-$plan-2')), findsNothing);
     }
-    expect(find.text('查看包月报价 · Stripe'), findsNWidgets(3));
+    expect(find.text('查看包月报价 · Stripe'), findsNothing);
+    expect(
+      harness.requests.where(
+        (request) => request.url.path.endsWith('/zolnit-stripe/plans'),
+      ),
+      hasLength(1),
+    );
     await tester.tap(find.text('年付'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('zolnit-monthly-1-1')), findsNothing);
@@ -233,5 +315,219 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+  });
+
+  for (final skin in ZolnitSkin.values) {
+    testWidgets(
+      'selected period strictly filters supported zero-price plans on ${skin.name}',
+      (tester) async {
+        harness.panel = (request) => request.url.path.endsWith('/plan/fetch')
+            ? zolnitJson([
+                {
+                  'id': 10,
+                  'name': 'CycleOnly',
+                  'month_price': 0,
+                  'quarter_price': 1200,
+                  'half_year_price': 2200,
+                  'year_price': 4200,
+                  'two_year_price': 8000,
+                  'three_year_price': 11000,
+                },
+                {'id': 20, 'name': 'OnceOnly', 'onetime_price': 0},
+                {'id': 30, 'name': 'QuarterOnly', 'quarter_price': 0},
+                {'id': 40, 'name': 'ResetOnly', 'reset_price': 0},
+              ])
+            : zolnitPanelFixture(request);
+        await harness.relogin();
+        await openPlans(tester, skin);
+        expect(find.text('CycleOnly'), findsOneWidget);
+        expect(find.text('OnceOnly'), findsNothing);
+        expect(find.text('QuarterOnly'), findsNothing);
+        expect(find.text('0'), findsOneWidget);
+        await tester.tap(find.text('季付'));
+        await tester.pumpAndSettle();
+        expect(find.text('CycleOnly'), findsOneWidget);
+        expect(find.text('QuarterOnly'), findsOneWidget);
+        expect(find.text('OnceOnly'), findsNothing);
+        for (final period in ['半年付', '年付', '两年付', '三年付']) {
+          await tester.tap(find.text(period));
+          await tester.pumpAndSettle();
+          expect(find.text('CycleOnly'), findsOneWidget);
+          expect(find.text('OnceOnly'), findsNothing);
+          expect(find.text('QuarterOnly'), findsNothing);
+        }
+        await tester.tap(find.text('一次性'));
+        await tester.pumpAndSettle();
+        expect(find.text('OnceOnly'), findsOneWidget);
+        expect(find.text('CycleOnly'), findsNothing);
+        expect(find.text('0'), findsOneWidget);
+        await tester.tap(find.text('重置流量'));
+        await tester.pumpAndSettle();
+        expect(find.text('ResetOnly'), findsOneWidget);
+        expect(find.text('OnceOnly'), findsNothing);
+        expect(find.text('CycleOnly'), findsNothing);
+        expectReadOnly();
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'entering plans automatically batches server quotes without writes on ${skin.name}',
+      (tester) async {
+        final response = Completer<http.Response>();
+        harness.panel = (request) {
+          if (request.url.path.endsWith('/zolnit-stripe/config')) {
+            return configuredChannels();
+          }
+          if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+            return response.future;
+          }
+          return zolnitPanelFixture(request);
+        };
+        await harness.relogin();
+        await openPlans(tester, skin);
+        expect(quoteRequests(), hasLength(1));
+        expect(quoteRequests().single.url.queryParameters, {
+          'payment_id': '1',
+          'period': 'monthly',
+        });
+        expect(
+          harness.requests.where(
+            (request) => request.url.path.endsWith('/zolnit-stripe/config'),
+          ),
+          hasLength(1),
+        );
+        expect(find.textContaining('查看包月报价'), findsNothing);
+        expectReadOnly();
+        response.complete(zolnitJson(quoteBody('monthly')));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('首期付款: ¥7.01'), findsNWidgets(3));
+        expect(find.textContaining('后续付款: ¥25.20'), findsNWidgets(3));
+        expect(find.text('授权连续包月'), findsNWidgets(3));
+        expect(quoteRequests(), hasLength(1));
+        expectReadOnly();
+        expect(tester.takeException(), isNull);
+        await harness.capture(tester, 'plans-auto-quote-${skin.name}');
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
+  testWidgets(
+    'failed quote retries once and partial unavailability is actionable',
+    (tester) async {
+      var failing = true;
+      harness.panel = (request) {
+        if (request.url.path.endsWith('/zolnit-stripe/config')) {
+          return configuredChannels();
+        }
+        if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+          return failing
+              ? http.Response('{}', 503)
+              : zolnitJson(quoteBody('monthly', pendingOrder: true));
+        }
+        return zolnitPanelFixture(request);
+      };
+      await harness.relogin();
+      await openPlans(tester, ZolnitSkin.macos);
+      expect(find.text('暂时无法获取报价，请重试。'), findsNWidgets(3));
+      expect(find.text('授权连续包月'), findsNothing);
+      failing = false;
+      await tester.ensureVisible(find.text('重试').first);
+      await tester.tap(find.text('重试').first);
+      await tester.pumpAndSettle();
+      expect(quoteRequests(), hasLength(2));
+      expect(find.textContaining('待处理订单'), findsOneWidget);
+      expect(find.text('授权连续包月'), findsNWidgets(2));
+      expectReadOnly();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'expired quotes stop authorization and explicit retry refreshes the batch',
+    (tester) async {
+      var expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3;
+      harness.panel = (request) {
+        if (request.url.path.endsWith('/zolnit-stripe/config')) {
+          return configuredChannels();
+        }
+        if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+          return zolnitJson(quoteBody('monthly', expiresAt: expiry));
+        }
+        return zolnitPanelFixture(request);
+      };
+      await harness.relogin();
+      await openPlans(tester, ZolnitSkin.macos);
+      expect(find.text('授权连续包月'), findsNWidgets(3));
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text('报价已过期，请刷新后重试。'), findsNWidgets(3));
+      expect(find.text('授权连续包月'), findsNothing);
+      expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 300;
+      await tester.ensureVisible(find.text('重试').first);
+      await tester.tap(find.text('重试').first);
+      await tester.pumpAndSettle();
+      expect(quoteRequests(), hasLength(2));
+      expect(find.text('授权连续包月'), findsNWidgets(3));
+      expectReadOnly();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('period change ignores the preceding quote response', (
+    tester,
+  ) async {
+    final monthly = Completer<http.Response>();
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-stripe/config')) {
+        return configuredChannels();
+      }
+      if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+        final period = request.url.queryParameters['period']!;
+        return period == 'monthly'
+            ? monthly.future
+            : zolnitJson(quoteBody(period));
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await openPlans(tester, ZolnitSkin.macos);
+    await tester.tap(find.text('年付'));
+    await tester.pumpAndSettle();
+    expect(
+      quoteRequests().map((request) => request.url.queryParameters['period']),
+      ['monthly', 'yearly'],
+    );
+    monthly.complete(http.Response('{}', 503));
+    await tester.pumpAndSettle();
+    expect(find.text('暂时无法获取报价，请重试。'), findsNothing);
+    expect(find.text('授权连续包月'), findsNothing);
+    expect(find.textContaining('首期付款: ¥7.01'), findsNWidgets(3));
+    expectReadOnly();
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('logout and disposal ignore late quotes', (tester) async {
+    final response = Completer<http.Response>();
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-stripe/config')) {
+        return configuredChannels();
+      }
+      if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+        return response.future;
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await openPlans(tester, ZolnitSkin.macos);
+    await harness.session.logout();
+    await tester.pumpAndSettle();
+    response.complete(zolnitJson(quoteBody('monthly')));
+    await tester.pumpAndSettle();
+    expect(find.text('授权连续包月'), findsNothing);
+    expect(find.textContaining('首期付款'), findsNothing);
+    expect(tester.takeException(), isNull);
+    expectReadOnly();
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

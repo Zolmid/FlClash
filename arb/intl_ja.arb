@@ -1353,12 +1353,12 @@
   "zolnitGlobalRoutes": "厳選された世界の回線",
   "zolnitEveryScreen": "どの画面でも使い慣れた操作",
   "zolnitMonthlyEnrollment": "毎月の自動支払い",
-  "zolnitQuoteBeforeConsent": "自動更新に同意する前にサーバーの見積もりを確認してください。",
+  "zolnitQuoteBeforeConsent": "見積りを確認してから自動更新を承認してください。",
   "zolnitViewMonthlyQuote": "月額の見積もりを表示",
   "zolnitGiftReplacement": "初回支払いの確認後に有料期間が始まり、残りの無料期間が置き換わります。",
   "zolnitPlanSwitch": "初回支払いまたは旧プランの残存価値の充当が確認されると、新しいプランが始まります。",
   "zolnitPendingOrder": "保留中の注文があります。「注文」で支払いを続けるか閉じてから、もう一度お試しください。",
-  "zolnitQuoteExpired": "見積もりの有効期限が切れました。プランに戻って選び直してください。",
+  "zolnitQuoteExpired": "見積りの有効期限が切れました。更新してください。",
   "zolnitCheckoutExists": "決済がすでに処理中です。アカウントで状況を確認し、重複して送信しないでください。",
   "zolnitCheckoutProcessing": "決済を準備または確認しています。しばらくしてからもう一度お試しください。",
   "zolnitRateLimited": "操作が多すぎます。しばらくしてからもう一度お試しください。",
@@ -1486,5 +1486,8 @@
   "zolnitSignInRejected": "メールアドレスまたはパスワードが正しくありません。もう一度お試しください。",
   "zolnitSessionExpired": "ログインの有効期限が切れました。もう一度ログインしてください。",
   "zolnitSafeMode": "セーフモード",
-  "zolnitConnectionPageUnavailable": "接続ページを表示できません。もう一度お試しください。"
+  "zolnitConnectionPageUnavailable": "接続ページを表示できません。もう一度お試しください。",
+  "zolnitQuoteLabel": "お見積り",
+  "zolnitQuoteUnavailable": "見積りを取得できません。もう一度お試しください。",
+  "zolnitAuthorizeMonthly": "月額自動更新を承認"
 }

@@ -11509,10 +11509,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Review the server quote before authorizing automatic renewal.`
+  /// `Review the quote before authorizing automatic renewal.`
   String get zolnitQuoteBeforeConsent {
     return Intl.message(
-      'Review the server quote before authorizing automatic renewal.',
+      'Review the quote before authorizing automatic renewal.',
       name: 'zolnitQuoteBeforeConsent',
       desc: '',
       args: [],
@@ -11559,10 +11559,10 @@ class AppLocalizations {
     );
   }
 
-  /// `The quote has expired. Go back to Plans and choose again.`
+  /// `This quote has expired. Refresh to continue.`
   String get zolnitQuoteExpired {
     return Intl.message(
-      'The quote has expired. Go back to Plans and choose again.',
+      'This quote has expired. Refresh to continue.',
       name: 'zolnitQuoteExpired',
       desc: '',
       args: [],
@@ -12794,6 +12794,31 @@ class AppLocalizations {
     return Intl.message(
       'The connection page is unavailable. Try again.',
       name: 'zolnitConnectionPageUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Quote`
+  String get zolnitQuoteLabel {
+    return Intl.message('Quote', name: 'zolnitQuoteLabel', desc: '', args: []);
+  }
+
+  /// `The quote is unavailable. Try again.`
+  String get zolnitQuoteUnavailable {
+    return Intl.message(
+      'The quote is unavailable. Try again.',
+      name: 'zolnitQuoteUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Authorize monthly billing`
+  String get zolnitAuthorizeMonthly {
+    return Intl.message(
+      'Authorize monthly billing',
+      name: 'zolnitAuthorizeMonthly',
       desc: '',
       args: [],
     );

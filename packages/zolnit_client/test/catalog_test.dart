@@ -79,7 +79,7 @@ void main() {
       );
     });
 
-    test('keeps positive prices and reads the panel content as lines', () {
+    test('keeps valid price periods and reads the panel content as lines', () {
       final plan = ZolnitPlan.fromJson({
         'id': '3',
         'name': ' 轻享 ',
@@ -94,11 +94,58 @@ void main() {
       });
       expect(plan.id, 3);
       expect(plan.name, '轻享');
-      expect(plan.prices, {'month_price': 3800, 'year_price': 36480});
+      expect(plan.prices, {
+        'month_price': 3800,
+        'quarter_price': 0,
+        'year_price': 36480,
+      });
+      expect(plan.prices.containsKey('quarter_price'), isTrue);
+      expect(plan.prices.containsKey('onetime_price'), isFalse);
       expect(plan.transferGb, 150);
       expect(plan.deviceLimit, 2);
       expect(plan.speedLimitMbps, isNull);
       expect(plan.contentLines, ['每月 150 GB', '2 台设备']);
+    });
+
+    test('period membership follows actual valid prices', () {
+      final periodic = ZolnitPlan.fromJson({
+        'name': 'periodic',
+        'month_price': ' 1200 ',
+      });
+      final onetime = ZolnitPlan.fromJson({
+        'name': 'onetime',
+        'onetime_price': 0,
+      });
+      expect(periodic.prices, {'month_price': 1200});
+      expect(periodic.prices.containsKey('onetime_price'), isFalse);
+      expect(onetime.prices, {'onetime_price': 0});
+      expect(onetime.prices.containsKey('month_price'), isFalse);
+    });
+
+    test('rejects malformed cent amounts without rounding', () {
+      final values = <Object?>[
+        null,
+        -1,
+        double.nan,
+        double.infinity,
+        true,
+        false,
+        1.5,
+        '1.5',
+        'bad',
+      ];
+      for (final value in values) {
+        final plan = ZolnitPlan.fromJson({'month_price': value});
+        expect(
+          plan.prices.containsKey('month_price'),
+          isFalse,
+          reason: 'Invalid price: $value',
+        );
+      }
+      expect(ZolnitPlan.fromJson({}).prices, isEmpty);
+      expect(ZolnitPlan.fromJson({'month_price': 0.0}).prices, {
+        'month_price': 0,
+      });
     });
 
     test('reads GB, legacy KB and byte quotas as gigabytes', () {
@@ -121,6 +168,11 @@ void main() {
       expect(plan.savingPercent('year_price'), isNull);
       expect(plan.savingPercent('month_price'), isNull);
       expect(plan.savingPercent('half_year_price'), isNull);
+    });
+
+    test('does not divide by a zero monthly baseline', () {
+      final plan = ZolnitPlan.fromJson({'month_price': 0, 'quarter_price': 0});
+      expect(plan.savingPercent('quarter_price'), isNull);
     });
   });
 

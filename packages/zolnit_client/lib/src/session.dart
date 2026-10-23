@@ -38,6 +38,11 @@ class ZolnitSessionController extends ChangeNotifier {
   final Future<void> Function()? onAuthenticationInvalidated;
   final Map<String, Future<dynamic>> _flights = {};
   final Map<String, String?> _intents = {};
+  final _quoteFlights =
+      <(int, int, int, int, String), Future<Map<int, RecurringPlanQuote>>>{};
+  final _quoteCache =
+      <(int, int, int, int, String), Map<int, RecurringPlanQuote>>{};
+  int _quoteRevision = 0;
   bool _disposed = false;
   bool _invalidating = false;
   int _readSequence = 0;
@@ -80,6 +85,7 @@ class ZolnitSessionController extends ChangeNotifier {
   ZolnitRestoreState get restoreState => _restoreState;
   bool get restoring => _restoreState == ZolnitRestoreState.restoring;
   int get accountGeneration => _epoch;
+  int get quoteRevision => _quoteRevision;
   bool get busy => _flights.isNotEmpty;
   String? get failure => _failure;
   String? get billingFailure => _billingFailure;
@@ -372,7 +378,14 @@ class ZolnitSessionController extends ChangeNotifier {
     return operation;
   }
 
+  void _clearQuotePreviews() {
+    _quoteRevision++;
+    _quoteFlights.clear();
+    _quoteCache.clear();
+  }
+
   void _clearSnapshots() {
+    _clearQuotePreviews();
     _authenticated = false;
     _account = null;
     _subscription = null;
@@ -457,6 +470,7 @@ class ZolnitSessionController extends ChangeNotifier {
         ? List<Json>.unmodifiable((values[6] as List).whereType<Json>())
         : const <Json>[];
     if (read == _coreRead) {
+      _clearQuotePreviews();
       _account = account;
       _subscription = subscription;
       _nodes = nodes;
@@ -483,10 +497,73 @@ class ZolnitSessionController extends ChangeNotifier {
 
   Future<void> refreshRecurringOptions() =>
       _run<void>('recurringOptions', null, (work) async {
+        _clearQuotePreviews();
         _recurringConfig = null;
         final config = await _billing.config(authenticated: true);
         if (_current(work)) _recurringConfig = _object(config);
       }, billing: true);
+
+  Future<void> ensureRecurringOptions() async {
+    final pending = _flights['recurringOptions'];
+    if (pending != null) {
+      await pending;
+    } else if (_recurringConfig == null) {
+      await refreshRecurringOptions();
+    }
+  }
+
+  Future<Map<int, RecurringPlanQuote>> quotePlans({
+    required int paymentId,
+    required String period,
+    bool refresh = false,
+  }) async {
+    final epoch = _epoch;
+    final generation = api.generation;
+    bool accountCurrent() =>
+        !_disposed &&
+        _authenticated &&
+        _epoch == epoch &&
+        api.generation == generation;
+    if (!accountCurrent()) throw const ClientFailure('unauthenticated');
+    if (!checkout.allowStripe) throw const ClientFailure('payment_disallowed');
+    await ensureRecurringOptions();
+    if (!accountCurrent()) throw const ClientFailure('superseded');
+    if (!recurringMethods.any((method) => method['id'] == paymentId)) {
+      throw const ClientFailure('recurring_unavailable');
+    }
+    final revision = _quoteRevision;
+    final key = (epoch, generation, revision, paymentId, period);
+    final active = _quoteFlights[key];
+    if (active != null) return active;
+    final cached = _quoteCache[key];
+    if (!refresh &&
+        cached != null &&
+        cached.isNotEmpty &&
+        cached.values.every(
+          (option) => option.quote?.validAt(DateTime.now()) == true,
+        )) {
+      return cached;
+    }
+    late final Future<Map<int, RecurringPlanQuote>> operation;
+    operation =
+        Future<Map<int, RecurringPlanQuote>>.sync(() async {
+          final quotes = await _billing.quotePlans(
+            paymentId: paymentId,
+            period: period,
+          );
+          if (!accountCurrent() || _quoteRevision != revision) {
+            throw const ClientFailure('superseded');
+          }
+          _quoteCache[key] = quotes;
+          return quotes;
+        }).whenComplete(() {
+          if (identical(_quoteFlights[key], operation)) {
+            _quoteFlights.remove(key);
+          }
+        });
+    _quoteFlights[key] = operation;
+    return operation;
+  }
 
   Future<void> cancelRenewal(int id) => _renewal(id, resume: false);
 

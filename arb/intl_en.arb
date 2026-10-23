@@ -1353,12 +1353,12 @@
   "zolnitGlobalRoutes": "Selected global routes",
   "zolnitEveryScreen": "Familiar on every screen",
   "zolnitMonthlyEnrollment": "Continuous monthly billing",
-  "zolnitQuoteBeforeConsent": "Review the server quote before authorizing automatic renewal.",
+  "zolnitQuoteBeforeConsent": "Review the quote before authorizing automatic renewal.",
   "zolnitViewMonthlyQuote": "View monthly quote",
   "zolnitGiftReplacement": "Paid access starts after the first payment replaces the remaining gifted time.",
   "zolnitPlanSwitch": "The new plan starts after the first payment or remaining-value credit is confirmed.",
   "zolnitPendingOrder": "You have a pending order. Continue paying or close it in Orders before placing another.",
-  "zolnitQuoteExpired": "The quote has expired. Go back to Plans and choose again.",
+  "zolnitQuoteExpired": "This quote has expired. Refresh to continue.",
   "zolnitCheckoutExists": "A checkout is already in progress. Check its status in Account and do not submit it again.",
   "zolnitCheckoutProcessing": "The checkout is being prepared or verified. Try again shortly.",
   "zolnitRateLimited": "Too many attempts. Please try again in a moment.",
@@ -1486,5 +1486,8 @@
   "zolnitSignInRejected": "Email or password is incorrect. Try again.",
   "zolnitSessionExpired": "Sign-in expired. Sign in again.",
   "zolnitSafeMode": "Safe mode",
-  "zolnitConnectionPageUnavailable": "The connection page is unavailable. Try again."
+  "zolnitConnectionPageUnavailable": "The connection page is unavailable. Try again.",
+  "zolnitQuoteLabel": "Quote",
+  "zolnitQuoteUnavailable": "The quote is unavailable. Try again.",
+  "zolnitAuthorizeMonthly": "Authorize monthly billing"
 }

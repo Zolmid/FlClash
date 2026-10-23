@@ -1353,12 +1353,12 @@
   "zolnitGlobalRoutes": "全球優選線路",
   "zolnitEveryScreen": "熟悉的多端體驗",
   "zolnitMonthlyEnrollment": "連續包月",
-  "zolnitQuoteBeforeConsent": "先查看伺服器報價，再授權自動續費。",
+  "zolnitQuoteBeforeConsent": "確認報價後，再授權自動續費。",
   "zolnitViewMonthlyQuote": "查看包月報價",
   "zolnitGiftReplacement": "首期付款確認後開始付費週期，並取代剩餘贈送時間。",
   "zolnitPlanSwitch": "首期付款或原方案剩餘價值折抵確認後，開始新方案週期。",
   "zolnitPendingOrder": "你有一筆待處理訂單，請在「訂單」中繼續付款或關閉後再下單。",
-  "zolnitQuoteExpired": "結算報價已過期，請返回方案頁重新選擇。",
+  "zolnitQuoteExpired": "報價已過期，請重新整理後再試。",
   "zolnitCheckoutExists": "已有一筆結算正在處理，請在帳號頁查看狀態，請勿重複提交。",
   "zolnitCheckoutProcessing": "結算工作階段正在準備或核對，請稍後重試。",
   "zolnitRateLimited": "操作過於頻繁，請稍後重試。",
@@ -1486,5 +1486,8 @@
   "zolnitSignInRejected": "電子郵件或密碼不正確，請重試。",
   "zolnitSessionExpired": "登入已失效，請重新登入。",
   "zolnitSafeMode": "安全模式",
-  "zolnitConnectionPageUnavailable": "連線頁面暫時無法顯示，請重試。"
+  "zolnitConnectionPageUnavailable": "連線頁面暫時無法顯示，請重試。",
+  "zolnitQuoteLabel": "本次報價",
+  "zolnitQuoteUnavailable": "暫時無法取得報價，請重試。",
+  "zolnitAuthorizeMonthly": "授權連續包月"
 }

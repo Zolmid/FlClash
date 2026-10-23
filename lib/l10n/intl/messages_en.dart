@@ -2625,6 +2625,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("All servers"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("All regions"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Amount due"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
+      "Authorize monthly billing",
+    ),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("Account balance"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "Billed monthly, an easy start",
@@ -2910,10 +2913,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Quarterly"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "Review the server quote before authorizing automatic renewal.",
+      "Review the quote before authorizing automatic renewal.",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "The quote has expired. Go back to Plans and choose again.",
+      "This quote has expired. Refresh to continue.",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("Quote"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "The quote is unavailable. Try again.",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "Too many attempts. Please try again in a moment.",

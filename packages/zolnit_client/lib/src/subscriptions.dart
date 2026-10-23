@@ -1,5 +1,35 @@
 import 'api.dart';
 
+const recurringPeriodsByPrice = <String, String>{
+  'month_price': 'monthly',
+  'quarter_price': 'quarterly',
+  'half_year_price': 'half_yearly',
+  'year_price': 'yearly',
+  'two_year_price': 'two_yearly',
+  'three_year_price': 'three_yearly',
+};
+
+const _recurringMonths = <String, int>{
+  'monthly': 1,
+  'quarterly': 3,
+  'half_yearly': 6,
+  'yearly': 12,
+  'two_yearly': 24,
+  'three_yearly': 36,
+};
+
+class RecurringPlanQuote {
+  const RecurringPlanQuote({
+    required this.planId,
+    this.quote,
+    this.unavailableReason,
+  });
+
+  final int planId;
+  final RecurringQuote? quote;
+  final String? unavailableReason;
+}
+
 class RecurringQuote {
   RecurringQuote._({
     required this.paymentId,
@@ -81,6 +111,62 @@ class ZolnitBillingClient {
     );
   }
 
+  Future<Map<int, RecurringPlanQuote>> quotePlans({
+    required int paymentId,
+    required String period,
+  }) async {
+    if (!_recurringMonths.containsKey(period)) {
+      throw const ClientFailure('invalid_billing_period');
+    }
+    final generation = api.generation;
+    final value = await plans(paymentId: paymentId, period: period);
+    final entries = value['plans'];
+    if (entries is! List) throw const ClientFailure('invalid_billing_response');
+    if (entries.isEmpty && value['pricing_unavailable'] == true) {
+      throw const ClientFailure('pricing_unavailable');
+    }
+    final result = <int, RecurringPlanQuote>{};
+    for (final entry in entries) {
+      if (entry is! Json || entry['id'] is! int || (entry['id'] as int) <= 0) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+      final id = entry['id'] as int;
+      final periods = entry['periods'];
+      if (result.containsKey(id) ||
+          periods is! List ||
+          periods.length != 1 ||
+          periods.single is! Json) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+      final offer = periods.single as Json;
+      if (offer['period'] != period) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+      if (offer['available'] == false) {
+        final reason = offer['unavailable_reason'];
+        result[id] = RecurringPlanQuote(
+          planId: id,
+          unavailableReason:
+              reason is String && RegExp(r'^[a-z_]{1,80}$').hasMatch(reason)
+              ? reason
+              : 'recurring_unavailable',
+        );
+      } else {
+        result[id] = RecurringPlanQuote(
+          planId: id,
+          quote: _readQuote(
+            offer,
+            paymentId: paymentId,
+            planId: id,
+            generation: generation,
+            period: period,
+          ),
+        );
+      }
+    }
+    return Map.unmodifiable(result);
+  }
+
   Future<RecurringQuote> monthlyQuote({
     required int paymentId,
     required int planId,
@@ -102,15 +188,30 @@ class ZolnitBillingClient {
     if (periods is! List || periods.length != 1 || periods.single is! Json) {
       throw const ClientFailure('invalid_billing_response');
     }
-    final offer = periods.single as Json;
-    if (offer['period'] != 'monthly') {
+    return _readQuote(
+      periods.single as Json,
+      paymentId: paymentId,
+      planId: planId,
+      generation: generation,
+      period: 'monthly',
+    );
+  }
+
+  RecurringQuote _readQuote(
+    Json offer, {
+    required int paymentId,
+    required int planId,
+    required int generation,
+    required String period,
+  }) {
+    if (offer['period'] != period) {
       throw const ClientFailure('invalid_billing_response');
     }
     if (offer['available'] == false) {
       throw const ClientFailure('recurring_unavailable');
     }
     if (offer['available'] != true ||
-        offer['months'] != 1 ||
+        offer['months'] != _recurringMonths[period] ||
         offer['currency'] != 'CNY' ||
         offer['charge_currency'] != 'SGD' ||
         offer['gift_replacement'] is! bool ||

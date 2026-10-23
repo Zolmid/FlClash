@@ -97,6 +97,23 @@ public enum NativeUiSnapshotError: Error, Equatable {
     case invalidValue
 }
 
+enum NativeByteText {
+    static func format(_ value: Int64?, locale: String) -> String {
+        guard let value else { return "—" }
+        let units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"]
+        var amount = Double(value)
+        var unit = 0
+        while amount >= 1024 && unit < units.count - 1 {
+            amount /= 1024
+            unit += 1
+        }
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: locale)
+        formatter.maximumFractionDigits = unit == 0 ? 0 : 2
+        return "\(formatter.string(from: NSNumber(value: amount)) ?? String(amount)) \(units[unit])"
+    }
+}
+
 public extension NativeUiSnapshot {
     static let requiredLabels = [
         "connect", "disconnect", "disconnected", "connecting", "connected", "disconnecting", "connectionFailed",
@@ -215,6 +232,7 @@ public final class NativeUiBridge: ObservableObject {
         perform(json) { response in
             DispatchQueue.main.async {
                 self.pendingActions.remove(action)
+                guard self.store.snapshot?.accountGeneration == command.accountGeneration else { return }
                 guard let response,
                       let receipt = NativeUiReceipt.decode(json: response, commandId: command.id) else {
                     self.feedback = .retry
@@ -242,6 +260,7 @@ public final class NativeUiBridge: ObservableObject {
 }
 
 public struct NativeHomeView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var bridge: NativeUiBridge
     @ObservedObject private var store: NativeUiStore
 
@@ -274,30 +293,131 @@ public struct NativeHomeView: View {
             account(snapshot).tabItem { Label(label(snapshot, "account"), systemImage: "person.crop.circle") }.tag(NativeUiSnapshot.Destination.account)
         }
         #else
-        NavigationView {
-            List(selection: Binding<NativeUiSnapshot.Destination?>(
-                get: { snapshot.destination },
-                set: { destination in
-                    if let destination {
-                        bridge.send(.navigate, payload: ["destination": destination.rawValue])
-                    }
-                }
-            )) {
-                Label(label(snapshot, "connect"), systemImage: "power").tag(NativeUiSnapshot.Destination.connect)
-                Label(label(snapshot, "servers"), systemImage: "server.rack").tag(NativeUiSnapshot.Destination.servers)
-                Label(label(snapshot, "plans"), systemImage: "creditcard").tag(NativeUiSnapshot.Destination.plans)
-                Label(label(snapshot, "account"), systemImage: "person.crop.circle").tag(NativeUiSnapshot.Destination.account)
-            }
-            .navigationTitle(label(snapshot, "connect"))
-            switch snapshot.destination {
-            case .connect: connect(snapshot)
-            case .servers: servers(snapshot)
-            case .plans: plans(snapshot)
-            case .account: account(snapshot)
-            }
-        }.navigationViewStyle(.columns)
+        macConnection(snapshot)
         #endif
     }
+
+    #if os(macOS)
+    private var paper: Color { colorScheme == .dark ? Color(red: 21/255, green: 30/255, blue: 36/255) : Color(red: 243/255, green: 241/255, blue: 235/255) }
+    private var card: Color { colorScheme == .dark ? Color(red: 32/255, green: 44/255, blue: 51/255) : Color(red: 250/255, green: 249/255, blue: 245/255) }
+    private var ink: Color { colorScheme == .dark ? Color(red: 233/255, green: 239/255, blue: 236/255) : Color(red: 40/255, green: 54/255, blue: 62/255) }
+    private var muted: Color { colorScheme == .dark ? Color(red: 168/255, green: 183/255, blue: 189/255) : Color(red: 83/255, green: 99/255, blue: 107/255) }
+    private var accent: Color { colorScheme == .dark ? Color(red: 171/255, green: 199/255, blue: 214/255) : Color(red: 80/255, green: 106/255, blue: 122/255) }
+
+    private func macConnection(_ snapshot: NativeUiSnapshot) -> some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(statusLabel(snapshot))
+                            .font(.largeTitle.weight(.semibold))
+                            .accessibilityAddTraits(.isHeader)
+                        if snapshot.safeMode {
+                            Label(label(snapshot, "safeMode"), systemImage: "shield")
+                                .font(.body)
+                                .foregroundStyle(muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Button {
+                                bridge.send(snapshot.connectionState == .connected ? .disconnect : .connect)
+                            } label: {
+                                Label(
+                                    label(snapshot, snapshot.connectionState == .connected ? "disconnect" : "connect"),
+                                    systemImage: snapshot.connectionState == .connected ? "stop.fill" : "power"
+                                )
+                                .frame(minWidth: 156, minHeight: 28)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!canToggleConnection(snapshot) || bridge.isPending(.connect) || bridge.isPending(.disconnect))
+                            Picker(label(snapshot, "smartMode"), selection: Binding(
+                                get: { snapshot.mode },
+                                set: { bridge.send(.setMode, payload: ["mode": $0.rawValue]) }
+                            )) {
+                                Text(label(snapshot, "smartMode")).tag(NativeUiSnapshot.ConnectionMode.rule)
+                                Text(label(snapshot, "globalMode")).tag(NativeUiSnapshot.ConnectionMode.global)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(maxWidth: 340)
+                            .disabled(!canManageConnectionSettings(snapshot) || bridge.isPending(.setMode))
+                        }
+                        if let feedback = bridge.feedback {
+                            Text(label(snapshot, feedback.rawValue)).foregroundStyle(muted)
+                        }
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(card, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    if geometry.size.width >= 700 {
+                        HStack(alignment: .top, spacing: 20) {
+                            routeSummary(snapshot)
+                            planSummary(snapshot)
+                        }
+                    } else {
+                        routeSummary(snapshot)
+                        planSummary(snapshot)
+                    }
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(label(snapshot, "trafficUsed")).font(.headline)
+                        Text(usageText(snapshot)).font(.title2.monospacedDigit())
+                        if let total = snapshot.usage.totalBytes, total > 0, snapshot.usage.usedBytes != nil {
+                            ProgressView(value: usageFraction(snapshot))
+                        }
+                        HStack {
+                            Label(speed(snapshot.traffic.uploadBps, locale: snapshot.locale), systemImage: "arrow.up")
+                                .accessibilityLabel(Text(label(snapshot, "upload")))
+                            Spacer()
+                            Label(speed(snapshot.traffic.downloadBps, locale: snapshot.locale), systemImage: "arrow.down")
+                                .accessibilityLabel(Text(label(snapshot, "download")))
+                        }
+                        .foregroundStyle(muted)
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(card, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
+                .frame(maxWidth: 1040, alignment: .leading)
+                .padding(28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .background(paper)
+            .foregroundStyle(ink)
+            .tint(accent)
+        }
+    }
+
+    private func routeSummary(_ snapshot: NativeUiSnapshot) -> some View {
+        summary(snapshot, title: "servers", value: snapshot.servers.first(where: { $0.id == snapshot.selectedServerId })?.name ?? label(snapshot, "selectServer"), destination: .servers)
+    }
+
+    private func planSummary(_ snapshot: NativeUiSnapshot) -> some View {
+        summary(snapshot, title: "currentPlan", value: snapshot.planName ?? label(snapshot, "noPlan"), destination: .plans)
+    }
+
+    private func summary(_ snapshot: NativeUiSnapshot, title: String, value: String, destination: NativeUiSnapshot.Destination) -> some View {
+        Button {
+            bridge.send(.navigate, payload: ["destination": destination.rawValue])
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(label(snapshot, title)).font(.headline).foregroundStyle(muted)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(value).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 12)
+                    Image(systemName: "chevron.forward").foregroundStyle(muted)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, minHeight: 116, alignment: .topLeading)
+            .background(card, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func usageText(_ snapshot: NativeUiSnapshot) -> String {
+        "\(NativeByteText.format(snapshot.usage.usedBytes, locale: snapshot.locale)) / \(NativeByteText.format(snapshot.usage.totalBytes, locale: snapshot.locale))"
+    }
+    #endif
 
     private func connect(_ snapshot: NativeUiSnapshot) -> some View {
         VStack(spacing: 20) {
@@ -423,7 +543,7 @@ public struct NativeHomeView: View {
     }
     private func speed(_ bytesPerSecond: Int64?, locale: String) -> String {
         guard let bytesPerSecond else { return "—" }
-        let formatted = bytesPerSecond.formatted(.byteCount(style: .file).locale(Locale(identifier: locale)))
+        let formatted = NativeByteText.format(bytesPerSecond, locale: locale)
         return "\(formatted)/s"
     }
     private func latencyText(_ milliseconds: Int, locale: String) -> String {

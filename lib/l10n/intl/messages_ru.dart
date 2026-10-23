@@ -2789,6 +2789,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Все серверы"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("Все регионы"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("К оплате"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
+      "Разрешить ежемесячную оплату",
+    ),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("Баланс аккаунта"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "Оплата помесячно — удобное начало",
@@ -3080,10 +3083,16 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Раз в три месяца"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "Проверьте расчёт сервера перед согласием на автопродление.",
+      "Проверьте расчёт перед разрешением автоматического продления.",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "Расчёт устарел. Вернитесь к тарифам и выберите снова.",
+      "Срок расчёта истёк. Обновите его.",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage(
+      "Расчёт стоимости",
+    ),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Расчёт недоступен. Повторите попытку.",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "Слишком много попыток. Повторите чуть позже.",

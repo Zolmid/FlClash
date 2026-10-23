@@ -267,10 +267,8 @@ class ZolnitPlan {
   factory ZolnitPlan.fromJson(Json json) {
     final prices = <String, int>{};
     for (final key in _priceKeys) {
-      final value = json[key];
-      if (value is num && value.isFinite && value > 0) {
-        prices[key] = value.round();
-      }
+      final value = wholeOrNull(json[key]);
+      if (value != null && value >= 0) prices[key] = value;
     }
     final content = json['content'];
     final blocks = content is String
@@ -323,7 +321,11 @@ class ZolnitPlan {
     final months = _periodMonths[priceKey];
     final month = prices['month_price'];
     final price = prices[priceKey];
-    if (months == null || months == 1 || month == null || price == null) {
+    if (months == null ||
+        months == 1 ||
+        month == null ||
+        month <= 0 ||
+        price == null) {
       return null;
     }
     final full = month * months;

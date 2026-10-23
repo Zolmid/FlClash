@@ -25,6 +25,7 @@ class ZolnitNativeHome extends ConsumerStatefulWidget {
     required this.onPreferences,
     required this.onHelp,
     required this.child,
+    this.connectionBuilder,
   });
 
   final ZolnitSessionController session;
@@ -36,6 +37,7 @@ class ZolnitNativeHome extends ConsumerStatefulWidget {
   final VoidCallback onPreferences;
   final Future<void> Function() onHelp;
   final Widget child;
+  final Widget Function(Widget connection)? connectionBuilder;
 
   @override
   ConsumerState<ZolnitNativeHome> createState() => _ZolnitNativeHomeState();
@@ -50,6 +52,7 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
   bool? _connectionIntent;
   int? _observedGeneration;
   int _nativeGeneration = 0;
+  int _connectionRequest = 0;
   String? _fingerprint;
   Map<String, dynamic>? _pending;
   Timer? _publishTimer;
@@ -133,8 +136,18 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
         },
       );
     }
-    final status = ref.watch(coreStatusProvider);
-    final traffic = status == CoreStatus.connected
+    final safe = ref.watch(safeModeProvider);
+    final running = ref.watch(isStartProvider);
+    final connectionState = safe
+        ? 'disconnected'
+        : _connectionIntent == true
+        ? 'connecting'
+        : _connectionIntent == false
+        ? 'disconnecting'
+        : running
+        ? 'connected'
+        : 'disconnected';
+    final traffic = connectionState == 'connected'
         ? ref.watch(trafficsProvider).list.lastOrNull
         : null;
     final mode = ref.watch(
@@ -148,13 +161,9 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
       'textDirection': Directionality.of(context) == TextDirection.rtl
           ? 'rtl'
           : 'ltr',
-      'safeMode': ref.watch(safeModeProvider),
+      'safeMode': safe,
       'sessionStatus': session.restoreState.name,
-      'connectionState': _connectionIntent == true
-          ? 'connecting'
-          : _connectionIntent == false
-          ? 'disconnecting'
-          : status.name,
+      'connectionState': connectionState,
       'destination': _destinations[widget.destination],
       'mode': mode == Mode.global ? 'global' : 'rule',
       'selectedServerId': servers.containsKey(selected) ? selected : null,
@@ -194,7 +203,7 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
         'restoringSession': text.zolnitRestoringSession,
         'offline': text.offline,
         'retry': text.retry,
-        'safeMode': text.zolnitSafeMode,
+        'safeMode': text.zolnitSafeModeConnect,
         'selectServer': text.zolnitSelectServer,
         'currentPlan': text.zolnitCurrentPlanLabel,
         'loading': text.loading,
@@ -257,12 +266,16 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
       case 'connect':
       case 'disconnect':
         final desired = command.action == 'connect';
+        final request = ++_connectionRequest;
         setState(() => _connectionIntent = desired);
         try {
           final applied = await widget.onConnection(desired);
           if (!applied) return NativeUiReceipt.rejected(command.id, 'failed');
         } finally {
-          if (mounted && session.api.generation == generation) {
+          if (mounted &&
+              identical(widget.session, session) &&
+              session.api.generation == generation &&
+              _connectionRequest == request) {
             setState(() => _connectionIntent = null);
           }
         }
@@ -307,7 +320,9 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
           proxyName: name,
         );
     }
-    if (!mounted || session.api.generation != generation) {
+    if (!mounted ||
+        !identical(widget.session, session) ||
+        session.api.generation != generation) {
       return NativeUiReceipt.rejected(command.id, 'stale_account');
     }
     return NativeUiReceipt.accepted(command.id);
@@ -318,30 +333,44 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
     final bridge = _bridge;
     if (bridge == null || !_enabled || !_supported) return widget.child;
     _scheduleSnapshot(_snapshot());
-    if (_available == null) return const Center(child: CommonCircleLoading());
+
     if (widget.destination != 0 || widget.preferencesVisible) {
       return widget.child;
     }
+    Widget wrap(Widget connection) =>
+        defaultTargetPlatform == TargetPlatform.macOS
+        ? widget.connectionBuilder?.call(connection) ?? connection
+        : connection;
+    if (_available == null) {
+      return wrap(const Center(child: CommonCircleLoading()));
+    }
     if (_available != true) {
       final text = context.appLocalizations;
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 16,
-            children: [
-              Text(text.zolnitConnectionPageUnavailable),
-              TextButton(
-                onPressed: _checkAvailability,
-                child: Text(text.retry),
-              ),
-            ],
+      return wrap(
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 16,
+              children: [
+                Text(text.zolnitConnectionPageUnavailable),
+                TextButton(
+                  onPressed: _checkAvailability,
+                  child: Text(text.retry),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
-    return ZolnitNativeSurface(bridge: bridge);
+    return wrap(
+      ZolnitNativeSurface(
+        bridge: bridge,
+        brightness: Theme.of(context).brightness,
+      ),
+    );
   }
 
   @override

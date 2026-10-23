@@ -83,7 +83,8 @@ private final class NativeHomeFactory: NSObject, FlutterPlatformViewFactory {
     }
     #elseif os(macOS)
     func create(withViewIdentifier viewId: Int64, arguments args: Any?) -> NSView {
-        NativeHomePlatformView(content: plugin?.makeView())
+        let brightness = (args as? [String: Any])?["brightness"] as? String
+        return NativeHomePlatformView(content: plugin?.makeView(), brightness: brightness)
     }
     #endif
 }
@@ -115,8 +116,10 @@ private func nativeMessenger(_ registrar: FlutterPluginRegistrar) -> FlutterBina
 private final class NativeHomePlatformView: NSView {
     private let hostingController: NSHostingController<AnyView>
 
-    init(content: NativeHomeView?) {
-        hostingController = NSHostingController(rootView: content.map { AnyView($0) } ?? AnyView(NativeHomeUnavailableView()))
+    init(content: NativeHomeView?, brightness: String?) {
+        let scheme: ColorScheme? = brightness == "dark" ? .dark : brightness == "light" ? .light : nil
+        let contentView = content.map { AnyView($0) } ?? AnyView(NativeHomeUnavailableView())
+        hostingController = NSHostingController(rootView: AnyView(contentView.preferredColorScheme(scheme)))
         super.init(frame: .zero)
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hostingController.view)

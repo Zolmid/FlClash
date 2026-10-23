@@ -2866,6 +2866,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Todas las regiones",
     ),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Importe a pagar"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
+      "Autorizar el pago mensual",
+    ),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("Saldo de la cuenta"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "Pago mensual, para empezar sin complicaciones",
@@ -3173,10 +3176,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Trimestral"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "Revisa la cotización del servidor antes de autorizar la renovación automática.",
+      "Revisa el presupuesto antes de autorizar la renovación automática.",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "La cotización ha caducado. Vuelve a Planes y elige de nuevo.",
+      "Este presupuesto ha caducado. Actualiza para continuar.",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("Presupuesto"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "El presupuesto no está disponible. Inténtalo de nuevo.",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "Demasiados intentos. Inténtalo de nuevo en un momento.",

@@ -11,6 +11,7 @@
 
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Microsoft.UI.Xaml.Hosting.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
@@ -21,6 +22,7 @@
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Globalization.h>
 #include <winrt/Windows.Globalization.NumberFormatting.h>
 #include <winrt/Windows.Graphics.h>
 #include <winrt/base.h>
@@ -60,7 +62,7 @@ bool Bool(const wdj::JsonObject& object, const wchar_t* name, bool fallback = fa
 
 int64_t Integer(const wdj::JsonObject& object, const wchar_t* name,
                 int64_t fallback = 0) {
-  return static_cast<int64_t>(object.GetNamedNumber(name, fallback));
+  return static_cast<int64_t>(object.GetNamedNumber(name, static_cast<double>(fallback)));
 }
 
 std::optional<int64_t> OptionalInteger(const wdj::JsonObject& object,
@@ -107,7 +109,8 @@ winrt::hstring FormatBytes(std::optional<int64_t> value, bool per_second,
   }
   auto languages = winrt::single_threaded_vector<winrt::hstring>();
   languages.Append(locale);
-  auto formatter = winrt::Windows::Globalization::NumberFormatting::DecimalFormatter(languages);
+  auto formatter = winrt::Windows::Globalization::NumberFormatting::DecimalFormatter(
+      languages, winrt::Windows::Globalization::GeographicRegion().Code());
   formatter.FractionDigits(scaled < 10 && unit > 0 ? 1 : 0);
   return formatter.FormatDouble(scaled) + L" " + kUnits[unit] + (per_second ? L"/s" : L"");
 }
@@ -133,7 +136,8 @@ winrt::hstring BrandAssetUri() {
   std::wstring directory(path, length);
   directory.erase(directory.find_last_of(L"\\/") + 1);
   std::replace(directory.begin(), directory.end(), L'\\', L'/');
-  return L"file:///" + directory + L"assets/images/zolnit-horizontal-dark.png";
+  return winrt::hstring(
+      (L"file:///" + directory + L"assets/images/zolnit-horizontal-dark.png").c_str());
 }
 
 // Unverified against a Windows runtime: ContentPreTranslateMessage is not declared
@@ -275,7 +279,7 @@ void WinUiSurface::BuildView() {
   for (const auto& destination : {L"connect", L"servers", L"plans", L"account"}) {
     auto item = muxc::NavigationViewItem();
     item.Tag(winrt::box_value(winrt::hstring(destination)));
-    item.Content(winrt::hstring(destination));
+    item.Content(winrt::box_value(winrt::hstring(destination)));
     state_->navigation.MenuItems().Append(item);
   }
   state_->navigation.SelectionChanged([this](auto&&, const auto& args) {
@@ -463,7 +467,7 @@ void WinUiSurface::Render() {
       const auto server = value.GetObject();
       auto item = muxc::NavigationViewItem();
       item.Tag(winrt::box_value(Text(server, L"id")));
-      item.Content(Text(server, L"name"));
+      item.Content(winrt::box_value(Text(server, L"name")));
       item.IsEnabled(Bool(server, L"available"));
       state_->server_list.Items().Append(item);
       if (Text(server, L"id") == selected_server) {
@@ -477,7 +481,7 @@ void WinUiSurface::Render() {
   }
   for (uint32_t index = 0; index < state_->navigation.MenuItems().Size(); ++index) {
     const auto item = state_->navigation.MenuItems().GetAt(index).as<muxc::NavigationViewItem>();
-    item.Content(Label(labels, winrt::unbox_value<winrt::hstring>(item.Tag()).c_str()));
+    item.Content(winrt::box_value(Label(labels, winrt::unbox_value<winrt::hstring>(item.Tag()).c_str())));
     if (Text(state_->snapshot, L"destination") == winrt::unbox_value<winrt::hstring>(item.Tag())) {
       state_->navigation.SelectedItem(item);
     }

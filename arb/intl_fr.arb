@@ -1353,12 +1353,12 @@
   "zolnitGlobalRoutes": "Des routes mondiales sélectionnées",
   "zolnitEveryScreen": "Une expérience familière sur chaque écran",
   "zolnitMonthlyEnrollment": "Facturation mensuelle automatique",
-  "zolnitQuoteBeforeConsent": "Consultez le devis du serveur avant d’autoriser le renouvellement automatique.",
+  "zolnitQuoteBeforeConsent": "Vérifiez le devis avant d’autoriser le renouvellement automatique.",
   "zolnitViewMonthlyQuote": "Voir le devis mensuel",
   "zolnitGiftReplacement": "La période payante commence après confirmation du premier paiement et remplace le temps offert restant.",
   "zolnitPlanSwitch": "Le nouveau forfait commence après confirmation du premier paiement ou du crédit de la valeur restante.",
   "zolnitPendingOrder": "Vous avez une commande en attente. Poursuivez le paiement ou fermez-la dans Commandes avant d’en passer une autre.",
-  "zolnitQuoteExpired": "Le devis a expiré. Revenez aux forfaits et choisissez à nouveau.",
+  "zolnitQuoteExpired": "Ce devis a expiré. Actualisez pour continuer.",
   "zolnitCheckoutExists": "Un paiement est déjà en cours. Consultez son état dans Compte sans le soumettre à nouveau.",
   "zolnitCheckoutProcessing": "Le paiement est en préparation ou en vérification. Réessayez dans un instant.",
   "zolnitRateLimited": "Trop de tentatives. Réessayez dans un instant.",
@@ -1486,5 +1486,8 @@
   "zolnitSignInRejected": "Adresse e-mail ou mot de passe incorrect. Réessayez.",
   "zolnitSessionExpired": "Votre session a expiré. Reconnectez-vous.",
   "zolnitSafeMode": "Mode sans échec",
-  "zolnitConnectionPageUnavailable": "La page de connexion est indisponible. Réessayez."
+  "zolnitConnectionPageUnavailable": "La page de connexion est indisponible. Réessayez.",
+  "zolnitQuoteLabel": "Devis",
+  "zolnitQuoteUnavailable": "Le devis est indisponible. Réessayez.",
+  "zolnitAuthorizeMonthly": "Autoriser le paiement mensuel"
 }

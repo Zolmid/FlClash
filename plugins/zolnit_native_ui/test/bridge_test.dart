@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zolnit_native_ui/zolnit_native_ui.dart';
 
@@ -108,6 +109,38 @@ void main() {
     bridges.clear();
     messenger.setMockMethodCallHandler(channel, null);
   });
+
+  testWidgets(
+    'macOS surface receives the app theme independently of the OS theme',
+    (tester) async {
+      final value = bridge();
+      final views = <AppKitView>[];
+      for (final brightness in [Brightness.light, Brightness.dark]) {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Builder(
+              builder: (context) {
+                views.add(
+                  ZolnitNativeSurface(
+                        bridge: value,
+                        platform: TargetPlatform.macOS,
+                        brightness: brightness,
+                      ).build(context)
+                      as AppKitView,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+      }
+      expect((views[0].creationParams as Map)['brightness'], 'light');
+      expect((views[1].creationParams as Map)['brightness'], 'dark');
+      expect(views[0].key, isNot(views[1].key));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   test('protocol preserves unknown metrics and measured zero', () {
     final value = snapshot();

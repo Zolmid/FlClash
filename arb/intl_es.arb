@@ -1353,12 +1353,12 @@
   "zolnitGlobalRoutes": "Rutas globales seleccionadas",
   "zolnitEveryScreen": "Una experiencia familiar en cada pantalla",
   "zolnitMonthlyEnrollment": "Facturación mensual automática",
-  "zolnitQuoteBeforeConsent": "Revisa la cotización del servidor antes de autorizar la renovación automática.",
+  "zolnitQuoteBeforeConsent": "Revisa el presupuesto antes de autorizar la renovación automática.",
   "zolnitViewMonthlyQuote": "Ver cotización mensual",
   "zolnitGiftReplacement": "El periodo de pago comienza al confirmar el primer pago y sustituye el tiempo gratuito restante.",
   "zolnitPlanSwitch": "El nuevo plan comienza al confirmar el primer pago o el crédito del valor restante.",
   "zolnitPendingOrder": "Tienes un pedido pendiente. Continúa el pago o ciérralo en Pedidos antes de hacer otro.",
-  "zolnitQuoteExpired": "La cotización ha caducado. Vuelve a Planes y elige de nuevo.",
+  "zolnitQuoteExpired": "Este presupuesto ha caducado. Actualiza para continuar.",
   "zolnitCheckoutExists": "Ya hay un pago en curso. Consulta su estado en Cuenta y no lo envíes de nuevo.",
   "zolnitCheckoutProcessing": "El pago se está preparando o verificando. Inténtalo de nuevo en unos instantes.",
   "zolnitRateLimited": "Demasiados intentos. Inténtalo de nuevo en un momento.",
@@ -1486,5 +1486,8 @@
   "zolnitSignInRejected": "El correo o la contraseña no son correctos. Inténtalo de nuevo.",
   "zolnitSessionExpired": "Tu sesión ha caducado. Inicia sesión de nuevo.",
   "zolnitSafeMode": "Modo seguro",
-  "zolnitConnectionPageUnavailable": "La página de conexión no está disponible. Inténtalo de nuevo."
+  "zolnitConnectionPageUnavailable": "La página de conexión no está disponible. Inténtalo de nuevo.",
+  "zolnitQuoteLabel": "Presupuesto",
+  "zolnitQuoteUnavailable": "El presupuesto no está disponible. Inténtalo de nuevo.",
+  "zolnitAuthorizeMonthly": "Autorizar el pago mensual"
 }

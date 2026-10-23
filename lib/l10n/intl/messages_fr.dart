@@ -2868,6 +2868,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Toutes les régions",
     ),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Montant à payer"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
+      "Autoriser le paiement mensuel",
+    ),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("Solde du compte"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage(
       "Facturation mensuelle, pour bien commencer",
@@ -3179,10 +3182,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Trimestriel"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "Consultez le devis du serveur avant d’autoriser le renouvellement automatique.",
+      "Vérifiez le devis avant d’autoriser le renouvellement automatique.",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "Le devis a expiré. Revenez aux forfaits et choisissez à nouveau.",
+      "Ce devis a expiré. Actualisez pour continuer.",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("Devis"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Le devis est indisponible. Réessayez.",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage(
       "Trop de tentatives. Réessayez dans un instant.",

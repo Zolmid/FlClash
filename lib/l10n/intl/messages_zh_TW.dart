@@ -1997,6 +1997,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部線路"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("全部地區"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("應付金額"),
+    "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage("授權連續包月"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("帳戶餘額"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage("按月付費，輕鬆開始"),
     "zolnitBilledOnce": m88,
@@ -2198,10 +2199,14 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("季付"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
-      "先查看伺服器報價，再授權自動續費。",
+      "確認報價後，再授權自動續費。",
     ),
     "zolnitQuoteExpired": MessageLookupByLibrary.simpleMessage(
-      "結算報價已過期，請返回方案頁重新選擇。",
+      "報價已過期，請重新整理後再試。",
+    ),
+    "zolnitQuoteLabel": MessageLookupByLibrary.simpleMessage("本次報價"),
+    "zolnitQuoteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "暫時無法取得報價，請重試。",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage("操作過於頻繁，請稍後重試。"),
     "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage("推薦線路"),
