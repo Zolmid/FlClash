@@ -69,11 +69,13 @@ class ZolnitPlansPage extends StatefulWidget {
     super.key,
     required this.session,
     required this.onOrderCreated,
+    required this.onManageRenewals,
     this.compact = false,
   });
 
   final ZolnitSessionController session;
   final VoidCallback onOrderCreated;
+  final VoidCallback onManageRenewals;
   final bool compact;
 
   @override
@@ -151,8 +153,9 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
     _quotes = const {};
     _quoteErrors = const {};
     _quoteFailure = null;
-    final period =
-        recurringPeriodsByPrice[_selectedPeriod(widget.session.planList)];
+    final period = _selectedPeriod(widget.session.planList) == 'month_price'
+        ? 'monthly'
+        : null;
     _quoteLoading =
         widget.session.authenticated &&
         widget.session.checkout.allowStripe &&
@@ -354,6 +357,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
               onBuy: period == null ? null : () => _create(plan, period),
               onMonthly: _monthly,
               onOrders: widget.onOrderCreated,
+              onManageRenewals: widget.onManageRenewals,
               quoteLoading: _quoteLoading,
               quoteFailure: _quoteFailure,
               quoteErrors: _quoteErrors,
@@ -781,6 +785,7 @@ class _PlanCard extends StatelessWidget {
     required this.onBuy,
     required this.onMonthly,
     required this.onOrders,
+    required this.onManageRenewals,
     required this.quoteLoading,
     required this.quoteFailure,
     required this.quoteErrors,
@@ -798,6 +803,7 @@ class _PlanCard extends StatelessWidget {
   final VoidCallback? onBuy;
   final Future<void> Function(int planId, int paymentId) onMonthly;
   final VoidCallback onOrders;
+  final VoidCallback onManageRenewals;
   final bool quoteLoading;
   final String? quoteFailure;
   final Map<int, String> quoteErrors;
@@ -867,7 +873,7 @@ class _PlanCard extends StatelessWidget {
         session.checkout.allowStripe;
     final methods = session.recurringMethods;
     final showQuotes =
-        recurringPeriodsByPrice.containsKey(period) &&
+        period == 'month_price' &&
         plan.id != null &&
         session.checkout.allowStripe &&
         (quoteLoading || quoteFailure != null || methods.isNotEmpty);
@@ -1031,9 +1037,7 @@ class _PlanCard extends StatelessWidget {
           if (showQuotes) ...[
             const SizedBox(height: 14),
             Text(
-              period == 'month_price'
-                  ? text.zolnitMonthlyEnrollment
-                  : text.zolnitQuoteLabel,
+              text.zolnitMonthlyEnrollment,
               style: zolnitText(context, 11, weight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
@@ -1044,18 +1048,14 @@ class _PlanCard extends StatelessWidget {
                 option: null,
                 loading: quoteLoading,
                 error: quoteFailure,
-                monthly: false,
                 onAuthorize: null,
                 onRetry: onQuoteRetry,
                 onOrders: onOrders,
+                onManageRenewals: onManageRenewals,
               ),
             for (final method in methods)
               _QuoteDetails(
-                key: ValueKey(
-                  period == 'month_price'
-                      ? 'zolnit-monthly-${plan.id}-${method['id']}'
-                      : 'zolnit-quote-$period-${plan.id}-${method['id']}',
-                ),
+                key: ValueKey('zolnit-monthly-${plan.id}-${method['id']}'),
                 session: session,
                 name: method['name'] is String
                     ? method['name'] as String
@@ -1063,12 +1063,12 @@ class _PlanCard extends StatelessWidget {
                 option: quotes[method['id']],
                 loading: quoteLoading,
                 error: quoteFailure ?? quoteErrors[method['id']],
-                monthly: period == 'month_price',
                 onAuthorize: quoteCurrent()
                     ? () => onMonthly(plan.id!, method['id'] as int)
                     : null,
                 onRetry: onQuoteRetry,
                 onOrders: onOrders,
+                onManageRenewals: onManageRenewals,
               ),
           ],
         ],
@@ -1118,10 +1118,10 @@ class _QuoteDetails extends StatelessWidget {
     required this.option,
     required this.loading,
     required this.error,
-    required this.monthly,
     required this.onAuthorize,
     required this.onRetry,
     required this.onOrders,
+    required this.onManageRenewals,
   });
 
   final ZolnitSessionController session;
@@ -1129,10 +1129,10 @@ class _QuoteDetails extends StatelessWidget {
   final RecurringPlanQuote? option;
   final bool loading;
   final String? error;
-  final bool monthly;
   final VoidCallback? onAuthorize;
   final VoidCallback onRetry;
   final VoidCallback onOrders;
+  final VoidCallback onManageRenewals;
 
   @override
   Widget build(BuildContext context) {
@@ -1141,20 +1141,13 @@ class _QuoteDetails extends StatelessWidget {
     final quote = option?.quote;
     final reason = option?.unavailableReason;
     final code =
-        error ??
-        switch (reason) {
-          'pending_order' ||
-          'unpaid_order' ||
-          'has_unpaid_orders' => 'pending_order',
-          'active_subscription' ||
-          'existing_subscription' ||
-          'checkout_exists' => 'checkout_exists',
-          _ => quote == null ? 'recurring_unavailable' : null,
-        };
+        error ?? reason ?? (quote == null ? 'recurring_unavailable' : null);
     final unavailable =
         error == 'recurring_quote_expired' || error == 'quote_expired'
         ? text.zolnitQuoteExpired
-        : code == 'pending_order' || code == 'checkout_exists'
+        : code == 'pending_order' ||
+              code == 'active_subscription' ||
+              code == 'checkout_exists'
         ? zolnitFailureText(context, code, null)
         : text.zolnitQuoteUnavailable;
     String amount(String key, String currency) => NumberFormat.currency(
@@ -1182,10 +1175,20 @@ class _QuoteDetails extends StatelessWidget {
             Wrap(
               children: [
                 TextButton(onPressed: onRetry, child: Text(text.retry)),
-                if (code == 'pending_order' || code == 'checkout_exists')
+                if (code == 'pending_order')
                   TextButton(
                     onPressed: onOrders,
                     child: Text(text.zolnitOrders),
+                  )
+                else if (code == 'active_subscription' ||
+                    code == 'checkout_exists')
+                  TextButton(
+                    onPressed: onManageRenewals,
+                    child: Text(
+                      code == 'active_subscription'
+                          ? text.zolnitManageRenewals
+                          : text.zolnitAccountTitle,
+                    ),
                   ),
               ],
             ),
@@ -1198,13 +1201,12 @@ class _QuoteDetails extends StatelessWidget {
               '${text.zolnitFollowingCharge}: ${amount('total_cents', 'CNY')} / ${amount('charge_amount_cents', 'SGD')}',
               style: zolnitText(context, 11, color: colors.muted),
             ),
-            if (monthly)
-              TextButton(
-                onPressed: !session.busy && quote.validAt(DateTime.now())
-                    ? onAuthorize
-                    : null,
-                child: Text(text.zolnitAuthorizeMonthly),
-              ),
+            TextButton(
+              onPressed: !session.busy && quote.validAt(DateTime.now())
+                  ? onAuthorize
+                  : null,
+              child: Text(text.zolnitAuthorizeMonthly),
+            ),
           ],
         ],
       ),

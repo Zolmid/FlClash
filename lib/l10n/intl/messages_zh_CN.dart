@@ -2044,6 +2044,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDisconnecting": MessageLookupByLibrary.simpleMessage("正在断开…"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("邮箱"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("熟悉的多端体验"),
+    "zolnitExistingRenewal": MessageLookupByLibrary.simpleMessage(
+      "请先在账号页的“自动续费”中取消原套餐续费，再开通新的连续包月。",
+    ),
     "zolnitExpiresOn": m92,
     "zolnitFailure": MessageLookupByLibrary.simpleMessage("操作未完成，请稍后重试。"),
     "zolnitFeatureDevices": m93,
@@ -2104,6 +2107,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "登录你的账户，管理套餐与连接。",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("注册或找回密码"),
+    "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("管理自动续费"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("全局模式"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("智能分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月付"),

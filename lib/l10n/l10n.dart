@@ -12823,6 +12823,26 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Cancel your current plan's automatic renewal in Account before starting monthly billing for another plan.`
+  String get zolnitExistingRenewal {
+    return Intl.message(
+      'Cancel your current plan\'s automatic renewal in Account before starting monthly billing for another plan.',
+      name: 'zolnitExistingRenewal',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Manage automatic renewal`
+  String get zolnitManageRenewals {
+    return Intl.message(
+      'Manage automatic renewal',
+      name: 'zolnitManageRenewals',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

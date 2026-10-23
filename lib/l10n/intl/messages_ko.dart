@@ -2255,6 +2255,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDisconnecting": MessageLookupByLibrary.simpleMessage("연결 해제 중…"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("이메일"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("모든 화면에서 익숙한 경험"),
+    "zolnitExistingRenewal": MessageLookupByLibrary.simpleMessage(
+      "다른 요금제의 월 자동 결제를 시작하려면 계정에서 기존 요금제의 자동 갱신을 먼저 취소하세요.",
+    ),
     "zolnitExpiresOn": m92,
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "요청을 완료하지 못했습니다. 입력 내용이나 연결을 확인한 후 다시 시도하세요.",
@@ -2333,6 +2336,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "로그인하여 요금제와 연결을 관리하세요.",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("가입 또는 비밀번호 찾기"),
+    "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신 관리"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("전체 모드"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("스마트 라우팅"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("매월"),

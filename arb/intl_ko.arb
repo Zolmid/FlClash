@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "연결 페이지를 표시할 수 없습니다. 다시 시도하세요.",
   "zolnitQuoteLabel": "견적",
   "zolnitQuoteUnavailable": "견적을 불러올 수 없습니다. 다시 시도하세요.",
-  "zolnitAuthorizeMonthly": "월 자동 결제 승인"
+  "zolnitAuthorizeMonthly": "월 자동 결제 승인",
+  "zolnitExistingRenewal": "다른 요금제의 월 자동 결제를 시작하려면 계정에서 기존 요금제의 자동 갱신을 먼저 취소하세요.",
+  "zolnitManageRenewals": "자동 갱신 관리"
 }

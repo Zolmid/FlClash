@@ -239,6 +239,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                             2 => ZolnitPlansPage(
                               session: session,
                               onOrderCreated: _showOrders,
+                              onManageRenewals: () => _select(3),
                               compact: !desktop,
                             ),
                             _ => ZolnitAccountPage(

@@ -18,6 +18,19 @@ const _recurringMonths = <String, int>{
   'three_yearly': 36,
 };
 
+String _quoteUnavailableReason(Object? value) => switch (value) {
+  'pending_order' ||
+  'unpaid_order' ||
+  'has_unpaid_orders' ||
+  '请先在‘我的订单’完成或取消待处理订单，再开通连续包月。' ||
+  '请先在“我的订单”完成或取消待处理订单，再开通连续包月。' => 'pending_order',
+  'active_subscription' ||
+  'existing_subscription' ||
+  '请先在个人中心取消原套餐的自动续费，再开通新的连续包月。' => 'active_subscription',
+  'checkout_exists' => 'checkout_exists',
+  _ => 'recurring_unavailable',
+};
+
 class RecurringPlanQuote {
   const RecurringPlanQuote({
     required this.planId,
@@ -143,13 +156,11 @@ class ZolnitBillingClient {
         throw const ClientFailure('invalid_billing_response');
       }
       if (offer['available'] == false) {
-        final reason = offer['unavailable_reason'];
         result[id] = RecurringPlanQuote(
           planId: id,
-          unavailableReason:
-              reason is String && RegExp(r'^[a-z_]{1,80}$').hasMatch(reason)
-              ? reason
-              : 'recurring_unavailable',
+          unavailableReason: _quoteUnavailableReason(
+            offer['unavailable_reason'],
+          ),
         );
       } else {
         result[id] = RecurringPlanQuote(

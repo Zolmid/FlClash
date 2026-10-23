@@ -59,8 +59,11 @@ class _NoPlatform implements CheckoutPlatform {
   }) async => throw StateError('Quote reading must not call payment SDKs');
 }
 
-http.Response _data(Object? data, [int status = 200]) =>
-    http.Response(jsonEncode({'data': data}), status);
+http.Response _data(Object? data, [int status = 200]) => http.Response.bytes(
+  utf8.encode(jsonEncode({'data': data})),
+  status,
+  headers: {'content-type': 'application/json; charset=utf-8'},
+);
 
 void main() {
   late ZolnitSessionController session;
@@ -182,6 +185,51 @@ void main() {
       expect(confirmations, 0);
       expect(platform.openings, 0);
       expect(session.checkout.stage, CheckoutStage.idle);
+    },
+  );
+
+  test(
+    'real unavailable reasons normalize to localized action codes',
+    () async {
+      for (final (reason, expected) in <(Object?, String)>[
+        ('请先在‘我的订单’完成或取消待处理订单，再开通连续包月。', 'pending_order'),
+        ('请先在“我的订单”完成或取消待处理订单，再开通连续包月。', 'pending_order'),
+        ('请先在个人中心取消原套餐的自动续费，再开通新的连续包月。', 'active_subscription'),
+        ('pending_order', 'pending_order'),
+        ('unpaid_order', 'pending_order'),
+        ('has_unpaid_orders', 'pending_order'),
+        ('active_subscription', 'active_subscription'),
+        ('existing_subscription', 'active_subscription'),
+        ('checkout_exists', 'checkout_exists'),
+        ('future_reason', 'recurring_unavailable'),
+        ('未识别的服务端说明', 'recurring_unavailable'),
+        (null, 'recurring_unavailable'),
+        (3, 'recurring_unavailable'),
+      ]) {
+        responseOverride = {
+          'plans': [
+            {
+              'id': 7,
+              'periods': [
+                {
+                  'period': 'monthly',
+                  'available': false,
+                  'unavailable_reason': reason,
+                },
+              ],
+            },
+          ],
+        };
+        final result = await billing.quotePlans(
+          paymentId: 9,
+          period: 'monthly',
+        );
+        expect(result[7]!.quote, isNull);
+        expect(result[7]!.unavailableReason, expected, reason: '$reason');
+      }
+      expect(writes(), isEmpty);
+      expect(confirmations, 0);
+      expect(platform.openings, 0);
     },
   );
 

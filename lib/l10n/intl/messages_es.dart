@@ -2959,6 +2959,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
       "Una experiencia familiar en cada pantalla",
     ),
+    "zolnitExistingRenewal": MessageLookupByLibrary.simpleMessage(
+      "Cancela la renovación automática del plan actual en Cuenta antes de activar el pago mensual de otro plan.",
+    ),
     "zolnitExpiresOn": m92,
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "No se pudo completar la solicitud. Comprueba los datos o la conexión e inténtalo de nuevo.",
@@ -3056,6 +3059,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
       "Registrarse o recuperar la contraseña",
+    ),
+    "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
+      "Gestionar renovación automática",
     ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(

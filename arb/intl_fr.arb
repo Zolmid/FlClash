@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "La page de connexion est indisponible. Réessayez.",
   "zolnitQuoteLabel": "Devis",
   "zolnitQuoteUnavailable": "Le devis est indisponible. Réessayez.",
-  "zolnitAuthorizeMonthly": "Autoriser le paiement mensuel"
+  "zolnitAuthorizeMonthly": "Autoriser le paiement mensuel",
+  "zolnitExistingRenewal": "Annulez le renouvellement automatique du forfait actuel dans Compte avant d'activer le paiement mensuel d'un autre forfait.",
+  "zolnitManageRenewals": "Gérer le renouvellement automatique"
 }

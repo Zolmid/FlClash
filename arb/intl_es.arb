@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "La página de conexión no está disponible. Inténtalo de nuevo.",
   "zolnitQuoteLabel": "Presupuesto",
   "zolnitQuoteUnavailable": "El presupuesto no está disponible. Inténtalo de nuevo.",
-  "zolnitAuthorizeMonthly": "Autorizar el pago mensual"
+  "zolnitAuthorizeMonthly": "Autorizar el pago mensual",
+  "zolnitExistingRenewal": "Cancela la renovación automática del plan actual en Cuenta antes de activar el pago mensual de otro plan.",
+  "zolnitManageRenewals": "Gestionar renovación automática"
 }

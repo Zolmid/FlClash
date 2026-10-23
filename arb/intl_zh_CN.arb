@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "连接页面暂时无法显示，请重试。",
   "zolnitQuoteLabel": "本次报价",
   "zolnitQuoteUnavailable": "暂时无法获取报价，请重试。",
-  "zolnitAuthorizeMonthly": "授权连续包月"
+  "zolnitAuthorizeMonthly": "授权连续包月",
+  "zolnitExistingRenewal": "请先在账号页的“自动续费”中取消原套餐续费，再开通新的连续包月。",
+  "zolnitManageRenewals": "管理自动续费"
 }

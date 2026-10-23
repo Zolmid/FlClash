@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "The connection page is unavailable. Try again.",
   "zolnitQuoteLabel": "Quote",
   "zolnitQuoteUnavailable": "The quote is unavailable. Try again.",
-  "zolnitAuthorizeMonthly": "Authorize monthly billing"
+  "zolnitAuthorizeMonthly": "Authorize monthly billing",
+  "zolnitExistingRenewal": "Cancel your current plan's automatic renewal in Account before starting monthly billing for another plan.",
+  "zolnitManageRenewals": "Manage automatic renewal"
 }

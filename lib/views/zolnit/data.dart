@@ -45,6 +45,7 @@ String zolnitFailureText(
   final text = context.appLocalizations;
   return switch (code) {
     'pending_order' => text.zolnitPendingOrder,
+    'active_subscription' => text.zolnitExistingRenewal,
     'quote_expired' || 'recurring_quote_expired' => text.zolnitQuoteExpired,
     'checkout_exists' => text.zolnitCheckoutExists,
     'checkout_processing' => text.zolnitCheckoutProcessing,

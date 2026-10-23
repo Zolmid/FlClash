@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fl_clash/views/zolnit/account.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,18 +58,18 @@ void main() {
   Object quoteBody(
     String period, {
     int? expiresAt,
-    bool pendingOrder = false,
+    String? unavailableReason,
   }) => {
     'plans': [
       for (final id in [1, 2, 3])
         {
           'id': id,
           'periods': [
-            pendingOrder && id == 2
+            unavailableReason != null && id == 2
                 ? {
                     'period': period,
                     'available': false,
-                    'unavailable_reason': 'pending_order',
+                    'unavailable_reason': unavailableReason,
                   }
                 : quoteOffer(period, expiresAt: expiresAt),
           ],
@@ -424,7 +425,9 @@ void main() {
         if (request.url.path.endsWith('/zolnit-stripe/plans')) {
           return failing
               ? http.Response('{}', 503)
-              : zolnitJson(quoteBody('monthly', pendingOrder: true));
+              : zolnitJson(
+                  quoteBody('monthly', unavailableReason: 'pending_order'),
+                );
         }
         return zolnitPanelFixture(request);
       };
@@ -496,16 +499,162 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       quoteRequests().map((request) => request.url.queryParameters['period']),
-      ['monthly', 'yearly'],
+      ['monthly'],
     );
-    monthly.complete(http.Response('{}', 503));
+    monthly.complete(zolnitJson(quoteBody('monthly')));
     await tester.pumpAndSettle();
     expect(find.text('暂时无法获取报价，请重试。'), findsNothing);
     expect(find.text('授权连续包月'), findsNothing);
-    expect(find.textContaining('首期付款: ¥7.01'), findsNWidgets(3));
+    expect(find.textContaining('首期付款'), findsNothing);
+    expect(find.textContaining('后续付款'), findsNothing);
+    expect(find.text('本次报价'), findsNothing);
+    expect(find.text('每年 ¥268.80，一次支付'), findsOneWidget);
     expectReadOnly();
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final skin in ZolnitSkin.values) {
+    testWidgets(
+      'ordinary cycles never request recurring quotes on ${skin.name}',
+      (tester) async {
+        harness.panel = (request) {
+          if (request.url.path.endsWith('/plan/fetch')) {
+            return zolnitJson([
+              {
+                'id': 8,
+                'name': 'Ordinary',
+                'quarter_price': 1200,
+                'half_year_price': 2200,
+                'year_price': 4200,
+                'two_year_price': 8000,
+                'three_year_price': 11000,
+                'onetime_price': 1500,
+                'reset_price': 500,
+              },
+            ]);
+          }
+          if (request.url.path.endsWith('/zolnit-stripe/config')) {
+            return configuredChannels();
+          }
+          return zolnitPanelFixture(request);
+        };
+        await harness.relogin();
+        await openPlans(tester, skin);
+        for (final label in ['季付', '半年付', '年付', '两年付', '三年付', '一次性', '重置流量']) {
+          await tester.tap(find.text(label));
+          await tester.pumpAndSettle();
+          expect(find.text('Ordinary'), findsOneWidget);
+          expect(quoteRequests(), isEmpty);
+          expect(find.text('连续包月'), findsNothing);
+          expect(find.text('本次报价'), findsNothing);
+          expect(find.textContaining('首期付款'), findsNothing);
+          expect(find.textContaining('后续付款'), findsNothing);
+          expect(find.text('授权连续包月'), findsNothing);
+          expect(tester.takeException(), isNull);
+        }
+        expectReadOnly();
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
+  for (final value in [
+    (
+      name: 'pending order opens Orders',
+      reason: '请先在‘我的订单’完成或取消待处理订单，再开通连续包月。',
+      message:
+          'You have a pending order. Continue paying or close it in Orders before placing another.',
+      action: 'Orders',
+      tab: ZolnitAccountTab.orders,
+    ),
+    (
+      name: 'active renewal opens Account management',
+      reason: '请先在个人中心取消原套餐的自动续费，再开通新的连续包月。',
+      message:
+          "Cancel your current plan's automatic renewal in Account before starting monthly billing for another plan.",
+      action: 'Manage automatic renewal',
+      tab: ZolnitAccountTab.info,
+    ),
+    (
+      name: 'unknown reason stays localized',
+      reason: '当前条件不满足，内部提示不应混入英文界面。',
+      message: 'The quote is unavailable. Try again.',
+      action: null,
+      tab: null,
+    ),
+  ]) {
+    testWidgets('real billing unavailable reason ${value.name}', (
+      tester,
+    ) async {
+      harness.panel = (request) {
+        if (request.url.path.endsWith('/zolnit-stripe/config')) {
+          return configuredChannels();
+        }
+        if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+          return zolnitJson(
+            quoteBody('monthly', unavailableReason: value.reason),
+          );
+        }
+        return zolnitPanelFixture(request);
+      };
+      await harness.relogin();
+      await openPlans(
+        tester,
+        ZolnitSkin.macos,
+        locale: const Locale('en'),
+        label: 'Plans',
+      );
+      final details = find.byKey(const ValueKey('zolnit-monthly-2-1'));
+      expect(
+        find.descendant(of: details, matching: find.text(value.message)),
+        findsOneWidget,
+      );
+      expect(find.text(value.reason), findsNothing);
+      expect(
+        find.descendant(
+          of: details,
+          matching: find.text('Authorize monthly billing'),
+        ),
+        findsNothing,
+      );
+      if (value.action case final action?) {
+        final button = find.descendant(
+          of: details,
+          matching: find.text(action),
+        );
+        expect(button, findsOneWidget);
+        if (value.tab == ZolnitAccountTab.info) {
+          expect(
+            find.descendant(of: details, matching: find.text('Orders')),
+            findsNothing,
+          );
+        }
+        await tester.ensureVisible(button);
+        await tester.pumpAndSettle();
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<ZolnitAccountPage>(find.byType(ZolnitAccountPage)).tab,
+          value.tab,
+        );
+      } else {
+        expect(
+          find.descendant(of: details, matching: find.text('Orders')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: details,
+            matching: find.text('Manage automatic renewal'),
+          ),
+          findsNothing,
+        );
+      }
+      expectReadOnly();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 
   testWidgets('logout and disposal ignore late quotes', (tester) async {
     final response = Completer<http.Response>();

@@ -2874,6 +2874,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
       "Привычный интерфейс на каждом экране",
     ),
+    "zolnitExistingRenewal": MessageLookupByLibrary.simpleMessage(
+      "Отмените автопродление текущего тарифа в разделе аккаунта, прежде чем подключать ежемесячную оплату другого тарифа.",
+    ),
     "zolnitExpiresOn": m92,
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "Не удалось завершить запрос. Проверьте данные и соединение и повторите попытку.",
@@ -2971,6 +2974,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
       "Регистрация или восстановление пароля",
+    ),
+    "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
+      "Управление автопродлением",
     ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Глобальный"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(

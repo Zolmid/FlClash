@@ -2301,6 +2301,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDisconnecting": MessageLookupByLibrary.simpleMessage("切断中…"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("メールアドレス"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("どの画面でも使い慣れた操作"),
+    "zolnitExistingRenewal": MessageLookupByLibrary.simpleMessage(
+      "別のプランの月額自動更新を開始する前に、アカウント画面で現在のプランの自動更新を停止してください。",
+    ),
     "zolnitExpiresOn": m92,
     "zolnitFailure": MessageLookupByLibrary.simpleMessage(
       "処理を完了できませんでした。入力内容と接続を確認し、もう一度お試しください。",
@@ -2375,6 +2378,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "ログインしてプランと接続を管理します。",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("新規登録・パスワード再設定"),
+    "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("自動更新を管理"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("グローバル"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("スマート分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月払い"),

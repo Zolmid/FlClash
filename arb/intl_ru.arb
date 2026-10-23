@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "Страница подключения недоступна. Повторите попытку.",
   "zolnitQuoteLabel": "Расчёт стоимости",
   "zolnitQuoteUnavailable": "Расчёт недоступен. Повторите попытку.",
-  "zolnitAuthorizeMonthly": "Разрешить ежемесячную оплату"
+  "zolnitAuthorizeMonthly": "Разрешить ежемесячную оплату",
+  "zolnitExistingRenewal": "Отмените автопродление текущего тарифа в разделе аккаунта, прежде чем подключать ежемесячную оплату другого тарифа.",
+  "zolnitManageRenewals": "Управление автопродлением"
 }

@@ -1489,5 +1489,7 @@
   "zolnitConnectionPageUnavailable": "接続ページを表示できません。もう一度お試しください。",
   "zolnitQuoteLabel": "お見積り",
   "zolnitQuoteUnavailable": "見積りを取得できません。もう一度お試しください。",
-  "zolnitAuthorizeMonthly": "月額自動更新を承認"
+  "zolnitAuthorizeMonthly": "月額自動更新を承認",
+  "zolnitExistingRenewal": "別のプランの月額自動更新を開始する前に、アカウント画面で現在のプランの自動更新を停止してください。",
+  "zolnitManageRenewals": "自動更新を管理"
 }
