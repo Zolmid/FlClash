@@ -140,7 +140,7 @@ winrt::hstring BrandAssetUri() {
   directory.erase(directory.find_last_of(L"\\/") + 1);
   std::replace(directory.begin(), directory.end(), L'\\', L'/');
   return winrt::hstring(
-      (L"file:///" + directory + L"assets/images/zolnit-horizontal-dark.png").c_str());
+      (L"file:///" + directory + L"data/flutter_assets/assets/images/zolnit-horizontal-dark.png").c_str());
 }
 
 // Unverified against a Windows runtime: ContentPreTranslateMessage is not declared
