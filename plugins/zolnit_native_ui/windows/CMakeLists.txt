@@ -9,8 +9,10 @@ set(ZOLNIT_WEBVIEW2_WINMD "" CACHE FILEPATH
 
 find_program(POWERSHELL_EXECUTABLE powershell REQUIRED)
 set(ZOLNIT_WINAPPSDK_CACHE "${CMAKE_BINARY_DIR}/zolnit_native_ui_winappsdk")
+# Rebuild Windows PowerShell module paths instead of inheriting pwsh-only modules.
 execute_process(
-  COMMAND "${POWERSHELL_EXECUTABLE}" -NoProfile -ExecutionPolicy Bypass -File
+  COMMAND "${CMAKE_COMMAND}" -E env --unset=PSModulePath
+    "${POWERSHELL_EXECUTABLE}" -NoProfile -ExecutionPolicy Bypass -File
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/restore-winappsdk.ps1"
     -CacheDir "${ZOLNIT_WINAPPSDK_CACHE}"
     -WebView2Winmd "${ZOLNIT_WEBVIEW2_WINMD}"
@@ -72,7 +74,8 @@ if(ZOLNIT_PLUGIN_DEFS)
 endif()
 target_compile_options(${PLUGIN_NAME} PRIVATE /permissive- /bigobj)
 target_compile_features(${PLUGIN_NAME} PRIVATE cxx_std_20)
-target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL WINRT_LEAN_AND_MEAN NOMINMAX)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE
+  FLUTTER_PLUGIN_IMPL ZOLNIT_NATIVE_UI_PLUGIN_IMPL WINRT_LEAN_AND_MEAN NOMINMAX)
 target_include_directories(${PLUGIN_NAME} PRIVATE
   "${ZOLNIT_WINDOWS_APP_SDK_DIR}/include"
   "${ZOLNIT_WINAPPSDK_CPPWINRT_INCLUDE}"

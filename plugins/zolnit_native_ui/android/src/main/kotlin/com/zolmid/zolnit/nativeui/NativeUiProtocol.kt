@@ -132,7 +132,7 @@ internal object NativeUiProtocol {
     }
 
     private fun JSONArray.parseServers(): List<NativeUiServer> = buildList {
-        for (index in indices) {
+        for (index in 0 until length()) {
             val server = getJSONObject(index)
             val id = server.requiredString("id")
             val name = server.requiredString("name")

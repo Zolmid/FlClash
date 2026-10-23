@@ -63,7 +63,7 @@ ZolnitNativeUiPlugin::ZolnitNativeUiPlugin(
         HandleMethodCall(call, std::move(result));
       });
 
-  const auto* view = registrar_->GetView();
+  auto* view = registrar_->GetView();
   const HWND flutter_view = view == nullptr ? nullptr : view->GetNativeWindow();
   surface_ = std::make_unique<WinUiSurface>(
       flutter_view, [this](const std::string& command) { PerformCommand(command); });

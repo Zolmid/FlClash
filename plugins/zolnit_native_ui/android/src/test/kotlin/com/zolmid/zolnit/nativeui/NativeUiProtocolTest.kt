@@ -81,7 +81,7 @@ class NativeUiProtocolTest {
         assertTrue(gate.accept(initial))
         assertEquals(false, gate.accept(old))
         assertTrue(gate.accept(replacement))
-        assertEquals(4, gate.current?.accountGeneration)
+        assertEquals(4L, gate.current?.accountGeneration)
     }
 
     @Test
