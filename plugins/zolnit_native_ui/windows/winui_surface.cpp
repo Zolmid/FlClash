@@ -14,6 +14,8 @@
 #include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Microsoft.UI.Xaml.Hosting.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
+#include <winrt/Microsoft.UI.Xaml.Markup.h>
+#include <winrt/Microsoft.UI.Xaml.Automation.h>
 #include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Microsoft.UI.Content.h>
@@ -32,6 +34,7 @@
 #include <sstream>
 #include <limits>
 #include <optional>
+#include <string_view>
 
 namespace zolnit {
 namespace {
@@ -99,7 +102,7 @@ winrt::hstring Label(const wdj::JsonObject& labels, const wchar_t* key) {
 
 winrt::hstring FormatBytes(std::optional<int64_t> value, bool per_second,
                            const winrt::hstring& locale) {
-  static constexpr const wchar_t* kUnits[] = {L"B", L"KB", L"MB", L"GB", L"TB"};
+  static constexpr const wchar_t* kUnits[] = {L"B", L"KiB", L"MiB", L"GiB", L"TiB"};
   if (!value) return L"\u2014";
   double scaled = static_cast<double>(*value);
   size_t unit = 0;
@@ -175,6 +178,14 @@ struct WinUiSurface::State {
   winrt::hstring mode_global_label;
   muxc::TextBlock state_text{nullptr};
   muxc::TextBlock plan_text{nullptr};
+  muxc::TextBlock plan_heading{nullptr};
+  muxc::TextBlock remaining_heading{nullptr};
+  muxc::TextBlock remaining_text{nullptr};
+  muxc::TextBlock route_heading{nullptr};
+  muxc::TextBlock route_text{nullptr};
+  muxc::TextBlock connect_label{nullptr};
+  muxc::TextBlock power_glyph{nullptr};
+  muxc::ProgressBar usage_progress{nullptr};
   muxc::TextBlock traffic_text{nullptr};
   muxc::TextBlock upload_text{nullptr};
   muxc::TextBlock download_text{nullptr};
@@ -276,10 +287,18 @@ void WinUiSurface::BuildView() {
   state_->navigation = muxc::NavigationView();
   state_->navigation.IsSettingsVisible(false);
   state_->navigation.PaneDisplayMode(muxc::NavigationViewPaneDisplayMode::Left);
+  state_->navigation.OpenPaneLength(210);
+  state_->navigation.CompactPaneLength(56);
   for (const auto& destination : {L"connect", L"servers", L"plans", L"account"}) {
     auto item = muxc::NavigationViewItem();
+    auto icon = muxc::FontIcon();
+    icon.FontFamily(mux::Media::FontFamily(L"Segoe MDL2 Assets"));
+    const std::wstring_view target(destination);
+    icon.Glyph(target == L"connect" ? L"\xE80F" : target == L"servers" ? L"\xE774"
+        : target == L"plans" ? L"\xE8C7" : L"\xE77B");
+    item.Icon(icon);
     item.Tag(winrt::box_value(winrt::hstring(destination)));
-    item.Content(winrt::box_value(winrt::hstring(destination)));
+    item.Content(winrt::box_value(winrt::hstring(L"")));
     state_->navigation.MenuItems().Append(item);
   }
   state_->navigation.SelectionChanged([this](auto&&, const auto& args) {
@@ -295,13 +314,10 @@ void WinUiSurface::BuildView() {
   root.Children().Append(state_->navigation);
 
   auto page = muxc::StackPanel();
-  page.Spacing(14);
-  page.Padding(mux::Thickness{28, 24, 28, 24});
-  muxc::Grid::SetColumn(page, 1);
-
-  state_->state_text = muxc::TextBlock();
-  state_->state_text.FontSize(24);
-  page.Children().Append(state_->state_text);
+  page.Spacing(18);
+  page.Padding(mux::Thickness{28, 24, 28, 28});
+  page.MaxWidth(1320);
+  page.HorizontalAlignment(mux::HorizontalAlignment::Stretch);
 
   const auto brand_uri = BrandAssetUri();
   if (!brand_uri.empty()) {
@@ -309,51 +325,192 @@ void WinUiSurface::BuildView() {
     auto brand_source = mux::Media::Imaging::BitmapImage();
     brand_source.UriSource(winrt::Windows::Foundation::Uri(brand_uri));
     brand.Source(brand_source);
-    brand.MaxHeight(36);
-    page.Children().Append(brand);
+    brand.Height(32);
+    brand.HorizontalAlignment(mux::HorizontalAlignment::Left);
+    auto brand_backdrop = muxc::Border();
+    brand_backdrop.Background(mux::Media::SolidColorBrush(winrt::Microsoft::UI::ColorHelper::FromArgb(255, 32, 44, 51)));
+    brand_backdrop.Padding(mux::Thickness{12, 8, 12, 8});
+    brand_backdrop.CornerRadius(mux::CornerRadius{8, 8, 8, 8});
+    brand_backdrop.HorizontalAlignment(mux::HorizontalAlignment::Left);
+    brand_backdrop.Child(brand);
+    page.Children().Append(brand_backdrop);
   }
 
+  auto dashboard = muxc::Grid();
+  dashboard.ColumnSpacing(18);
+  dashboard.RowSpacing(18);
+  for (int index = 0; index < 2; ++index) {
+    dashboard.ColumnDefinitions().Append(muxc::ColumnDefinition());
+    auto row = muxc::RowDefinition();
+    row.Height(mux::GridLengthHelper::FromValueAndType(1, mux::GridUnitType::Auto));
+    dashboard.RowDefinitions().Append(row);
+  }
+  auto hero = muxc::Border();
+  hero.CornerRadius(mux::CornerRadius{8, 8, 8, 8});
+  hero.MinHeight(278);
+  auto hero_grid = muxc::Grid();
+  hero_grid.Padding(mux::Thickness{24, 24, 24, 24});
+  auto map = mux::Markup::XamlReader::Load(LR"(<Viewbox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Opacity="0.09" IsHitTestVisible="False" Margin="8">
+    <Path Width="600" Height="290" Fill="#506A7A" Data="M30,67 L84,23 174,35 204,75 138,116 120,157 66,116 Z M144,139 L222,157 234,197 186,267 162,212 Z M258,55 L330,29 378,52 456,29 570,73 510,122 426,116 390,157 330,113 Z M282,113 L360,125 384,177 324,232 288,177 Z M462,197 L540,194 570,235 498,252 Z"/>
+  </Viewbox>)").as<mux::UIElement>();
+  hero_grid.Children().Append(map);
+  auto hero_content = muxc::StackPanel();
+  hero_content.Spacing(14);
+  hero_content.VerticalAlignment(mux::VerticalAlignment::Center);
+  hero_content.HorizontalAlignment(mux::HorizontalAlignment::Center);
+  state_->state_text = muxc::TextBlock();
+  state_->state_text.FontSize(22);
+  state_->state_text.TextWrapping(mux::TextWrapping::Wrap);
+  state_->state_text.TextAlignment(mux::TextAlignment::Center);
+  hero_content.Children().Append(state_->state_text);
+
   state_->connect_button = muxc::Button();
-  state_->connect_button.MinWidth(160);
+  state_->connect_button.Width(80);
+  state_->connect_button.Height(80);
+  state_->connect_button.CornerRadius(mux::CornerRadius{40, 40, 40, 40});
+  state_->connect_button.HorizontalAlignment(mux::HorizontalAlignment::Center);
+  state_->power_glyph = muxc::TextBlock();
+  state_->power_glyph.FontFamily(mux::Media::FontFamily(L"Segoe MDL2 Assets"));
+  state_->power_glyph.Text(L"\xE7E8");
+  state_->power_glyph.FontSize(30);
+  state_->connect_button.Content(state_->power_glyph);
   state_->connect_button.Click([this](auto&&, auto&&) {
     const auto connection = Text(state_->snapshot, L"connectionState");
     EmitCommand(connection == L"connected" || connection == L"connecting" ? "disconnect" : "connect", "{}");
   });
-  page.Children().Append(state_->connect_button);
+  hero_content.Children().Append(state_->connect_button);
+  state_->connect_label = muxc::TextBlock();
+  state_->connect_label.TextAlignment(mux::TextAlignment::Center);
+  state_->connect_label.TextWrapping(mux::TextWrapping::Wrap);
+  hero_content.Children().Append(state_->connect_label);
+  state_->route_text = muxc::TextBlock();
+  state_->route_text.TextAlignment(mux::TextAlignment::Center);
+  state_->route_text.TextWrapping(mux::TextWrapping::Wrap);
+  hero_content.Children().Append(state_->route_text);
+  hero_grid.Children().Append(hero_content);
+  hero.Child(hero_grid);
+  dashboard.Children().Append(hero);
 
-  state_->mode_box = muxc::ComboBox();
-  state_->mode_box.SelectionChanged([this](auto&&, auto&&) {
-    if (state_->rendering) {
-      return;
-    }
-    const auto index = state_->mode_box.SelectedIndex();
-    if (index >= 0) {
-      EmitCommand("setMode", index == 0 ? "{\"mode\":\"rule\"}" : "{\"mode\":\"global\"}");
-    }
+  auto membership = muxc::Border();
+  membership.CornerRadius(mux::CornerRadius{8, 8, 8, 8});
+  membership.Padding(mux::Thickness{25, 25, 25, 25});
+  membership.MinHeight(278);
+  membership.Background(mux::Media::SolidColorBrush(winrt::Microsoft::UI::ColorHelper::FromArgb(255, 32, 44, 51)));
+  auto membership_content = muxc::StackPanel();
+  membership_content.Spacing(16);
+  const auto membership_text = [](double size, bool muted) {
+    auto text = muxc::TextBlock();
+    text.FontSize(size);
+    text.TextWrapping(mux::TextWrapping::Wrap);
+    text.Foreground(mux::Media::SolidColorBrush(muted
+        ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 168, 183, 189)
+        : winrt::Microsoft::UI::ColorHelper::FromArgb(255, 233, 239, 236)));
+    return text;
+  };
+  state_->plan_heading = membership_text(12, true);
+  state_->plan_text = membership_text(22, false);
+  state_->remaining_heading = membership_text(12, true);
+  state_->remaining_text = membership_text(28, false);
+  state_->traffic_text = membership_text(12, true);
+  state_->usage_progress = muxc::ProgressBar();
+  state_->usage_progress.Maximum(1);
+  state_->usage_progress.IsIndeterminate(false);
+  state_->usage_progress.Foreground(mux::Media::SolidColorBrush(winrt::Microsoft::UI::ColorHelper::FromArgb(255, 171, 199, 214)));
+  membership_content.Children().Append(state_->plan_heading);
+  membership_content.Children().Append(state_->plan_text);
+  membership_content.Children().Append(state_->remaining_heading);
+  membership_content.Children().Append(state_->remaining_text);
+  membership_content.Children().Append(state_->usage_progress);
+  membership_content.Children().Append(state_->traffic_text);
+  membership.Child(membership_content);
+  muxc::Grid::SetRow(membership, 1);
+  dashboard.Children().Append(membership);
+  dashboard.SizeChanged([membership](const auto& sender, const auto& args) {
+    const auto dashboard = sender.template as<muxc::Grid>();
+    const bool wide = args.NewSize().Width >= 720;
+    dashboard.ColumnDefinitions().GetAt(0).Width(mux::GridLengthHelper::FromValueAndType(wide ? 1.35 : 1, mux::GridUnitType::Star));
+    dashboard.ColumnDefinitions().GetAt(1).Width(wide
+        ? mux::GridLengthHelper::FromValueAndType(1, mux::GridUnitType::Star)
+        : mux::GridLengthHelper::FromPixels(0));
+    muxc::Grid::SetColumn(membership, wide ? 1 : 0);
+    muxc::Grid::SetRow(membership, wide ? 0 : 1);
   });
-  page.Children().Append(state_->mode_box);
+  page.Children().Append(dashboard);
 
-  state_->plan_text = muxc::TextBlock();
-  state_->traffic_text = muxc::TextBlock();
+  auto rates = muxc::Border();
+  rates.Padding(mux::Thickness{20, 16, 20, 16});
+  rates.CornerRadius(mux::CornerRadius{8, 8, 8, 8});
+  auto rate_content = muxc::StackPanel();
+  rate_content.Spacing(12);
   state_->upload_text = muxc::TextBlock();
   state_->download_text = muxc::TextBlock();
-  page.Children().Append(state_->plan_text);
-  page.Children().Append(state_->traffic_text);
-  page.Children().Append(state_->upload_text);
-  page.Children().Append(state_->download_text);
+  state_->upload_text.TextWrapping(mux::TextWrapping::Wrap);
+  state_->download_text.TextWrapping(mux::TextWrapping::Wrap);
+  rate_content.Children().Append(state_->upload_text);
+  rate_content.Children().Append(state_->download_text);
+  rates.Child(rate_content);
+  page.Children().Append(rates);
 
+  auto routes = muxc::Border();
+  routes.Padding(mux::Thickness{20, 20, 20, 20});
+  routes.CornerRadius(mux::CornerRadius{8, 8, 8, 8});
+  auto route_content = muxc::StackPanel();
+  route_content.Spacing(14);
+  state_->route_heading = muxc::TextBlock();
+  state_->route_heading.FontSize(16);
+  route_content.Children().Append(state_->route_heading);
+  state_->mode_box = muxc::ComboBox();
+  state_->mode_box.HorizontalAlignment(mux::HorizontalAlignment::Stretch);
+  state_->mode_box.SelectionChanged([this](auto&&, auto&&) {
+    if (state_->rendering) return;
+    const auto index = state_->mode_box.SelectedIndex();
+    if (index >= 0) EmitCommand("setMode", index == 0 ? "{\"mode\":\"rule\"}" : "{\"mode\":\"global\"}");
+  });
+  route_content.Children().Append(state_->mode_box);
   state_->server_list = muxc::ListView();
   state_->server_list.SelectionChanged([this](auto&&, const auto& args) {
-    if (state_->rendering) {
-      return;
-    }
+    if (state_->rendering) return;
     const auto selected = args.AddedItems().Size() == 0 ? nullptr : args.AddedItems().GetAt(0).try_as<muxc::NavigationViewItem>();
     if (selected != nullptr && selected.Tag() != nullptr) {
       EmitCommand("selectServer", "{\"serverId\":\"" + EscapeJson(Utf8(winrt::unbox_value<winrt::hstring>(selected.Tag()))) + "\"}");
     }
   });
-  page.Children().Append(state_->server_list);
-  root.Children().Append(page);
+  route_content.Children().Append(state_->server_list);
+  routes.Child(route_content);
+  page.Children().Append(routes);
+
+  auto scroll = muxc::ScrollViewer();
+  scroll.HorizontalScrollBarVisibility(muxc::ScrollBarVisibility::Disabled);
+  scroll.Content(page);
+  muxc::Grid::SetColumn(scroll, 1);
+  root.Children().Append(scroll);
+  root.SizeChanged([rail, navigation = state_->navigation](auto&&, const auto& args) {
+    const bool compact = args.NewSize().Width < 760;
+    rail.Width(mux::GridLengthHelper::FromPixels(compact ? 56 : 210));
+    navigation.PaneDisplayMode(compact ? muxc::NavigationViewPaneDisplayMode::LeftCompact : muxc::NavigationViewPaneDisplayMode::Left);
+    navigation.IsPaneOpen(!compact);
+  });
+  const auto apply_palette = [this, hero, rates, routes] {
+    const bool dark = state_->root.ActualTheme() == mux::ElementTheme::Dark;
+    const auto ink = mux::Media::SolidColorBrush(dark
+        ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 233, 239, 236)
+        : winrt::Microsoft::UI::ColorHelper::FromArgb(255, 40, 54, 62));
+    const auto paper = mux::Media::SolidColorBrush(dark
+        ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 21, 30, 36)
+        : winrt::Microsoft::UI::ColorHelper::FromArgb(255, 243, 244, 239));
+    const auto surface = mux::Media::SolidColorBrush(dark
+        ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 32, 44, 51)
+        : winrt::Microsoft::UI::ColorHelper::FromArgb(255, 255, 253, 249));
+    state_->root.Background(paper);
+    state_->navigation.Background(paper);
+    hero.Background(surface);
+    rates.Background(surface);
+    routes.Background(surface);
+    for (const auto& text : {state_->state_text, state_->connect_label, state_->route_text,
+                             state_->route_heading, state_->upload_text, state_->download_text}) text.Foreground(ink);
+  };
+  root.ActualThemeChanged([apply_palette](auto&&, auto&&) { apply_palette(); });
+  apply_palette();
   state_->source.Content(root);
 }
 
@@ -400,6 +557,9 @@ void WinUiSurface::ClearAccountState() {
   state_->servers_fingerprint.clear();
   state_->connection_command_pending = false;
   state_->plan_text.Text(L"");
+  state_->remaining_text.Text(L"");
+  state_->route_text.Text(L"");
+  state_->usage_progress.Visibility(mux::Visibility::Collapsed);
   state_->traffic_text.Text(L"");
   state_->upload_text.Text(L"");
   state_->download_text.Text(L"");
@@ -433,7 +593,17 @@ void WinUiSurface::Render() {
       : session == L"offline" ? Label(labels, L"offline")
       : session == L"signedOut" ? Label(labels, L"signIn") : Label(labels, L"disconnected");
   state_->state_text.Text(state_label);
-  state_->connect_button.Content(winrt::box_value(connection == L"connected" ? Label(labels, L"disconnect") : Label(labels, L"connect")));
+  const auto action_label = connection == L"connected" ? Label(labels, L"disconnect") : Label(labels, L"connect");
+  state_->connect_label.Text(safe_mode ? Label(labels, L"safeMode") : action_label);
+  mux::Automation::AutomationProperties::SetName(state_->connect_button, action_label);
+  const bool dark = state_->root.ActualTheme() == mux::ElementTheme::Dark;
+  state_->connect_button.Background(mux::Media::SolidColorBrush(connection == L"connected"
+      ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 80, 106, 122)
+      : dark ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 52, 73, 84)
+             : winrt::Microsoft::UI::ColorHelper::FromArgb(255, 220, 231, 237)));
+  state_->connect_button.Foreground(mux::Media::SolidColorBrush(connection == L"connected" || dark
+      ? winrt::Microsoft::UI::ColorHelper::FromArgb(255, 233, 239, 236)
+      : winrt::Microsoft::UI::ColorHelper::FromArgb(255, 80, 106, 122)));
   state_->connect_button.IsEnabled(actionable && !state_->connection_command_pending);
 
   const auto rule_label = Label(labels, L"smartMode");
@@ -450,15 +620,41 @@ void WinUiSurface::Render() {
   state_->server_list.IsEnabled(session == L"signedIn" && !safe_mode);
 
   const auto plan = Text(state_->snapshot, L"planName");
-  state_->plan_text.Text(plan.empty() ? Label(labels, L"noPlan") : Label(labels, L"currentPlan") + L": " + plan);
+  state_->plan_heading.Text(Label(labels, L"currentPlan"));
+  state_->remaining_heading.Text(Label(labels, L"trafficRemaining"));
+  state_->route_heading.Text(Label(labels, L"selectServer"));
+  state_->plan_text.Text(plan.empty() ? Label(labels, L"noPlan") : plan);
   const auto locale = Text(state_->snapshot, L"locale", L"en");
-  state_->traffic_text.Text(Label(labels, L"trafficUsed") + L": " +
-                            FormatBytes(OptionalInteger(usage, L"usedBytes"), false, locale));
+  const auto used = OptionalInteger(usage, L"usedBytes");
+  const auto total = OptionalInteger(usage, L"totalBytes");
+  state_->remaining_text.Text(used && total
+      ? FormatBytes((std::max)(int64_t{0}, *total - *used), false, locale) : L"\u2014");
+  state_->traffic_text.Text(Label(labels, L"trafficUsed") + L" \u00B7 " +
+      FormatBytes(used, false, locale) + L" / " + FormatBytes(total, false, locale));
+  state_->usage_progress.Visibility(used && total && *total > 0 ? mux::Visibility::Visible : mux::Visibility::Collapsed);
+  state_->usage_progress.Value(used && total && *total > 0
+      ? (std::min)(1.0, static_cast<double>(*used) / static_cast<double>(*total)) : 0);
   state_->upload_text.Text(Label(labels, L"upload") + L": " +
                            FormatBytes(OptionalInteger(traffic, L"uploadBps"), true, locale));
   state_->download_text.Text(Label(labels, L"download") + L": " +
                              FormatBytes(OptionalInteger(traffic, L"downloadBps"), true, locale));
 
+  winrt::hstring selected_route = L"\u2014";
+  for (const auto& value : servers) {
+    const auto server = value.GetObject();
+    if (Text(server, L"id") == Text(state_->snapshot, L"selectedServerId")) {
+      selected_route = Text(server, L"name");
+      const auto latency = OptionalInteger(server, L"latencyMs");
+      auto languages = winrt::single_threaded_vector<winrt::hstring>();
+      languages.Append(locale);
+      auto formatter = winrt::Windows::Globalization::NumberFormatting::DecimalFormatter(
+          languages, winrt::Windows::Globalization::GeographicRegion().Code());
+      formatter.FractionDigits(0);
+      selected_route = selected_route + L" \u00B7 " + (latency ? formatter.FormatInt(*latency) + L" ms" : L"\u2014");
+      break;
+    }
+  }
+  state_->route_text.Text(selected_route);
   const auto servers_fingerprint = Utf8(servers.Stringify());
   if (servers_fingerprint != state_->servers_fingerprint) {
     state_->server_list.Items().Clear();
