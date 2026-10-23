@@ -6,6 +6,7 @@ import 'api.dart';
 import 'catalog.dart';
 import 'checkout.dart';
 import 'subscriptions.dart';
+import 'session_vault.dart';
 
 class _SessionWork {
   _SessionWork(this.epoch, this.generation, this.sequence);
@@ -15,12 +16,16 @@ class _SessionWork {
   final int sequence;
 }
 
+enum ZolnitRestoreState { signedOut, restoring, signedIn, offline, expired }
+
 class ZolnitSessionController extends ChangeNotifier {
   ZolnitSessionController({
     required this.api,
     required ZolnitBillingClient billing,
     required this.checkout,
+    this.vault,
     this.confirmRecurring,
+    this.onAuthenticationInvalidated,
   }) : _billing = billing {
     checkout.addListener(_checkoutChanged);
   }
@@ -29,6 +34,8 @@ class ZolnitSessionController extends ChangeNotifier {
   final ZolnitBillingClient _billing;
   final CheckoutController checkout;
   final Future<bool> Function(Json terms)? confirmRecurring;
+  final ZolnitSessionVault? vault;
+  final Future<void> Function()? onAuthenticationInvalidated;
   final Map<String, Future<dynamic>> _flights = {};
   final Map<String, String?> _intents = {};
   bool _disposed = false;
@@ -42,6 +49,8 @@ class ZolnitSessionController extends ChangeNotifier {
   int _sequence = 0;
   int _coreSequence = 0;
   int _billingSequence = 0;
+  int _vaultGeneration = 0;
+  Future<void> _vaultTail = Future.value();
   String? _failure;
   String? _billingFailure;
   String? _failureMessage;
@@ -65,8 +74,11 @@ class ZolnitSessionController extends ChangeNotifier {
   List<ZolnitPlan> _planModels = const [];
   List<ZolnitNotice> _noticeModels = const [];
   ZolnitUsage? _usageModel;
+  ZolnitRestoreState _restoreState = ZolnitRestoreState.signedOut;
 
   bool get authenticated => _authenticated;
+  ZolnitRestoreState get restoreState => _restoreState;
+  bool get restoring => _restoreState == ZolnitRestoreState.restoring;
   int get accountGeneration => _epoch;
   bool get busy => _flights.isNotEmpty;
   String? get failure => _failure;
@@ -196,6 +208,28 @@ class ZolnitSessionController extends ChangeNotifier {
         return await action(work);
       } catch (error) {
         if (_current(work)) {
+          final invalid =
+              _authenticated &&
+              error is ClientFailure &&
+              error.code == 'unauthenticated';
+          if (invalid) {
+            final deletion = _invalidate();
+            final invalidatedEpoch = _epoch;
+            _restoreState = ZolnitRestoreState.expired;
+            _failure = 'unauthenticated';
+            notifyListeners();
+            try {
+              await Future.wait<void>([
+                deletion,
+                Future<void>.sync(() async {
+                  if (!_disposed && _epoch == invalidatedEpoch) {
+                    await onAuthenticationInvalidated?.call();
+                  }
+                }),
+              ]);
+            } catch (_) {}
+            return fallback;
+          }
           if (billing && work.sequence == _billingSequence) {
             _billingFailure = _code(error);
             _billingFailureMessage = _message(error);
@@ -222,9 +256,11 @@ class ZolnitSessionController extends ChangeNotifier {
     if (_disposed) return Future.value();
     final active = _flights['login'];
     if (active != null) return active as Future<void>;
-    _invalidate();
+    final deletion = _invalidate();
     return _run<void>('login', null, (work) async {
       try {
+        await deletion;
+        if (!_current(work)) return;
         final result = await api.login(email, password);
         if (!_current(work)) return;
         final authorization = result['auth_data'];
@@ -234,7 +270,12 @@ class ZolnitSessionController extends ChangeNotifier {
         api.setAuthorization(authorization);
         work.generation = api.generation;
         await _loadCore(work);
-        if (_current(work)) _authenticated = true;
+        if (_current(work)) {
+          await _writeAuthorization(work, authorization);
+          if (!_current(work)) return;
+          _authenticated = true;
+          _restoreState = ZolnitRestoreState.signedIn;
+        }
       } catch (_) {
         if (_current(work)) {
           api.setAuthorization(null);
@@ -244,6 +285,91 @@ class ZolnitSessionController extends ChangeNotifier {
         rethrow;
       }
     }, login: true);
+  }
+
+  Future<void> restore() {
+    if (_disposed || _authenticated) return Future.value();
+    final active = _flights['restore'];
+    if (active != null) return active as Future<void>;
+    final vault = this.vault;
+    if (vault == null) return Future.value();
+    _restoreState = ZolnitRestoreState.restoring;
+    notifyListeners();
+    final work = _SessionWork(_epoch, api.generation, ++_sequence);
+    late final Future<void> operation;
+    operation = Future<void>.microtask(() async {
+      try {
+        String? authorization;
+        await _queueVault(() async {
+          if (_current(work)) authorization = await vault.readAuthorization();
+        });
+        if (!_current(work)) return;
+        final restoredAuthorization = authorization;
+        if (restoredAuthorization == null || restoredAuthorization.isEmpty) {
+          _restoreState = ZolnitRestoreState.signedOut;
+          return;
+        }
+        api.setAuthorization(restoredAuthorization);
+        work.generation = api.generation;
+        await _loadCore(work);
+        if (_current(work)) {
+          _authenticated = true;
+          _restoreState = ZolnitRestoreState.signedIn;
+        }
+      } catch (error) {
+        if (_current(work)) {
+          final invalid =
+              error is ClientFailure &&
+              (error.code == 'unauthenticated' ||
+                  error.code == 'invalid_authorization');
+          api.setAuthorization(null);
+          work.generation = api.generation;
+          _clearSnapshots();
+          if (invalid) await _deleteAuthorization(work);
+          if (!_current(work)) return;
+          _restoreState = invalid
+              ? ZolnitRestoreState.expired
+              : ZolnitRestoreState.offline;
+          _failure = invalid ? 'unauthenticated' : _code(error);
+          _failureMessage = invalid ? null : _message(error);
+        }
+      } finally {
+        if (identical(_flights['restore'], operation)) {
+          unawaited(_flights.remove('restore'));
+          if (!_disposed) notifyListeners();
+        }
+      }
+    });
+    _flights['restore'] = operation;
+    return operation;
+  }
+
+  Future<void> _writeAuthorization(_SessionWork work, String authorization) {
+    final vault = this.vault;
+    if (vault == null) return Future.value();
+    final generation = _vaultGeneration;
+    return _queueVault(() async {
+      if (_current(work) && generation == _vaultGeneration) {
+        await vault.writeAuthorization(authorization);
+      }
+    });
+  }
+
+  Future<void> _deleteAuthorization(_SessionWork work) {
+    final vault = this.vault;
+    if (vault == null) return Future.value();
+    final generation = _vaultGeneration;
+    return _queueVault(() async {
+      if (generation == _vaultGeneration) {
+        await vault.deleteAuthorization();
+      }
+    });
+  }
+
+  Future<void> _queueVault(Future<void> Function() action) {
+    final operation = _vaultTail.catchError((_) {}).then((_) => action());
+    _vaultTail = operation.catchError((_) {});
+    return operation;
   }
 
   void _clearSnapshots() {
@@ -261,8 +387,9 @@ class ZolnitSessionController extends ChangeNotifier {
     _completedTrade = null;
   }
 
-  void _invalidate() {
+  Future<void> _invalidate({bool deleteAuthorization = true}) {
     _epoch++;
+    _vaultGeneration++;
     _flights.clear();
     _intents.clear();
     api.setAuthorization(null);
@@ -271,18 +398,27 @@ class ZolnitSessionController extends ChangeNotifier {
     _billingFailure = null;
     _failureMessage = null;
     _billingFailureMessage = null;
+    _restoreState = ZolnitRestoreState.signedOut;
     _invalidating = true;
     try {
       checkout.reset();
     } finally {
       _invalidating = false;
     }
+    if (!deleteAuthorization) return Future.value();
+    final vault = this.vault;
+    if (vault == null) return Future.value();
+    final generation = _vaultGeneration;
+    return _queueVault(() async {
+      if (generation == _vaultGeneration) await vault.deleteAuthorization();
+    });
   }
 
-  void logout() {
-    if (_disposed) return;
-    _invalidate();
+  Future<void> logout() {
+    if (_disposed) return Future.value();
+    final deletion = _invalidate();
     notifyListeners();
+    return deletion;
   }
 
   static Json _object(dynamic value) {

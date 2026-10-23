@@ -199,7 +199,7 @@ void main() {
     await harness.mount(tester, ZolnitSkin.macos);
     await tester.tap(find.text('账号').first);
     await tester.pump();
-    harness.session.logout();
+    await harness.session.logout();
     pending.complete(
       zolnitJson([
         {'id': 99, 'name': 'OLD_SESSION'},
@@ -239,7 +239,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(preferences);
       await tester.pumpAndSettle();
-      expect(find.text('按你的习惯连接。'), findsOneWidget);
+      expect(find.text('设置'), findsOneWidget);
       expect(find.text('启动后自动连接'), findsOneWidget);
       expect(find.text('重新连接'), findsNothing);
       expect(harness.container.read(appSettingProvider).autoRun, isFalse);

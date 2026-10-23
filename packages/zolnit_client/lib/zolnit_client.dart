@@ -13,6 +13,7 @@ export 'src/platform_payments.dart';
 export 'src/policy.dart';
 export 'src/qr_view.dart';
 export 'src/session.dart';
+export 'src/session_vault.dart';
 export 'src/subscriptions.dart';
 export 'src/support.dart';
 export 'src/traffic.dart';

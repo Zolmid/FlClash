@@ -1,0 +1,28 @@
+name: zolnit_native_ui
+description: Native ZolNit surfaces backed by the shared application service.
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+  flutter: '>=3.47.0'
+dependencies:
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.zolmid.zolnit.nativeui
+        pluginClass: ZolnitNativeUiPlugin
+      ios:
+        pluginClass: ZolnitNativeUiPlugin
+        sharedDarwinSource: true
+      macos:
+        pluginClass: ZolnitNativeUiPlugin
+        sharedDarwinSource: true
+      windows:
+        pluginClass: ZolnitNativeUiPluginCApi

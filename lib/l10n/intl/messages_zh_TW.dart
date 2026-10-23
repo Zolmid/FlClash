@@ -233,7 +233,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(rate) => "${rate}× 計量";
 
-  static String m98(count) => "${count} 個節點";
+  static String m98(count) => "線路：${count}";
 
   static String m99(count) => "/ ${count} 台";
 
@@ -1982,20 +1982,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("是"),
     "zhCN": MessageLookupByLibrary.simpleMessage("簡體中文"),
     "zhTW": MessageLookupByLibrary.simpleMessage("正體中文"),
-    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage("有問題，我們在這裡"),
+    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage("取得協助"),
     "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
       "查看開通與續費訂單",
     ),
     "zolnitAccountPassword": MessageLookupByLibrary.simpleMessage("登入密碼"),
     "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
-      "依你的習慣連線",
+      "連線設定",
     ),
-    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage("屬於你的連線空間。"),
+    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage("查看帳號資訊和訂單。"),
     "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("我的帳戶"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("開通中"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("進階設定"),
-    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage("查看連線設定與更多選項"),
-    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部節點"),
+    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部線路"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("全部地區"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("應付金額"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("帳戶餘額"),
@@ -2023,13 +2022,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("選擇方案"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("已完成"),
-    "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage("輕輕一點，即刻連線"),
+    "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("連線"),
+    "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage("準備連線"),
     "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage("啟動後自動連線"),
     "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
-      "使用上一次選擇的訂閱設定檔。",
+      "啟動時自動連線到上次使用的線路。",
     ),
-    "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
-      "選擇你的線路，剩下的交給 ZolNit。",
+    "zolnitConnectSub": MessageLookupByLibrary.simpleMessage("連線到套餐包含的線路。"),
+    "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "連線頁面暫時無法顯示，請重試。",
     ),
     "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("複製邀請碼"),
     "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("複製連結"),
@@ -2039,6 +2040,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("已折抵"),
     "zolnitCurrentBadge": MessageLookupByLibrary.simpleMessage("目前方案"),
     "zolnitCurrentPlanHint": m89,
+    "zolnitCurrentPlanLabel": MessageLookupByLibrary.simpleMessage("目前套餐"),
     "zolnitCurrentPlanLine": m90,
     "zolnitCurrentSelection": MessageLookupByLibrary.simpleMessage("目前選擇"),
     "zolnitCycleHalfYear": MessageLookupByLibrary.simpleMessage("半年"),
@@ -2055,10 +2057,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
       "暫時無法取得登入工作階段，請重試。",
     ),
+    "zolnitDisconnectAction": MessageLookupByLibrary.simpleMessage("中斷連線"),
+    "zolnitDisconnecting": MessageLookupByLibrary.simpleMessage("正在中斷連線…"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("電子郵件"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("熟悉的多端體驗"),
     "zolnitExpiresOn": m92,
-    "zolnitFailure": MessageLookupByLibrary.simpleMessage("操作未完成，請檢查輸入或網路後重試。"),
+    "zolnitFailure": MessageLookupByLibrary.simpleMessage("操作未完成，請稍後重試。"),
     "zolnitFeatureDevices": m93,
     "zolnitFeatureSpeed": m94,
     "zolnitFeatureTraffic": m95,
@@ -2071,7 +2075,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage("全球優選線路"),
     "zolnitGreeting": m96,
-    "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage("準備好，去看看更大的世界。"),
+    "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage("查看套餐和可用線路。"),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("半年付"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("說明與支援"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("邀請碼"),
@@ -2117,9 +2121,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "登入你的帳戶，管理方案與連線。",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("註冊或找回密碼"),
-    "zolnitMembershipEyebrow": MessageLookupByLibrary.simpleMessage(
-      "YOUR MEMBERSHIP",
-    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("全域模式"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("智慧分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月付"),
@@ -2131,11 +2132,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "你還沒有有效方案，選擇一個開始使用。",
     ),
     "zolnitNoDevices": MessageLookupByLibrary.simpleMessage("暫無可顯示的登入工作階段。"),
-    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
-      "沒有符合的節點，試試其他關鍵字或地區。",
-    ),
+    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage("沒有相符的線路。"),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage("暫無可用付款方式"),
-    "zolnitNoNodes": MessageLookupByLibrary.simpleMessage("目前訂閱暫無可用節點。"),
+    "zolnitNoNodes": MessageLookupByLibrary.simpleMessage("目前套餐暫無可用線路。"),
     "zolnitNoNotices": MessageLookupByLibrary.simpleMessage("暫無公告"),
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("暫無訂單"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("暫無有效方案"),
@@ -2144,14 +2143,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "延遲以最近一次實際檢測為準，未檢測時顯示 —。",
     ),
     "zolnitNodeMultiplier": m97,
-    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("節點名稱"),
-    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
-      "同步訂閱後，選擇設定檔中的節點。",
-    ),
+    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("線路"),
+    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用線路會隨套餐自動更新。"),
     "zolnitNodesCount": m98,
-    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("你的世界，從這裡出發。"),
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("線路"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "選擇一條喜歡的線路，輕鬆連線。",
+      "線路會隨帳號套餐自動更新。",
     ),
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage("目前尚未連線"),
     "zolnitNotices": MessageLookupByLibrary.simpleMessage("公告"),
@@ -2184,24 +2181,20 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitPlanValidity": MessageLookupByLibrary.simpleMessage("方案有效期"),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("方案"),
-    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage(
-      "剛剛好的方案，剛剛好的自由。",
-    ),
+    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage("套餐"),
     "zolnitPlansSub": MessageLookupByLibrary.simpleMessage(
       "從日常瀏覽到流暢影音，選擇適合你的連線方式。",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("偏好設定"),
-    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
-      "依你的習慣連線。",
-    ),
+    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage("設定"),
     "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
       "安全模式會保留你的偏好，但不會自動連線或變更系統網路。",
     ),
     "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "只留下真正需要的幾項偏好。",
+      "管理啟動和連線設定。",
     ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
-      "節點與分流規則由 ZolNit 自動同步。",
+      "線路會隨帳號套餐自動更新。",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("季付"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
@@ -2211,7 +2204,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "結算報價已過期，請返回方案頁重新選擇。",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage("操作過於頻繁，請稍後重試。"),
-    "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage("為你推薦的節點"),
+    "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage("推薦線路"),
     "zolnitRecommendedNodesSub": MessageLookupByLibrary.simpleMessage(
       "就近優選，讓連線再快一點",
     ),
@@ -2232,6 +2225,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自動續訂"),
     "zolnitResetInDays": m100,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("重設流量"),
+    "zolnitRestoringSession": MessageLookupByLibrary.simpleMessage("正在恢復登入…"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("恢復自動續訂"),
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "恢復後將按已授權的方案安排自動扣款。",
@@ -2243,16 +2237,21 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "結束此登入工作階段？該裝置需重新登入才能管理帳戶。",
     ),
+    "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "安全模式不會修改系統網路。",
     ),
     "zolnitSavePercent": m101,
-    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜尋節點或地區"),
+    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜尋線路或地區"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("選擇"),
-    "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
-      "登入狀態僅保留到本次應用程式關閉。",
+    "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("選擇線路"),
+    "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
+      "登入已失效，請重新登入。",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登入"),
+    "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
+      "電子郵件或密碼不正確，請重試。",
+    ),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("登出"),
     "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage("開機時啟動 ZolNit"),
     "zolnitStartOnBootHint": MessageLookupByLibrary.simpleMessage(
@@ -2262,9 +2261,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("已到期"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("未訂閱"),
     "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage("選擇方案"),
-    "zolnitSync": MessageLookupByLibrary.simpleMessage("同步連線設定"),
-    "zolnitSynced": MessageLookupByLibrary.simpleMessage("連線設定已同步"),
-    "zolnitSyncing": MessageLookupByLibrary.simpleMessage("正在同步連線設定…"),
+    "zolnitSync": MessageLookupByLibrary.simpleMessage("同步帳號資料"),
+    "zolnitSynced": MessageLookupByLibrary.simpleMessage("帳號資料已同步"),
+    "zolnitSyncing": MessageLookupByLibrary.simpleMessage("正在同步帳號資料…"),
     "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("帳戶資訊"),
     "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("邀請有禮"),
     "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("訂單記錄"),
@@ -2277,7 +2276,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("查看包月報價"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("開啟 ZolNit 網站"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("歡迎回來"),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("我的空間"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("年付"),
   };
 }

@@ -12,12 +12,10 @@ import 'skin.dart';
 class ZolnitPreferencesPage extends ConsumerWidget {
   const ZolnitPreferencesPage({
     super.key,
-    required this.openAdvanced,
     required this.openWebsite,
     this.compact = false,
   });
 
-  final VoidCallback openAdvanced;
   final VoidCallback openWebsite;
   final bool compact;
 
@@ -104,13 +102,6 @@ class ZolnitPreferencesPage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           child: generateSection(
             items: [
-              ListItem(
-                leading: const GlyphIcon(AppGlyphs.sliders),
-                title: Text(text.zolnitAdvanced),
-                subtitle: Text(text.zolnitAdvancedHint),
-                trailing: const GlyphIcon(AppGlyphs.chevronForward),
-                onTap: openAdvanced,
-              ),
               ListItem(
                 leading: const GlyphIcon(AppGlyphs.info),
                 title: Text(text.about),

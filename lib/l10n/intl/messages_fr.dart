@@ -271,7 +271,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(rate) => "Mesure ${rate}×";
 
-  static String m98(count) => "${count} nœuds";
+  static String m98(count) => "Serveurs : ${count}";
 
   static String m99(count) => "/ ${count}";
 
@@ -2844,7 +2844,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zhCN": MessageLookupByLibrary.simpleMessage("Chinois simplifié"),
     "zhTW": MessageLookupByLibrary.simpleMessage("Chinois traditionnel"),
     "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage(
-      "Une question ? Nous sommes là",
+      "Obtenir de l’aide",
     ),
     "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
       "Voir les commandes d\'activation et de renouvellement",
@@ -2853,20 +2853,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Mot de passe de connexion",
     ),
     "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
-      "Connectez-vous à votre façon",
+      "Paramètres de connexion",
     ),
     "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage(
-      "Votre espace de connexion.",
+      "Consultez les informations du compte et les commandes.",
     ),
     "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("Mon compte"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage(
       "Activation en cours",
     ),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("Réglages avancés"),
-    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage(
-      "Voir les profils de connexion et plus d\'options",
-    ),
-    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Tous les nœuds"),
+    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Tous les serveurs"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage(
       "Toutes les régions",
     ),
@@ -2906,6 +2903,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Choisir ce forfait",
     ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Terminée"),
+    "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("Se connecter"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Un geste, et vous êtes connecté",
     ),
@@ -2913,10 +2911,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Connexion automatique au lancement",
     ),
     "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
-      "Utilise le dernier profil d\'abonnement sélectionné.",
+      "Au lancement, connexion automatique au dernier serveur utilisé.",
     ),
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
-      "Choisissez votre route, ZolNit s’occupe du reste.",
+      "Connectez-vous aux serveurs inclus dans votre forfait.",
+    ),
+    "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "La page de connexion est indisponible. Réessayez.",
     ),
     "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("Copier le code"),
     "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("Copier le lien"),
@@ -2928,6 +2929,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Forfait actuel",
     ),
     "zolnitCurrentPlanHint": m89,
+    "zolnitCurrentPlanLabel": MessageLookupByLibrary.simpleMessage(
+      "Forfait actuel",
+    ),
     "zolnitCurrentPlanLine": m90,
     "zolnitCurrentSelection": MessageLookupByLibrary.simpleMessage(
       "Sélectionné",
@@ -2948,6 +2952,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
       "Impossible de charger les sessions de connexion pour le moment. Veuillez réessayer.",
     ),
+    "zolnitDisconnectAction": MessageLookupByLibrary.simpleMessage(
+      "Déconnecter",
+    ),
+    "zolnitDisconnecting": MessageLookupByLibrary.simpleMessage("Déconnexion…"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("Adresse e-mail"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
       "Une expérience familière sur chaque écran",
@@ -2977,7 +2985,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitGreeting": m96,
     "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage(
-      "Prêt à découvrir un monde plus vaste.",
+      "Consultez votre forfait et les serveurs disponibles.",
     ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
       "Tous les six mois",
@@ -3052,9 +3060,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage(
       "S’inscrire ou récupérer son mot de passe",
     ),
-    "zolnitMembershipEyebrow": MessageLookupByLibrary.simpleMessage(
-      "YOUR MEMBERSHIP",
-    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
       "Routage intelligent",
@@ -3077,7 +3082,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Aucune session de connexion à afficher.",
     ),
     "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
-      "Aucun nœud correspondant. Essayez d\'autres mots-clés ou régions.",
+      "Aucun serveur correspondant.",
     ),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage(
       "Aucun moyen de paiement disponible",
@@ -3099,16 +3104,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "La latence reflète le dernier test réel ; affiche — si aucun test n\'a été fait.",
     ),
     "zolnitNodeMultiplier": m97,
-    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Nœud"),
+    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Serveur"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
-      "Après la synchronisation de l\'abonnement, choisissez un nœud du profil.",
+      "Les serveurs disponibles se mettent automatiquement à jour avec votre forfait.",
     ),
     "zolnitNodesCount": m98,
-    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage(
-      "Votre monde commence ici.",
-    ),
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Serveurs"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "Choisissez la route qui vous plaît et connectez-vous en toute simplicité.",
+      "Les serveurs disponibles se mettent à jour depuis votre compte.",
     ),
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage(
       "Pas encore connecté",
@@ -3157,24 +3160,22 @@ class MessageLookup extends MessageLookupByLibrary {
       "Validité du forfait",
     ),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("Forfaits"),
-    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage(
-      "Le bon forfait, la bonne liberté.",
-    ),
+    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage("Forfaits"),
     "zolnitPlansSub": MessageLookupByLibrary.simpleMessage(
       "De la navigation quotidienne au streaming fluide, choisissez la connexion qui vous convient.",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("Préférences"),
     "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
-      "Connectez-vous à votre façon.",
+      "Paramètres",
     ),
     "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
       "Le mode sécurisé conserve vos préférences, mais ne se connecte pas automatiquement et ne modifie pas le réseau du système.",
     ),
     "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "Seulement les préférences vraiment utiles.",
+      "Gérez les paramètres de démarrage et de connexion.",
     ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
-      "Les nœuds et les règles de routage sont synchronisés automatiquement depuis ZolNit.",
+      "Les serveurs disponibles se mettent à jour automatiquement depuis votre compte.",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("Trimestriel"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
@@ -3187,7 +3188,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Trop de tentatives. Réessayez dans un instant.",
     ),
     "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage(
-      "Nœuds recommandés",
+      "Serveurs recommandés",
     ),
     "zolnitRecommendedNodesSub": MessageLookupByLibrary.simpleMessage(
       "Les plus proches d’abord, pour se connecter plus vite",
@@ -3219,6 +3220,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage(
       "Réinitialiser le trafic",
     ),
+    "zolnitRestoringSession": MessageLookupByLibrary.simpleMessage(
+      "Restauration de la session…",
+    ),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage(
       "Reprendre le renouvellement automatique",
     ),
@@ -3234,18 +3238,25 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "Terminer cette session de connexion ? Cet appareil devra se reconnecter pour gérer le compte.",
     ),
+    "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("Mode sans échec"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Le mode sécurisé ne modifie jamais le réseau du système.",
     ),
     "zolnitSavePercent": m101,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
-      "Rechercher un nœud ou une région",
+      "Rechercher un serveur ou une région",
     ),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("Choisir"),
-    "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
-      "Vous restez connecté jusqu’à la fermeture de l’application.",
+    "zolnitSelectServer": MessageLookupByLibrary.simpleMessage(
+      "Choisir un serveur",
+    ),
+    "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
+      "Votre session a expiré. Reconnectez-vous.",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Se connecter"),
+    "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
+      "Adresse e-mail ou mot de passe incorrect. Réessayez.",
+    ),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("Se déconnecter"),
     "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage(
       "Lancer ZolNit au démarrage",
@@ -3260,13 +3271,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Choisir un forfait",
     ),
     "zolnitSync": MessageLookupByLibrary.simpleMessage(
-      "Synchroniser le profil de connexion",
+      "Synchroniser les données du compte",
     ),
     "zolnitSynced": MessageLookupByLibrary.simpleMessage(
-      "Profil de connexion synchronisé",
+      "Données du compte synchronisées",
     ),
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
-      "Synchronisation du profil de connexion…",
+      "Synchronisation des données du compte…",
     ),
     "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("Compte"),
     "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("Parrainage"),
@@ -3296,7 +3307,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage(
       "Heureux de vous revoir",
     ),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("VOTRE ESPACE"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("Annuel"),
   };
 }

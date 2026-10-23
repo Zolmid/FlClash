@@ -81,7 +81,7 @@ void main() {
     await harness.mount(tester, ZolnitSkin.macos);
     harness.container.read(coreStatusProvider.notifier).value =
         CoreStatus.connected;
-    await tester.tap(find.text('节点').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('已选择'), findsOneWidget);
     expect(find.text('42 ms'), findsOneWidget);
@@ -123,7 +123,7 @@ void main() {
             ),
           );
       await harness.mount(tester, ZolnitSkin.macos);
-      await tester.tap(find.text('节点').first);
+      await tester.tap(find.text('全部线路').first);
       await tester.pumpAndSettle();
       expect(find.text('42 ms'), findsNothing);
       expect(find.text('已选择'), findsNothing);
@@ -151,14 +151,14 @@ void main() {
           },
         ),
       );
-      final hint = find.text('同步订阅后，选择配置中的节点。');
+      final hint = find.text('可用线路会随套餐自动更新。');
       await tester.tap(hint);
       await tester.pump();
       await tester.tap(hint);
       expect(syncs, 1);
       pending.completeError(StateError('failed fixture'));
       await tester.pumpAndSettle();
-      expect(find.text('操作未完成，请检查输入或网络后重试。'), findsOneWidget);
+      expect(find.text('操作未完成，请稍后重试。'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -166,15 +166,10 @@ void main() {
   for (final skin in ZolnitSkin.values) {
     testWidgets('nodes page renders on ${skin.name}', (tester) async {
       await harness.mount(tester, skin);
-      await tester.tap(find.text('\u8282\u70b9').first);
+      await tester.tap(find.text('全部线路').first);
       await tester.pumpAndSettle();
       expect(find.byType(ZolnitNodesPage), findsOneWidget);
-      expect(
-        find.text(
-          '\u4f60\u7684\u4e16\u754c\uff0c\u4ece\u8fd9\u91cc\u51fa\u53d1\u3002',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('线路'), findsOneWidget);
       expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsWidgets);
       expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsWidgets);
       await harness.capture(tester, 'nodes-${skin.name}');
@@ -183,23 +178,23 @@ void main() {
 
   testWidgets('region chip filters to a single region', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(find.text('3 \u4e2a\u8282\u70b9'), findsOneWidget);
+    expect(find.text('线路：3'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('zolnit-region-香港')));
     await tester.pumpAndSettle();
-    expect(find.text('1 \u4e2a\u8282\u70b9'), findsOneWidget);
+    expect(find.text('线路：1'), findsOneWidget);
     expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsWidgets);
     expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsNothing);
   });
 
   testWidgets('search filters nodes by text', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '\u4e1c\u4eac');
     await tester.pumpAndSettle();
-    expect(find.text('1 \u4e2a\u8282\u70b9'), findsOneWidget);
+    expect(find.text('线路：1'), findsOneWidget);
     expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsWidgets);
     expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsNothing);
   });
@@ -208,44 +203,29 @@ void main() {
     harness.panel = zolnitEmptyPanelFixture;
     await harness.relogin();
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '\u5f53\u524d\u8ba2\u9605\u6682\u65e0\u53ef\u7528\u8282\u70b9\u3002',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('0 \u4e2a\u8282\u70b9'), findsOneWidget);
+    expect(find.text('当前套餐暂无可用线路。'), findsOneWidget);
+    expect(find.text('线路：0'), findsOneWidget);
   });
 
   testWidgets('no matching nodes message on empty search result', (
     tester,
   ) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'zzznomatch');
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '\u6ca1\u6709\u5339\u914d\u7684\u8282\u70b9\uff0c\u8bd5\u8bd5\u5176\u4ed6\u5173\u952e\u8bcd\u6216\u5730\u533a\u3002',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('0 \u4e2a\u8282\u70b9'), findsOneWidget);
+    expect(find.text('没有匹配的线路。'), findsOneWidget);
+    expect(find.text('线路：0'), findsOneWidget);
   });
 
   testWidgets('dark mode renders without overflow on macOS', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos, dark: true);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '\u4f60\u7684\u4e16\u754c\uff0c\u4ece\u8fd9\u91cc\u51fa\u53d1\u3002',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('线路'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await harness.capture(tester, 'nodes-macos-dark');
   });
@@ -256,21 +236,16 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.4;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await harness.mount(tester, ZolnitSkin.ios, size: const Size(320, 640));
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '\u4f60\u7684\u4e16\u754c\uff0c\u4ece\u8fd9\u91cc\u51fa\u53d1\u3002',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('线路'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await harness.capture(tester, 'nodes-ios-320-text-scale');
   });
 
   testWidgets('unknown latency displays em dash', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('\u2014'), findsWidgets);
     expect(find.text('0 ms'), findsNothing);
@@ -280,7 +255,7 @@ void main() {
     tester,
   ) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     final selected = find.text('\u5df2\u9009\u62e9');
     expect(selected, findsNothing);
@@ -291,14 +266,14 @@ void main() {
 
   testWidgets('delay test button hidden in safe mode', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('\u5ef6\u8fdf\u6d4b\u8bd5'), findsNothing);
   });
 
   testWidgets('rate multiplier pill renders on cards', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('1\u00d7 \u8ba1\u91cf'), findsWidgets);
     expect(find.text('1.5\u00d7 \u8ba1\u91cf'), findsOneWidget);
@@ -306,13 +281,8 @@ void main() {
 
   testWidgets('sync hint visible when profile not matched', (tester) async {
     await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('\u8282\u70b9').first);
+    await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '\u540c\u6b65\u8ba2\u9605\u540e\uff0c\u9009\u62e9\u914d\u7f6e\u4e2d\u7684\u8282\u70b9\u3002',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('可用线路会随套餐自动更新。'), findsOneWidget);
   });
 }

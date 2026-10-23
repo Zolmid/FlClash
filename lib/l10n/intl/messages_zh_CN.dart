@@ -229,7 +229,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(rate) => "${rate}× 计量";
 
-  static String m98(count) => "${count} 个节点";
+  static String m98(count) => "线路：${count}";
 
   static String m99(count) => "/ ${count} 台";
 
@@ -1964,20 +1964,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "yes": MessageLookupByLibrary.simpleMessage("是"),
     "zhCN": MessageLookupByLibrary.simpleMessage("中文简体"),
     "zhTW": MessageLookupByLibrary.simpleMessage("繁体中文"),
-    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage("有问题，我们在这里"),
+    "zolnitAccountHelpHint": MessageLookupByLibrary.simpleMessage("获取帮助"),
     "zolnitAccountOrdersHint": MessageLookupByLibrary.simpleMessage(
       "查看开通与续费订单",
     ),
     "zolnitAccountPassword": MessageLookupByLibrary.simpleMessage("登录密码"),
     "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
-      "按你的习惯连接",
+      "连接设置",
     ),
-    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage("属于你的连接空间。"),
+    "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage("查看账号信息和订单。"),
     "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("我的账户"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("开通中"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("高级设置"),
-    "zolnitAdvancedHint": MessageLookupByLibrary.simpleMessage("查看连接配置与更多选项"),
-    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部节点"),
+    "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部线路"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("全部地区"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("应付金额"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("账户余额"),
@@ -2005,13 +2004,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("选择套餐"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("已完成"),
-    "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage("轻轻一点，即刻连接"),
+    "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("连接"),
+    "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage("准备连接"),
     "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage("启动后自动连接"),
     "zolnitConnectOnLaunchHint": MessageLookupByLibrary.simpleMessage(
-      "使用上一次选择的订阅配置。",
+      "启动时自动连接到上次使用的线路。",
     ),
-    "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
-      "选择你的线路，剩下的交给 ZolNit。",
+    "zolnitConnectSub": MessageLookupByLibrary.simpleMessage("连接到套餐包含的线路。"),
+    "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "连接页面暂时无法显示，请重试。",
     ),
     "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("复制邀请码"),
     "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("复制链接"),
@@ -2021,6 +2022,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("已折抵"),
     "zolnitCurrentBadge": MessageLookupByLibrary.simpleMessage("当前套餐"),
     "zolnitCurrentPlanHint": m89,
+    "zolnitCurrentPlanLabel": MessageLookupByLibrary.simpleMessage("当前套餐"),
     "zolnitCurrentPlanLine": m90,
     "zolnitCurrentSelection": MessageLookupByLibrary.simpleMessage("当前选择"),
     "zolnitCycleHalfYear": MessageLookupByLibrary.simpleMessage("半年"),
@@ -2037,10 +2039,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
       "暂时无法获取登录会话，请重试。",
     ),
+    "zolnitDisconnectAction": MessageLookupByLibrary.simpleMessage("断开连接"),
+    "zolnitDisconnecting": MessageLookupByLibrary.simpleMessage("正在断开…"),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("邮箱"),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage("熟悉的多端体验"),
     "zolnitExpiresOn": m92,
-    "zolnitFailure": MessageLookupByLibrary.simpleMessage("操作未完成，请检查输入或网络后重试。"),
+    "zolnitFailure": MessageLookupByLibrary.simpleMessage("操作未完成，请稍后重试。"),
     "zolnitFeatureDevices": m93,
     "zolnitFeatureSpeed": m94,
     "zolnitFeatureTraffic": m95,
@@ -2053,7 +2057,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage("全球优选线路"),
     "zolnitGreeting": m96,
-    "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage("准备好，去看看更大的世界。"),
+    "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage("查看套餐和可用线路。"),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("半年付"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("帮助与支持"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("邀请码"),
@@ -2099,9 +2103,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "登录你的账户，管理套餐与连接。",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("注册或找回密码"),
-    "zolnitMembershipEyebrow": MessageLookupByLibrary.simpleMessage(
-      "YOUR MEMBERSHIP",
-    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("全局模式"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("智能分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月付"),
@@ -2113,11 +2114,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "你还没有有效套餐，选择一个开始使用。",
     ),
     "zolnitNoDevices": MessageLookupByLibrary.simpleMessage("暂无可显示的登录会话。"),
-    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage(
-      "没有匹配的节点，试试其他关键词或地区。",
-    ),
+    "zolnitNoMatchingNodes": MessageLookupByLibrary.simpleMessage("没有匹配的线路。"),
     "zolnitNoMethods": MessageLookupByLibrary.simpleMessage("暂无可用付款方式"),
-    "zolnitNoNodes": MessageLookupByLibrary.simpleMessage("当前订阅暂无可用节点。"),
+    "zolnitNoNodes": MessageLookupByLibrary.simpleMessage("当前套餐暂无可用线路。"),
     "zolnitNoNotices": MessageLookupByLibrary.simpleMessage("暂无公告"),
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("暂无订单"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("暂无有效套餐"),
@@ -2126,14 +2125,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "延迟以最近一次实际检测为准，未检测时显示 —。",
     ),
     "zolnitNodeMultiplier": m97,
-    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("节点名称"),
-    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
-      "同步订阅后，选择配置中的节点。",
-    ),
+    "zolnitNodeName": MessageLookupByLibrary.simpleMessage("线路"),
+    "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用线路会随套餐自动更新。"),
     "zolnitNodesCount": m98,
-    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("你的世界，从这里出发。"),
+    "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("线路"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "选择一条喜欢的线路，轻松连接。",
+      "线路会随账号套餐自动更新。",
     ),
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage("当前尚未连接"),
     "zolnitNotices": MessageLookupByLibrary.simpleMessage("公告"),
@@ -2166,24 +2163,20 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitPlanValidity": MessageLookupByLibrary.simpleMessage("套餐有效期"),
     "zolnitPlans": MessageLookupByLibrary.simpleMessage("套餐"),
-    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage(
-      "刚刚好的套餐，刚刚好的自由。",
-    ),
+    "zolnitPlansHeadline": MessageLookupByLibrary.simpleMessage("套餐"),
     "zolnitPlansSub": MessageLookupByLibrary.simpleMessage(
       "从日常浏览到畅快影音，选择适合你的连接方式。",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("偏好设置"),
-    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
-      "按你的习惯连接。",
-    ),
+    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage("设置"),
     "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
       "安全模式保留你的偏好，但不会自动连接或改变系统网络。",
     ),
     "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "只留下真正需要的几项偏好。",
+      "管理启动和连接设置。",
     ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
-      "节点与分流规则由 ZolNit 自动同步。",
+      "线路会随账号套餐自动更新。",
     ),
     "zolnitQuarterly": MessageLookupByLibrary.simpleMessage("季付"),
     "zolnitQuoteBeforeConsent": MessageLookupByLibrary.simpleMessage(
@@ -2193,9 +2186,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "结算报价已过期，请返回套餐页重新选择。",
     ),
     "zolnitRateLimited": MessageLookupByLibrary.simpleMessage("操作过于频繁，请稍后重试。"),
-    "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage("为你推荐的节点"),
+    "zolnitRecommendedNodes": MessageLookupByLibrary.simpleMessage("推荐线路"),
     "zolnitRecommendedNodesSub": MessageLookupByLibrary.simpleMessage(
-      "就近优选，让连接再快一点",
+      "套餐包含的线路",
     ),
     "zolnitRecommendedRoute": MessageLookupByLibrary.simpleMessage("推荐线路"),
     "zolnitRecurringConsent": MessageLookupByLibrary.simpleMessage(
@@ -2214,6 +2207,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自动续费"),
     "zolnitResetInDays": m100,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("重置流量"),
+    "zolnitRestoringSession": MessageLookupByLibrary.simpleMessage("正在恢复登录…"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("恢复自动续费"),
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "恢复后将按已授权的套餐安排自动扣款。",
@@ -2223,16 +2217,21 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "结束此登录会话？该设备需重新登录才能管理账户。",
     ),
+    "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "安全模式不会修改系统网络。",
     ),
     "zolnitSavePercent": m101,
-    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜索节点或地区"),
+    "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜索线路或地区"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("选择"),
-    "zolnitSessionOnly": MessageLookupByLibrary.simpleMessage(
-      "登录状态仅保留到本次应用关闭。",
+    "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("选择线路"),
+    "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
+      "登录已失效，请重新登录。",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登录"),
+    "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
+      "邮箱或密码不正确，请重试。",
+    ),
     "zolnitSignOut": MessageLookupByLibrary.simpleMessage("退出登录"),
     "zolnitStartOnBoot": MessageLookupByLibrary.simpleMessage("开机时启动 ZolNit"),
     "zolnitStartOnBootHint": MessageLookupByLibrary.simpleMessage(
@@ -2242,9 +2241,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("已到期"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("未订阅"),
     "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage("选择套餐"),
-    "zolnitSync": MessageLookupByLibrary.simpleMessage("同步连接配置"),
-    "zolnitSynced": MessageLookupByLibrary.simpleMessage("连接配置已同步"),
-    "zolnitSyncing": MessageLookupByLibrary.simpleMessage("正在同步连接配置…"),
+    "zolnitSync": MessageLookupByLibrary.simpleMessage("同步账号数据"),
+    "zolnitSynced": MessageLookupByLibrary.simpleMessage("账号数据已同步"),
+    "zolnitSyncing": MessageLookupByLibrary.simpleMessage("正在同步账号数据…"),
     "zolnitTabAccount": MessageLookupByLibrary.simpleMessage("账号信息"),
     "zolnitTabInvite": MessageLookupByLibrary.simpleMessage("邀请有礼"),
     "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("订单记录"),
@@ -2257,7 +2256,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("查看包月报价"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("打开 ZolNit 网站"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("欢迎回来"),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("我的空间"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("年付"),
   };
 }

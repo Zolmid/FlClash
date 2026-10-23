@@ -36,7 +36,6 @@ String zolnitOrderStatus(BuildContext context, dynamic status) {
   };
 }
 
-/// Known failure codes get localized text; others show the server's reason.
 String zolnitFailureText(
   BuildContext context,
   String? code,
@@ -53,7 +52,10 @@ String zolnitFailureText(
     'recurring_unavailable' => text.zolnitRecurringUnavailable,
     'payment_disallowed' ||
     'stripe_disabled_for_distribution' => text.zolnitPaymentUnavailable,
-    _ => serverMessage ?? fallback ?? text.zolnitFailure,
+    'network' || 'timeout' => text.networkException,
+    'invalid_credentials' => text.zolnitSignInRejected,
+    'unauthenticated' => text.zolnitSessionExpired,
+    _ => fallback ?? text.zolnitFailure,
   };
 }
 

@@ -14,6 +14,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -177,8 +178,25 @@ class Bootstrap {
     await _handleFailedPreference();
     await _showCrashRecoveryTip();
     await _container.read(coreActionProvider.notifier).startCore();
+    final zolnit = _container.read(zolnitSessionProvider);
+    await zolnit.restore();
+    var managedProfileReady = false;
+    if (zolnit.authenticated) {
+      final generation = zolnit.api.generation;
+      try {
+        final profileId = await _container.read(zolnitSyncProfileProvider)();
+        if (profileId != null &&
+            zolnit.authenticated &&
+            zolnit.api.generation == generation) {
+          _container.read(currentProfileIdProvider.notifier).value = profileId;
+          managedProfileReady = true;
+        }
+      } catch (_) {}
+    }
     if (!_bootDecision.isDegraded) {
-      await _container.read(setupActionProvider.notifier).initStatus();
+      await _container
+          .read(setupActionProvider.notifier)
+          .initStatus(allowAutoRun: managedProfileReady);
     }
     _container.read(initProvider.notifier).value = true;
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());

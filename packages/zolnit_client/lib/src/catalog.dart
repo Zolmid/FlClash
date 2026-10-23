@@ -358,8 +358,8 @@ class ZolnitNotice {
 
 class ZolnitUsage {
   const ZolnitUsage({
-    this.usedBytes = 0,
-    this.totalBytes = 0,
+    this.usedBytes,
+    this.totalBytes,
     this.expiresAt,
     this.resetDay,
     this.deviceLimit,
@@ -371,9 +371,18 @@ class ZolnitUsage {
 
   factory ZolnitUsage.fromSubscription(Json json) {
     final plan = json['plan'];
+    int? count(Object? value) {
+      final result = wholeOrNull(value);
+      return result != null && result >= 0 ? result : null;
+    }
+
+    final uploaded = count(json['u']);
+    final downloaded = count(json['d']);
     return ZolnitUsage(
-      usedBytes: nonNegativeInt(json['u']) + nonNegativeInt(json['d']),
-      totalBytes: nonNegativeInt(json['transfer_enable']),
+      usedBytes: uploaded == null || downloaded == null
+          ? null
+          : uploaded + downloaded,
+      totalBytes: count(json['transfer_enable']),
       expiresAt: secondsToDate(json['expired_at']),
       resetDay: wholeOrNull(json['reset_day']),
       deviceLimit:
@@ -388,8 +397,8 @@ class ZolnitUsage {
     );
   }
 
-  final int usedBytes;
-  final int totalBytes;
+  final int? usedBytes;
+  final int? totalBytes;
   final DateTime? expiresAt;
   final int? resetDay;
   final int? deviceLimit;
@@ -398,10 +407,16 @@ class ZolnitUsage {
   final String? planName;
   final String? email;
 
-  int get remainingBytes => totalBytes > usedBytes ? totalBytes - usedBytes : 0;
+  int? get remainingBytes => switch ((totalBytes, usedBytes)) {
+    (final int total, final int used) => total > used ? total - used : 0,
+    _ => null,
+  };
 
-  double get fraction =>
-      totalBytes <= 0 ? 0 : (usedBytes / totalBytes).clamp(0.0, 1.0);
+  double? get fraction => switch ((totalBytes, usedBytes)) {
+    (final int total, final int used) =>
+      total <= 0 ? 0 : (used / total).clamp(0.0, 1.0),
+    _ => null,
+  };
 
   bool get hasPlan => planId != null;
 
@@ -420,11 +435,14 @@ class ZolnitBytes {
   final String unit;
 
   @override
-  String toString() => '$value $unit';
+  String toString() => unit.isEmpty ? value : '$value $unit';
 }
 
-ZolnitBytes formatBytes(num bytes) {
-  final size = bytes.isFinite && bytes > 0 ? bytes.toDouble() : 0.0;
+ZolnitBytes formatBytes(num? bytes) {
+  if (bytes == null || !bytes.isFinite || bytes < 0) {
+    return const ZolnitBytes('—', '');
+  }
+  final size = bytes.toDouble();
   const tb = 1099511627776.0;
   const gb = 1073741824.0;
   const mb = 1048576.0;

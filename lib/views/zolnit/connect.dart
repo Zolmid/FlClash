@@ -1,6 +1,5 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
@@ -209,7 +208,12 @@ class _ConnectPanel extends ConsumerWidget {
     final text = context.appLocalizations;
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
-    final status = ref.watch(coreStatusProvider);
+    final engine = ref.watch(coreStatusProvider);
+    final status = ref.watch(isStartProvider)
+        ? CoreStatus.connected
+        : engine == CoreStatus.connecting
+        ? CoreStatus.connecting
+        : CoreStatus.disconnected;
     final safe = ref.watch(safeModeProvider);
     final mode = ref.watch(
       patchClashConfigProvider.select((state) => state.mode),
@@ -238,7 +242,11 @@ class _ConnectPanel extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          text.zolnitConnectHeadline,
+          switch (status) {
+            CoreStatus.connected => text.connected,
+            CoreStatus.connecting => text.connecting,
+            _ => text.zolnitConnectHeadline,
+          },
           textAlign: center ? TextAlign.center : TextAlign.start,
           style: zolnitText(
             context,
@@ -251,6 +259,8 @@ class _ConnectPanel extends ConsumerWidget {
         Text(
           safe
               ? text.zolnitSafeModeConnect
+              : status == CoreStatus.connected
+              ? text.zolnitConnectSub
               : nodes.isEmpty
               ? text.zolnitNoNodes
               : text.zolnitConnectSub,
@@ -411,11 +421,7 @@ class _SelectedRow extends ConsumerWidget {
         ? null
         : ref.watch(delayProvider(proxyName: node.name));
     final traffic = connected
-        ? ref.watch(
-            trafficsProvider.select(
-              (state) => state.list.safeLast(const Traffic()),
-            ),
-          )
+        ? ref.watch(trafficsProvider.select((state) => state.list.lastOrNull))
         : null;
     String rate(num? value) {
       if (value == null) return '—';
@@ -517,7 +523,8 @@ class _SelectedRow extends ConsumerWidget {
   }
 }
 
-String _gigabytes(num bytes, {int decimals = 1}) {
+String _gigabytes(num? bytes, {int decimals = 1}) {
+  if (bytes == null) return '—';
   final value = bytes / 1073741824;
   final text = value.toStringAsFixed(decimals);
   return text.contains('.') ? text.replaceFirst(RegExp(r'\.?0+$'), '') : text;
@@ -549,8 +556,8 @@ class ZolnitMembershipCard extends StatelessWidget {
         ? text.zolnitStatusExpired
         : text.zolnitStatusNoPlan;
     final planName = current?.planName ?? text.zolnitNoPlan;
-    final total = current?.totalBytes ?? 0;
-    final usedText = _gigabytes(current?.usedBytes ?? 0);
+    final total = current?.totalBytes;
+    final usedText = _gigabytes(current?.usedBytes);
     final totalText = _gigabytes(total, decimals: 2);
     final (headline, figure) = switch (skin) {
       ZolnitSkin.ios => (23.0, 36.0),
@@ -580,7 +587,7 @@ class ZolnitMembershipCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        text.zolnitMembershipEyebrow,
+                        text.zolnitCurrentPlanLabel,
                         style: zolnitText(
                           context,
                           11,
@@ -616,7 +623,11 @@ class ZolnitMembershipCard extends StatelessWidget {
                     children: [
                       TextSpan(text: usedText),
                       TextSpan(
-                        text: total > 0 ? ' / $totalText GB' : ' GB',
+                        text: total != null && total > 0
+                            ? ' / $totalText GB'
+                            : current?.usedBytes == null
+                            ? ''
+                            : ' GB',
                         style: zolnitText(context, 12, color: muted),
                       ),
                     ],
@@ -690,8 +701,9 @@ class _StatRow extends StatelessWidget {
     final text = context.appLocalizations;
     final colors = ZolnitColors.of(context);
     final current = usage;
-    final hasQuota = current != null && current.totalBytes > 0;
-    final left = hasQuota ? formatBytes(current.remainingBytes) : null;
+    final left = (current?.totalBytes ?? 0) > 0
+        ? formatBytes(current?.remainingBytes)
+        : null;
     final days = current?.daysLeftAt(DateTime.now());
     final online = current?.onlineDevices;
     final limit = current?.deviceLimit;

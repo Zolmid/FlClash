@@ -448,7 +448,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(session.authenticated, isTrue);
       expect(
-        find.text('No nodes are available for this subscription.'),
+        find.text('No servers are available with your current plan.'),
         findsWidgets,
       );
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
@@ -555,7 +555,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(session.authenticated, isFalse);
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
-      expect(find.textContaining('Could not complete'), findsOneWidget);
+      expect(
+        find.text('Email or password is incorrect. Try again.'),
+        findsOneWidget,
+      );
       loginFails = false;
       await session.login('client@example.com', 'password123');
       await tester.pumpAndSettle();
@@ -573,12 +576,7 @@ void main() {
     await capture(tester, 'login-desktop-zh-light');
     await session.login('client@example.com', 'password123');
     await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '\u5f53\u524d\u8ba2\u9605\u6682\u65e0\u53ef\u7528\u8282\u70b9\u3002',
-      ),
-      findsWidgets,
-    );
+    expect(find.text('当前套餐暂无可用线路。'), findsWidgets);
     await capture(tester, 'dashboard-desktop-zh-light');
   });
 
@@ -767,7 +765,7 @@ void main() {
     testWidgets('populated nodes page renders server names', (tester) async {
       await signInPopulated();
       await mountPopulated(tester);
-      await tester.tap(find.text('\u8282\u70b9').first);
+      await tester.tap(find.text('全部线路').first);
       await tester.pumpAndSettle();
       expect(find.text('Tokyo \u2013 Premium'), findsOneWidget);
       expect(find.text('Frankfurt \u2013 Transit'), findsOneWidget);

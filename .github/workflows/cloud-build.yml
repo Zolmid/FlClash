@@ -3,7 +3,7 @@ run-name: Cloud build · ${{ github.event_name == 'push' && (github.ref == 'refs
 
 on:
   push:
-    branches: [main, codex/patched-integration, codex/ios-support, codex/upstream-0.9.1, codex/zolnit-client]
+    branches: [main, codex/patched-integration, codex/ios-support, codex/upstream-0.9.1, codex/zolnit-client, codex/native-client-shared]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -25,6 +25,9 @@ on:
 permissions:
   contents: read
 
+env:
+  ZOLNIT_NATIVE_UI: ${{ github.ref == 'refs/heads/codex/native-client-shared' && 'true' || 'false' }}
+
 concurrency:
   group: cloud-build-${{ github.ref }}-${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}-${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
   cancel-in-progress: false
@@ -40,7 +43,7 @@ jobs:
     env:
       PLATFORM: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}
       IOS_SOURCE: ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
-      CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' }}
+      CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared' }}
     steps:
       - id: select
         run: |
@@ -152,13 +155,19 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
 
+      - name: Validate native Apple surface contract
+        if: matrix.platform == 'macos' && matrix.safe_preview && env.ZOLNIT_NATIVE_UI == 'true'
+        run: |
+          flutter test test/views/zolnit/native_home_test.dart --dart-define=ZOLNIT_NATIVE_UI=true --dart-define=SAFE_MODE=true
+          swift test --package-path plugins/zolnit_native_ui/darwin
+
       - name: Compile desktop
         if: matrix.platform != 'android'
         run: |
           if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
-            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct
+            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI"
           else
-            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev
+            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI"
           fi
 
       - name: Compile Windows installer for validation
@@ -172,7 +181,12 @@ jobs:
         if: matrix.platform == 'android'
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev
+        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI"
+
+      - name: Test native Android contract
+        if: matrix.platform == 'android' && env.ZOLNIT_NATIVE_UI == 'true'
+        working-directory: android
+        run: ./gradlew :zolnit_native_ui:testDebugUnitTest -Ptarget-platform=android-arm64
 
       - name: Test system proxy ownership
         if: matrix.platform == 'windows'
@@ -231,6 +245,7 @@ jobs:
             echo "source_commit=$(git rev-parse HEAD)"
             echo "target=$TARGET_PLATFORM-$TARGET_ARCH"
             echo "client_safe_preview=$CLIENT_SAFE_PREVIEW"
+            echo "native_ui=$ZOLNIT_NATIVE_UI"
             if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
               echo 'client_defines=APP_ENV=dev;SAFE_MODE=true;ZOLNIT_DISTRIBUTION=direct'
             fi
@@ -360,6 +375,7 @@ jobs:
             echo "source_commit=$(git rev-parse HEAD)"
             echo "workflow_repository=$GITHUB_REPOSITORY"
             echo "workflow_commit=$GITHUB_SHA"
+            echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo 'target=iOS arm64 physical device; simulator unsupported'
             echo 'signing=ad hoc unsigned IPA; requires provisioning for device installation'
             git submodule status --recursive

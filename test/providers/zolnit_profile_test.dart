@@ -212,7 +212,7 @@ void main() {
       ),
     );
     await started.future;
-    session.logout();
+    await session.logout();
     validation.complete('');
     await assertion;
     expect(await target.readAsString(), 'original');
@@ -239,7 +239,7 @@ void main() {
           ),
         ),
       );
-      session.logout();
+      await session.logout();
       await assertion;
       expect(adapter.requests, isEmpty);
       expect(await target.readAsString(), 'original');

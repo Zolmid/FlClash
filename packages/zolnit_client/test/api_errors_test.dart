@@ -129,18 +129,37 @@ void main() {
     });
   });
 
-  test('authentication failures never expose the server text', () async {
-    for (final status in [401, 403]) {
-      for (final path in [_native, _plugin]) {
-        final error = await _failure(path, status, {
+  test(
+    'explicit authentication failures never expose the server text',
+    () async {
+      for (final path in [_native, _plugin, '/api/v1/user/info']) {
+        final error = await _failure(path, 401, {
           'message': 'PRIVATE_DO_NOT_RENDER',
         });
         expect(error.code, 'unauthenticated');
-        expect(error.statusCode, status);
+        expect(error.statusCode, 401);
         expect(error.serverMessage, isNull);
       }
-    }
-  });
+      final error = await _failure('/api/v1/user/info', 403, {
+        'message': 'PRIVATE_DO_NOT_RENDER',
+      });
+      expect(error.code, 'unauthenticated');
+      expect(error.serverMessage, isNull);
+    },
+  );
+
+  test(
+    'subscription and order permission failures do not invalidate authentication',
+    () async {
+      for (final path in [_native, '/api/v1/user/getSubscribe']) {
+        final error = await _failure(path, 403, {
+          'message': 'operation denied',
+        });
+        expect(error.code, 'api_error');
+        expect(error.statusCode, 403);
+      }
+    },
+  );
 
   test('toString never includes the server message', () async {
     final error = await _failure(_native, 500, {'message': '订单未支付'});

@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/context.dart';
-import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/pages/home.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -16,6 +14,7 @@ import 'auth.dart';
 import 'catalogue.dart';
 import 'connect.dart';
 import 'notices.dart';
+import 'native_home.dart';
 import 'preferences.dart';
 import 'shell.dart';
 import 'skin.dart';
@@ -79,19 +78,25 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
   }
 
   Future<void> _connect() async {
-    if (ref.read(safeModeProvider)) return;
-    if (ref.read(coreStatusProvider) == CoreStatus.connected) {
-      ref.read(commonActionProvider.notifier).toggleRunning();
-      return;
+    await _setConnection(!ref.read(isStartProvider));
+  }
+
+  Future<bool> _setConnection(bool running) async {
+    if (ref.read(safeModeProvider)) return false;
+    if (!running) {
+      return ref.read(setupActionProvider.notifier).setRunning(false);
     }
+    if (ref.read(isStartProvider)) return true;
+    final generation = ref.read(zolnitSessionProvider).api.generation;
     final id = await _sync();
     if (!mounted ||
         id == null ||
+        ref.read(zolnitSessionProvider).api.generation != generation ||
         !ref.read(zolnitSessionProvider).authenticated) {
-      return;
+      return false;
     }
     ref.read(currentProfileIdProvider.notifier).value = id;
-    ref.read(commonActionProvider.notifier).toggleRunning();
+    return ref.read(setupActionProvider.notifier).setRunning(true);
   }
 
   void _select(int index) {
@@ -121,13 +126,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
     });
   }
 
-  void _advanced() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const HomePage()));
-  }
-
-  void _logout() {
+  Future<void> _logout() async {
+    final deletion = ref.read(zolnitSessionProvider).logout();
+    ref
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(autoRun: false));
     setState(() {
       _selected = 0;
       _accountTab = ZolnitAccountTab.info;
@@ -136,7 +139,13 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
       _syncing = false;
       _syncGeneration = null;
     });
-    ref.read(zolnitSessionProvider).logout();
+    try {
+      if (!ref.read(safeModeProvider)) {
+        await ref.read(setupActionProvider.notifier).setRunning(false);
+      }
+    } finally {
+      await deletion;
+    }
   }
 
   @override
@@ -180,7 +189,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                 final text = context.appLocalizations;
                 final labels = [
                   text.connection,
-                  text.nodes,
+                  text.zolnitAllNodes,
                   text.zolnitPlans,
                   text.account,
                 ];
@@ -193,13 +202,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                 final title = _showingPreferences
                     ? text.zolnitPreferences
                     : labels[_selected];
-                return LayoutBuilder(
+                final fallback = LayoutBuilder(
                   builder: (context, constraints) {
                     final desktop = constraints.maxWidth >= 760;
                     final page = _showingPreferences
                         ? ZolnitPreferencesPage(
                             compact: !desktop,
-                            openAdvanced: _advanced,
                             openWebsite: () => unawaited(_website()),
                           )
                         : switch (_selected) {
@@ -295,6 +303,17 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                       ],
                     );
                   },
+                );
+                return ZolnitNativeHome(
+                  session: session,
+                  destination: _selected,
+                  preferencesVisible: _showingPreferences,
+                  onConnection: _setConnection,
+                  onNavigate: _select,
+                  onRefresh: _refresh,
+                  onPreferences: _showPreferences,
+                  onHelp: _website,
+                  child: fallback,
                 );
               },
             ),

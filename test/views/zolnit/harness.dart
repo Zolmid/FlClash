@@ -297,7 +297,7 @@ class ZolnitHarness {
   }
 
   Future<void> relogin() async {
-    session.logout();
+    await session.logout();
     await session.login('lin@example.com', 'password123');
     expect(session.authenticated, isTrue, reason: session.failure);
   }

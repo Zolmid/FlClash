@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "channel": "com.zolmid.zolnit/native-ui",
+  "encoding": "JSON string in StandardMethodCodec",
+  "ownership": {
+    "application": "Shared Dart account, subscription, localization and payment services",
+    "androidVpn": "ServiceState",
+    "iosVpn": "TunnelCoordinator",
+    "desktopCore": "lib/core/desktop/lifecycle.dart",
+    "nativeView": "Presentation and user intents only; never infer connection success from a command acknowledgement"
+  },
+  "methods": {
+    "isAvailable": {
+      "direction": "dart-to-platform",
+      "result": "boolean"
+    },
+    "publishSnapshot": {
+      "direction": "dart-to-platform",
+      "argument": "snapshot",
+      "result": "null"
+    },
+    "getSnapshot": {
+      "direction": "platform-to-dart",
+      "result": "snapshot"
+    },
+    "performCommand": {
+      "direction": "platform-to-dart",
+      "argument": "command",
+      "result": "receipt"
+    }
+  },
+  "snapshot": {
+    "schemaVersion": "integer equal to 1",
+    "revision": "nonnegative integer; strictly increases for each published snapshot",
+    "accountGeneration": "nonnegative integer; changes on sign-in, sign-out or account replacement",
+    "locale": "resolved supported locale code",
+    "textDirection": [
+      "ltr",
+      "rtl"
+    ],
+    "safeMode": "boolean",
+    "sessionStatus": [
+      "restoring",
+      "signedOut",
+      "signedIn",
+      "offline",
+      "expired"
+    ],
+    "connectionState": [
+      "disconnected",
+      "connecting",
+      "connected",
+      "disconnecting",
+      "failed"
+    ],
+    "destination": [
+      "connect",
+      "servers",
+      "plans",
+      "account"
+    ],
+    "mode": [
+      "rule",
+      "global"
+    ],
+    "selectedServerId": "string or null",
+    "servers": [
+      {
+        "id": "string",
+        "name": "customer display name",
+        "available": "boolean",
+        "latencyMs": "nonnegative integer or null"
+      }
+    ],
+    "planName": "string or null",
+    "planExpiresAt": "Unix seconds or null",
+    "usage": {
+      "usedBytes": "nonnegative integer or null; null means unknown",
+      "totalBytes": "nonnegative integer or null"
+    },
+    "traffic": {
+      "uploadBps": "nonnegative integer or null; null means no measurement",
+      "downloadBps": "nonnegative integer or null; null means no measurement"
+    },
+    "labels": "map containing every requiredLabels key, resolved from the same ARB catalog as Flutter"
+  },
+  "requiredLabels": [
+    "connect",
+    "disconnect",
+    "disconnected",
+    "connecting",
+    "connected",
+    "disconnecting",
+    "connectionFailed",
+    "smartMode",
+    "globalMode",
+    "servers",
+    "plans",
+    "account",
+    "refresh",
+    "preferences",
+    "help",
+    "trafficRemaining",
+    "trafficUsed",
+    "upload",
+    "download",
+    "noPlan",
+    "noServers",
+    "signIn",
+    "restoringSession",
+    "offline",
+    "retry",
+    "safeMode",
+    "selectServer",
+    "currentPlan",
+    "loading"
+  ],
+  "command": {
+    "schemaVersion": "integer equal to 1",
+    "id": "nonempty string up to 128 characters; generated per user action",
+    "accountGeneration": "snapshot generation associated with the action",
+    "action": [
+      "connect",
+      "disconnect",
+      "selectServer",
+      "setMode",
+      "navigate",
+      "refresh",
+      "preferences",
+      "help"
+    ],
+    "payload": {
+      "selectServer": {
+        "serverId": "id from the current snapshot servers"
+      },
+      "setMode": {
+        "mode": [
+          "rule",
+          "global"
+        ]
+      },
+      "navigate": {
+        "destination": [
+          "connect",
+          "servers",
+          "plans",
+          "account"
+        ]
+      },
+      "otherActions": "empty object"
+    }
+  },
+  "receipt": {
+    "schemaVersion": "integer equal to 1",
+    "id": "command id",
+    "accepted": "boolean; does not mean the VPN transition completed",
+    "errorCode": [
+      null,
+      "stale_account",
+      "unauthenticated",
+      "invalid_command",
+      "unavailable",
+      "safe_mode",
+      "failed"
+    ]
+  },
+  "invariants": [
+    "Snapshots never contain authorization tokens, passwords, subscription URLs or proxy credentials.",
+    "Native code must reject unsupported schema versions and ignore snapshots older than the last accepted revision.",
+    "Account generation changes replace all account-dependent presentation state before accepting further user commands.",
+    "Dart rejects commands for a stale account generation or a server id absent from the current managed subscription.",
+    "All customer text comes from labels or current customer data; no platform maintains a parallel translation table.",
+    "Traffic updates may be throttled, but authoritative connection/account transitions must be published immediately.",
+    "Safe mode never changes the host network or enables autostart entries.",
+    "Persisted authorization is owned by the shared session service and platform secure storage; native views do not retain it."
+  ]
+}

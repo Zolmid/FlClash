@@ -200,13 +200,28 @@ void main() {
       expect(open.daysLeftAt(DateTime.utc(2025, 11, 18)), isNull);
     });
 
+    test('keeps measured zero distinct from missing usage', () {
+      final zero = ZolnitUsage.fromSubscription({
+        'u': 0,
+        'd': 0,
+        'transfer_enable': 0,
+      });
+      expect(zero.usedBytes, 0);
+      expect(zero.remainingBytes, 0);
+      expect(zero.fraction, 0);
+      for (final missing in ['u', 'd']) {
+        final incomplete = {...subscription}..remove(missing);
+        expect(ZolnitUsage.fromSubscription(incomplete).usedBytes, isNull);
+      }
+    });
+
     test('does not claim a plan or quota the panel did not send', () {
       final usage = ZolnitUsage.fromSubscription({'plan_id': null, 'u': -5});
       expect(usage.hasPlan, isFalse);
-      expect(usage.usedBytes, 0);
-      expect(usage.totalBytes, 0);
-      expect(usage.fraction, 0);
-      expect(usage.remainingBytes, 0);
+      expect(usage.usedBytes, isNull);
+      expect(usage.totalBytes, isNull);
+      expect(usage.fraction, isNull);
+      expect(usage.remainingBytes, isNull);
       expect(usage.deviceLimit, isNull);
     });
   });
@@ -216,8 +231,9 @@ void main() {
     expect(formatBytes(5 * 1048576).toString(), '5.00 MB');
     expect(formatBytes(3 * 1073741824).toString(), '3.00 GB');
     expect(formatBytes(2 * 1099511627776).toString(), '2.00 TB');
-    expect(formatBytes(double.nan).toString(), '0.00 GB');
-    expect(formatBytes(-5).toString(), '0.00 GB');
+    expect(formatBytes(null).toString(), '—');
+    expect(formatBytes(double.nan).toString(), '—');
+    expect(formatBytes(-5).toString(), '—');
   });
 
   group('ZolnitPlan written in the site markup', () {

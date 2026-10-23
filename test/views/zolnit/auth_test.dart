@@ -23,7 +23,7 @@ void main() {
     Future<void> Function()? onSignedIn,
     bool host = false,
   }) async {
-    harness.session.logout();
+    await harness.session.logout();
     harness.requests.clear();
     await harness.mount(
       tester,
@@ -191,7 +191,7 @@ void main() {
     await fill(tester);
     await tester.tap(find.byKey(const ValueKey('zolnit-sign-in')));
     await tester.pump();
-    harness.session.logout();
+    await harness.session.logout();
     await harness.session.login('other@example.com', 'password123');
     expect(harness.session.authenticated, isTrue);
     pending.complete(

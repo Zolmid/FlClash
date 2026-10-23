@@ -4,6 +4,8 @@ import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
+import 'data.dart';
+
 class ZolnitPasswordForm extends StatefulWidget {
   const ZolnitPasswordForm({super.key, required this.session});
 
@@ -69,9 +71,11 @@ class _ZolnitPasswordFormState extends State<ZolnitPasswordForm> {
     } catch (error) {
       if (mounted && widget.session.api.generation == _generation) {
         setState(() {
-          _failure = error is ClientFailure
-              ? error.serverMessage ?? text.zolnitFailure
-              : text.zolnitFailure;
+          _failure = zolnitFailureText(
+            context,
+            error is ClientFailure ? error.code : null,
+            error is ClientFailure ? error.serverMessage : null,
+          );
         });
       }
     } finally {

@@ -176,14 +176,16 @@ class SetupAction extends _$SetupAction {
     syncRunningState(startTime != null, startTime: startTime);
   }
 
-  Future<void> initStatus() async {
+  Future<void> initStatus({bool allowAutoRun = true}) async {
     if (!globalState.needInitStatus) {
       return;
     }
     if (system.isMobile) {
       await _updateStartTime();
     }
-    final shouldRun = _isRunning || ref.read(appSettingProvider).autoRun;
+    if (!allowAutoRun) return;
+    final shouldRun =
+        _isRunning || (allowAutoRun && ref.read(appSettingProvider).autoRun);
     if (shouldRun) {
       await setRunning(true, initialize: true);
     } else {

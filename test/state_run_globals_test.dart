@@ -1,3 +1,7 @@
+import 'package:fl_clash/providers/zolnit.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:zolnit_client/zolnit_client.dart';
+import 'package:fl_clash/providers/zolnit_vault.dart';
 import 'package:fl_clash/bootstrap.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/config.dart';
@@ -12,24 +16,47 @@ import 'package:riverpod/riverpod.dart';
 
 import 'helpers/preferences.dart';
 
+class _StartupSession extends Mock implements ZolnitSessionController {}
+
+class _StartupApi extends Mock implements XboardClient {}
+
+class _EmptyVault implements ZolnitSessionVault {
+  @override
+  Future<String?> readAuthorization() async => null;
+  @override
+  Future<void> writeAuthorization(String value) async {}
+  @override
+  Future<void> deleteAuthorization() async {}
+}
+
 class _StartupCore extends CoreAction {
+  _StartupCore([this.events]);
+  final List<String>? events;
   var starts = 0;
 
   @override
   Future<bool> startCore() async {
+    events?.add('ownerReady');
     starts++;
     return true;
   }
 }
 
 class _StartupSetup extends SetupAction {
+  _StartupSetup([this.events]);
+  final List<String>? events;
+  bool? autoRunAllowed;
   var starts = 0;
 
   @override
   void build() {}
 
   @override
-  Future<void> initStatus() async => starts++;
+  Future<void> initStatus({bool allowAutoRun = true}) async {
+    autoRunAllowed = allowAutoRun;
+    events?.add(allowAutoRun ? 'autoRunAllowed' : 'autoRunBlocked');
+    starts++;
+  }
 }
 
 class _StartupSystem extends SystemAction {
@@ -121,6 +148,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           safeModeProvider.overrideWithValue(true),
+          zolnitSessionVaultProvider.overrideWithValue(_EmptyVault()),
           coreActionProvider.overrideWith(() => core),
           setupActionProvider.overrideWith(() => setup),
           systemActionProvider.overrideWith(() => system),
@@ -138,12 +166,14 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (_) async => false);
       addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
+      container.listen(currentProfileIdProvider, (_, _) {});
       await bootstrap.attach();
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
       expect(core.starts, 1);
       expect(setup.starts, 1);
+      expect(setup.autoRunAllowed, isFalse);
       expect(system.exits, 0);
       expect(container.read(initProvider), isTrue);
       expect(globalState.isAttach, isTrue);
@@ -152,9 +182,80 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    for (final remainsSignedIn in [true, false]) {
+      testWidgets(
+        'startup gates auto-connect after managed sync (valid: $remainsSignedIn)',
+        (tester) async {
+          final events = <String>[];
+          final session = _StartupSession();
+          final api = _StartupApi();
+          var authenticated = false;
+          var generation = 0;
+          when(() => session.api).thenReturn(api);
+          when(() => api.generation).thenAnswer((_) => generation);
+          when(() => session.authenticated).thenAnswer((_) => authenticated);
+          when(() => session.restore()).thenAnswer((_) async {
+            events.add('restore');
+            authenticated = true;
+          });
+          final core = _StartupCore(events);
+          final setup = _StartupSetup(events);
+          container.dispose();
+          container = ProviderContainer(
+            overrides: [
+              safeModeProvider.overrideWithValue(true),
+              zolnitSessionProvider.overrideWithValue(session),
+              zolnitSyncProfileProvider.overrideWithValue(() async {
+                events.add('managedSync');
+                if (!remainsSignedIn) {
+                  authenticated = false;
+                  generation++;
+                }
+                return 71;
+              }),
+              appSettingProvider.overrideWithBuild(
+                (_, _) => const AppSettingProps(autoRun: true),
+              ),
+              coreActionProvider.overrideWith(() => core),
+              setupActionProvider.overrideWith(() => setup),
+              systemActionProvider.overrideWith(_StartupSystem.new),
+              resourcesActionProvider.overrideWith(_StartupResources.new),
+              commonActionProvider.overrideWith(_StartupCommon.new),
+            ],
+          );
+          globalState.container = container;
+          const channel = MethodChannel('window');
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            (_) async => false,
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+          container.listen(currentProfileIdProvider, (_, _) {});
+          await bootstrap.attach();
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          expect(events, [
+            'ownerReady',
+            'restore',
+            'managedSync',
+            remainsSignedIn ? 'autoRunAllowed' : 'autoRunBlocked',
+          ]);
+          expect(setup.autoRunAllowed, remainsSignedIn);
+          expect(
+            container.read(currentProfileIdProvider),
+            remainsSignedIn ? 71 : null,
+          );
+        },
+      );
+    }
+
     test('an already attached app never re-runs startup', () async {
       globalState.isAttach = true;
 
+      container.listen(currentProfileIdProvider, (_, _) {});
       await bootstrap.attach();
 
       expect(globalState.isAttach, isTrue);

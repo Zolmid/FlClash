@@ -55,7 +55,7 @@ void main() {
     expect(find.text('暂无有效套餐'), findsOneWidget);
     expect(find.text('选择套餐'), findsOneWidget);
     expect(find.text('暂无公告'), findsOneWidget);
-    expect(find.text('当前订阅暂无可用节点。'), findsWidgets);
+    expect(find.text('当前套餐暂无可用线路。'), findsWidgets);
     expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
     await harness.capture(tester, 'connect-macos-empty');
   });

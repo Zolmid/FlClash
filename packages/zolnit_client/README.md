@@ -4,12 +4,15 @@
 不包含任何服务端、Xboard 插件、数据库连接、支付创建或 webhook 实现。五平台 Web 预览用于页面内容与配色对照，
 宿主入口为 lib/views/zolnit/home.dart，通过 lib/providers/zolnit.dart 装配会话与支付；仍由原有 Core 生命周期
 管理连接。本轮首个验收平台是 macOS 官网渠道，界面组件通过不等于各平台系统组件或真机 VPN 已验收。
-本聊天仍保留原生导航取舍待确认的约定；当前在既有导航内完善页面，不据此批准新的原生导航方案。
+根用户已授权在隔离分支 codex/native-client-shared 同时推进 Android Compose、Apple SwiftUI、Windows WinUI 3
+展示层，复用 Dart 账户、支付、订阅及现有 Go/VPN 所有者；Linux 保留 Flutter。此处描述当前代码，原生宿主编译与设备验收分别记录。
 
 ## 当前入口
 
-- `XboardClient`：账户、套餐、订阅、节点、订单、支付方式、优惠券、工单、邀请、流量接口；Bearer 仅在内存中。
-- `ZolnitSessionController`：登录、退出、账户快照、套餐/节点/订单、续费操作及付款返回后的服务端状态同步。
+- `XboardClient`：账户、套餐、订阅、节点、订单、支付方式、优惠券、工单、邀请、流量接口；鉴权令牌只交由平台安全存储保存，不进入普通偏好、日志或原生视图。
+- `ZolnitSessionController`：登录、恢复、退出、账户快照、套餐/线路/订单和支付返回同步；安全存储读写串行，旧账号回调不能覆盖新账号。
+- `ZolnitSessionVault` / `SecureZolnitSessionVault`：通过平台安全存储恢复跨重启登录；关闭窗口保留，明确退出或鉴权失效时删除。
+- `ZolnitNativeHome` / `zolnit_native_ui`：ARB 唯一文案、无凭据状态快照与用户命令；未知流量保留 null，命令受账号代际和安全模式约束。
 - `ZolnitOrdersClient`：类型化订单和支付方式查询，详情响应必须匹配请求的订单号。
 - `ZolnitAccountClient`：账户资料、登录会话查询和撤销、修改密码及到期/流量提醒设置。
 - `ZolnitSupportClient`：工单列表、按时间排序的消息、创建、回复和关闭。
@@ -41,8 +44,9 @@ OS 只登记 zolnit scheme，应用内仍兼容旧 Clash 导入格式。支付�
 6. 只有 Xboard 订单状态 3 才显示已完成，并重新获取 getSubscribe；状态 1 是开通中，4 是折抵，不是退款。
 7. 退出/切换账户时先 reset 支付控制器、setAccount 和 setAuthorization；dispose 页面与监听器。
 
-登录响应的 auth_data 已含 Bearer 前缀；返回的 token 是订阅令牌，不用于登录鉴权。密码不持久保存，宿主当前
-只保留本次进程中的登录会话。订阅配置使用服务端 subscribe_url，保留参数后选择 flag=meta；server/fetch 是
+登录响应的 auth_data 已含 Bearer 前缀；返回的 token 是订阅令牌，不用于登录鉴权。密码不持久保存。宿主先从平台安全存储恢复并校验会话，
+再自动同步账号所属订阅；只有同步成功且账号代际有效时才允许启动后连接。网络错误保留令牌供重试，关闭客户端不执行退出。
+订阅配置使用服务端 subscribe_url，保留参数后选择 flag=meta；server/fetch 是
 节点展示列表，不能用它重建连接密码或写死节点。空列表不表示所有线路离线。宿主通过一次配置同步维护原来的
 profile ID，校验完成且账户代际仍有效才发布配置；不会为同步调用 resetSecurity。
 
@@ -65,7 +69,7 @@ onetime_price/reset_price 兼容字段，单位为分；普通 order/save 使用
 节点页显示当前面板节点、地区、标签与倍率，支持搜索和地区筛选。只接受本人订阅配置中包含该节点的 Selector，
 当前 Core 已连接且非 SAFE_MODE 时才请求切换或探测。延迟读取既有测量状态，未检测显示“—”，不生成演示速率。
 偏好设置复用原有自启动、启动后连接、主题和语言状态；不增加独立的连接生命周期。安全模式仅保留偏好。
-登录页保留本次进程内会话、重复提交保护和旧账户回调隔离。注册和找回密码分别打开官网已存在的
+登录页支持恢复跨重启会话、重复提交保护和旧账户回调隔离。注册和找回密码分别打开官网已存在的
 `/#/register`、`/#/forgetpassword`，邮箱与人机验证由官网完成，未实现原生验证码或伪造验证通过。
 
 套餐模型保留网站 `zn-plan-*` 内容中的说明、月/总流量标签、特性和购买提示，现有套餐页按这些字段展示，
@@ -108,8 +112,8 @@ checkout；401/403/409、超时、5xx 和畸形响应均不回退。连续付费
 ## 服务端错误提示
 
 非 2xx 响应按 UTF-8 解析 JSON，`ClientFailure.serverMessage` 只在可安全展示时才有值：非空、不超过 300 字符、无控制字符、
-不含堆栈 / SQL / 文件路径特征，也不是通用的 “Server Error”。`toString()` 永远不包含该文本。401 / 403 一律只给
-`unauthenticated`，不带服务端文本。
+不含堆栈 / SQL / 文件路径特征，也不是通用的 “Server Error”。`toString()` 永远不包含该文本。401 与账户身份查询
+`user/info` 的 403 只给 `unauthenticated`，不带服务端文本；其他 403 保留业务错误分类，付款探测仍禁止回退。
 
 - 原生 XBoard 路径：业务错误（例如存在未支付订单）常以 HTTP 500 返回，4xx / 5xx 的可展示 message 都保留；服务端按请求头
   `Content-Language` 本地化，客户端按当前界面语言发送 zh-CN / zh-TW / ja-JP / ko-KR / ru-RU / en-US。

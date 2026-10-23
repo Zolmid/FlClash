@@ -65,6 +65,19 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
     }
   }
 
+  Future<void> _restore() async {
+    if (_submitting || widget.session.busy) return;
+    setState(() => _submitting = true);
+    try {
+      await widget.session.restore();
+      if (mounted && widget.session.authenticated) {
+        await widget.onSignedIn();
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = context.appLocalizations;
@@ -186,9 +199,23 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
                                   ),
                                 ),
                                 ZolnitFailureMessage(
-                                  code: session.failure,
+                                  code:
+                                      session.failure == 'unauthenticated' &&
+                                          session.restoreState !=
+                                              ZolnitRestoreState.expired
+                                      ? 'invalid_credentials'
+                                      : session.failure,
                                   serverMessage: session.failureMessage,
                                 ),
+                                if (session.restoreState ==
+                                    ZolnitRestoreState.offline)
+                                  Align(
+                                    alignment: AlignmentDirectional.centerEnd,
+                                    child: TextButton(
+                                      onPressed: busy ? null : _restore,
+                                      child: Text(text.retry),
+                                    ),
+                                  ),
                                 const SizedBox(height: 16),
                                 FilledButton(
                                   key: const ValueKey('zolnit-sign-in'),
@@ -199,13 +226,6 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
                                           child: CommonCircleLoading(size: 20),
                                         )
                                       : Text(text.zolnitSignIn),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  text.zolnitSessionOnly,
-                                  style: AppTextStyle.footnote
-                                      .of(context)
-                                      .copyWith(color: colors.muted),
                                 ),
                                 const SizedBox(height: 16),
                                 Center(

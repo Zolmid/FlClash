@@ -150,6 +150,7 @@ class _NavItem extends StatelessWidget {
           child: SizedBox(
             height: height,
             child: Stack(
+              fit: StackFit.expand,
               children: [
                 if (skin == ZolnitSkin.windows && selected)
                   PositionedDirectional(

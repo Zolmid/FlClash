@@ -12,6 +12,8 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
+import 'zolnit_vault.dart';
+
 final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
   final policy = ClientPaymentPolicy.fromEnvironment();
   final api = XboardClient(
@@ -35,6 +37,12 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
     billing: ZolnitBillingClient(api),
     checkout: checkout,
     confirmRecurring: _confirmRecurring,
+    vault: ref.read(zolnitSessionVaultProvider),
+    onAuthenticationInvalidated: () async {
+      if (!ref.read(safeModeProvider)) {
+        await ref.read(setupActionProvider.notifier).setRunning(false);
+      }
+    },
   );
   ref.onDispose(session.dispose);
   return session;

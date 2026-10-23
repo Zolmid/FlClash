@@ -1,3 +1,4 @@
+import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -29,7 +30,13 @@ void main() {
       tester,
     ) async {
       await openPlans(tester, skin);
-      expect(find.text('刚刚好的套餐，刚刚好的自由。'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ZolnitPageHeading),
+          matching: find.text('套餐'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('当前套餐 · 轻享'), findsOneWidget);
       for (final name in ['轻享', '畅享', '尊享']) {
         expect(find.text(name), findsOneWidget);
@@ -134,7 +141,7 @@ void main() {
     expect(request.method, 'POST');
     expect(request.body, contains('"plan_id":2'));
     expect(request.body, contains('"period":"month_price"'));
-    expect(find.text('刚刚好的套餐，刚刚好的自由。'), findsNothing);
+    expect(find.byType(ZolnitPageHeading), findsNothing);
     expect(find.text('订单记录'), findsWidgets);
   });
 
@@ -147,7 +154,13 @@ void main() {
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
     expect(saved(), 0);
-    expect(find.text('刚刚好的套餐，刚刚好的自由。'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(ZolnitPageHeading),
+        matching: find.text('套餐'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('monthly enrollment is offered per configured channel only', (

@@ -10934,11 +10934,61 @@ class AppLocalizations {
     return Intl.message('Sign out', name: 'zolnitSignOut', desc: '', args: []);
   }
 
-  /// `You stay signed in until you close the app.`
-  String get zolnitSessionOnly {
+  /// `Connect`
+  String get zolnitConnectAction {
     return Intl.message(
-      'You stay signed in until you close the app.',
-      name: 'zolnitSessionOnly',
+      'Connect',
+      name: 'zolnitConnectAction',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Disconnect`
+  String get zolnitDisconnectAction {
+    return Intl.message(
+      'Disconnect',
+      name: 'zolnitDisconnectAction',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Disconnecting…`
+  String get zolnitDisconnecting {
+    return Intl.message(
+      'Disconnecting…',
+      name: 'zolnitDisconnecting',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Restoring sign-in…`
+  String get zolnitRestoringSession {
+    return Intl.message(
+      'Restoring sign-in…',
+      name: 'zolnitRestoringSession',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose server`
+  String get zolnitSelectServer {
+    return Intl.message(
+      'Choose server',
+      name: 'zolnitSelectServer',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current plan`
+  String get zolnitCurrentPlanLabel {
+    return Intl.message(
+      'Current plan',
+      name: 'zolnitCurrentPlanLabel',
       desc: '',
       args: [],
     );
@@ -10959,40 +11009,40 @@ class AppLocalizations {
     return Intl.message('Refresh', name: 'zolnitRefresh', desc: '', args: []);
   }
 
-  /// `Sync connection profile`
+  /// `Sync account data`
   String get zolnitSync {
     return Intl.message(
-      'Sync connection profile',
+      'Sync account data',
       name: 'zolnitSync',
       desc: '',
       args: [],
     );
   }
 
-  /// `Connection profile synced`
+  /// `Account data synced`
   String get zolnitSynced {
     return Intl.message(
-      'Connection profile synced',
+      'Account data synced',
       name: 'zolnitSynced',
       desc: '',
       args: [],
     );
   }
 
-  /// `Syncing connection profile…`
+  /// `Syncing account data…`
   String get zolnitSyncing {
     return Intl.message(
-      'Syncing connection profile…',
+      'Syncing account data…',
       name: 'zolnitSyncing',
       desc: '',
       args: [],
     );
   }
 
-  /// `No nodes are available for this subscription.`
+  /// `No servers are available with your current plan.`
   String get zolnitNoNodes {
     return Intl.message(
-      'No nodes are available for this subscription.',
+      'No servers are available with your current plan.',
       name: 'zolnitNoNodes',
       desc: '',
       args: [],
@@ -11099,10 +11149,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Could not complete the request. Check your details or connection and try again.`
+  /// `Could not complete the request. Please try again.`
   String get zolnitFailure {
     return Intl.message(
-      'Could not complete the request. Check your details or connection and try again.',
+      'Could not complete the request. Please try again.',
       name: 'zolnitFailure',
       desc: '',
       args: [],
@@ -11349,10 +11399,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Nodes and routing rules sync automatically from ZolNit.`
+  /// `Your servers update automatically from your account.`
   String get zolnitProfileSource {
     return Intl.message(
-      'Nodes and routing rules sync automatically from ZolNit.',
+      'Your servers update automatically from your account.',
       name: 'zolnitProfileSource',
       desc: '',
       args: [],
@@ -11604,10 +11654,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Ready to see a bigger world.`
+  /// `View your plan and available servers.`
   String get zolnitGreetingSub {
     return Intl.message(
-      'Ready to see a bigger world.',
+      'View your plan and available servers.',
       name: 'zolnitGreetingSub',
       desc: '',
       args: [],
@@ -11624,20 +11674,20 @@ class AppLocalizations {
     );
   }
 
-  /// `One tap, instantly connected`
+  /// `Ready to connect`
   String get zolnitConnectHeadline {
     return Intl.message(
-      'One tap, instantly connected',
+      'Ready to connect',
       name: 'zolnitConnectHeadline',
       desc: '',
       args: [],
     );
   }
 
-  /// `Pick your route and leave the rest to ZolNit.`
+  /// `Connect with the servers included in your plan.`
   String get zolnitConnectSub {
     return Intl.message(
-      'Pick your route and leave the rest to ZolNit.',
+      'Connect with the servers included in your plan.',
       name: 'zolnitConnectSub',
       desc: '',
       args: [],
@@ -11684,16 +11734,6 @@ class AppLocalizations {
     return Intl.message(
       'Safe mode never changes the system network.',
       name: 'zolnitSafeModeConnect',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `YOUR MEMBERSHIP`
-  String get zolnitMembershipEyebrow {
-    return Intl.message(
-      'YOUR MEMBERSHIP',
-      name: 'zolnitMembershipEyebrow',
       desc: '',
       args: [],
     );
@@ -11834,39 +11874,39 @@ class AppLocalizations {
     );
   }
 
-  /// `Recommended nodes`
+  /// `Recommended servers`
   String get zolnitRecommendedNodes {
     return Intl.message(
-      'Recommended nodes',
+      'Recommended servers',
       name: 'zolnitRecommendedNodes',
       desc: '',
       args: [],
     );
   }
 
-  /// `Nearest first, so connecting is quicker`
+  /// `Servers included in your plan`
   String get zolnitRecommendedNodesSub {
     return Intl.message(
-      'Nearest first, so connecting is quicker',
+      'Servers included in your plan',
       name: 'zolnitRecommendedNodesSub',
       desc: '',
       args: [],
     );
   }
 
-  /// `All nodes`
+  /// `All servers`
   String get zolnitAllNodes {
     return Intl.message(
-      'All nodes',
+      'All servers',
       name: 'zolnitAllNodes',
       desc: '',
       args: [],
     );
   }
 
-  /// `Node`
+  /// `Server`
   String get zolnitNodeName {
-    return Intl.message('Node', name: 'zolnitNodeName', desc: '', args: []);
+    return Intl.message('Server', name: 'zolnitNodeName', desc: '', args: []);
   }
 
   /// `Latency`
@@ -11904,10 +11944,10 @@ class AppLocalizations {
     );
   }
 
-  /// `The right plan, the right freedom.`
+  /// `Plans`
   String get zolnitPlansHeadline {
     return Intl.message(
-      'The right plan, the right freedom.',
+      'Plans',
       name: 'zolnitPlansHeadline',
       desc: '',
       args: [],
@@ -12099,20 +12139,20 @@ class AppLocalizations {
     return Intl.message('My space', name: 'zolnitMySpace', desc: '', args: []);
   }
 
-  /// `Your world starts here.`
+  /// `Servers`
   String get zolnitNodesHeadline {
     return Intl.message(
-      'Your world starts here.',
+      'Servers',
       name: 'zolnitNodesHeadline',
       desc: '',
       args: [],
     );
   }
 
-  /// `Pick a route you like and connect with ease.`
+  /// `Servers are managed and updated from your account.`
   String get zolnitNodesSubtitle {
     return Intl.message(
-      'Pick a route you like and connect with ease.',
+      'Servers are managed and updated from your account.',
       name: 'zolnitNodesSubtitle',
       desc: '',
       args: [],
@@ -12129,20 +12169,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Search nodes or regions`
+  /// `Search servers or regions`
   String get zolnitSearchNodes {
     return Intl.message(
-      'Search nodes or regions',
+      'Search servers or regions',
       name: 'zolnitSearchNodes',
       desc: '',
       args: [],
     );
   }
 
-  /// `No matching nodes. Try other keywords or regions.`
+  /// `No matching servers.`
   String get zolnitNoMatchingNodes {
     return Intl.message(
-      'No matching nodes. Try other keywords or regions.',
+      'No matching servers.',
       name: 'zolnitNoMatchingNodes',
       desc: '',
       args: [],
@@ -12169,20 +12209,20 @@ class AppLocalizations {
     );
   }
 
-  /// `After syncing your subscription, choose a node from the profile.`
+  /// `Your available servers update automatically with your plan.`
   String get zolnitNodeSyncHint {
     return Intl.message(
-      'After syncing your subscription, choose a node from the profile.',
+      'Your available servers update automatically with your plan.',
       name: 'zolnitNodeSyncHint',
       desc: '',
       args: [],
     );
   }
 
-  /// `{count} nodes`
+  /// `Servers: {count}`
   String zolnitNodesCount(Object count) {
     return Intl.message(
-      '$count nodes',
+      'Servers: $count',
       name: 'zolnitNodesCount',
       desc: '',
       args: [count],
@@ -12199,10 +12239,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Your own connection space.`
+  /// `View account details and orders.`
   String get zolnitAccountSubtitle {
     return Intl.message(
-      'Your own connection space.',
+      'View account details and orders.',
       name: 'zolnitAccountSubtitle',
       desc: '',
       args: [],
@@ -12369,40 +12409,40 @@ class AppLocalizations {
     );
   }
 
-  /// `Questions? We're here`
+  /// `Get help`
   String get zolnitAccountHelpHint {
     return Intl.message(
-      'Questions? We\'re here',
+      'Get help',
       name: 'zolnitAccountHelpHint',
       desc: '',
       args: [],
     );
   }
 
-  /// `Connect the way you like`
+  /// `Connection settings`
   String get zolnitAccountPreferencesHint {
     return Intl.message(
-      'Connect the way you like',
+      'Connection settings',
       name: 'zolnitAccountPreferencesHint',
       desc: '',
       args: [],
     );
   }
 
-  /// `Connect the way you like.`
+  /// `Settings`
   String get zolnitPreferencesHeadline {
     return Intl.message(
-      'Connect the way you like.',
+      'Settings',
       name: 'zolnitPreferencesHeadline',
       desc: '',
       args: [],
     );
   }
 
-  /// `Keep only the preferences that really matter.`
+  /// `Manage startup and connection settings.`
   String get zolnitPreferencesSubtitle {
     return Intl.message(
-      'Keep only the preferences that really matter.',
+      'Manage startup and connection settings.',
       name: 'zolnitPreferencesSubtitle',
       desc: '',
       args: [],
@@ -12439,10 +12479,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Uses the subscription profile you selected last time.`
+  /// `Connect to the server you used last time when the app starts.`
   String get zolnitConnectOnLaunchHint {
     return Intl.message(
-      'Uses the subscription profile you selected last time.',
+      'Connect to the server you used last time when the app starts.',
       name: 'zolnitConnectOnLaunchHint',
       desc: '',
       args: [],
@@ -12454,16 +12494,6 @@ class AppLocalizations {
     return Intl.message(
       'Safe mode keeps your preferences but won\'t connect automatically or change system network settings.',
       name: 'zolnitPreferencesSafeHint',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `View connection profiles and more options`
-  String get zolnitAdvancedHint {
-    return Intl.message(
-      'View connection profiles and more options',
-      name: 'zolnitAdvancedHint',
       desc: '',
       args: [],
     );
@@ -12724,6 +12754,46 @@ class AppLocalizations {
     return Intl.message(
       'Copy code',
       name: 'zolnitCopyCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Email or password is incorrect. Try again.`
+  String get zolnitSignInRejected {
+    return Intl.message(
+      'Email or password is incorrect. Try again.',
+      name: 'zolnitSignInRejected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sign-in expired. Sign in again.`
+  String get zolnitSessionExpired {
+    return Intl.message(
+      'Sign-in expired. Sign in again.',
+      name: 'zolnitSessionExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Safe mode`
+  String get zolnitSafeMode {
+    return Intl.message(
+      'Safe mode',
+      name: 'zolnitSafeMode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The connection page is unavailable. Try again.`
+  String get zolnitConnectionPageUnavailable {
+    return Intl.message(
+      'The connection page is unavailable. Try again.',
+      name: 'zolnitConnectionPageUnavailable',
       desc: '',
       args: [],
     );

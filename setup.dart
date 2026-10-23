@@ -100,9 +100,14 @@ Future<void> main(List<String> args) async {
       );
       exit(1);
     }
-    await File(
-      p.join(rootDir, 'env.json'),
-    ).writeAsString(jsonEncode(createBuildEnvironment(env)));
+    await File(p.join(rootDir, 'env.json')).writeAsString(
+      jsonEncode(
+        createBuildEnvironment(
+          env,
+          nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
+        ),
+      ),
+    );
     final bundleId = results['ios-bundle-id'] as String?;
     final team = results['ios-development-team'] as String?;
     final noSign = results['no-codesign'] as bool;
@@ -242,9 +247,17 @@ List<String> createFlutterBuildArgs({
   return flutterBuildArgs;
 }
 
-Map<String, String> createBuildEnvironment(String env, {String? arch}) {
+Map<String, String> createBuildEnvironment(
+  String env, {
+  String? arch,
+  bool nativeUi = false,
+}) {
   final packageArch = arch == null ? null : parsePackageArchitecture(arch).name;
-  return {'APP_ENV': env, 'APP_ARCH': ?packageArch};
+  return {
+    'APP_ENV': env,
+    'APP_ARCH': ?packageArch,
+    if (nativeUi) 'ZOLNIT_NATIVE_UI': 'true',
+  };
 }
 
 /// Packages whose build hook `pubspec.yaml` turns into a no-op.
@@ -402,7 +415,11 @@ Future<int> _package(
   final file = File(p.join(rootDir, 'env.json'));
   await file.writeAsString(
     jsonEncode(
-      createBuildEnvironment(env, arch: platform == 'android' ? null : arch),
+      createBuildEnvironment(
+        env,
+        arch: platform == 'android' ? null : arch,
+        nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
+      ),
     ),
   );
 

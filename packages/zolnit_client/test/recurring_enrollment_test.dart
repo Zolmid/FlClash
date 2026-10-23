@@ -296,7 +296,7 @@ void main() {
     while (consentCount == 0) {
       await Future<void>.delayed(Duration.zero);
     }
-    session.logout();
+    await session.logout();
     approval!.complete(true);
     expect(await operation, isNull);
     expect(posts(), isEmpty);
@@ -332,7 +332,7 @@ void main() {
         billing.createRecurringOrder(quote, consent: false),
         throwsA(isA<ClientFailure>()),
       );
-      session.logout();
+      await session.logout();
       await expectLater(
         billing.createRecurringOrder(quote, consent: true),
         throwsA(isA<ClientFailure>()),
