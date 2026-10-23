@@ -2550,7 +2550,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("ZolNit サイトを開く"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("おかえりなさい"),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("ワークスペース"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("年払い"),
   };
 }

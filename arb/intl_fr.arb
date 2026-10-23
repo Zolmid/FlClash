@@ -1358,7 +1358,7 @@
   "zolnitCheckoutProcessing": "Le paiement est en préparation ou en vérification. Réessayez dans un instant.",
   "zolnitRateLimited": "Trop de tentatives. Réessayez dans un instant.",
   "zolnitRecurringUnavailable": "La facturation mensuelle automatique n’est pas disponible pour ce forfait pour le moment.",
-  "zolnitWorkspace": "YOUR WORKSPACE",
+  "zolnitWorkspace": "VOTRE ESPACE",
   "zolnitHelpSupport": "Aide et assistance",
   "zolnitPreferences": "Préférences",
   "zolnitNotices": "Annonces",

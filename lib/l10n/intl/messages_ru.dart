@@ -3189,7 +3189,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Открыть сайт ZolNit",
     ),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("С возвращением"),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage(
+      "ВАШЕ ПРОСТРАНСТВО",
+    ),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("Ежегодно"),
   };
 }

@@ -2257,7 +2257,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("查看包月报价"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("打开 ZolNit 网站"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("欢迎回来"),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("我的空间"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("年付"),
   };
 }

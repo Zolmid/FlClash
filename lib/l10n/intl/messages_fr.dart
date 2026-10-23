@@ -3296,7 +3296,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage(
       "Heureux de vous revoir",
     ),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("VOTRE ESPACE"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("Annuel"),
   };
 }

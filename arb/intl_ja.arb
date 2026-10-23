@@ -1358,7 +1358,7 @@
   "zolnitCheckoutProcessing": "決済を準備または確認しています。しばらくしてからもう一度お試しください。",
   "zolnitRateLimited": "操作が多すぎます。しばらくしてからもう一度お試しください。",
   "zolnitRecurringUnavailable": "現在、このプランでは毎月の自動支払いをご利用いただけません。",
-  "zolnitWorkspace": "YOUR WORKSPACE",
+  "zolnitWorkspace": "ワークスペース",
   "zolnitHelpSupport": "ヘルプとサポート",
   "zolnitPreferences": "環境設定",
   "zolnitNotices": "お知らせ",

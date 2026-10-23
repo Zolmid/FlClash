@@ -1358,7 +1358,7 @@
   "zolnitCheckoutProcessing": "結算工作階段正在準備或核對，請稍後重試。",
   "zolnitRateLimited": "操作過於頻繁，請稍後重試。",
   "zolnitRecurringUnavailable": "目前暫時無法為此方案開通連續包月。",
-  "zolnitWorkspace": "YOUR WORKSPACE",
+  "zolnitWorkspace": "我的空間",
   "zolnitHelpSupport": "說明與支援",
   "zolnitPreferences": "偏好設定",
   "zolnitNotices": "公告",

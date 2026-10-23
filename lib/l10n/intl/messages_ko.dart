@@ -2498,7 +2498,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage("월간 견적 보기"),
     "zolnitWebsite": MessageLookupByLibrary.simpleMessage("ZolNit 웹사이트 열기"),
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage("다시 오신 것을 환영합니다"),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("내 작업 공간"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("매년"),
   };
 }

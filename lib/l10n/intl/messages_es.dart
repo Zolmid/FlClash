@@ -3282,7 +3282,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitWelcome": MessageLookupByLibrary.simpleMessage(
       "Te damos la bienvenida",
     ),
-    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("YOUR WORKSPACE"),
+    "zolnitWorkspace": MessageLookupByLibrary.simpleMessage("TU ESPACIO"),
     "zolnitYearly": MessageLookupByLibrary.simpleMessage("Anual"),
   };
 }

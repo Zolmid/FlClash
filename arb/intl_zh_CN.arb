@@ -1358,7 +1358,7 @@
   "zolnitCheckoutProcessing": "结算会话正在准备或核对，请稍后重试。",
   "zolnitRateLimited": "操作过于频繁，请稍后重试。",
   "zolnitRecurringUnavailable": "当前暂时无法为该套餐开通连续包月。",
-  "zolnitWorkspace": "YOUR WORKSPACE",
+  "zolnitWorkspace": "我的空间",
   "zolnitHelpSupport": "帮助与支持",
   "zolnitPreferences": "偏好设置",
   "zolnitNotices": "公告",
