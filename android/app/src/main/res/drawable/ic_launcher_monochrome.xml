@@ -1,0 +1,1 @@
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:insetLeft="19dp" android:insetTop="19dp" android:insetRight="19dp" android:insetBottom="19dp"><bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/zolnit_monochrome" android:gravity="fill"/></inset>

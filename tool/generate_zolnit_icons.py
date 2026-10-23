@@ -178,15 +178,31 @@ def main():
             png(raster, f'assets/images/tray/macos{folder}/{name}.png', 18 * scale)
 
     res = 'android/app/src/main/res'
-    png(light, f'{res}/drawable-nodpi/zolnit_launcher.png', 1024)
+    for name, image in [('zolnit_launcher', images['symbol']), ('zolnit_monochrome', images['black'])]:
+        png(image, f'{res}/drawable-xxxhdpi/{name}.png', 280)
+        (REPO / f'{res}/drawable-nodpi/{name}.png').unlink(missing_ok=True)
     png(images['symbol'], f'{res}/drawable-nodpi/zolnit_symbol.png', 1024)
     bitmap = f'<bitmap xmlns:android="{ANDROID}" android:src="@drawable/zolnit_launcher" android:gravity="fill"/>'
     foreground = (
-        f'<inset xmlns:android="{ANDROID}" android:insetLeft="5.4dp" android:insetTop="5.4dp" '
-        f'android:insetRight="5.4dp" android:insetBottom="5.4dp">{bitmap}</inset>\n'
+        f'<inset xmlns:android="{ANDROID}" android:insetLeft="19dp" android:insetTop="19dp" '
+        f'android:insetRight="19dp" android:insetBottom="19dp">{bitmap}</inset>\n'
     )
     for name in ('ic_launcher_foreground', 'ic_launcher_foreground_tv'):
         write(f'{res}/drawable/{name}.xml', foreground)
+    write(f'{res}/drawable/ic_launcher_monochrome.xml', foreground.replace('zolnit_launcher', 'zolnit_monochrome'))
+    for folder, name in (
+        ('mipmap-anydpi-v26', 'ic_launcher'),
+        ('mipmap-anydpi-v26', 'ic_launcher_round'),
+        ('mipmap-television-anydpi-v26', 'ic_launcher'),
+    ):
+        path = REPO / f'{res}/{folder}/{name}.xml'
+        adaptive = ET.parse(path)
+        mono = adaptive.getroot().find('monochrome')
+        if mono is None:
+            mono = ET.SubElement(adaptive.getroot(), 'monochrome')
+        mono.set(f'{{{ANDROID}}}drawable', '@drawable/ic_launcher_monochrome')
+        ET.register_namespace('android', ANDROID)
+        adaptive.write(path, encoding='utf-8', xml_declaration=True)
     write(f'{res}/drawable/ic_widget_logo.xml', bitmap.replace('zolnit_launcher', 'zolnit_symbol') + '\n')
     write(f'{res}/values/ic_launcher_background.xml', '<resources><color name="ic_launcher_background">#FFFFFF</color></resources>\n')
     for name in ('ic', 'ic_service'):
