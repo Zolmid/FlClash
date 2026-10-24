@@ -18,7 +18,10 @@ final zolnitClientBundleTransportProvider = Provider<bool>(
   (ref) => const bool.fromEnvironment('ZOLNIT_CLIENT_BUNDLE'),
 );
 final zolnitClientBundleAutomaticProvider = Provider<bool>(
-  (ref) => const bool.fromEnvironment('ZOLNIT_CLIENT_BUNDLE_AUTOMATIC'),
+  (ref) => const bool.fromEnvironment(
+    'ZOLNIT_CLIENT_BUNDLE_AUTOMATIC',
+    defaultValue: true,
+  ),
 );
 final zolnitBundleClockProvider = Provider<DateTime Function()>(
   (ref) => DateTime.now,
@@ -70,6 +73,8 @@ Profile? cachedManualZolnitBundleProfile(
   if (!enabled ||
       bundle == null ||
       !session.authenticated ||
+      (session.clientBundleFailure != null &&
+          session.clientBundleFailure != 'bundle_unavailable') ||
       const {
         'entitlement_unavailable',
         'core_version_required',
@@ -96,7 +101,7 @@ String clientBundleApplicationDigest(
 ) => sha256
     .convert(
       utf8.encode(
-        '$configDigest:${bundle.accountId}:${bundle.connectionSha256}:${bundle.routingSha256}',
+        '$configDigest:${bundle.accountId}:${bundle.bundleId}:${bundle.expiresAt.millisecondsSinceEpoch}:${bundle.connectionSha256}:${bundle.routingSha256}',
       ),
     )
     .toString();

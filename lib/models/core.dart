@@ -97,6 +97,8 @@ abstract class SetupParams with _$SetupParams {
     @JsonKey(name: 'test-url') required String testUrl,
     @Default(false) @JsonKey(name: 'skip-cert-verify') bool skipCertVerify,
     @JsonKey(includeIfNull: false) SetupBase? base,
+    @JsonKey(name: 'routing-lease', includeIfNull: false)
+    Map<String, dynamic>? routingLease,
   }) = _SetupParams;
 
   factory SetupParams.fromJson(Map<String, dynamic> json) =>
@@ -254,6 +256,8 @@ abstract class ChangeProxyParams with _$ChangeProxyParams {
     @JsonKey(name: 'group-name') required String groupName,
     @JsonKey(name: 'proxy-name') required String proxyName,
     @JsonKey(name: 'close-connections') @Default(false) bool closeConnections,
+    @JsonKey(name: 'routing-lease', includeIfNull: false)
+    Map<String, dynamic>? routingLease,
   }) = _ChangeProxyParams;
 
   factory ChangeProxyParams.fromJson(Map<String, Object?> json) =>

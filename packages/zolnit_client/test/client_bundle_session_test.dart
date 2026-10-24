@@ -106,6 +106,28 @@ void main() {
     );
   }
 
+  for (final entry in [
+    (403, '<html>edge denied PRIVATE</html>'),
+    (403, '{"error":{"code":"edge_denied"}}'),
+    (401, '<html>edge authentication</html>'),
+    (503, '<html>upstream unavailable</html>'),
+  ]) {
+    test('edge response ${entry.$1} never expires the session', () async {
+      await fixture.login();
+      final subscription = fixture.session.subscription;
+      fixture.onBundle = (_) async => http.Response(entry.$2, entry.$1);
+      await fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => bundleTime(1001),
+      );
+      expect(fixture.session.clientBundleFailure, 'client_api_unavailable');
+      expect(fixture.session.authenticated, isTrue);
+      expect(fixture.session.subscription, subscription);
+      expect(fixture.invalidations, 0);
+      expect(fixture.session.failureMessage, isNull);
+    });
+  }
+
   test('401 alone enters existing authentication invalidation', () async {
     await fixture.login();
     fixture.onBundle = (_) async =>

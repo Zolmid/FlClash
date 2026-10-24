@@ -256,6 +256,12 @@ class CoreController {
     return _interface.changeProxy(changeProxyParams);
   }
 
+  Future<Map<String, dynamic>?> getRoutingLease() =>
+      _interface.getRoutingLease();
+
+  Future<bool> invalidateRoutingLease(Map<String, dynamic> guard) =>
+      _interface.invalidateRoutingLease(guard);
+
   Future<RouteSnapshot?> watchRoute(bool watch) {
     return _interface.watchRoute(watch);
   }

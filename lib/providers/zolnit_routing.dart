@@ -30,6 +30,15 @@ final zolnitRoutingProvider = Provider<ZolnitRouting>((ref) {
   return routing;
 });
 
+class ZolnitCoreLeaseReady extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool value) => state = value;
+}
+
+final zolnitCoreLeaseReadyProvider =
+    NotifierProvider<ZolnitCoreLeaseReady, bool>(ZolnitCoreLeaseReady.new);
+
 typedef _RoutingPlan = ({
   int profileId,
   int accountGeneration,
@@ -38,7 +47,11 @@ typedef _RoutingPlan = ({
   SmartRoutingEngine? engine,
   DateTime? expiresAt,
   String? metadataIdentity,
+  String? accountId,
+  String? bundleId,
 });
+
+typedef _LeaseIdentity = (int, int, DateTime, String?);
 
 class ZolnitRouting {
   ZolnitRouting(this.ref);
@@ -52,16 +65,28 @@ class ZolnitRouting {
   final _preparedPlans = <(int, String), _RoutingPlan>{};
   _RoutingPlan? _active;
   Object? _configuration;
+  Map<String, dynamic>? _coreLease;
   Timer? _timer;
   Timer? _expiryTimer;
   Timer? _refreshTimer;
   Object? _invalidLeaseToken;
+  final _invalidatedLeases = <_LeaseIdentity, ZolnitBundleStatus>{};
+
   bool _refreshing = false;
   var _epoch = 0;
   var _intent = 0;
   var _busy = false;
   Completer<void>? _cycleDone;
   var _disposed = false;
+
+  _LeaseIdentity? _leaseIdentity(_RoutingPlan plan) => plan.expiresAt == null
+      ? null
+      : (
+          plan.profileId,
+          plan.accountGeneration,
+          plan.expiresAt!,
+          plan.metadataIdentity,
+        );
 
   bool manages(int profileId) {
     final profile = ref.read(profilesProvider).getProfile(profileId);
@@ -90,11 +115,14 @@ class ZolnitRouting {
     SmartRoutingEngine? engine,
     DateTime? expiresAt,
     String? metadataIdentity,
+    String? accountId,
+    String? bundleId,
   }) {
     if (!manages(profileId)) return;
     final session = ref.read(zolnitSessionProvider);
     if (session.api.generation != accountGeneration) return;
     if (!identical(_session, session)) {
+      _invalidatedLeases.clear();
       _session?.removeListener(_accountChanged);
       _session = session..addListener(_accountChanged);
     }
@@ -106,6 +134,8 @@ class ZolnitRouting {
       engine: engine,
       expiresAt: expiresAt,
       metadataIdentity: metadataIdentity,
+      accountId: accountId,
+      bundleId: bundleId,
     );
     _preparedPlans[(profileId, digest)] = _staged!;
     while (_preparedPlans.length > 8) {
@@ -130,6 +160,71 @@ class ZolnitRouting {
     };
   }
 
+  Map<String, dynamic>? preparedLease(int profileId, String digest) {
+    final plan = _preparedPlans[(profileId, digest)];
+    if (plan == null ||
+        plan.expiresAt == null ||
+        !plan.expiresAt!.isAfter(_now) ||
+        plan.accountId == null ||
+        plan.bundleId == null ||
+        _invalidatedLeases.containsKey(_leaseIdentity(plan))) {
+      return null;
+    }
+    return {
+      'accountId': plan.accountId,
+      'accountGeneration': plan.accountGeneration,
+      'bundleId': plan.bundleId,
+      'configurationDigest': plan.digest,
+      'expiresAt': plan.expiresAt!.millisecondsSinceEpoch,
+      'services': [
+        for (final service
+            in plan.manifest?.services ?? const <ManagedRouteService>[])
+          {
+            'groupName': service.groupName,
+            'automaticGroup': service.route.groupName,
+            'manualGroup': service.manualGroup,
+            'allowedProxies':
+                plan.engine
+                    ?.candidates(service.route.id)
+                    .map((n) => n.proxyName)
+                    .toList() ??
+                <String>[],
+          },
+      ],
+    };
+  }
+
+  bool _matchesCoreLease(Map<String, dynamic>? guard, _RoutingPlan plan) =>
+      guard != null &&
+      guard['instanceId'] is String &&
+      (guard['instanceId'] as String).isNotEmpty &&
+      guard['token'] is String &&
+      (guard['token'] as String).isNotEmpty &&
+      guard['configurationGeneration'] is int &&
+      guard['accountId'] == plan.accountId &&
+      guard['accountGeneration'] == plan.accountGeneration &&
+      guard['bundleId'] == plan.bundleId &&
+      guard['configurationDigest'] == plan.digest &&
+      guard['expiresAt'] == plan.expiresAt?.millisecondsSinceEpoch;
+
+  void _leaseReady(bool ready) {
+    if (!_disposed) ref.read(zolnitCoreLeaseReadyProvider.notifier).set(ready);
+  }
+
+  void _revokeCoreLease() {
+    final guard = _coreLease;
+    _coreLease = null;
+    _leaseReady(false);
+    if (guard != null && !ref.read(safeModeProvider)) {
+      unawaited(
+        ref
+            .read(coreHandlerProvider)
+            .invalidateRoutingLease(guard)
+            .catchError((Object _) => false),
+      );
+    }
+  }
+
   bool acceptsPrepared(int profileId, String digest) {
     final plan = _preparedPlans[(profileId, digest)];
     return plan != null &&
@@ -138,7 +233,10 @@ class ZolnitRouting {
         _session?.authenticated == true &&
         _session?.api.generation == plan.accountGeneration &&
         ref.read(currentProfileIdProvider) == profileId &&
-        manages(profileId);
+        manages(profileId) &&
+        (plan.bundleId == null ||
+            ref.read(profilesProvider).getProfile(profileId)?.zolnitBundleId ==
+                plan.bundleId);
   }
 
   DateTime get _now => ref.read(zolnitBundleClockProvider)();
@@ -153,6 +251,10 @@ class ZolnitRouting {
     _expiryTimer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
       unawaited(_invalidateAutomatic(ZolnitBundleStatus.expired));
     });
+    final invalidated = _invalidatedLeases[_leaseIdentity(_active!)];
+    if (invalidated != null) {
+      unawaited(_invalidateAutomatic(invalidated));
+    }
     if (!ref.read(safeModeProvider)) {
       _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
         unawaited(refreshBundle());
@@ -184,7 +286,9 @@ class ZolnitRouting {
               _session?.clientBundleFailure ==
                   'client_bundle_binding_mismatch')) {
         await _invalidateAutomatic(
-          bundleFailureStatus(_session?.clientBundleFailure),
+          !_active!.expiresAt!.isAfter(_now)
+              ? ZolnitBundleStatus.expired
+              : bundleFailureStatus(_session?.clientBundleFailure),
         );
       }
     } finally {
@@ -196,8 +300,10 @@ class ZolnitRouting {
     if (_disposed || _active?.expiresAt == null || _invalidLeaseToken != null) {
       return;
     }
+    _revokeCoreLease();
     final token = Object();
     _invalidLeaseToken = token;
+    _invalidatedLeases[_leaseIdentity(_active!)!] = status;
     _engine.resetGeneration(++_epoch);
     final epoch = _epoch;
     ref.read(zolnitBundleStatusProvider.notifier).set(status);
@@ -263,6 +369,7 @@ class ZolnitRouting {
       _leaseTimers();
       return;
     }
+    _revokeCoreLease();
     _active = plan;
     _configuration = configuration;
     _positions.clear();
@@ -301,6 +408,7 @@ class ZolnitRouting {
   }
 
   void suspend() {
+    _revokeCoreLease();
     _epoch++;
     _active = null;
     _timer?.cancel();
@@ -311,6 +419,7 @@ class ZolnitRouting {
   }
 
   void clear() {
+    _revokeCoreLease();
     _epoch++;
     _active = null;
     _staged = null;
@@ -381,7 +490,9 @@ class ZolnitRouting {
         _session?.api.generation == plan.accountGeneration &&
         (allowExpired ||
             plan.expiresAt == null ||
-            (plan.expiresAt!.isAfter(_now) && _invalidLeaseToken == null)) &&
+            (plan.expiresAt!.isAfter(_now) &&
+                _invalidLeaseToken == null &&
+                !_invalidatedLeases.containsKey(_leaseIdentity(plan)))) &&
         ref.read(currentProfileIdProvider) == plan.profileId &&
         manages(plan.profileId) &&
         !ref.read(safeModeProvider) &&
@@ -432,6 +543,16 @@ class ZolnitRouting {
     _busy = true;
     _cycleDone = Completer<void>();
     try {
+      Map<String, dynamic>? guard;
+      if (_active!.expiresAt != null) {
+        guard = await ref.read(coreHandlerProvider).getRoutingLease();
+        if (!_current(epoch, intent) || !_matchesCoreLease(guard, _active!)) {
+          _leaseReady(false);
+          return;
+        }
+        _coreLease = Map<String, dynamic>.unmodifiable(guard!);
+        _leaseReady(true);
+      }
       final owner = ref.read(proxiesActionProvider.notifier);
       await owner.updateGroups();
       for (final service in manifest.services) {
@@ -540,6 +661,7 @@ class ZolnitRouting {
         final applied = await owner.changeAutomaticProxy(
           groupName: service.route.groupName,
           proxyName: proxy,
+          routingLease: guard,
           isCurrent: () => _current(epoch, intent) && _automatic(service),
         );
         if (!applied || !_current(epoch, intent)) continue;

@@ -211,6 +211,8 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	decodeShareLinksMethod:               withArguments(handleDecodeShareLinks),
 	getProxiesMethod:                     withoutArguments(handleGetProxies),
 	changeProxyMethod:                    withArguments(handleChangeProxy),
+	getRoutingLeaseMethod:                withoutArguments(handleGetRoutingLease),
+	invalidateRoutingLeaseMethod:         withArguments(handleInvalidateRoutingLease),
 	asyncTestDelayMethod:                 withArguments(handleTestDelay),
 	watchRouteMethod:                     watchRouteHandler,
 	probeMethod:                          withArguments(handleProbe),

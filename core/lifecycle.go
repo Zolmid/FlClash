@@ -32,6 +32,7 @@ func handleInitClash(params *InitParams) bool {
 		logError("initialize core cache: %v", err)
 		return false
 	}
+	resetRoutingLeaseInstance()
 	sdkVersion.Store(int32(params.Version))
 	constant.SetHomeDir(params.HomeDir)
 	initOwnership(params.HomeDir)
@@ -90,6 +91,7 @@ func updateListeners(cfg *config.Config) {
 }
 
 func handleShutdown() bool {
+	resetRoutingLeaseInstance()
 	handleStopLog()
 	stopRouteWatch()
 

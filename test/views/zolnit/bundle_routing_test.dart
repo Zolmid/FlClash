@@ -2,6 +2,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/bundle_routing.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
@@ -48,6 +49,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         zolnitClientBundleTransportProvider.overrideWithValue(true),
+        zolnitCoreLeaseReadyProvider.overrideWithBuild((_, _) => true),
         zolnitClientBundleAutomaticProvider.overrideWithValue(true),
         zolnitBundleClockProvider.overrideWithValue(() => now),
         profilesProvider.overrideWith(() => TestProfiles([profile])),

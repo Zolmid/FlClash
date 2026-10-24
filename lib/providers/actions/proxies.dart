@@ -121,7 +121,7 @@ class ProxiesAction extends _$ProxiesAction {
 
   Future<void> updateGroups() async {
     try {
-      ref.read(groupsProvider.notifier).value = await retry(
+      final groups = await retry<List<Group>>(
         task: () async {
           final sortType = ref.read(
             proxiesStyleSettingProvider.select((state) => state.sortType),
@@ -150,6 +150,7 @@ class ProxiesAction extends _$ProxiesAction {
         },
         retryIf: (res) => res.isEmpty,
       );
+      if (ref.mounted) ref.read(groupsProvider.notifier).value = groups;
     } catch (e) {
       // The Core failure path already runs inside the retry task above; a
       // throw here only means ref.read hit a disposed container or the
@@ -194,16 +195,19 @@ class ProxiesAction extends _$ProxiesAction {
     required String groupName,
     required String proxyName,
     required bool Function() isCurrent,
+    Map<String, dynamic>? routingLease,
   }) => _queueProxyChange(
     groupName: groupName,
     proxyName: proxyName,
     guard: isCurrent,
+    routingLease: routingLease,
   );
 
   Future<bool> _queueProxyChange({
     required String groupName,
     required String proxyName,
     bool Function()? guard,
+    Map<String, dynamic>? routingLease,
   }) {
     final intent = (_selectionIntents[groupName] ?? 0) + 1;
     _selectionIntents[groupName] = intent;
@@ -221,6 +225,7 @@ class ProxiesAction extends _$ProxiesAction {
         proxyName: proxyName,
         isCurrent: current,
         automatic: guard != null,
+        routingLease: routingLease,
         profileId: profileId,
       );
     });
@@ -247,6 +252,7 @@ class ProxiesAction extends _$ProxiesAction {
     required String proxyName,
     required bool Function() isCurrent,
     required bool automatic,
+    Map<String, dynamic>? routingLease,
     required int? profileId,
   }) async {
     final profilesAction = ref.read(profilesActionProvider.notifier);
@@ -260,6 +266,7 @@ class ProxiesAction extends _$ProxiesAction {
       groupName: groupName,
       proxyName: proxyName,
       closeConnections: closeConnections,
+      routingLease: routingLease,
     );
     final ChangeProxyResult result;
     try {

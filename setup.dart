@@ -105,6 +105,7 @@ Future<void> main(List<String> args) async {
         createBuildEnvironment(
           env,
           nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
+          clientBundle: Platform.environment['ZOLNIT_CLIENT_BUNDLE'] == 'true',
         ),
       ),
     );
@@ -251,12 +252,14 @@ Map<String, String> createBuildEnvironment(
   String env, {
   String? arch,
   bool nativeUi = false,
+  bool clientBundle = false,
 }) {
   final packageArch = arch == null ? null : parsePackageArchitecture(arch).name;
   return {
     'APP_ENV': env,
     'APP_ARCH': ?packageArch,
     if (nativeUi) 'ZOLNIT_NATIVE_UI': 'true',
+    if (clientBundle) 'ZOLNIT_CLIENT_BUNDLE': 'true',
   };
 }
 
@@ -419,6 +422,7 @@ Future<int> _package(
         env,
         arch: platform == 'android' ? null : arch,
         nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
+        clientBundle: Platform.environment['ZOLNIT_CLIENT_BUNDLE'] == 'true',
       ),
     ),
   );

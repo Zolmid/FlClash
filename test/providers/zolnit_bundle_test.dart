@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
@@ -28,19 +29,25 @@ import '../helpers/test_profiles.dart';
 
 class _Core extends Mock implements CoreHandlerInterface {}
 
+class _Downloader extends Mock implements Dio {}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory directory;
   late ClientBundleSessionFixture fixture;
   late ProviderContainer container;
   late _Core core;
+  late _Downloader downloader;
+  void Function(ChangeProxyParams)? changed;
   late DateTime now;
   late bool safe;
   Future<void> Function()? validation;
   Map<String, dynamic>? compiled;
+  String? compiledDigest;
   final picks = <String, String>{};
 
   setUpAll(() async {
+    registerFallbackValue(<String, dynamic>{});
     registerFallbackValue(
       const ChangeProxyParams(groupName: 'g', proxyName: 'p'),
     );
@@ -60,10 +67,13 @@ void main() {
     safe = true;
     validation = null;
     compiled = null;
+    compiledDigest = null;
     picks.clear();
     fixture = ClientBundleSessionFixture();
     await fixture.login();
     core = _Core();
+    downloader = _Downloader();
+    changed = null;
     when(core.getCoreVersion).thenAnswer((_) async => 'v1.19.32');
     when(() => core.validateConfig(any())).thenAnswer((_) async {
       await validation?.call();
@@ -72,8 +82,27 @@ void main() {
     when(() => core.changeProxy(any())).thenAnswer((call) async {
       final value = call.positionalArguments.single as ChangeProxyParams;
       picks[value.groupName] = value.proxyName;
+      changed?.call(value);
       return const ChangeProxyResult(changed: true);
     });
+    when(core.getRoutingLease).thenAnswer((_) async {
+      final profile = container.read(currentProfileProvider);
+      final bundle = fixture.session.clientBundle;
+      if (profile == null || bundle == null) return null;
+      return {
+        'instanceId': 'fixture-core',
+        'token': 'fixture-token',
+        'configurationGeneration': 1,
+        'accountId': bundle.accountId,
+        'accountGeneration': fixture.api.generation,
+        'bundleId': bundle.bundleId,
+        'configurationDigest': compiledDigest,
+        'expiresAt': bundle.expiresAt.millisecondsSinceEpoch,
+      };
+    });
+    when(
+      () => core.invalidateRoutingLease(any()),
+    ).thenAnswer((_) async => true);
     when(core.resetConnections).thenAnswer((_) async => true);
     when(() => core.asyncTestDelay(any(), any())).thenAnswer(
       (call) async => Delay(
@@ -123,6 +152,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         zolnitSessionProvider.overrideWithValue(fixture.session),
+        zolnitProfileDownloaderProvider.overrideWithValue(downloader),
         zolnitClientBundleTransportProvider.overrideWithValue(true),
         zolnitClientBundleAutomaticProvider.overrideWithValue(true),
         zolnitBundleClockProvider.overrideWithValue(() => now),
@@ -135,6 +165,7 @@ void main() {
   });
   tearDown(() async {
     container.dispose();
+    verifyZeroInteractions(downloader);
     fixture.dispose();
     await directory.delete(recursive: true);
   });
@@ -162,6 +193,7 @@ void main() {
           patchConfig: const PatchClashConfig(),
         );
     compiled = Map<String, dynamic>.from(loadPlainYaml(result.yaml) as Map);
+    compiledDigest = result.md5;
     return result;
   }
 
@@ -178,6 +210,246 @@ void main() {
     container.invalidate(safeModeProvider);
     return routing;
   }
+
+  for (final status in [403, 503]) {
+    test(
+      'initial bundle HTTP $status never creates a subscription profile',
+      () async {
+        final code = status == 403
+            ? 'entitlement_unavailable'
+            : 'client_api_unavailable';
+        final subscription = fixture.session.subscription;
+        fixture.onBundle = (_) async => http.Response(
+          jsonEncode({
+            'error': {'code': code},
+          }),
+          status,
+        );
+        await expectLater(
+          container.read(zolnitSyncProfileProvider)(),
+          throwsA(isA<ClientFailure>().having((e) => e.code, 'code', code)),
+        );
+        expect(container.read(profilesProvider), isEmpty);
+        expect(fixture.session.authenticated, isTrue);
+        expect(fixture.session.subscription, subscription);
+        expect(fixture.invalidations, 0);
+      },
+    );
+  }
+
+  for (final expiresAt in [1000, 1301, 1001]) {
+    test(
+      'invalid or expired TTL $expiresAt cannot create a bundle profile',
+      () async {
+        fixture.onBundle = (_) async {
+          final raw = clientBundleFixture();
+          raw['expires_at'] = expiresAt;
+          return clientBundleResponse(raw);
+        };
+        await expectLater(
+          container.read(zolnitSyncProfileProvider)(),
+          throwsA(isA<ClientFailure>()),
+        );
+        expect(container.read(profilesProvider), isEmpty);
+        expect(fixture.session.clientBundle, isNull);
+        expect(fixture.session.authenticated, isTrue);
+      },
+    );
+  }
+
+  test(
+    'a transient 503 preserves automatic eligibility only until TTL',
+    () async {
+      final profile = await sync();
+      final subscription = fixture.session.subscription;
+      final routing = await activate(profile);
+      await routing.run();
+      fixture.onBundle = (_) async =>
+          http.Response('{"error":{"code":"client_api_unavailable"}}', 503);
+      now = bundleTime(1299);
+      await routing.refreshBundle();
+      await routing.run();
+      expect(picks['zn.service.ai.auto'], 'zn.node.vless.7');
+      await build(profile);
+      expect(
+        group('zn.service.ai.auto')['proxies'],
+        contains('zn.node.vless.7'),
+      );
+      final rejected = Completer<void>();
+      changed = (value) {
+        if (!rejected.isCompleted &&
+            value.groupName == 'zn.service.ai.auto' &&
+            value.proxyName == 'REJECT') {
+          rejected.complete();
+        }
+      };
+      now = bundleTime(1300);
+      await routing.refreshBundle();
+      await rejected.future;
+      await routing.run();
+      expect(picks['zn.service.ai.auto'], 'REJECT');
+      expect(
+        container.read(zolnitBundleStatusProvider),
+        ZolnitBundleStatus.expired,
+      );
+      await build(profile);
+      expect(group('zn.service.ai.auto')['proxies'], ['REJECT']);
+      expect(fixture.session.authenticated, isTrue);
+      expect(fixture.session.subscription, subscription);
+      expect(
+        cachedManualZolnitBundleProfile(
+          [profile],
+          fixture.session,
+          enabled: true,
+        ),
+        isNull,
+      );
+    },
+  );
+
+  test(
+    '403 revokes active automatic routing and denies cached reconnect',
+    () async {
+      final profile = await sync();
+      final subscription = fixture.session.subscription;
+      final routing = await activate(profile);
+      await routing.run();
+      final rejected = Completer<void>();
+      changed = (value) {
+        if (!rejected.isCompleted &&
+            value.groupName == 'zn.service.ai.auto' &&
+            value.proxyName == 'REJECT') {
+          rejected.complete();
+        }
+      };
+      fixture.onBundle = (_) async =>
+          http.Response('{"error":{"code":"entitlement_unavailable"}}', 403);
+      await routing.refreshBundle();
+      await rejected.future;
+      await routing.run();
+      expect(picks['zn.service.ai.auto'], 'REJECT');
+      expect(
+        container.read(zolnitBundleStatusProvider),
+        ZolnitBundleStatus.forbidden,
+      );
+      expect(fixture.session.authenticated, isTrue);
+      expect(fixture.session.subscription, subscription);
+      expect(fixture.invalidations, 0);
+      for (final choice in ['zn.service.ai.manual', 'DIRECT']) {
+        final cached = profile.copyWith(selectedMap: {'zn.service.ai': choice});
+        expect(
+          cachedManualZolnitBundleProfile(
+            [cached],
+            fixture.session,
+            enabled: true,
+          ),
+          isNull,
+        );
+      }
+      await expectLater(build(profile), throwsA(isA<ClientFailure>()));
+      fixture.onBundle = (_) async =>
+          http.Response('{"error":{"code":"client_api_unavailable"}}', 503);
+      await routing.refreshBundle();
+      final rebuilt = await build(profile);
+      clearInteractions(core);
+      routing.activate(profile.id, rebuilt.md5);
+      await routing.run();
+      verifyNever(() => core.asyncTestDelay(any(), any()));
+      expect(picks['zn.service.ai.auto'], 'REJECT');
+    },
+  );
+
+  for (final expiresAt in [1000, 1301, 1001]) {
+    test(
+      'TTL rejection $expiresAt invalidates old automatic eligibility',
+      () async {
+        final profile = await sync();
+        final subscription = fixture.session.subscription;
+        final routing = await activate(profile);
+        await routing.run();
+        final rejected = Completer<void>();
+        changed = (value) {
+          if (!rejected.isCompleted &&
+              value.groupName == 'zn.service.ai.auto' &&
+              value.proxyName == 'REJECT') {
+            rejected.complete();
+          }
+        };
+        fixture.onBundle = (_) async {
+          final raw = clientBundleFixture();
+          raw['expires_at'] = expiresAt;
+          return clientBundleResponse(raw);
+        };
+        await routing.refreshBundle();
+        await rejected.future;
+        await routing.run();
+        expect(picks['zn.service.ai.auto'], 'REJECT');
+        expect(fixture.session.authenticated, isTrue);
+        expect(fixture.session.subscription, subscription);
+      },
+    );
+  }
+
+  for (final choice in ['zn.service.ai.manual', 'DIRECT']) {
+    test(
+      'expired same-account $choice cache remains available after 503',
+      () async {
+        final profile = await sync();
+        now = bundleTime(1300);
+        fixture.onBundle = (_) async =>
+            http.Response('{"error":{"code":"bundle_unavailable"}}', 503);
+        await expectLater(
+          container.read(zolnitSyncProfileProvider)(),
+          throwsA(isA<ClientFailure>()),
+        );
+        final cached = profile.copyWith(selectedMap: {'zn.service.ai': choice});
+        expect(
+          cachedManualZolnitBundleProfile(
+            [cached],
+            fixture.session,
+            enabled: true,
+          )?.id,
+          profile.id,
+        );
+        expect(
+          cachedManualZolnitBundleProfile(
+            [cached.copyWith(zolnitAccountId: 'other')],
+            fixture.session,
+            enabled: true,
+          ),
+          isNull,
+        );
+        await build(profile);
+        expect(group('zn.service.ai.auto')['proxies'], ['REJECT']);
+        expect(group('zn.service.ai.manual')['proxies'], contains('DIRECT'));
+      },
+    );
+  }
+
+  test(
+    'a renewed bundle requires a new applied Core lease even when YAML is identical',
+    () async {
+      final profile = await sync();
+      final before = await build(profile);
+      fixture.onBundle = (_) async => clientBundleResponse(
+        clientBundleFixture(
+          issuedAt: 1001,
+          bundleId: 'renewed-immutable-bundle',
+        ),
+      );
+      now = bundleTime(1002);
+      final renewed = await sync();
+      final after = await build(renewed);
+      expect(renewed.id, profile.id);
+      expect(after.yaml, before.yaml);
+      expect(after.md5, isNot(before.md5));
+      final spec = container
+          .read(zolnitRoutingProvider)
+          .preparedLease(renewed.id, after.md5)!;
+      expect(spec['bundleId'], 'renewed-immutable-bundle');
+      expect(spec['expiresAt'], bundleTime(1301).millisecondsSinceEpoch);
+    },
+  );
 
   test(
     'bundle dispatch uses no subscription URL and commits one bound source record',
@@ -401,6 +673,36 @@ void main() {
       expect(selected['zn.service.ai.manual'], 'zn.node.trojan.9');
     },
   );
+
+  for (final edge in [true, false]) {
+    test(
+      'edge/network error never recovers a cached manual profile ($edge)',
+      () async {
+        final profile = await sync();
+        fixture.onBundle = (_) async {
+          if (!edge) throw http.ClientException('PRIVATE network detail');
+          return http.Response('<html>edge blocked</html>', 403);
+        };
+        await expectLater(
+          container.read(zolnitSyncProfileProvider)(),
+          throwsA(isA<ClientFailure>()),
+        );
+        final manual = profile.copyWith(
+          selectedMap: {'zn.service.ai': 'zn.service.ai.manual'},
+        );
+        expect(
+          cachedManualZolnitBundleProfile(
+            [manual],
+            fixture.session,
+            enabled: true,
+          ),
+          isNull,
+        );
+        expect(fixture.session.authenticated, isTrue);
+        verifyZeroInteractions(downloader);
+      },
+    );
+  }
 
   test(
     'cached fallback requires explicit same-account manual intent and no authorization denial',

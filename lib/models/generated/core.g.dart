@@ -105,6 +105,7 @@ _SetupParams _$SetupParamsFromJson(Map<String, dynamic> json) => _SetupParams(
   base: json['base'] == null
       ? null
       : SetupBase.fromJson(json['base'] as Map<String, dynamic>),
+  routingLease: json['routing-lease'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$SetupParamsToJson(_SetupParams instance) =>
@@ -113,6 +114,7 @@ Map<String, dynamic> _$SetupParamsToJson(_SetupParams instance) =>
       'test-url': instance.testUrl,
       'skip-cert-verify': instance.skipCertVerify,
       'base': ?instance.base,
+      'routing-lease': ?instance.routingLease,
     };
 
 _SetupBase _$SetupBaseFromJson(Map<String, dynamic> json) => _SetupBase(
@@ -301,6 +303,7 @@ _ChangeProxyParams _$ChangeProxyParamsFromJson(Map<String, dynamic> json) =>
       groupName: json['group-name'] as String,
       proxyName: json['proxy-name'] as String,
       closeConnections: json['close-connections'] as bool? ?? false,
+      routingLease: json['routing-lease'] as Map<String, dynamic>?,
     );
 
 Map<String, dynamic> _$ChangeProxyParamsToJson(_ChangeProxyParams instance) =>
@@ -308,6 +311,7 @@ Map<String, dynamic> _$ChangeProxyParamsToJson(_ChangeProxyParams instance) =>
       'group-name': instance.groupName,
       'proxy-name': instance.proxyName,
       'close-connections': instance.closeConnections,
+      'routing-lease': ?instance.routingLease,
     };
 
 _ChangeProxyResult _$ChangeProxyResultFromJson(Map<String, dynamic> json) =>

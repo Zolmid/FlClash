@@ -233,14 +233,87 @@ outbounds 一一对应、组名无歧义、无动态代理源，再走现有 Cor
 自动候选清空并收敛到 REJECT，不把缓存存在当作仍有自动资格。权益、版本或绑定拒绝时不能
 使用缓存重连；普通刷新故障也仅允许同账户已有显式手动或 DIRECT 意图。
 
-`ZOLNIT_CLIENT_BUNDLE` 与 `ZOLNIT_CLIENT_BUNDLE_AUTOMATIC` 均默认 false。
-当前 Flutter 前台定时器不能保证 iOS Network Extension、Windows Helper 或应用挂起时的
-截止时间，跨进程 Core 租约未接入前不开放自动模式。后端若返回 `routing.nodes: []`，界面
-显示无合格候选，不能用地区名称或延迟补齐资格。
+`ZOLNIT_CLIENT_BUNDLE` 一般构建默认 false；本开发分支的五平台 Cloud 构建显式开启它，
+并在来源记录中写入 `client_bundle=true`。自动模式默认启用能力检测，仍需取得实际 Core 的匹配
+租约及合格候选；旧 Core、过期/撤销租约、`routing.nodes: []` 都保持自动不可用，不能用名称或
+延迟补齐资格。边缘 HTML/未知 403 和网络错误显示接口不可用，不登出、不判定套餐过期，也不
+恢复缓存。只有结构化 `error.code=entitlement_unavailable` 的 403 才撤销权益相关资格。
+
+### 实际 Core 所有者与租约
+
+租约随 `setupConfig.routing-lease` 进入实际 Core。装载新配置前，旧自动 Selector 先收敛到
+REJECT、撤销资格；`hub.ApplyConfig`、选择初始化和新租约安装共用 `selectMu`，锁序仍为
+`configMu -> selectMu`。安装时自动组统一从 REJECT 开始，新 bundle 身份和期限参与应用摘要，
+即使 YAML 一样也不能只更新 Flutter 的时间而跳过 Core 安装。
+
+`getRoutingLease` 返回实例、配置代际、意图令牌、账户代际、bundle、摘要和期限。每轮探测前
+取得的令牌随自动选择写入，Core 在同一把锁内检查完整身份、期限、实际 Selector/代理对象和
+当前服务模式。手动意图旋转令牌，旧探测不能在手动再返回自动后写入。Core 定时器独立撤销
+过期资格并设 REJECT，不依赖前台 Dart timer；旧定时器和旧配置/实例令牌也不能碰新 Selector。
+
+| 平台 | 现有生命周期所有者 | 新增的选择控制边界 |
+| --- | --- | --- |
+| Android | 原生 ServiceState / ServiceController | 服务中的 Go Core 负责互斥与租约 |
+| macOS | DesktopCoreLifecycle 的进程 lease | RPC 到该独立 Core；实例/配置代际阻止重启前任务 |
+| Windows / Linux | 既有 Helper 单个受管子进程及 DesktopCoreLifecycle | Helper 不直接改 Selector；租约在其启动的 Core 内执行 |
+| iOS | App Core 与 Network Extension 分别持有自己的实例 | 活跃连接的租约 RPC 路由到 Extension；不可回退 App Core 假确认 |
+
+这条跨进程边界使用实际 Core 的 RPC 租约，不另建一个前台文件锁或第二个进程生命周期所有者。
+Core 单测覆盖无 Flutter 的 TTL 定时拒绝、旧配置/实例/定时器、手动 ABA、直接连接别名和原子
+配置安装；宿主测试覆盖令牌传递、续期、403/503/TTL 和账户变化。它们不等于 iOS 挂起、Helper
+崩溃恢复或真实设备联网已经验收。
 
 测试只用仓库内 synthetic bundle 和无凭据 RFC 5737 代理夹具。真实 Core 离线检查只解析
 代理、Selector 和域名规则，并确认选择结果；不执行完整配置应用、监听、DNS、TUN 或联网。
 业务测试、离线 Core 检查与 CI 均不证明真实账号、出口、AI/影音解锁或设备行为已验收。
+
+### 凭据隔离的真实 Core 联调驱动
+
+源码在 `core/cmd/zolnit-bundle-probe/`，使用固定子模块内的 `adapter.ParseProxy` 和
+`Proxy.DialContext`；不调用完整配置解析/应用，不启动应用、VPN、系统代理、DNS 监听或外部控制器。
+只提取静态代理及其精确的 `dialer-proxy` 链；规则、规则源、DNS/TUN 配置都不执行。
+支持的协议由代码显式列出，不支持的协议/代理组链直接失败，不使用 DIRECT 或通用订阅回退。
+
+客户端开发者先在干净提交上构建，并交付带 SHA256 的就绪二进制；根聊天无需编译或运行开发测试，
+只在其安排的账号窗口中运行已交付驱动。下面是开发者构建命令：
+
+```sh
+ZOLNIT_PROBE_SHA=$(git rev-parse HEAD)
+ZOLNIT_CORE_VERSION=$(sed -n 's/^core_version: *//p' build_config.yaml)
+(cd core && CGO_ENABLED=0 go build -mod=readonly \
+  -ldflags="-X github.com/metacubex/mihomo/constant.Version=$ZOLNIT_CORE_VERSION -X main.sourceCommit=$ZOLNIT_PROBE_SHA" \
+  -o /private/tmp/zolnit-bundle-probe ./cmd/zolnit-bundle-probe)
+```
+
+驱动只从 stdin 接收一个 JSON 帧，不提供 bundle 文件、URL 或命令行载荷参数：
+
+```json
+{"http_status":200,"source_path":"/api/v1/zolnit/client/bundle","body":{"data":"此处由已有请求程序直接放入实际响应对象"}}
+```
+
+上面的字符串只是字段位置示意；实际 body 必须是完整 API 响应对象。由根聊天现有的凭据请求程序
+在内存中取得真实 HTTP 状态和响应，发送正常客户端 UA 与三个 X-ZolNit 上下文头，再将该帧写 stdout。
+Bearer、原始响应及连接凭据不得进入 shell 参数、环境变量、日志、临时文件或聊天。非 JSON 响应
+应以空 body 和实际 HTTP 状态送入；驱动报接口不可用。输入帧的来源由该请求程序保证，驱动不把
+`source_path` 文本当作独立的 HTTPS 来源证明。
+
+```sh
+# “现有凭据请求程序”只代表根聊天持有的内存请求入口，不是仓库内的凭据脚本。
+现有凭据请求程序 | /private/tmp/zolnit-bundle-probe --account-id 2
+现有凭据请求程序 | /private/tmp/zolnit-bundle-probe --account-id 2 \
+  --probe --outbound-id '协议:面板ID' --target gstatic --timeout-seconds 10
+```
+
+`--version` 可在不读取 stdin 的情况下核对源码提交和实际链接的 Core 版本。
+第一条只校验 schema、账户、300 秒 TTL、原始 UTF-8 SHA256、outbound 和服务组映射；
+第二条还对显式选定的 outbound 发一次 HTTPS HEAD。目标仅允许内置 gstatic/cloudflare，
+禁止重定向和环境代理，截止时间不超过包 TTL 和 20 秒。QUIC 代理可以创建客户端 UDP socket，
+不开放代理服务监听。stdout 只输出固定错误码、Core/源码版本、数量、状态码和用时，不输出
+账户、bundle_id、节点地址、显示名称、哈希原文、响应体或错误详情。驱动不保存输入或结果文件。
+
+`routing.nodes=[]` 仍可验证并显式测一个授权 outbound，但不产生自动服务资格。成功仅证明本次
+选定协议到测试地址的传输和 HTTPS 请求完成；不证明出口国家、账号产品权限、AI/影音解锁，
+也不覆盖 iOS Extension 或实际移动设备。403/503/无效 TTL 不连接、不读取旧缓存。
 
 ## 服务智能分流元数据 v1（既有兼容载体，未上线）
 

@@ -29,6 +29,17 @@ void main() {
       expect(setup.createBuildEnvironment('dev'), {'APP_ENV': 'dev'});
     });
 
+    test('development bundle transport is an explicit compiled setting', () {
+      expect(
+        setup.createBuildEnvironment('dev', nativeUi: true, clientBundle: true),
+        {
+          'APP_ENV': 'dev',
+          'ZOLNIT_NATIVE_UI': 'true',
+          'ZOLNIT_CLIENT_BUNDLE': 'true',
+        },
+      );
+    });
+
     test('omits verbose from flutter build args by default', () {
       final args = setup.createFlutterBuildArgs(
         platform: 'android',

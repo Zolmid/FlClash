@@ -168,7 +168,7 @@ func handleChangeProxy(params *ChangeProxyParams) *ChangeProxyResult {
 	selectMu.Lock()
 	defer selectMu.Unlock()
 
-	selector, err := selectableGroup(params.GroupName)
+	selector, err := authorizeAndResolveSelectorLocked(params)
 	if err != nil {
 		return &ChangeProxyResult{Message: err.Error()}
 	}
@@ -186,15 +186,19 @@ func handleChangeProxy(params *ChangeProxyParams) *ChangeProxyResult {
 	return &ChangeProxyResult{Changed: changed}
 }
 
-func patchSelectGroup(mapping map[string]string) {
-	selectMu.Lock()
-	defer selectMu.Unlock()
+func patchSelectGroupLocked(mapping map[string]string) {
 	proxies := tunnel.AllProxies()
 	for name, selected := range mapping {
 		if selector, ok := adapterAs[outboundgroup.SelectAble](proxies[name]); ok {
 			selector.ForceSet(selected)
 		}
 	}
+}
+
+func patchSelectGroup(mapping map[string]string) {
+	selectMu.Lock()
+	defer selectMu.Unlock()
+	patchSelectGroupLocked(mapping)
 }
 
 // Tailscale and EasyTier register a DNS client under the proxy name when built

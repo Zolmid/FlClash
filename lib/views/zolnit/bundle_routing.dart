@@ -3,6 +3,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,8 +59,10 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
               (!service.route.isAi || node.countryCode != 'HK'),
         );
     final automaticAllowed = ref.watch(zolnitClientBundleAutomaticProvider);
+    final leaseReady = ref.watch(zolnitCoreLeaseReadyProvider);
     final autoEnabled =
         automaticAllowed &&
+        leaseReady &&
         available &&
         bundle!.isFresh(now) &&
         eligible &&
@@ -79,8 +82,8 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
       _ =>
         bundle != null && !eligible
             ? l10n.zolnitBundleNoCandidates
-            : bundle != null && !automaticAllowed
-            ? l10n.zolnitBundleAutomaticPending
+            : bundle != null && (!automaticAllowed || !leaseReady)
+            ? l10n.zolnitRouteUnavailable
             : null,
     };
     final message = bundle != null && !bundle.isFresh(now)

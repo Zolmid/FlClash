@@ -11,6 +11,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,11 +41,14 @@ void main() {
   late Map<String, dynamic> config;
   late Map<String, String> picks;
   late int accountGeneration;
+  final now = DateTime.utc(2026, 10, 24);
   var safe = true;
+  DateTime? leaseExpiry;
   var usType = 'Shadowsocks';
   Future<Delay?> Function(String url, String proxy)? probe;
 
   setUpAll(() async {
+    registerFallbackValue(<String, dynamic>{});
     registerFallbackValue(
       const ChangeProxyParams(groupName: 'g', proxyName: 'p'),
     );
@@ -113,6 +117,21 @@ void main() {
       picks[params.groupName] = params.proxyName;
       return const ChangeProxyResult(changed: true);
     });
+    when(core.getRoutingLease).thenAnswer(
+      (_) async => {
+        'instanceId': 'fixture-core',
+        'token': 'fixture-token',
+        'configurationGeneration': 1,
+        'accountId': 'fixture-account',
+        'accountGeneration': accountGeneration,
+        'bundleId': 'fixture-bundle',
+        'configurationDigest': 'compiled-fixture',
+        'expiresAt': leaseExpiry?.millisecondsSinceEpoch,
+      },
+    );
+    when(
+      () => core.invalidateRoutingLease(any()),
+    ).thenAnswer((_) async => true);
     when(core.resetConnections).thenAnswer((_) async => true);
     const profile = Profile(
       id: 1,
@@ -126,6 +145,8 @@ void main() {
         profilesProvider.overrideWith(() => TestProfiles([profile])),
         currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
         safeModeProvider.overrideWith((_) => safe),
+        zolnitBundleClockProvider.overrideWithValue(() => now),
+        zolnitClientBundleAutomaticProvider.overrideWithValue(true),
       ],
     );
     container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
@@ -134,7 +155,8 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  void activate({SmartRoutingManifest? manifest}) {
+  void activate({SmartRoutingManifest? manifest, DateTime? expiresAt}) {
+    leaseExpiry = expiresAt;
     final prepared = prepareZolnitRouting(routingFixture());
     routing.stage(
       profileId: 1,
@@ -142,6 +164,10 @@ void main() {
       digest: 'compiled-fixture',
       manifest: manifest ?? prepared.manifest,
       engine: prepared.engine,
+      expiresAt: expiresAt,
+      metadataIdentity: expiresAt == null ? null : 'routing-fixture',
+      accountId: expiresAt == null ? null : 'fixture-account',
+      bundleId: expiresAt == null ? null : 'fixture-bundle',
     );
     routing.activate(1, 'compiled-fixture');
   }
@@ -151,6 +177,44 @@ void main() {
     container.invalidate(safeModeProvider);
     await routing.run();
   }
+
+  for (final status in [
+    ZolnitBundleStatus.forbidden,
+    ZolnitBundleStatus.invalid,
+  ]) {
+    for (final reset in ['reactivate', 'suspend', 'clear']) {
+      test(
+        '$status cannot restore old automatic eligibility after $reset',
+        () async {
+          final expiry = now.add(const Duration(minutes: 5));
+          activate(expiresAt: expiry);
+          container.read(zolnitBundleStatusProvider.notifier).set(status);
+          if (reset == 'suspend') routing.suspend();
+          if (reset == 'clear') routing.clear();
+          container
+              .read(zolnitBundleStatusProvider.notifier)
+              .set(ZolnitBundleStatus.unavailable);
+          activate(expiresAt: expiry);
+          await runNormally();
+          verifyNever(() => core.asyncTestDelay(any(), any()));
+          expect(picks['AI 自动'], 'REJECT');
+        },
+      );
+    }
+  }
+
+  test(
+    'a newly issued routing lease can recover from an invalid old plan',
+    () async {
+      activate(expiresAt: now.add(const Duration(minutes: 4)));
+      container
+          .read(zolnitBundleStatusProvider.notifier)
+          .set(ZolnitBundleStatus.invalid);
+      activate(expiresAt: now.add(const Duration(minutes: 5)));
+      await runNormally();
+      expect(picks['AI 自动'], 'us-exit');
+    },
+  );
 
   test(
     'actual service selectors receive different Core choices while rules stay intact',

@@ -24,6 +24,8 @@ enum CoreMethod {
   compileRuleSet,
   getProxies,
   changeProxy,
+  getRoutingLease,
+  invalidateRoutingLease,
   getTraffic,
   getTotalTraffic,
   resetTraffic,

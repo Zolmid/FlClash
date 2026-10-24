@@ -30,6 +30,8 @@ const (
 	updateConfigMethod                   CoreMethod = "updateConfig"
 	getProxiesMethod                     CoreMethod = "getProxies"
 	changeProxyMethod                    CoreMethod = "changeProxy"
+	getRoutingLeaseMethod                CoreMethod = "getRoutingLease"
+	invalidateRoutingLeaseMethod         CoreMethod = "invalidateRoutingLease"
 	getTrafficMethod                     CoreMethod = "getTraffic"
 	getTotalTrafficMethod                CoreMethod = "getTotalTraffic"
 	resetTrafficMethod                   CoreMethod = "resetTraffic"
@@ -108,11 +110,39 @@ type SetupParams struct {
 	TestURL        string            `json:"test-url"`
 	SkipCertVerify bool              `json:"skip-cert-verify"`
 	Base           *SetupBase        `json:"base,omitempty"`
+	RoutingLease   *RoutingLeaseSpec `json:"routing-lease,omitempty"`
 }
 
 type SetupBase struct {
 	Path    string `json:"path"`
 	Overlay string `json:"overlay"`
+}
+
+type RoutingLeaseServiceSpec struct {
+	GroupName      string   `json:"groupName"`
+	AutomaticGroup string   `json:"automaticGroup"`
+	ManualGroup    string   `json:"manualGroup"`
+	AllowedProxies []string `json:"allowedProxies"`
+}
+
+type RoutingLeaseSpec struct {
+	AccountID           string                    `json:"accountId"`
+	AccountGeneration   int                       `json:"accountGeneration"`
+	BundleID            string                    `json:"bundleId"`
+	ConfigurationDigest string                    `json:"configurationDigest"`
+	ExpiresAt           int64                     `json:"expiresAt"`
+	Services            []RoutingLeaseServiceSpec `json:"services"`
+}
+
+type RoutingLeaseGuard struct {
+	InstanceID              string `json:"instanceId"`
+	Token                   string `json:"token"`
+	ConfigurationGeneration int    `json:"configurationGeneration"`
+	AccountID               string `json:"accountId"`
+	AccountGeneration       int    `json:"accountGeneration"`
+	BundleID                string `json:"bundleId"`
+	ConfigurationDigest     string `json:"configurationDigest"`
+	ExpiresAt               int64  `json:"expiresAt"`
 }
 
 type ProfileBase struct {
@@ -176,9 +206,10 @@ type RuleSetInfo struct {
 }
 
 type ChangeProxyParams struct {
-	GroupName        string `json:"group-name"`
-	ProxyName        string `json:"proxy-name"`
-	CloseConnections bool   `json:"close-connections"`
+	GroupName        string             `json:"group-name"`
+	ProxyName        string             `json:"proxy-name"`
+	CloseConnections bool               `json:"close-connections"`
+	RoutingLease     *RoutingLeaseGuard `json:"routing-lease,omitempty"`
 }
 
 type ChangeProxyResult struct {

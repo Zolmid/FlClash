@@ -683,6 +683,8 @@ class SetupAction extends _$SetupAction {
         engine: routingEngine,
         expiresAt: bundle?.expiresAt,
         metadataIdentity: bundle?.routingSha256,
+        accountId: bundle?.accountId,
+        bundleId: bundle?.bundleId,
       );
     }
     if (profileBase == null) {
@@ -902,6 +904,9 @@ class SetupAction extends _$SetupAction {
               isZolnitBundleProfile(profile) &&
               realProfile != null
           ? rawSetupParams.copyWith(
+              routingLease: ref
+                  .read(zolnitRoutingProvider)
+                  .preparedLease(profile.id, realProfile.md5),
               selectedMap: ref
                   .read(zolnitRoutingProvider)
                   .preparedSelections(

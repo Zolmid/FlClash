@@ -27,6 +27,7 @@ permissions:
 
 env:
   ZOLNIT_NATIVE_UI: ${{ github.ref == 'refs/heads/codex/native-client-shared' && 'true' || 'false' }}
+  ZOLNIT_CLIENT_BUNDLE: ${{ github.ref == 'refs/heads/codex/native-client-shared' && 'true' || 'false' }}
 
 concurrency:
   group: cloud-build-${{ github.ref }}-${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}-${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
@@ -165,9 +166,9 @@ jobs:
         if: matrix.platform != 'android'
         run: |
           if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
-            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI"
+            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
           else
-            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI"
+            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
           fi
 
       - name: Compile Windows installer for validation
@@ -181,7 +182,7 @@ jobs:
         if: matrix.platform == 'android'
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI"
+        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
 
       - name: Test native Android contract
         if: matrix.platform == 'android' && env.ZOLNIT_NATIVE_UI == 'true'
@@ -246,6 +247,7 @@ jobs:
             echo "target=$TARGET_PLATFORM-$TARGET_ARCH"
             echo "client_safe_preview=$CLIENT_SAFE_PREVIEW"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
+            echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
             if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
               echo 'client_defines=APP_ENV=dev;SAFE_MODE=true;ZOLNIT_DISTRIBUTION=direct'
             fi
@@ -376,6 +378,7 @@ jobs:
             echo "workflow_repository=$GITHUB_REPOSITORY"
             echo "workflow_commit=$GITHUB_SHA"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
+            echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
             echo 'target=iOS arm64 physical device; simulator unsupported'
             echo 'signing=ad hoc unsigned IPA; requires provisioning for device installation'
             git submodule status --recursive

@@ -1171,7 +1171,7 @@ as int,
 /// @nodoc
 mixin _$SetupParams {
 
-@JsonKey(name: 'selected-map') Map<String, String> get selectedMap;@JsonKey(name: 'test-url') String get testUrl;@JsonKey(name: 'skip-cert-verify') bool get skipCertVerify;@JsonKey(includeIfNull: false) SetupBase? get base;
+@JsonKey(name: 'selected-map') Map<String, String> get selectedMap;@JsonKey(name: 'test-url') String get testUrl;@JsonKey(name: 'skip-cert-verify') bool get skipCertVerify;@JsonKey(includeIfNull: false) SetupBase? get base;@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease;
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1185,20 +1185,20 @@ $SetupParamsCopyWith<SetupParams> get copyWith => _$SetupParamsCopyWithImpl<Setu
 @override
 bool operator ==(Object other) {
   final _this = this as SetupParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _this.selectedMap)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.skipCertVerify, _this.skipCertVerify) || other.skipCertVerify == _this.skipCertVerify)&&(identical(other.base, _this.base) || other.base == _this.base));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _this.selectedMap)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.skipCertVerify, _this.skipCertVerify) || other.skipCertVerify == _this.skipCertVerify)&&(identical(other.base, _this.base) || other.base == _this.base)&&const DeepCollectionEquality().equals(other.routingLease, _this.routingLease));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as SetupParams;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.selectedMap),_this.testUrl,_this.skipCertVerify,_this.base);
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.selectedMap),_this.testUrl,_this.skipCertVerify,_this.base,const DeepCollectionEquality().hash(_this.routingLease));
 }
 
 @override
 String toString() {
   final _this = this as SetupParams;
-  return 'SetupParams(selectedMap: ${_this.selectedMap}, testUrl: ${_this.testUrl}, skipCertVerify: ${_this.skipCertVerify}, base: ${_this.base})';
+  return 'SetupParams(selectedMap: ${_this.selectedMap}, testUrl: ${_this.testUrl}, skipCertVerify: ${_this.skipCertVerify}, base: ${_this.base}, routingLease: ${_this.routingLease})';
 }
 
 
@@ -1209,7 +1209,7 @@ abstract mixin class $SetupParamsCopyWith<$Res>  {
   factory $SetupParamsCopyWith(SetupParams value, $Res Function(SetupParams) _then) = _$SetupParamsCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base
+@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
 });
 
 
@@ -1226,13 +1226,14 @@ class _$SetupParamsCopyWithImpl<$Res>
 
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,Object? routingLease = freezed,}) {
   return _then(SetupParams(
 selectedMap: null == selectedMap ? _self.selectedMap : selectedMap // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,testUrl: null == testUrl ? _self.testUrl : testUrl // ignore: cast_nullable_to_non_nullable
 as String,skipCertVerify: null == skipCertVerify ? _self.skipCertVerify : skipCertVerify // ignore: cast_nullable_to_non_nullable
 as bool,base: freezed == base ? _self.base : base // ignore: cast_nullable_to_non_nullable
-as SetupBase?,
+as SetupBase?,routingLease: freezed == routingLease ? _self.routingLease : routingLease // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 /// Create a copy of SetupParams
@@ -1329,10 +1330,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SetupParams() when $default != null:
-return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base);case _:
+return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingLease);case _:
   return orElse();
 
 }
@@ -1350,10 +1351,10 @@ return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base)
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)  $default,) {final _that = this;
 switch (_that) {
 case _SetupParams():
-return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base);case _:
+return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingLease);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1370,10 +1371,10 @@ return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base)
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,) {final _that = this;
 switch (_that) {
 case _SetupParams() when $default != null:
-return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base);case _:
+return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingLease);case _:
   return null;
 
 }
@@ -1385,7 +1386,7 @@ return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base)
 @JsonSerializable()
 
 class _SetupParams implements SetupParams {
-  const _SetupParams({@JsonKey(name: 'selected-map') required  Map<String, String> selectedMap, @JsonKey(name: 'test-url') required this.testUrl, @JsonKey(name: 'skip-cert-verify') this.skipCertVerify = false, @JsonKey(includeIfNull: false) this.base}): _selectedMap = selectedMap;
+  const _SetupParams({@JsonKey(name: 'selected-map') required  Map<String, String> selectedMap, @JsonKey(name: 'test-url') required this.testUrl, @JsonKey(name: 'skip-cert-verify') this.skipCertVerify = false, @JsonKey(includeIfNull: false) this.base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease}): _selectedMap = selectedMap,_routingLease = routingLease;
   factory _SetupParams.fromJson(Map<String, dynamic> json) => _$SetupParamsFromJson(json);
 
  final  Map<String, String> _selectedMap;
@@ -1398,6 +1399,15 @@ class _SetupParams implements SetupParams {
 @override@JsonKey(name: 'test-url') final  String testUrl;
 @override@JsonKey(name: 'skip-cert-verify') final  bool skipCertVerify;
 @override@JsonKey(includeIfNull: false) final  SetupBase? base;
+ final  Map<String, dynamic>? _routingLease;
+@override@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease {
+  final value = _routingLease;
+  if (value == null) return null;
+  if (_routingLease is EqualUnmodifiableMapView) return _routingLease;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
 
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
@@ -1412,18 +1422,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _selectedMap)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.skipCertVerify, skipCertVerify) || other.skipCertVerify == skipCertVerify)&&(identical(other.base, base) || other.base == base));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _selectedMap)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.skipCertVerify, skipCertVerify) || other.skipCertVerify == skipCertVerify)&&(identical(other.base, base) || other.base == base)&&const DeepCollectionEquality().equals(other.routingLease, _routingLease));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_selectedMap),testUrl,skipCertVerify,base);
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_selectedMap),testUrl,skipCertVerify,base,const DeepCollectionEquality().hash(_routingLease));
 }
 
 @override
 String toString() {
-    return 'SetupParams(selectedMap: $selectedMap, testUrl: $testUrl, skipCertVerify: $skipCertVerify, base: $base)';
+    return 'SetupParams(selectedMap: $selectedMap, testUrl: $testUrl, skipCertVerify: $skipCertVerify, base: $base, routingLease: $routingLease)';
 }
 
 
@@ -1434,7 +1444,7 @@ abstract mixin class _$SetupParamsCopyWith<$Res> implements $SetupParamsCopyWith
   factory _$SetupParamsCopyWith(_SetupParams value, $Res Function(_SetupParams) _then) = __$SetupParamsCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base
+@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
 });
 
 
@@ -1451,13 +1461,14 @@ class __$SetupParamsCopyWithImpl<$Res>
 
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,Object? routingLease = freezed,}) {
   return _then(_SetupParams(
 selectedMap: null == selectedMap ? _self._selectedMap : selectedMap // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,testUrl: null == testUrl ? _self.testUrl : testUrl // ignore: cast_nullable_to_non_nullable
 as String,skipCertVerify: null == skipCertVerify ? _self.skipCertVerify : skipCertVerify // ignore: cast_nullable_to_non_nullable
 as bool,base: freezed == base ? _self.base : base // ignore: cast_nullable_to_non_nullable
-as SetupBase?,
+as SetupBase?,routingLease: freezed == routingLease ? _self._routingLease : routingLease // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 
@@ -3031,7 +3042,7 @@ as int,
 /// @nodoc
 mixin _$ChangeProxyParams {
 
-@JsonKey(name: 'group-name') String get groupName;@JsonKey(name: 'proxy-name') String get proxyName;@JsonKey(name: 'close-connections') bool get closeConnections;
+@JsonKey(name: 'group-name') String get groupName;@JsonKey(name: 'proxy-name') String get proxyName;@JsonKey(name: 'close-connections') bool get closeConnections;@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease;
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -3045,20 +3056,20 @@ $ChangeProxyParamsCopyWith<ChangeProxyParams> get copyWith => _$ChangeProxyParam
 @override
 bool operator ==(Object other) {
   final _this = this as ChangeProxyParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChangeProxyParams&&(identical(other.groupName, _this.groupName) || other.groupName == _this.groupName)&&(identical(other.proxyName, _this.proxyName) || other.proxyName == _this.proxyName)&&(identical(other.closeConnections, _this.closeConnections) || other.closeConnections == _this.closeConnections));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChangeProxyParams&&(identical(other.groupName, _this.groupName) || other.groupName == _this.groupName)&&(identical(other.proxyName, _this.proxyName) || other.proxyName == _this.proxyName)&&(identical(other.closeConnections, _this.closeConnections) || other.closeConnections == _this.closeConnections)&&const DeepCollectionEquality().equals(other.routingLease, _this.routingLease));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as ChangeProxyParams;
-  return Object.hash(runtimeType,_this.groupName,_this.proxyName,_this.closeConnections);
+  return Object.hash(runtimeType,_this.groupName,_this.proxyName,_this.closeConnections,const DeepCollectionEquality().hash(_this.routingLease));
 }
 
 @override
 String toString() {
   final _this = this as ChangeProxyParams;
-  return 'ChangeProxyParams(groupName: ${_this.groupName}, proxyName: ${_this.proxyName}, closeConnections: ${_this.closeConnections})';
+  return 'ChangeProxyParams(groupName: ${_this.groupName}, proxyName: ${_this.proxyName}, closeConnections: ${_this.closeConnections}, routingLease: ${_this.routingLease})';
 }
 
 
@@ -3069,7 +3080,7 @@ abstract mixin class $ChangeProxyParamsCopyWith<$Res>  {
   factory $ChangeProxyParamsCopyWith(ChangeProxyParams value, $Res Function(ChangeProxyParams) _then) = _$ChangeProxyParamsCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName,@JsonKey(name: 'close-connections') bool closeConnections
+@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName,@JsonKey(name: 'close-connections') bool closeConnections,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
 });
 
 
@@ -3086,12 +3097,13 @@ class _$ChangeProxyParamsCopyWithImpl<$Res>
 
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? groupName = null,Object? proxyName = null,Object? closeConnections = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? groupName = null,Object? proxyName = null,Object? closeConnections = null,Object? routingLease = freezed,}) {
   return _then(ChangeProxyParams(
 groupName: null == groupName ? _self.groupName : groupName // ignore: cast_nullable_to_non_nullable
 as String,proxyName: null == proxyName ? _self.proxyName : proxyName // ignore: cast_nullable_to_non_nullable
 as String,closeConnections: null == closeConnections ? _self.closeConnections : closeConnections // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,routingLease: freezed == routingLease ? _self.routingLease : routingLease // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 
@@ -3176,10 +3188,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChangeProxyParams() when $default != null:
-return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
+return $default(_that.groupName,_that.proxyName,_that.closeConnections,_that.routingLease);case _:
   return orElse();
 
 }
@@ -3197,10 +3209,10 @@ return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)  $default,) {final _that = this;
 switch (_that) {
 case _ChangeProxyParams():
-return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
+return $default(_that.groupName,_that.proxyName,_that.closeConnections,_that.routingLease);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3217,10 +3229,10 @@ return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'group-name')  String groupName, @JsonKey(name: 'proxy-name')  String proxyName, @JsonKey(name: 'close-connections')  bool closeConnections, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,) {final _that = this;
 switch (_that) {
 case _ChangeProxyParams() when $default != null:
-return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
+return $default(_that.groupName,_that.proxyName,_that.closeConnections,_that.routingLease);case _:
   return null;
 
 }
@@ -3232,12 +3244,21 @@ return $default(_that.groupName,_that.proxyName,_that.closeConnections);case _:
 @JsonSerializable()
 
 class _ChangeProxyParams implements ChangeProxyParams {
-  const _ChangeProxyParams({@JsonKey(name: 'group-name') required this.groupName, @JsonKey(name: 'proxy-name') required this.proxyName, @JsonKey(name: 'close-connections') this.closeConnections = false});
+  const _ChangeProxyParams({@JsonKey(name: 'group-name') required this.groupName, @JsonKey(name: 'proxy-name') required this.proxyName, @JsonKey(name: 'close-connections') this.closeConnections = false, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease}): _routingLease = routingLease;
   factory _ChangeProxyParams.fromJson(Map<String, dynamic> json) => _$ChangeProxyParamsFromJson(json);
 
 @override@JsonKey(name: 'group-name') final  String groupName;
 @override@JsonKey(name: 'proxy-name') final  String proxyName;
 @override@JsonKey(name: 'close-connections') final  bool closeConnections;
+ final  Map<String, dynamic>? _routingLease;
+@override@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease {
+  final value = _routingLease;
+  if (value == null) return null;
+  if (_routingLease is EqualUnmodifiableMapView) return _routingLease;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
 
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
@@ -3252,18 +3273,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChangeProxyParams&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.proxyName, proxyName) || other.proxyName == proxyName)&&(identical(other.closeConnections, closeConnections) || other.closeConnections == closeConnections));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChangeProxyParams&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.proxyName, proxyName) || other.proxyName == proxyName)&&(identical(other.closeConnections, closeConnections) || other.closeConnections == closeConnections)&&const DeepCollectionEquality().equals(other.routingLease, _routingLease));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,groupName,proxyName,closeConnections);
+    return Object.hash(runtimeType,groupName,proxyName,closeConnections,const DeepCollectionEquality().hash(_routingLease));
 }
 
 @override
 String toString() {
-    return 'ChangeProxyParams(groupName: $groupName, proxyName: $proxyName, closeConnections: $closeConnections)';
+    return 'ChangeProxyParams(groupName: $groupName, proxyName: $proxyName, closeConnections: $closeConnections, routingLease: $routingLease)';
 }
 
 
@@ -3274,7 +3295,7 @@ abstract mixin class _$ChangeProxyParamsCopyWith<$Res> implements $ChangeProxyPa
   factory _$ChangeProxyParamsCopyWith(_ChangeProxyParams value, $Res Function(_ChangeProxyParams) _then) = __$ChangeProxyParamsCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName,@JsonKey(name: 'close-connections') bool closeConnections
+@JsonKey(name: 'group-name') String groupName,@JsonKey(name: 'proxy-name') String proxyName,@JsonKey(name: 'close-connections') bool closeConnections,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
 });
 
 
@@ -3291,12 +3312,13 @@ class __$ChangeProxyParamsCopyWithImpl<$Res>
 
 /// Create a copy of ChangeProxyParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? groupName = null,Object? proxyName = null,Object? closeConnections = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? groupName = null,Object? proxyName = null,Object? closeConnections = null,Object? routingLease = freezed,}) {
   return _then(_ChangeProxyParams(
 groupName: null == groupName ? _self.groupName : groupName // ignore: cast_nullable_to_non_nullable
 as String,proxyName: null == proxyName ? _self.proxyName : proxyName // ignore: cast_nullable_to_non_nullable
 as String,closeConnections: null == closeConnections ? _self.closeConnections : closeConnections // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,routingLease: freezed == routingLease ? _self._routingLease : routingLease // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 

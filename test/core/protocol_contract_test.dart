@@ -137,6 +137,11 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
       },
       CoreMethod.convertAgeSecretKeyToPublicKey => 'age1test',
       CoreMethod.changeProxy => {'message': '', 'changed': true},
+      CoreMethod.getRoutingLease => {
+        'instanceId': 'fixture-core',
+        'token': 'fixture-lease',
+      },
+      CoreMethod.invalidateRoutingLease => true,
       CoreMethod.compileRuleSet => {'behavior': 'ipcidr', 'format': 'text'},
       CoreMethod.getConnectionCount => 3,
       CoreMethod.validateFilters => ['', 'missing closing )'],
@@ -526,6 +531,45 @@ void main() {
       'overlay': 'mode: rule',
     });
   });
+
+  test(
+    'lease RPC and automatic writes preserve the owner guard on the wire',
+    () async {
+      final handler = _RecordingCoreHandler();
+      final guard = await handler.getRoutingLease();
+      expect(guard, {'instanceId': 'fixture-core', 'token': 'fixture-lease'});
+      expect(await handler.invalidateRoutingLease(guard!), isTrue);
+      expect(handler.calls[CoreMethod.invalidateRoutingLease], guard);
+      await handler.changeProxy(
+        ChangeProxyParams(
+          groupName: 'zn.service.ai.auto',
+          proxyName: 'zn.node.vless.7',
+          routingLease: guard,
+        ),
+      );
+      expect(
+        (handler.calls[CoreMethod.changeProxy] as Map)['routing-lease'],
+        guard,
+      );
+      const params = SetupParams(
+        selectedMap: {},
+        testUrl: '',
+        routingLease: {
+          'accountId': '2',
+          'accountGeneration': 3,
+          'bundleId': 'fixture',
+          'configurationDigest': 'digest',
+          'expiresAt': 1234,
+          'services': [],
+        },
+      );
+      await handler.setupConfig(params);
+      expect(
+        (handler.calls[CoreMethod.setupConfig] as Map)['routing-lease'],
+        params.routingLease,
+      );
+    },
+  );
 
   test('getConfig preserves structured core errors', () async {
     final handler = _FailingConfigCoreHandler();

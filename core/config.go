@@ -149,6 +149,7 @@ func applyConfig(params *SetupParams) error {
 	configMu.Lock()
 	defer configMu.Unlock()
 
+	clearRoutingLeaseForConfigChange()
 	setTestURL(params.TestURL)
 	skipCertVerify.Store(params.SkipCertVerify)
 	cfg, err := loadSetupConfig(params)
@@ -176,10 +177,19 @@ func applyConfig(params *SetupParams) error {
 		cfg.General.GeoAutoUpdate = false
 	}
 	currentConfig = cfg
-	hub.ApplyConfig(cfg)
-	replaceRulesGenerationLocked(tunnel.Rules())
-	patchSelectGroup(params.SelectedMap)
-	bumpRouteEpoch()
+	func() {
+		selectMu.Lock()
+		defer selectMu.Unlock()
+		hub.ApplyConfig(cfg)
+		replaceRulesGenerationLocked(tunnel.Rules())
+		patchSelectGroupLocked(params.SelectedMap)
+		if err == nil {
+			installRoutingLeaseLocked(params.RoutingLease)
+		} else {
+			installRoutingLeaseLocked(nil)
+		}
+		refreshRouteLocked(true)
+	}()
 	updateListeners(cfg)
 	reconcileGeoUpdater()
 	scheduleLoadMemoryRelease()

@@ -80,6 +80,10 @@ mixin CoreInterface {
 
   Future<ChangeProxyResult> changeProxy(ChangeProxyParams changeProxyParams);
 
+  Future<Map<String, dynamic>?> getRoutingLease();
+
+  Future<bool> invalidateRoutingLease(Map<String, dynamic> guard);
+
   Future<RouteSnapshot?> watchRoute(bool watch);
 
   Future<bool> startListener({
@@ -427,6 +431,18 @@ abstract class CoreHandlerInterface with CoreInterface {
     }
     return ChangeProxyResult.fromJson(data);
   }
+
+  @override
+  Future<Map<String, dynamic>?> getRoutingLease() =>
+      _invokeMethod<Map<String, dynamic>>(method: CoreMethod.getRoutingLease);
+
+  @override
+  Future<bool> invalidateRoutingLease(Map<String, dynamic> guard) async =>
+      await _invokeMethod<bool>(
+        method: CoreMethod.invalidateRoutingLease,
+        arguments: guard,
+      ) ??
+      false;
 
   @override
   Future<RouteSnapshot?> watchRoute(bool watch) async {

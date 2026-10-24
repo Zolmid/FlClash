@@ -225,35 +225,23 @@ class XboardClient {
   }) {
     final isPlugin = path.startsWith(_pluginPrefix);
     if (path.startsWith('/api/v1/zolnit/client/')) {
-      if (statusCode == 401) {
-        return ClientFailure('unauthenticated', statusCode: statusCode);
-      }
-      if (statusCode == 403) {
-        return ClientFailure('entitlement_unavailable', statusCode: statusCode);
-      }
       String? code;
       if (bodyBytes.length <= 8192) {
         try {
           final body = jsonDecode(utf8.decode(bodyBytes));
           final error = body is Map ? body['error'] : null;
           final value = error is Map ? error['code'] : null;
-          if (value is String &&
-              const {
-                'core_version_required',
-                'client_api_unavailable',
-                'bundle_unavailable',
-              }.contains(value)) {
-            code = value;
-          }
+          if (value is String) code = value;
         } catch (_) {}
       }
-      return ClientFailure(
-        code ??
-            (statusCode == 404
-                ? 'client_api_unavailable'
-                : 'bundle_unavailable'),
-        statusCode: statusCode,
-      );
+      final classified = switch ((statusCode, code)) {
+        (401, 'unauthenticated') => 'unauthenticated',
+        (403, 'entitlement_unavailable') => 'entitlement_unavailable',
+        (400 || 426, 'core_version_required') => 'core_version_required',
+        (503, 'bundle_unavailable') => 'bundle_unavailable',
+        _ => 'client_api_unavailable',
+      };
+      return ClientFailure(classified, statusCode: statusCode);
     }
     if (statusCode == 401 ||
         (statusCode == 403 && path == '/api/v1/user/info')) {

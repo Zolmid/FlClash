@@ -73,7 +73,7 @@ final class RunnerTests: XCTestCase {
   @MainActor
   func testProviderFailureDoesNotAcknowledgeWritesFromTheAppCore() async throws {
     for method in [
-      "changeProxy", "closeConnection", "closeConnections", "updateExternalProvider",
+      "changeProxy", "getRoutingLease", "invalidateRoutingLease", "closeConnection", "closeConnections", "updateExternalProvider",
       "getMemoryStats",
     ] {
       var routes: [CoreRoute] = []
