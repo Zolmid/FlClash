@@ -498,7 +498,6 @@ void main() {
     Future<void> download() async {
       compileGate!.complete();
       await updating;
-      await pumpEventQueue();
     }
 
     test('stays deleted, its cache too', () async {
@@ -509,6 +508,7 @@ void main() {
 
       expect(await testDatabase.clashProvidersDao.query().get(), isEmpty);
       expect(File(await saved.path).existsSync(), isFalse);
+      expect(File(await saved.compiledPath).existsSync(), isFalse);
       expect(setup.forced, [true]);
     });
 
@@ -533,6 +533,7 @@ void main() {
 
       expect((await stored(remote.id)).url, moved.url);
       expect(File(await saved.path).existsSync(), isFalse);
+      expect(File(await saved.compiledPath).existsSync(), isFalse);
     });
   });
 
