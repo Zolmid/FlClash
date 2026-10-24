@@ -288,10 +288,10 @@ ZOLNIT_CORE_VERSION=$(sed -n 's/^core_version: *//p' build_config.yaml)
 驱动只从 stdin 接收一个 JSON 帧，不提供 bundle 文件、URL 或命令行载荷参数：
 
 ```json
-{"http_status":200,"source_path":"/api/v1/zolnit/client/bundle","body":{"data":"此处由已有请求程序直接放入实际响应对象"}}
+{"http_status":200,"source_path":"/api/v1/zolnit/client/bundle","body":{"data":{}}}
 ```
 
-上面的字符串只是字段位置示意；实际 body 必须是完整 API 响应对象。由根聊天现有的凭据请求程序
+上面的空 data 仅占位，不能用于验收；body 必须是完整原始 API 响应对象（保留外层 data），不得再次包一层 data。由根聊天现有的凭据请求程序
 在内存中取得真实 HTTP 状态和响应，发送正常客户端 UA 与三个 X-ZolNit 上下文头，再将该帧写 stdout。
 Bearer、原始响应及连接凭据不得进入 shell 参数、环境变量、日志、临时文件或聊天。非 JSON 响应
 应以空 body 和实际 HTTP 状态送入；驱动报接口不可用。输入帧的来源由该请求程序保证，驱动不把
@@ -307,13 +307,80 @@ Bearer、原始响应及连接凭据不得进入 shell 参数、环境变量、�
 `--version` 可在不读取 stdin 的情况下核对源码提交和实际链接的 Core 版本。
 第一条只校验 schema、账户、300 秒 TTL、原始 UTF-8 SHA256、outbound 和服务组映射；
 第二条还对显式选定的 outbound 发一次 HTTPS HEAD。目标仅允许内置 gstatic/cloudflare，
-禁止重定向和环境代理，截止时间不超过包 TTL 和 20 秒。QUIC 代理可以创建客户端 UDP socket，
+禁止重定向和环境代理，连接默认限时 10 秒、允许 1–20 秒，截止时间不超过包 TTL。
+该限时不包含 stdin 等待和本地校验，运维调用方须另设请求/进程总超时。QUIC 代理可以创建客户端 UDP socket，
 不开放代理服务监听。stdout 只输出固定错误码、Core/源码版本、数量、状态码和用时，不输出
 账户、bundle_id、节点地址、显示名称、哈希原文、响应体或错误详情。驱动不保存输入或结果文件。
 
 `routing.nodes=[]` 仍可验证并显式测一个授权 outbound，但不产生自动服务资格。成功仅证明本次
 选定协议到测试地址的传输和 HTTPS 请求完成；不证明出口国家、账号产品权限、AI/影音解锁，
 也不覆盖 iOS Extension 或实际移动设备。403/503/无效 TTL 不连接、不读取旧缓存。
+
+### 出口国家观测 v1（本地运维交付）
+
+先核对服务语义：[Country 官方文档](https://country.is/) 的 `GET /` 返回调用方 IP 的国家；
+[OpenAPI 4.2.3](https://api.country.is/openapi.json) 定义所需字段为 ip、country，country 允许 null，
+并说明 Cloudflare 的国家数据可优先使用。它是单个服务对本次源地址的地理归属观测，不是物理
+位置证明、产品解锁或自动路由资格，也不能从 CDN 机房 `colo` 推断出口国家。
+
+新模式固定为 `--observe-egress --account-id 2 --outbound-id '协议:面板ID'`，只经该显式代理
+向 `https://api.country.is/` 发一个 GET；不能同时使用 `--probe` 或任何 `--target` 参数。
+不接受任意 URL、IP 查询参数、重定向或环境代理，不追加其他供应商回退，也不重试或批量探测。
+默认无动作开关时仍只校验 bundle，原 `--probe` 的 HTTPS HEAD 模式保留。
+
+stdin 帧继续保留原 API 响应；新增顶层 `observation: {"key_b64u": "执行窗口密钥"}`。
+根聊天在其进程内用密码学随机源创建 32 字节密钥，采用不带 padding 的 base64url 编码（43 字符）；
+同一账户/执行窗口的多个样本复用它，结束后丢弃，下一窗口换新密钥。密钥不得使用密码/Bearer
+替代，不经命令行、环境变量、日志或文件传递，驱动不会把它送给观测服务或输出。
+驱动仅校验长度及非全零，随机性由执行方保证；实际配置仍只经 stdin 进入进程。
+
+包绑定、SHA256、映射、TTL 和窗口密钥通过后才允许联网。连接默认 10 秒、范围 1–20 秒，
+并受 bundle 截止时间约束；stdin/本地解析不属于该连接计时，调用方另设进程总超时。
+HTTP 响应头最多 8192 字节，响应体最多 4096 字节；只接受 HTTP 200、application/json 和
+未压缩/identity 响应，重复 JSON 键、尾随内容、未知国家、私有/保留地址均失败，不输出部分结果。
+
+观测成功新增 `country_code`（249 国 ISO alpha-2 白名单）和 `egress_tag`；其余仍是固定错误码、
+Core/源码版本、模式、数量、HTTP 状态及用时。code 为 `egress_observation_ok`，mode 为
+`egress_observation`，target 为 `country_is`。失败不含 country_code/egress_tag；上游 403/429/5xx
+只报 `egress_http_status`，不表示套餐过期。原始响应、IP、显示名称、节点地址、凭据及密钥不输出或落盘。
+
+标记为 `eg1.` 加小写十六进制 HMAC-SHA256：输入是
+`zolnit-egress-observation/eg1\0https://api.country.is/\0<规范化IP>`（\0 表示 NUL 字节）。
+IPv4-mapped IPv6 先还原 IPv4；标记不包含国家、协议或节点 ID。同窗口相同标记只表示该服务
+观察到了相同的规范化 IP，不证明同一机器/物理出口；换密钥后不可跨窗口比较。它是带密钥标记，
+不使用可枚举的无盐 IP 哈希。本模式不修改应用配置、VPN、OS 代理/DNS 设置或 routing.nodes。
+
+### 已报告的真实验收范围
+
+根聊天于 2026-10-25 报告：macOS arm64 二进制源码 3782e1ee / Core v1.19.32，SHA256 为
+`5feacd910e4f0055d45a66391574788cbcce837592decac4c941e747e99c71e9`。
+真实过期 403 帧返回 entitlement_unavailable；临时授权窗口的真实 200 帧校验通过，20 outbounds，
+SHA256/映射均有效。按面板香港/新加坡标签选取的 REALITY/HY2 共 4 个显式手动样本均到 gstatic
+返回 HTTP 204、isolated_connection_ok；routing_node_count 始终为 0。标签不等于实际出口国家。
+原到期时间已由根聊天恢复，会话已撤销；客户端侧未接收真实配置或凭据。这是该驱动 4 个样本
+的真实 Core/网络证据，不覆盖国家归属、AI/影音资格、Extension、Helper 或其他设备。
+
+### iOS Extension / Windows Helper 实机验收准备（未执行）
+
+macOS stdin 驱动创建独立的 Core adapter，不连接应用 IPC；它不能验收 Extension、Helper 或后台租约。
+当前真实 `routing.nodes=[]` 只允许包校验与显式手动连接，不得为设备测试填入虚构的运营资格。
+自动租约的设备验证须另用明确标为 synthetic 的保留地址夹具，在隔离测试设备上完成。
+
+| 平台 | 所需设备与用户操作 | 必须记录的实际证据 |
+| --- | --- | --- |
+| iOS | arm64 iPhone/iPad、iOS 15+；带匹配 Network Extension / App Group 权限及有效 provisioning 的签名开发包。用户允许测试 VPN，并提供可中断网络的窗口；unsigned CI IPA 不能直接替代。 | 实际 Core 路由为 Extension、两个进程身份、租约配置代际；App 自然进入后台/锁屏超过租约期限后，自动组变为 REJECT，手动/DIRECT 保留；停止再启动测试 VPN 后新实例拒绝旧 guard。 |
+| Windows | 可控 x64 测试机或 VM；安装同提交的 App/Core/Helper，核对 Helper 协议及 Core 哈希。安装、SCM 服务重启可能需要管理员同意。 | 暂停 Flutter 前台而保留 Helper/Core 与 IPC，超过期限后自动组变为 REJECT；Helper 重启时旧 Core 随 Job 退出，再由正常启动路径创建新实例；旧 session/guard 不能停止或修改新实例。 |
+
+不能先唤醒前台或刷新 bundle 再读取结果，否则前台可能重建配置/租约而掩盖后台行为。
+`getRoutingLease` 内部调用 `ensureRoutingLeaseFreshLocked`，查询本身会执行到期撤销；它返回 null
+不足以单独证明定时器生效。应先经已授权的既有 IPC 读取 `getProxies`，再读取租约状态。
+Windows 不能以杀死/正常退出 App 代替“前台暂停”：Core 的 IPC EOF 会触发退出清理。
+
+当前缺口是独立观测入口：现有 RPC 可以提供状态，但没有交付可在 iOS App 被挂起或 Windows
+前台被冻结时独立取证的运维工具。须先提供经过授权的只读观察入口，或不会被恢复/刷新覆盖的
+Core 事件证据，再进行上述后台验收；不能用重新打开节点页后的状态或纯 Go 测试代替。
+仅带回源码/构建身份、进程是否存活、时间差、配置代际、选择是否 REJECT、旧写入是否拒绝和
+手动状态是否保留；完整 guard、账户、bundle、配置、节点地址和凭据均留在执行设备内。
 
 ## 服务智能分流元数据 v1（既有兼容载体，未上线）
 

@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -71,6 +73,9 @@ type bundle struct {
 	} `json:"routing"`
 }
 type frame struct {
+	Observation struct {
+		Key string `json:"key_b64u"`
+	} `json:"observation"`
 	Status int    `json:"http_status"`
 	Path   string `json:"source_path"`
 	Body   struct {
@@ -83,6 +88,8 @@ type frame struct {
 type options struct {
 	account, outbound, target string
 	probe                     bool
+	observe                   bool
+	targetExplicit            bool
 	timeout                   time.Duration
 }
 type report struct {
@@ -98,11 +105,14 @@ type report struct {
 	Target       string `json:"target,omitempty"`
 	Status       int    `json:"http_status,omitempty"`
 	Latency      int64  `json:"latency_ms,omitempty"`
+	Country      string `json:"country_code,omitempty"`
+	EgressTag    string `json:"egress_tag,omitempty"`
 }
 type validated struct {
-	bundle  *bundle
-	proxies map[string]map[string]any
-	names   map[string]string
+	bundle         *bundle
+	proxies        map[string]map[string]any
+	names          map[string]string
+	observationKey string
 }
 
 func safeText(value string) bool {
@@ -276,7 +286,7 @@ func validate(input io.Reader, account string, clock func() time.Time) (*validat
 		}
 		proxies[name] = p
 	}
-	return &validated{b, proxies, names}, ""
+	return &validated{b, proxies, names, envelope.Observation.Key}, ""
 }
 func buildProxy(v *validated, name string, stack map[string]bool, owned *[]C.Proxy) (C.Proxy, string) {
 	if stack[name] || len(stack) >= 8 || v.proxies[name] == nil {
@@ -309,9 +319,9 @@ func buildProxy(v *validated, name string, stack map[string]bool, owned *[]C.Pro
 	*owned = append(*owned, proxy)
 	return proxy, ""
 }
-func isolatedHTTP(ctx context.Context, proxy C.Proxy, target string) (int, error) {
-	transport := &http.Transport{
-		Proxy: nil, DisableKeepAlives: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+func isolatedTransport(proxy C.Proxy) *http.Transport {
+	return &http.Transport{
+		Proxy: nil, DisableKeepAlives: true, DisableCompression: true, MaxResponseHeaderBytes: 8192, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
 		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 			meta := &C.Metadata{NetWork: C.TCP, Type: C.INNER}
 			if err := meta.SetRemoteAddress(address); err != nil {
@@ -326,8 +336,13 @@ func isolatedHTTP(ctx context.Context, proxy C.Proxy, target string) (int, error
 			return conn, err
 		},
 	}
-	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+}
+func isolatedClient(proxy C.Proxy) *http.Client {
+	return &http.Client{Transport: isolatedTransport(proxy), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+}
+func isolatedHTTP(ctx context.Context, proxy C.Proxy, target string) (int, error) {
+	client := isolatedClient(proxy)
+	defer client.CloseIdleConnections()
 	request, err := http.NewRequestWithContext(ctx, http.MethodHead, target, nil)
 	if err != nil {
 		return 0, err
@@ -339,6 +354,47 @@ func isolatedHTTP(ctx context.Context, proxy C.Proxy, target string) (int, error
 	defer response.Body.Close()
 	return response.StatusCode, nil
 }
+func isolatedEgress(ctx context.Context, proxy C.Proxy, key []byte) (country, marker, code string, status int) {
+	client := isolatedClient(proxy)
+	defer client.CloseIdleConnections()
+	return requestEgress(ctx, client, key)
+}
+func requestEgress(ctx context.Context, client *http.Client, key []byte) (country, marker, code string, status int) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, egressObservationURL, nil)
+	if err != nil {
+		return "", "", "egress_request_failed", 0
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Accept-Encoding", "identity")
+	request.Header.Set("User-Agent", "ZolNit-Core-Probe/1")
+	response, err := client.Do(request)
+	if err != nil {
+		return "", "", "isolated_connection_failed", 0
+	}
+	defer response.Body.Close()
+	status = response.StatusCode
+	if status != http.StatusOK {
+		return "", "", "egress_http_status", status
+	}
+	media, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	encoding := response.Header.Get("Content-Encoding")
+	if err != nil || media != "application/json" || (encoding != "" && encoding != "identity") {
+		return "", "", "egress_response_invalid", status
+	}
+	if response.ContentLength > 4096 {
+		return "", "", "egress_response_too_large", status
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 4097))
+	defer clear(body)
+	if err != nil {
+		return "", "", "isolated_connection_failed", status
+	}
+	if len(body) > 4096 {
+		return "", "", "egress_response_too_large", status
+	}
+	country, marker, code = parseEgressObservation(body, key)
+	return country, marker, code, status
+}
 func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 	r = report{Code: "invalid_arguments", CoreVersion: C.Version, SourceCommit: sourceCommit, Mode: "validate"}
 	defer func() {
@@ -347,7 +403,7 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 			r.Code = "core_probe_failed"
 		}
 	}()
-	if !safeText(opt.account) || opt.timeout < time.Second || opt.timeout > 20*time.Second || targets[opt.target] == "" {
+	if !safeText(opt.account) || opt.timeout < time.Second || opt.timeout > 20*time.Second || targets[opt.target] == "" || (opt.observe && (opt.probe || opt.targetExplicit)) {
 		return r
 	}
 	v, code := validate(input, opt.account, now)
@@ -361,12 +417,34 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 	r.Mapping = true
 	r.Code = "validated"
 	r.OK = true
-	if !opt.probe {
+	if !opt.probe && !opt.observe {
 		return r
 	}
 	r.Mode = "explicit_manual_probe"
 	r.Target = opt.target
 	r.OK = false
+	var observationKey []byte
+	if opt.observe {
+		r.Mode = "egress_observation"
+		r.Target = "country_is"
+		if len(v.observationKey) != 43 {
+			r.Code = "observation_context_required"
+			return r
+		}
+		var err error
+		observationKey, err = base64.RawURLEncoding.Strict().DecodeString(v.observationKey)
+		defer clear(observationKey)
+		nonzero := false
+		for _, b := range observationKey {
+			if b != 0 {
+				nonzero = true
+			}
+		}
+		if err != nil || len(observationKey) != 32 || !nonzero {
+			r.Code = "observation_context_required"
+			return r
+		}
+	}
 	name := v.names[opt.outbound]
 	if name == "" {
 		r.Code = "outbound_required"
@@ -396,10 +474,29 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 	start := time.Now()
-	status, err := isolatedHTTP(ctx, p, targets[opt.target])
+	var status int
+	var err error
+	var country, marker, observationCode string
+	if opt.observe {
+		country, marker, observationCode, status = isolatedEgress(ctx, p, observationKey)
+	} else {
+		status, err = isolatedHTTP(ctx, p, targets[opt.target])
+	}
 	r.Latency = time.Since(start).Milliseconds()
 	if !now().Before(expiry) {
 		r.Code = "invalid_bundle_ttl"
+		return r
+	}
+	if opt.observe {
+		r.Status = status
+		if observationCode != "" {
+			r.Code = observationCode
+			return r
+		}
+		r.Country = country
+		r.EgressTag = marker
+		r.Code = "egress_observation_ok"
+		r.OK = true
 		return r
 	}
 	if err != nil {
@@ -426,12 +523,18 @@ func main() {
 	flags.StringVar(&opt.outbound, "outbound-id", "", "explicit outbound identity")
 	flags.StringVar(&opt.target, "target", "gstatic", "gstatic or cloudflare")
 	flags.BoolVar(&opt.probe, "probe", false, "perform a single isolated HTTPS HEAD through the explicit outbound")
+	flags.BoolVar(&opt.observe, "observe-egress", false, "observe country and private egress marker through one fixed HTTPS endpoint")
 	seconds := flags.Int("timeout-seconds", 10, "connection deadline from 1 through20seconds")
 	versionOnly := flags.Bool("version", false, "report compiled source and Core version without reading stdin")
 	if flags.Parse(os.Args[1:]) != nil || flags.NArg() != 0 {
 		_ = json.NewEncoder(os.Stdout).Encode(report{Code: "invalid_arguments", CoreVersion: C.Version, SourceCommit: sourceCommit})
 		os.Exit(2)
 	}
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == "target" {
+			opt.targetExplicit = true
+		}
+	})
 	if *versionOnly {
 		_ = json.NewEncoder(os.Stdout).Encode(report{OK: true, Code: "version", CoreVersion: C.Version, SourceCommit: sourceCommit, Mode: "metadata"})
 		return
