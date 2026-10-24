@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,7 +89,16 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
     }
     if (ref.read(isStartProvider)) return true;
     final generation = ref.read(zolnitSessionProvider).api.generation;
-    final id = await _sync();
+    var id = await _sync();
+    if (mounted &&
+        id == null &&
+        ref.read(zolnitSessionProvider).api.generation == generation) {
+      id = cachedManualZolnitBundleProfile(
+        ref.read(profilesProvider),
+        ref.read(zolnitSessionProvider),
+        enabled: ref.read(zolnitClientBundleTransportProvider),
+      )?.id;
+    }
     if (!mounted ||
         id == null ||
         ref.read(zolnitSessionProvider).api.generation != generation ||

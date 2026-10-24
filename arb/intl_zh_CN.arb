@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "暂时无法获取报价，请重试。",
   "zolnitAuthorizeMonthly": "授权连续包月",
   "zolnitExistingRenewal": "请先在账号页的“自动续费”中取消原套餐续费，再开通新的连续包月。",
-  "zolnitManageRenewals": "管理自动续费"
+  "zolnitManageRenewals": "管理自动续费",
+  "zolnitBundleFetchHint": "获取连接配置",
+  "zolnitBundleExpired": "自动选择信息已过期。请刷新配置；手动或直连仍可用。",
+  "zolnitBundleRefreshFailed": "连接配置刷新失败。手动或直连仍可用。",
+  "zolnitBundleForbidden": "当前账号暂时无法获取连接配置，请检查套餐与流量。",
+  "zolnitBundleInvalid": "连接配置校验失败，自动选择已暂停。",
+  "zolnitBundleUnavailable": "连接配置暂时不可用。",
+  "zolnitBundleNoCandidates": "尚无已确认的出口资格。自动选择不可用，仍可手动或直连。",
+  "zolnitAiService": "AI 服务",
+  "zolnitMediaService": "海外影音",
+  "zolnitRouteCurrent": "当前线路：{node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "不可用",
+  "zolnitBundleAutomaticPending": "自动分流仍在验证中，当前可使用手动或直连。"
 }

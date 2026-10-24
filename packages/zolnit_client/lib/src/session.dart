@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import 'api.dart';
 import 'catalog.dart';
+import 'parse.dart';
+import 'client_bundle.dart';
 import 'checkout.dart';
 import 'subscriptions.dart';
 import 'session_vault.dart';
@@ -50,6 +52,12 @@ class ZolnitSessionController extends ChangeNotifier {
   int _ordersRead = 0;
   int _billingRead = 0;
   bool _authenticated = false;
+  ZolnitClientBundle? _clientBundle;
+  String? _clientBundleAccountId;
+  int? _clientBundleGeneration;
+  int? _clientBundleFailureGeneration;
+  List<ZolnitNode> _clientBundleNodes = const [];
+  String? _clientBundleFailure;
   int _epoch = 0;
   int _sequence = 0;
   int _coreSequence = 0;
@@ -82,6 +90,15 @@ class ZolnitSessionController extends ChangeNotifier {
   ZolnitUsage? _usageModel;
   ZolnitRestoreState _restoreState = ZolnitRestoreState.signedOut;
 
+  ZolnitClientBundle? get clientBundle =>
+      _clientBundleGeneration == api.generation ? _clientBundle : null;
+  String? get clientBundleAccountId =>
+      _clientBundleGeneration == api.generation ? _clientBundleAccountId : null;
+  String? get clientBundleFailure =>
+      _clientBundleFailureGeneration == api.generation
+      ? _clientBundleFailure
+      : null;
+
   bool get authenticated => _authenticated;
   ZolnitRestoreState get restoreState => _restoreState;
   bool get restoring => _restoreState == ZolnitRestoreState.restoring;
@@ -100,6 +117,7 @@ class ZolnitSessionController extends ChangeNotifier {
   List<Json> get orders => _orders;
 
   List<ZolnitNode> get nodeList {
+    if (clientBundle != null) return _clientBundleNodes;
     if (!identical(_nodesSource, _nodes)) {
       _nodesSource = _nodes;
       _nodeModels = List.unmodifiable(_nodes.map(ZolnitNode.fromJson));
@@ -178,6 +196,7 @@ class ZolnitSessionController extends ChangeNotifier {
     Future<T> Function(_SessionWork work) action, {
     bool billing = false,
     bool login = false,
+    bool clientBundle = false,
     String? intent,
   }) {
     if (_disposed) return Future.value(fallback);
@@ -202,7 +221,7 @@ class ZolnitSessionController extends ChangeNotifier {
           _billingSequence = work.sequence;
           _billingFailure = null;
           _billingFailureMessage = null;
-        } else {
+        } else if (!clientBundle) {
           _coreSequence = work.sequence;
           _failure = null;
           _failureMessage = null;
@@ -237,7 +256,10 @@ class ZolnitSessionController extends ChangeNotifier {
             } catch (_) {}
             return fallback;
           }
-          if (billing && work.sequence == _billingSequence) {
+          if (clientBundle) {
+            _clientBundleFailure = _code(error);
+            _clientBundleFailureGeneration = work.generation;
+          } else if (billing && work.sequence == _billingSequence) {
             _billingFailure = _code(error);
             _billingFailureMessage = _message(error);
           } else if (!billing && work.sequence == _coreSequence) {
@@ -388,6 +410,12 @@ class ZolnitSessionController extends ChangeNotifier {
   void _clearSnapshots() {
     _clearQuotePreviews();
     _authenticated = false;
+    _clientBundle = null;
+    _clientBundleAccountId = null;
+    _clientBundleGeneration = null;
+    _clientBundleNodes = const [];
+    _clientBundleFailureGeneration = null;
+    _clientBundleFailure = null;
     _account = null;
     _subscription = null;
     _nodes = const [];
@@ -482,6 +510,31 @@ class ZolnitSessionController extends ChangeNotifier {
     }
     if (read == _ordersRead) _orders = orders;
   }
+
+  Future<ZolnitClientBundle?> refreshClientBundle({
+    required String coreVersion,
+    DateTime Function()? clock,
+  }) => _run<ZolnitClientBundle?>('client_bundle:${api.generation}', null, (
+    work,
+  ) async {
+    final raw = await api.fetchClientBundle(coreVersion: coreVersion);
+    if (!_current(work)) return null;
+    final parsed = await compute(_parseClientBundle, (
+      raw: raw,
+      now: clock?.call() ?? DateTime.now(),
+      accountId: clientBundleAccountId,
+      panelNodes: _nodes,
+    ));
+    if (!_current(work)) return null;
+    final bundle = parsed.bundle;
+    _clientBundleNodes = parsed.nodes;
+    _clientBundleAccountId = bundle.accountId;
+    _clientBundleGeneration = work.generation;
+    _clientBundle = bundle;
+    _clientBundleFailure = null;
+    _clientBundleFailureGeneration = work.generation;
+    return bundle;
+  }, clientBundle: true);
 
   Future<void> refresh() => _run<void>('refresh', null, _loadCore);
 
@@ -709,4 +762,38 @@ class ZolnitSessionController extends ChangeNotifier {
     api.close();
     super.dispose();
   }
+}
+
+({ZolnitClientBundle bundle, List<ZolnitNode> nodes}) _parseClientBundle(
+  ({Json raw, DateTime now, String? accountId, List<Json> panelNodes}) input,
+) {
+  final bundle = ZolnitClientBundle.parse(
+    input.raw,
+    now: input.now,
+    expectedAccountId: input.accountId,
+  );
+  final panel = <String, Json>{
+    for (final node in input.panelNodes)
+      if (node['type'] is String && (node['id'] is int || node['id'] is String))
+        '${node['type']}:${node['id']}': node,
+  };
+  final countries = {
+    for (final node in bundle.routingManifest.nodes) node.id: node.countryCode,
+  };
+  final nodes = <ZolnitNode>[
+    for (final outbound in bundle.outbounds)
+      ZolnitNode(
+        id: outbound.id,
+        name: outbound.displayName,
+        title: outbound.displayName,
+        coreProxyName: outbound.proxyName,
+        region: countries[outbound.id] ?? '',
+        countryCode: countries[outbound.id],
+        rate: decimalOrNull(panel[outbound.id]?['rate']) ?? 1,
+        rateKnown: decimalOrNull(panel[outbound.id]?['rate']) != null,
+        tags: textList(panel[outbound.id]?['tags']),
+        online: flagOrNull(panel[outbound.id]?['is_online']),
+      ),
+  ];
+  return (bundle: bundle, nodes: List.unmodifiable(nodes));
 }

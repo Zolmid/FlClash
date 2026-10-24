@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "El presupuesto no está disponible. Inténtalo de nuevo.",
   "zolnitAuthorizeMonthly": "Autorizar el pago mensual",
   "zolnitExistingRenewal": "Cancela la renovación automática del plan actual en Cuenta antes de activar el pago mensual de otro plan.",
-  "zolnitManageRenewals": "Gestionar renovación automática"
+  "zolnitManageRenewals": "Gestionar renovación automática",
+  "zolnitBundleFetchHint": "Obtener configuración de conexión",
+  "zolnitBundleExpired": "La información de selección automática ha caducado. Actualiza la configuración; las opciones manual y directa siguen disponibles.",
+  "zolnitBundleRefreshFailed": "No se pudo actualizar la configuración. Las opciones manual y directa siguen disponibles.",
+  "zolnitBundleForbidden": "La configuración no está disponible para esta cuenta. Revisa el plan y el tráfico restante.",
+  "zolnitBundleInvalid": "La validación de la configuración falló. La selección automática está en pausa.",
+  "zolnitBundleUnavailable": "La configuración de conexión no está disponible temporalmente.",
+  "zolnitBundleNoCandidates": "Ninguna salida tiene elegibilidad confirmada. La selección automática no está disponible; elige manualmente o usa conexión directa.",
+  "zolnitAiService": "Servicios de IA",
+  "zolnitMediaService": "Streaming",
+  "zolnitRouteCurrent": "Ruta actual: {node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "No disponible",
+  "zolnitBundleAutomaticPending": "El enrutamiento automático sigue en validación. Las opciones manual y directa están disponibles."
 }

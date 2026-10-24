@@ -17,6 +17,7 @@ import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/actions/system_exit.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/update_progress.dart';
@@ -29,7 +30,7 @@ import 'package:path/path.dart' show basename, join;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zolnit_client/zolnit_client.dart'
-    show SmartRoutingManifest, SmartRoutingEngine;
+    show SmartRoutingManifest, SmartRoutingEngine, ClientFailure;
 
 part 'actions/common.dart';
 part 'actions/setup.dart';

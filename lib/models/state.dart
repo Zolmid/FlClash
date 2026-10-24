@@ -299,6 +299,7 @@ abstract class SetupState with _$SetupState {
   const factory SetupState({
     required int? profileId,
     required int? profileLastUpdateDate,
+    String? clientBundleId,
     required ProfileType profileType,
     required ExtendType extendType,
     required List<Rule> rules,

@@ -3,6 +3,38 @@ import 'dart:io';
 import 'package:fl_clash/common/yaml.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
+bool isSmartRoutingProxyType(Object? type) {
+  if (type is! String) return false;
+  return const {
+    'ss',
+    'shadowsocks',
+    'ssr',
+    'shadowsocksr',
+    'snell',
+    'socks5',
+    'http',
+    'vmess',
+    'vless',
+    'trojan',
+    'hysteria',
+    'hysteria2',
+    'wireguard',
+    'tuic',
+    'ssh',
+    'mieru',
+    'anytls',
+    'sudoku',
+    'masque',
+    'trusttunnel',
+    'shadowquic',
+    'openvpn',
+    'tailscale',
+    'zerotier',
+    'easytier',
+    'gostrelay',
+  }.contains(type.toLowerCase().replaceAll('-', ''));
+}
+
 typedef PreparedZolnitRouting = ({
   Map<String, dynamic> config,
   SmartRoutingManifest? manifest,
@@ -17,16 +49,23 @@ Future<Map<String, dynamic>> readZolnitRoutingProfile(String path) async {
   return Map<String, dynamic>.from(document);
 }
 
-PreparedZolnitRouting prepareZolnitRouting(Map<String, dynamic> source) {
+PreparedZolnitRouting prepareZolnitRouting(
+  Map<String, dynamic> source, {
+  Object? routingMetadata,
+}) {
   final config = Map<String, dynamic>.of(source);
   final rawProxies = source['proxies'];
   final rawGroups = source['proxy-groups'];
   final proxies = <String>{};
+  final routable = <String>{};
   var ambiguous = false;
   if (rawProxies is List) {
     for (final raw in rawProxies) {
       if (raw is Map && raw['name'] is String) {
         if (!proxies.add(raw['name'] as String)) ambiguous = true;
+        if (isSmartRoutingProxyType(raw['type'])) {
+          routable.add(raw['name'] as String);
+        }
       }
     }
   }
@@ -42,12 +81,23 @@ PreparedZolnitRouting prepareZolnitRouting(Map<String, dynamic> source) {
       }
     }
   }
-  final manifest = ambiguous
+  final parsedManifest = ambiguous
       ? null
       : SmartRoutingManifest.parse(
-          source[routingManifestKey],
+          routingMetadata ?? source[routingManifestKey],
           proxyNames: proxies,
           groupNames: groups.keys.toSet(),
+        );
+  final manifest = parsedManifest == null
+      ? null
+      : SmartRoutingManifest(
+          revision: parsedManifest.revision,
+          services: parsedManifest.services,
+          nodes: List.unmodifiable(
+            parsedManifest.nodes.where(
+              (node) => routable.contains(node.proxyName),
+            ),
+          ),
         );
   SmartRoutingEngine? engine;
   if (manifest?.services.any(

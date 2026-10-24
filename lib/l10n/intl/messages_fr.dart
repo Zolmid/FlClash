@@ -277,7 +277,9 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m100(days) => "Réinitialisation dans ${days} jours";
 
-  static String m101(percent) => "Économisez ${percent} %";
+  static String m101(node) => "Trajet actuel : ${node}";
+
+  static String m102(percent) => "Économisez ${percent} %";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2863,6 +2865,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Activation en cours",
     ),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("Réglages avancés"),
+    "zolnitAiService": MessageLookupByLibrary.simpleMessage("Services IA"),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Tous les serveurs"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage(
       "Toutes les régions",
@@ -2878,6 +2881,30 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
       "Les informations de renouvellement sont temporairement indisponibles.",
+    ),
+    "zolnitBundleAutomaticPending": MessageLookupByLibrary.simpleMessage(
+      "Le routage automatique est en cours de validation. Les choix manuel et direct sont disponibles.",
+    ),
+    "zolnitBundleExpired": MessageLookupByLibrary.simpleMessage(
+      "Les informations de sélection automatique ont expiré. Actualisez la configuration ; les choix manuel et direct restent disponibles.",
+    ),
+    "zolnitBundleFetchHint": MessageLookupByLibrary.simpleMessage(
+      "Obtenir la configuration de connexion",
+    ),
+    "zolnitBundleForbidden": MessageLookupByLibrary.simpleMessage(
+      "La configuration n’est pas disponible pour ce compte. Vérifiez le forfait et le trafic restant.",
+    ),
+    "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
+      "La validation de la configuration a échoué. La sélection automatique est suspendue.",
+    ),
+    "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
+      "Aucune sortie n’a une admissibilité confirmée. La sélection automatique est indisponible ; choisissez manuellement ou une connexion directe.",
+    ),
+    "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible d’actualiser la configuration. Les choix manuel et direct restent disponibles.",
+    ),
+    "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "La configuration de connexion est temporairement indisponible.",
     ),
     "zolnitBuy": MessageLookupByLibrary.simpleMessage("Créer une commande"),
     "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage(
@@ -3069,6 +3096,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
       "Gérer le renouvellement automatique",
     ),
+    "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Streaming"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
       "Routage intelligent",
@@ -3251,11 +3279,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "Terminer cette session de connexion ? Cet appareil devra se reconnecter pour gérer le compte.",
     ),
+    "zolnitRouteCurrent": m101,
+    "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Indisponible",
+    ),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("Mode sans échec"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Le mode sécurisé ne modifie jamais le réseau du système.",
     ),
-    "zolnitSavePercent": m101,
+    "zolnitSavePercent": m102,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Rechercher un serveur ou une région",
     ),

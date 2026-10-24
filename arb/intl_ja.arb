@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "見積りを取得できません。もう一度お試しください。",
   "zolnitAuthorizeMonthly": "月額自動更新を承認",
   "zolnitExistingRenewal": "別のプランの月額自動更新を開始する前に、アカウント画面で現在のプランの自動更新を停止してください。",
-  "zolnitManageRenewals": "自動更新を管理"
+  "zolnitManageRenewals": "自動更新を管理",
+  "zolnitBundleFetchHint": "接続設定を取得",
+  "zolnitBundleExpired": "自動選択情報の有効期限が切れました。設定を更新してください。手動・直接接続は利用できます。",
+  "zolnitBundleRefreshFailed": "接続設定を更新できませんでした。手動・直接接続は利用できます。",
+  "zolnitBundleForbidden": "このアカウントの接続設定を取得できません。プランと通信量を確認してください。",
+  "zolnitBundleInvalid": "接続設定の検証に失敗したため、自動選択を一時停止しました。",
+  "zolnitBundleUnavailable": "接続設定は一時的に利用できません。",
+  "zolnitBundleNoCandidates": "利用資格が確認された出口がありません。自動選択は利用できませんが、手動・直接接続は選べます。",
+  "zolnitAiService": "AI サービス",
+  "zolnitMediaService": "動画配信",
+  "zolnitRouteCurrent": "現在の経路：{node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "利用不可",
+  "zolnitBundleAutomaticPending": "自動ルーティングは検証中です。手動・直接接続を利用できます。"
 }

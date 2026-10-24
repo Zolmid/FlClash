@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "The quote is unavailable. Try again.",
   "zolnitAuthorizeMonthly": "Authorize monthly billing",
   "zolnitExistingRenewal": "Cancel your current plan's automatic renewal in Account before starting monthly billing for another plan.",
-  "zolnitManageRenewals": "Manage automatic renewal"
+  "zolnitManageRenewals": "Manage automatic renewal",
+  "zolnitBundleFetchHint": "Fetch connection configuration",
+  "zolnitBundleExpired": "Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.",
+  "zolnitBundleRefreshFailed": "Could not refresh the connection configuration. Manual and direct choices remain available.",
+  "zolnitBundleForbidden": "Connection configuration is unavailable for this account. Check the plan and traffic allowance.",
+  "zolnitBundleInvalid": "Connection configuration validation failed. Automatic selection is paused.",
+  "zolnitBundleUnavailable": "Connection configuration is temporarily unavailable.",
+  "zolnitBundleNoCandidates": "No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.",
+  "zolnitAiService": "AI services",
+  "zolnitMediaService": "Streaming",
+  "zolnitRouteCurrent": "Current route: {node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "Unavailable",
+  "zolnitBundleAutomaticPending": "Automatic routing is still being validated. Manual and direct choices are available."
 }

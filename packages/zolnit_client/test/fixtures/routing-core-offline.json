@@ -1,0 +1,170 @@
+{
+  "fixture_only": true,
+  "connection": {
+    "mode": "rule",
+    "log-level": "silent",
+    "mixed-port": 0,
+    "port": 0,
+    "socks-port": 0,
+    "redir-port": 0,
+    "tproxy-port": 0,
+    "external-controller": "",
+    "allow-lan": false,
+    "tun": {
+      "enable": false
+    },
+    "dns": {
+      "enable": false
+    },
+    "proxies": [
+      {
+        "name": "zn.node.socks5.1",
+        "type": "socks5",
+        "server": "192.0.2.1",
+        "port": 1080
+      },
+      {
+        "name": "zn.node.socks5.2",
+        "type": "socks5",
+        "server": "198.51.100.1",
+        "port": 1080
+      },
+      {
+        "name": "zn.node.socks5.3",
+        "type": "socks5",
+        "server": "203.0.113.1",
+        "port": 1080
+      }
+    ],
+    "proxy-groups": [
+      {
+        "name": "zn.default",
+        "type": "select",
+        "proxies": [
+          "zn.node.socks5.1",
+          "zn.node.socks5.2",
+          "zn.node.socks5.3",
+          "DIRECT"
+        ]
+      },
+      {
+        "name": "zn.service.ai",
+        "type": "select",
+        "proxies": [
+          "REJECT",
+          "DIRECT"
+        ]
+      },
+      {
+        "name": "zn.service.media",
+        "type": "select",
+        "proxies": [
+          "REJECT",
+          "DIRECT"
+        ]
+      }
+    ],
+    "rules": [
+      "DOMAIN-SUFFIX,openai.com,zn.service.ai",
+      "DOMAIN-SUFFIX,anthropic.com,zn.service.ai",
+      "DOMAIN-SUFFIX,netflix.com,zn.service.media",
+      "MATCH,zn.default"
+    ]
+  },
+  "routing": {
+    "version": 1,
+    "authority": "zolnit",
+    "revision": "fixture-v1",
+    "services": [
+      {
+        "id": "ai",
+        "kind": "ai",
+        "group": "zn.service.ai",
+        "automatic": "zn.service.ai.auto",
+        "manual": "zn.service.ai.manual",
+        "providers": [
+          "chatgpt",
+          "openai_api",
+          "claude",
+          "gemini_api",
+          "gemini_web"
+        ],
+        "allowed_countries": [
+          "US",
+          "JP",
+          "SG",
+          "TW"
+        ]
+      },
+      {
+        "id": "media",
+        "kind": "media",
+        "group": "zn.service.media",
+        "automatic": "zn.service.media.auto",
+        "manual": "zn.service.media.manual",
+        "providers": [
+          "netflix"
+        ],
+        "allowed_countries": [
+          "HK",
+          "US",
+          "JP",
+          "SG",
+          "TW"
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "id": "socks5:1",
+        "proxy_name": "zn.node.socks5.1",
+        "exit_id": "fixture-exit-1",
+        "final_egress": {
+          "country": "HK",
+          "source": "operator_verified",
+          "verified": true
+        },
+        "failure_domain": "fixture-domain-1",
+        "services": [
+          "media"
+        ],
+        "enabled": true,
+        "revision": "fixture-v1"
+      },
+      {
+        "id": "socks5:2",
+        "proxy_name": "zn.node.socks5.2",
+        "exit_id": "fixture-exit-2",
+        "final_egress": {
+          "country": "US",
+          "source": "operator_verified",
+          "verified": true
+        },
+        "failure_domain": "fixture-domain-2",
+        "services": [
+          "ai",
+          "media"
+        ],
+        "enabled": true,
+        "revision": "fixture-v1"
+      },
+      {
+        "id": "socks5:3",
+        "proxy_name": "zn.node.socks5.3",
+        "exit_id": "fixture-exit-3",
+        "final_egress": {
+          "country": "JP",
+          "source": "operator_verified",
+          "verified": true
+        },
+        "failure_domain": "fixture-domain-3",
+        "services": [
+          "ai",
+          "media"
+        ],
+        "enabled": true,
+        "revision": "fixture-v1"
+      }
+    ]
+  }
+}

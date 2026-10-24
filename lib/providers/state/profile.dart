@@ -107,6 +107,7 @@ Future<SetupState> setupState(Ref ref, int? profileId) async {
     proxyGroups: proxyGroups,
     profileId: profileId,
     profileLastUpdateDate: profileLastUpdateDate,
+    clientBundleId: profile?.zolnitBundleId,
     profileType: profileType,
     extendType: extendType,
     addedRules: addedRules,

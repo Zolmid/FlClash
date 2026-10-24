@@ -229,6 +229,7 @@ SharedState sharedState(Ref ref) {
 typedef ProfileTunIdentity = ({
   int? profileId,
   DateTime? lastUpdate,
+  String? clientBundleId,
   ExtendType? extendType,
   int? scriptId,
   ProfileOverrides? overrides,
@@ -251,6 +252,7 @@ ProfileTunIdentity profileTunIdentity(
 ) => (
   profileId: profile?.id,
   lastUpdate: profile?.lastUpdateDate,
+  clientBundleId: profile?.zolnitBundleId,
   extendType: profile?.extendType,
   scriptId: profile?.scriptId,
   overrides: profile?.overrides,

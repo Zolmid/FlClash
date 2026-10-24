@@ -389,6 +389,7 @@ class SmartRoutingEngine {
   SmartRouteDecision decide({
     required String serviceId,
     required DateTime now,
+    Set<String>? availableNodeIds,
   }) {
     final state = _states[serviceId];
     if (state == null) return const SmartRouteDecision(null, 'unconfigured');
@@ -404,7 +405,9 @@ class SmartRoutingEngine {
         manual: true,
       );
     }
-    final eligibleNodes = candidates(serviceId);
+    final eligibleNodes = candidates(
+      serviceId,
+    ).where((node) => availableNodeIds?.contains(node.id) ?? true).toList();
     if (eligibleNodes.isEmpty) {
       return const SmartRouteDecision(null, 'no_eligible');
     }
@@ -429,6 +432,7 @@ class SmartRoutingEngine {
     final current = state.confirmed;
     final currentNode = _nodes[current];
     if (currentNode == null ||
+        availableNodeIds?.contains(current) == false ||
         !eligible(serviceId, currentNode.id) ||
         !_healthy(serviceId, currentNode, now)) {
       return SmartRouteDecision(best, current == null ? 'initial' : 'failover');

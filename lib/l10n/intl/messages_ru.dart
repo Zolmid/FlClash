@@ -264,7 +264,9 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m100(days) => "Сброс через ${days} дн.";
 
-  static String m101(percent) => "Выгода ${percent}%";
+  static String m101(node) => "Текущий маршрут: ${node}";
+
+  static String m102(percent) => "Выгода ${percent}%";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2786,6 +2788,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage(
       "Дополнительные настройки",
     ),
+    "zolnitAiService": MessageLookupByLibrary.simpleMessage("Сервисы ИИ"),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Все серверы"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("Все регионы"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("К оплате"),
@@ -2799,6 +2802,30 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
       "Данные о продлении временно недоступны.",
+    ),
+    "zolnitBundleAutomaticPending": MessageLookupByLibrary.simpleMessage(
+      "Автомаршрутизация проходит проверку. Доступны ручной выбор и прямое подключение.",
+    ),
+    "zolnitBundleExpired": MessageLookupByLibrary.simpleMessage(
+      "Срок действия данных автовыбора истёк. Обновите настройки. Ручной выбор и прямое подключение доступны.",
+    ),
+    "zolnitBundleFetchHint": MessageLookupByLibrary.simpleMessage(
+      "Получить настройки подключения",
+    ),
+    "zolnitBundleForbidden": MessageLookupByLibrary.simpleMessage(
+      "Настройки подключения недоступны для этой учётной записи. Проверьте тариф и остаток трафика.",
+    ),
+    "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
+      "Проверка настроек подключения не пройдена. Автовыбор приостановлен.",
+    ),
+    "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
+      "Нет выходного узла с подтверждённым допуском. Автовыбор недоступен; используйте ручной выбор или прямое подключение.",
+    ),
+    "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось обновить настройки подключения. Ручной выбор и прямое подключение доступны.",
+    ),
+    "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Настройки подключения временно недоступны.",
     ),
     "zolnitBuy": MessageLookupByLibrary.simpleMessage("Создать заказ"),
     "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage("Отменить заказ"),
@@ -2978,6 +3005,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
       "Управление автопродлением",
     ),
+    "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Стриминг"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Глобальный"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
       "Умная маршрутизация",
@@ -3152,11 +3180,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "Завершить этот сеанс входа? Чтобы управлять аккаунтом, на этом устройстве потребуется войти снова.",
     ),
+    "zolnitRouteCurrent": m101,
+    "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Недоступно",
+    ),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("Безопасный режим"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Безопасный режим не меняет сетевые настройки системы.",
     ),
-    "zolnitSavePercent": m101,
+    "zolnitSavePercent": m102,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Поиск серверов или регионов",
     ),

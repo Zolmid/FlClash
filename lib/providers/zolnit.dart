@@ -13,6 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'zolnit_vault.dart';
+import 'zolnit_bundle.dart';
 
 final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
   final policy = ClientPaymentPolicy.fromEnvironment();
@@ -112,6 +113,9 @@ String? zolnitProfileLabel(ZolnitSessionController session) {
 }
 
 final zolnitSyncProfileProvider = Provider<Future<int?> Function()>((ref) {
+  if (ref.watch(zolnitClientBundleTransportProvider)) {
+    return ref.watch(zolnitSyncClientBundleProvider);
+  }
   final session = ref.watch(zolnitSessionProvider);
   final downloader = ref.watch(zolnitProfileDownloaderProvider);
   Future<int?>? pending;

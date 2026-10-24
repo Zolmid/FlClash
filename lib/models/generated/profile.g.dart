@@ -34,6 +34,9 @@ _Profile _$ProfileFromJson(Map<String, dynamic> json) => _Profile(
   lastUpdateDate: json['lastUpdateDate'] == null
       ? null
       : DateTime.parse(json['lastUpdateDate'] as String),
+  zolnitAccountId: json['zolnitAccountId'] as String?,
+  zolnitBundleId: json['zolnitBundleId'] as String?,
+  zolnitOrigin: json['zolnitOrigin'] as String?,
   autoUpdateDuration: Duration(
     microseconds: (json['autoUpdateDuration'] as num).toInt(),
   ),
@@ -72,6 +75,9 @@ Map<String, dynamic> _$ProfileToJson(_Profile instance) => <String, dynamic>{
   'url': instance.url,
   'ageSecretKey': instance.ageSecretKey,
   'lastUpdateDate': instance.lastUpdateDate?.toIso8601String(),
+  'zolnitAccountId': ?instance.zolnitAccountId,
+  'zolnitBundleId': ?instance.zolnitBundleId,
+  'zolnitOrigin': ?instance.zolnitOrigin,
   'autoUpdateDuration': instance.autoUpdateDuration.inMicroseconds,
   'subscriptionInfo': instance.subscriptionInfo,
   'autoUpdate': instance.autoUpdate,

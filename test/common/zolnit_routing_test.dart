@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
+
+import 'package:fl_clash/common/yaml.dart';
 import 'package:fl_clash/common/zolnit_routing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -108,6 +112,127 @@ void main() {
         '影音手动',
         'DIRECT',
       ]);
+    },
+  );
+  test(
+    'custom aliases of pseudo proxies and unknown types never become automatic nodes',
+    () {
+      for (final type in [
+        'direct',
+        'dns',
+        'reject',
+        'reject-drop',
+        'pass',
+        'pass-rule',
+        'compatible',
+        'rematch',
+        'select',
+        'url-test',
+        'unknown',
+        null,
+      ]) {
+        final source = routingFixture();
+        (source['proxies'] as List).add({
+          'name': 'looks-like-US',
+          'type': type,
+        });
+        final raw = source[routingManifestKey] as Map;
+        (raw['nodes'] as List).add({
+          'id': 'pseudo',
+          'proxy_name': 'looks-like-US',
+          'final_egress': {
+            'country': 'US',
+            'source': 'operator_verified',
+            'verified': true,
+          },
+          'failure_domain': 'pseudo-domain',
+          'services': ['ai', 'media'],
+          'enabled': true,
+          'revision': 'v1',
+        });
+        final result = prepareZolnitRouting(source);
+        expect(
+          result.manifest!.nodes.map((n) => n.id),
+          isNot(contains('pseudo')),
+        );
+        expect(
+          group(result.config, 'AI 自动')['proxies'],
+          isNot(contains('looks-like-US')),
+        );
+        expect(
+          group(result.config, 'AI 手动')['proxies'],
+          contains('looks-like-US'),
+        );
+      }
+      for (final type in [
+        'ss',
+        'Shadowsocks',
+        'vless',
+        'Vless',
+        'socks5',
+        'Socks5',
+        'hysteria2',
+        'Hysteria2',
+      ]) {
+        expect(isSmartRoutingProxyType(type), isTrue);
+      }
+    },
+  );
+
+  test(
+    'credential-free fixture compiles to independent selectors for the real Core',
+    () async {
+      final fixture =
+          jsonDecode(
+                await File(
+                  'packages/zolnit_client/test/fixtures/routing-core-offline.json',
+                ).readAsString(),
+              )
+              as Map;
+      final source = Map<String, dynamic>.from(fixture['connection'] as Map);
+      final prepared = prepareZolnitRouting(
+        source,
+        routingMetadata: fixture['routing'],
+      );
+      expect(prepared.manifest!.services.map((s) => s.route.id), [
+        'ai',
+        'media',
+      ]);
+      expect(group(prepared.config, 'zn.service.ai.auto')['proxies'], [
+        'REJECT',
+        'zn.node.socks5.2',
+        'zn.node.socks5.3',
+      ]);
+      expect(group(prepared.config, 'zn.service.media.auto')['proxies'], [
+        'REJECT',
+        'zn.node.socks5.1',
+        'zn.node.socks5.2',
+        'zn.node.socks5.3',
+      ]);
+      expect(prepared.config['rules'], source['rules']);
+      expect(
+        loadPlainYaml(
+          await File(
+            'test/fixtures/zolnit-routing-compiled.yaml',
+          ).readAsString(),
+        ),
+        prepared.config,
+      );
+      final output = Platform.environment['ZOLNIT_ROUTING_CONFIG'];
+      if (output != null) {
+        final target = File(output);
+        final parent = await target.parent.resolveSymbolicLinks();
+        final roots = [
+          await Directory.systemTemp.resolveSymbolicLinks(),
+          await Directory('/private/tmp').resolveSymbolicLinks(),
+        ];
+        if (!roots.any(
+          (root) => parent.startsWith(root + Platform.pathSeparator),
+        )) {
+          throw ArgumentError('Routing acceptance output must be temporary');
+        }
+        await target.writeAsString(yaml.encode(prepared.config), flush: true);
+      }
     },
   );
 }

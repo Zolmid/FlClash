@@ -220,4 +220,14 @@ void main() {
       }
     },
   );
+  test(
+    'schema version is an integer, not a string or numerically equal float',
+    () {
+      for (final version in [1.0, '1', true, null]) {
+        final config = routingFixture();
+        (config[routingManifestKey] as Map)['version'] = version;
+        expect(parse(config), isNull);
+      }
+    },
+  );
 }

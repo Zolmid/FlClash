@@ -238,7 +238,9 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m100(days) => "${days}日後にリセット";
 
-  static String m101(percent) => "${percent}%お得";
+  static String m101(node) => "現在の経路：${node}";
+
+  static String m102(percent) => "${percent}%お得";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2229,6 +2231,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("マイアカウント"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("有効化中"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("詳細設定"),
+    "zolnitAiService": MessageLookupByLibrary.simpleMessage("AI サービス"),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("すべてのサーバー"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("すべての地域"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("支払い金額"),
@@ -2238,6 +2241,28 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
       "更新情報を一時的に取得できません。",
+    ),
+    "zolnitBundleAutomaticPending": MessageLookupByLibrary.simpleMessage(
+      "自動ルーティングは検証中です。手動・直接接続を利用できます。",
+    ),
+    "zolnitBundleExpired": MessageLookupByLibrary.simpleMessage(
+      "自動選択情報の有効期限が切れました。設定を更新してください。手動・直接接続は利用できます。",
+    ),
+    "zolnitBundleFetchHint": MessageLookupByLibrary.simpleMessage("接続設定を取得"),
+    "zolnitBundleForbidden": MessageLookupByLibrary.simpleMessage(
+      "このアカウントの接続設定を取得できません。プランと通信量を確認してください。",
+    ),
+    "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
+      "接続設定の検証に失敗したため、自動選択を一時停止しました。",
+    ),
+    "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
+      "利用資格が確認された出口がありません。自動選択は利用できませんが、手動・直接接続は選べます。",
+    ),
+    "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "接続設定を更新できませんでした。手動・直接接続は利用できます。",
+    ),
+    "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "接続設定は一時的に利用できません。",
     ),
     "zolnitBuy": MessageLookupByLibrary.simpleMessage("注文を作成"),
     "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage("注文を取り消す"),
@@ -2379,6 +2404,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("新規登録・パスワード再設定"),
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("自動更新を管理"),
+    "zolnitMediaService": MessageLookupByLibrary.simpleMessage("動画配信"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("グローバル"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("スマート分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月払い"),
@@ -2513,11 +2539,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "このログインセッションを終了しますか？アカウントを管理するには、そのデバイスで再ログインが必要です。",
     ),
+    "zolnitRouteCurrent": m101,
+    "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("利用不可"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("セーフモード"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "セーフモードではシステムのネットワーク設定は変更されません。",
     ),
-    "zolnitSavePercent": m101,
+    "zolnitSavePercent": m102,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("サーバーや地域を検索"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("選択"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("サーバーを選択"),

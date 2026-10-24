@@ -95,11 +95,19 @@ class XboardClient {
     Map<String, String>? query,
     bool authenticated = true,
     bool unwrap = true,
+    String? coreVersion,
   }) async {
     if (_closed) throw const ClientFailure('closed');
     if (!RegExp(r'^/api/v1/[A-Za-z0-9_/-]+$').hasMatch(path) ||
         path.contains('..')) {
       throw const ClientFailure('invalid_path');
+    }
+    if (coreVersion != null &&
+        (coreVersion.length > 128 ||
+            !RegExp(
+              r'^v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
+            ).hasMatch(coreVersion))) {
+      throw const ClientFailure('core_version_required');
     }
     final generation = _generation;
     final authorization = _authorization;
@@ -116,6 +124,7 @@ class XboardClient {
       'User-Agent': userAgent,
       'X-ZolNit-Platform': ?clientPlatform,
       'X-ZolNit-Distribution': ?distribution,
+      'X-ZolNit-Core-Version': ?coreVersion,
       if (authenticated) 'Authorization': authorization!,
       if (body != null) 'Content-Type': 'application/json',
       if (lang.isNotEmpty && _validLang.hasMatch(lang))
@@ -164,6 +173,19 @@ class XboardClient {
     }
   }
 
+  Future<Json> fetchClientBundle({required String coreVersion}) async {
+    if (clientPlatform == null || distribution == null) {
+      throw const ClientFailure('invalid_client_context');
+    }
+    if (coreVersion.isEmpty) throw const ClientFailure('core_version_required');
+    final value = await request(
+      '/api/v1/zolnit/client/bundle',
+      coreVersion: coreVersion,
+    );
+    if (value is! Json) throw const ClientFailure('invalid_client_bundle');
+    return value;
+  }
+
   static final _validLang = RegExp(r'^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$');
 
   static final _pluginPatterns = <(RegExp, String)>[
@@ -202,6 +224,37 @@ class XboardClient {
     required List<int> bodyBytes,
   }) {
     final isPlugin = path.startsWith(_pluginPrefix);
+    if (path.startsWith('/api/v1/zolnit/client/')) {
+      if (statusCode == 401) {
+        return ClientFailure('unauthenticated', statusCode: statusCode);
+      }
+      if (statusCode == 403) {
+        return ClientFailure('entitlement_unavailable', statusCode: statusCode);
+      }
+      String? code;
+      if (bodyBytes.length <= 8192) {
+        try {
+          final body = jsonDecode(utf8.decode(bodyBytes));
+          final error = body is Map ? body['error'] : null;
+          final value = error is Map ? error['code'] : null;
+          if (value is String &&
+              const {
+                'core_version_required',
+                'client_api_unavailable',
+                'bundle_unavailable',
+              }.contains(value)) {
+            code = value;
+          }
+        } catch (_) {}
+      }
+      return ClientFailure(
+        code ??
+            (statusCode == 404
+                ? 'client_api_unavailable'
+                : 'bundle_unavailable'),
+        statusCode: statusCode,
+      );
+    }
     if (statusCode == 401 ||
         (statusCode == 403 && path == '/api/v1/user/info')) {
       return ClientFailure('unauthenticated', statusCode: statusCode);

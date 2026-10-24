@@ -264,7 +264,9 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m100(days) => "Resets in ${days} days";
 
-  static String m101(percent) => "Save ${percent}%";
+  static String m101(node) => "Current route: ${node}";
+
+  static String m102(percent) => "Save ${percent}%";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2622,6 +2624,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("My account"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("Activating"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("Advanced settings"),
+    "zolnitAiService": MessageLookupByLibrary.simpleMessage("AI services"),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("All servers"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("All regions"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Amount due"),
@@ -2635,6 +2638,30 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
       "Renewal details are temporarily unavailable.",
+    ),
+    "zolnitBundleAutomaticPending": MessageLookupByLibrary.simpleMessage(
+      "Automatic routing is still being validated. Manual and direct choices are available.",
+    ),
+    "zolnitBundleExpired": MessageLookupByLibrary.simpleMessage(
+      "Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.",
+    ),
+    "zolnitBundleFetchHint": MessageLookupByLibrary.simpleMessage(
+      "Fetch connection configuration",
+    ),
+    "zolnitBundleForbidden": MessageLookupByLibrary.simpleMessage(
+      "Connection configuration is unavailable for this account. Check the plan and traffic allowance.",
+    ),
+    "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
+      "Connection configuration validation failed. Automatic selection is paused.",
+    ),
+    "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
+      "No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.",
+    ),
+    "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Could not refresh the connection configuration. Manual and direct choices remain available.",
+    ),
+    "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Connection configuration is temporarily unavailable.",
     ),
     "zolnitBuy": MessageLookupByLibrary.simpleMessage("Create order"),
     "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage("Cancel order"),
@@ -2816,6 +2843,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
       "Manage automatic renewal",
     ),
+    "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Streaming"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("Smart routing"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("Monthly"),
@@ -2976,11 +3004,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "End this login session? That device must sign in again to manage the account.",
     ),
+    "zolnitRouteCurrent": m101,
+    "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Unavailable",
+    ),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("Safe mode"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Safe mode never changes the system network.",
     ),
-    "zolnitSavePercent": m101,
+    "zolnitSavePercent": m102,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Search servers or regions",
     ),

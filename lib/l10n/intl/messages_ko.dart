@@ -240,7 +240,9 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m100(days) => "${days}일 후 초기화";
 
-  static String m101(percent) => "${percent}% 절약";
+  static String m101(node) => "현재 경로: ${node}";
+
+  static String m102(percent) => "${percent}% 절약";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2179,6 +2181,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAccountTitle": MessageLookupByLibrary.simpleMessage("내 계정"),
     "zolnitActivating": MessageLookupByLibrary.simpleMessage("활성화 중"),
     "zolnitAdvanced": MessageLookupByLibrary.simpleMessage("고급 설정"),
+    "zolnitAiService": MessageLookupByLibrary.simpleMessage("AI 서비스"),
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("모든 서버"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("전체 지역"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("결제 금액"),
@@ -2192,6 +2195,28 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
       "갱신 정보를 일시적으로 불러올 수 없습니다.",
+    ),
+    "zolnitBundleAutomaticPending": MessageLookupByLibrary.simpleMessage(
+      "자동 라우팅은 아직 검증 중입니다. 수동 또는 직접 연결을 사용할 수 있습니다.",
+    ),
+    "zolnitBundleExpired": MessageLookupByLibrary.simpleMessage(
+      "자동 선택 정보가 만료되었습니다. 설정을 새로 고치세요. 수동 및 직접 연결은 사용할 수 있습니다.",
+    ),
+    "zolnitBundleFetchHint": MessageLookupByLibrary.simpleMessage("연결 설정 가져오기"),
+    "zolnitBundleForbidden": MessageLookupByLibrary.simpleMessage(
+      "이 계정의 연결 설정을 가져올 수 없습니다. 요금제와 데이터 사용량을 확인하세요.",
+    ),
+    "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
+      "연결 설정 검증에 실패하여 자동 선택을 일시 중지했습니다.",
+    ),
+    "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
+      "사용 자격이 확인된 출구가 없습니다. 자동 선택은 사용할 수 없으며 수동 또는 직접 연결을 선택할 수 있습니다.",
+    ),
+    "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "연결 설정을 새로 고치지 못했습니다. 수동 및 직접 연결은 사용할 수 있습니다.",
+    ),
+    "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "연결 설정을 일시적으로 사용할 수 없습니다.",
     ),
     "zolnitBuy": MessageLookupByLibrary.simpleMessage("주문 생성"),
     "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage("주문 취소"),
@@ -2337,6 +2362,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("가입 또는 비밀번호 찾기"),
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신 관리"),
+    "zolnitMediaService": MessageLookupByLibrary.simpleMessage("스트리밍"),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("전체 모드"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("스마트 라우팅"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("매월"),
@@ -2471,11 +2497,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "이 로그인 세션을 종료할까요? 해당 기기는 계정을 관리하려면 다시 로그인해야 합니다.",
     ),
+    "zolnitRouteCurrent": m101,
+    "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("사용 불가"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("안전 모드"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "보안 모드는 시스템 네트워크를 변경하지 않습니다.",
     ),
-    "zolnitSavePercent": m101,
+    "zolnitSavePercent": m102,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("서버 또는 지역 검색"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("선택"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("서버 선택"),

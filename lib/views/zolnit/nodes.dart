@@ -1,8 +1,10 @@
 import 'package:fl_clash/common/app_localizations.dart';
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
@@ -11,6 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'kit.dart';
+import 'bundle_routing.dart';
 import 'skin.dart';
 
 class ZolnitNodesPage extends ConsumerStatefulWidget {
@@ -31,6 +34,7 @@ class ZolnitNodesPage extends ConsumerStatefulWidget {
 
 class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
   String _region = '';
+  String _routingService = 'ai';
   String _query = '';
   bool _syncing = false;
   bool _syncFailed = false;
@@ -45,6 +49,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         oldWidget.session != widget.session) {
       _generation = widget.session.api.generation;
       _region = '';
+      _routingService = 'ai';
       _query = '';
       _searchController.clear();
       _syncing = false;
@@ -81,7 +86,9 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final seen = <String>{};
     final result = <String>[];
     for (final node in nodes) {
-      if (seen.add(node.region)) result.add(node.region);
+      if (node.region.isNotEmpty && seen.add(node.region)) {
+        result.add(node.region);
+      }
     }
     return result;
   }
@@ -102,8 +109,15 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final profile = watch
         ? ref.watch(currentProfileProvider)
         : ref.read(currentProfileProvider);
+    final privateProfile = profile != null && isZolnitBundleProfile(profile);
     final label = zolnitProfileLabel(widget.session);
-    if (label == null || profile?.label != label) {
+    if (privateProfile) {
+      if (!isCurrentZolnitBundleProfile(profile, widget.session)) {
+        return const _SelectorMatch(null, null);
+      }
+    } else if (ref.read(zolnitClientBundleTransportProvider) ||
+        label == null ||
+        profile?.label != label) {
       return const _SelectorMatch(null, null);
     }
     final groups =
@@ -111,7 +125,32 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
                 ? ref.watch(currentGroupsStateProvider)
                 : ref.read(currentGroupsStateProvider))
             .value;
-    final names = widget.session.nodeList.map((node) => node.name).toSet();
+    if (privateProfile) {
+      final services =
+          widget.session.clientBundle?.routingManifest.services ??
+          const <ManagedRouteService>[];
+      final service =
+          services.where((s) => s.route.id == _routingService).firstOrNull ??
+          services.firstOrNull;
+      if (service == null) return const _SelectorMatch(null, null);
+      final policy = groups.getGroup(service.groupName);
+      final mode = policy?.realNow;
+      if (mode != service.manualGroup && mode != service.route.groupName) {
+        return const _SelectorMatch(null, null);
+      }
+      final group = groups.getGroup(mode!);
+      if (group == null || group.type != GroupType.Selector) {
+        return const _SelectorMatch(null, null);
+      }
+      return _SelectorMatch(
+        group.name,
+        group.testUrl,
+        group.all.map((proxy) => proxy.name).toSet(),
+        mode == service.manualGroup,
+        true,
+      );
+    }
+    final names = widget.session.nodeList.map((node) => node.proxyName).toSet();
     for (final group in groups) {
       if (group.type == GroupType.Selector) {
         final members = group.all.map((proxy) => proxy.name).toSet();
@@ -129,7 +168,9 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
       return;
     }
     final match = _findSelector(ref, watch: false);
-    if (match.groupName != groupName || !match.members.contains(proxyName)) {
+    if (!match.manual ||
+        match.groupName != groupName ||
+        !match.members.contains(proxyName)) {
       return;
     }
     selectGroupProxy(
@@ -156,14 +197,21 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final l10n = context.appLocalizations;
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
-    final nodes = widget.session.nodeList;
+    final privateTransport = ref.watch(zolnitClientBundleTransportProvider);
+    final nodes = privateTransport && widget.session.clientBundle == null
+        ? const <ZolnitNode>[]
+        : widget.session.nodeList;
     final regions = _regions(nodes);
     final filtered = _filtered(nodes);
     final selector = _findSelector(ref);
     final selectorReady = selector.groupName != null;
     final safe = ref.watch(safeModeProvider);
     final core = ref.watch(coreStatusProvider);
-    final canTest = selectorReady && !safe && core == CoreStatus.connected;
+    final canTest =
+        selectorReady &&
+        selector.manual &&
+        !safe &&
+        core == CoreStatus.connected;
 
     return ListView(
       padding: zolnitPagePadding(skin, compact: widget.compact),
@@ -179,6 +227,11 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
               : null,
         ),
         SizedBox(height: skin.desktop ? 20 : 18),
+        ZolnitBundleRoutingPanel(
+          session: widget.session,
+          selectedServiceId: _routingService,
+          onServiceChanged: (value) => setState(() => _routingService = value),
+        ),
         _Toolbar(
           skin: skin,
           colors: colors,
@@ -201,9 +254,11 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
               l10n.zolnitNodesCount(filtered.length),
               style: zolnitText(context, 11, color: colors.muted),
             ),
-            if (!selectorReady && nodes.isNotEmpty)
+            if (!selectorReady && (nodes.isNotEmpty || privateTransport))
               _SyncHint(
-                label: l10n.zolnitNodeSyncHint,
+                label: ref.watch(zolnitClientBundleTransportProvider)
+                    ? l10n.zolnitBundleFetchHint
+                    : l10n.zolnitNodeSyncHint,
                 syncing: _syncing,
                 onSync: _handleSync,
                 colors: colors,
@@ -233,7 +288,12 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
             selectorGroup: selector.groupName,
             testUrl: selector.testUrl,
             members: selector.members,
-            onSelect: selectorReady && !safe && core == CoreStatus.connected
+            coreSelection: selector.coreSelection,
+            onSelect:
+                selectorReady &&
+                    selector.manual &&
+                    !safe &&
+                    core == CoreStatus.connected
                 ? (name) => _selectNode(selector.groupName!, name)
                 : null,
           ),
@@ -251,7 +311,15 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
 }
 
 class _SelectorMatch {
-  const _SelectorMatch(this.groupName, this.testUrl, [this.members = const {}]);
+  const _SelectorMatch(
+    this.groupName,
+    this.testUrl, [
+    this.members = const {},
+    this.manual = true,
+    this.coreSelection = false,
+  ]);
+  final bool manual;
+  final bool coreSelection;
 
   final String? groupName;
   final String? testUrl;
@@ -568,6 +636,7 @@ class _NodeGrid extends StatelessWidget {
     required this.skin,
     required this.compact,
     required this.selectorGroup,
+    required this.coreSelection,
     required this.testUrl,
     required this.members,
     required this.onSelect,
@@ -577,6 +646,7 @@ class _NodeGrid extends StatelessWidget {
   final ZolnitSkin skin;
   final bool compact;
   final String? selectorGroup;
+  final bool coreSelection;
   final String? testUrl;
   final Set<String> members;
   final ValueChanged<String>? onSelect;
@@ -599,12 +669,13 @@ class _NodeGrid extends StatelessWidget {
                 child: _NodeCard(
                   node: node,
                   skin: skin,
-                  selectorGroup: members.contains(node.name)
+                  coreSelection: coreSelection,
+                  selectorGroup: members.contains(node.proxyName)
                       ? selectorGroup
                       : null,
                   testUrl: testUrl,
-                  onSelect: onSelect != null && members.contains(node.name)
-                      ? () => onSelect!(node.name)
+                  onSelect: onSelect != null && members.contains(node.proxyName)
+                      ? () => onSelect!(node.proxyName)
                       : null,
                 ),
               ),
@@ -620,6 +691,7 @@ class _NodeCard extends ConsumerWidget {
     required this.node,
     required this.skin,
     required this.selectorGroup,
+    required this.coreSelection,
     required this.testUrl,
     this.onSelect,
   });
@@ -627,6 +699,7 @@ class _NodeCard extends ConsumerWidget {
   final ZolnitNode node;
   final ZolnitSkin skin;
   final String? selectorGroup;
+  final bool coreSelection;
   final String? testUrl;
   final VoidCallback? onSelect;
 
@@ -638,14 +711,22 @@ class _NodeCard extends ConsumerWidget {
 
     final selected =
         selectorGroup != null &&
-        ref.watch(
-          selectedProxyNameProvider(
-            selectorGroup!,
-          ).select((name) => name == node.name),
-        );
+        (coreSelection
+            ? ref.watch(
+                groupsProvider.select(
+                  (groups) =>
+                      groups.getGroup(selectorGroup!)?.realNow ==
+                      node.proxyName,
+                ),
+              )
+            : ref.watch(
+                selectedProxyNameProvider(
+                  selectorGroup!,
+                ).select((name) => name == node.proxyName),
+              ));
 
     final delay = selectorGroup != null
-        ? ref.watch(delayProvider(proxyName: node.name, testUrl: testUrl))
+        ? ref.watch(delayProvider(proxyName: node.proxyName, testUrl: testUrl))
         : null;
 
     final delayLabel = delay == null || delay == 0
@@ -685,7 +766,7 @@ class _NodeCard extends ConsumerWidget {
                 children: [
                   ZolnitFlagBadge(
                     flag: node.flag,
-                    label: node.region,
+                    label: node.region.isEmpty ? l10n.unknown : node.region,
                     size: 36,
                   ),
                   const SizedBox(width: 12),
@@ -705,7 +786,7 @@ class _NodeCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          node.region,
+                          node.region.isEmpty ? l10n.unknown : node.region,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: zolnitText(context, 11, color: colors.muted),
@@ -721,7 +802,8 @@ class _NodeCard extends ConsumerWidget {
                 runSpacing: 6,
                 children: [
                   for (final tag in node.tags) ZolnitPill(label: tag),
-                  ZolnitPill(label: l10n.zolnitNodeMultiplier(node.rateText)),
+                  if (node.rateKnown)
+                    ZolnitPill(label: l10n.zolnitNodeMultiplier(node.rateText)),
                 ],
               ),
               const SizedBox(height: 24),

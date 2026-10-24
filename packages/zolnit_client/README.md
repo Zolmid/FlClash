@@ -203,7 +203,49 @@ schema_version=1、app_id=com.zolmid.zolnit；当前未发布正式产物，upda
 
 Web 原型仍独立并使用模拟数据，不连接真实账户或创建真实付款；宿主页面消费真实业务接口，不提供模拟付款成功按钮。
 
-## 服务智能分流元数据 v1（客户端契约，尚未确认服务端输出）
+## 独立客户端 bundle API v1（默认关闭）
+
+客户端已接入 `GET /api/v1/zolnit/client/bundle`，使用现有 Bearer 会话以及
+`X-ZolNit-Platform`、`X-ZolNit-Distribution` 和真实运行 Core 返回的
+`X-ZolNit-Core-Version`。当前构建固定 v1.19.32；这不是最低兼容版本的验收结论。
+此路径不读取订阅 URL，不依据 UA 猜测身份，也不使用管理端凭据。
+
+响应外层 `data` 是同一账户、权益过滤和生成时刻的原子快照：
+
+- `schema_version=1`、`account_id`、不可复用的 `bundle_id`、`issued_at`、`expires_at`；
+  有效期最多 300 秒，按接收完成时的时钟校验。
+- `connection` 包含 `engine=mihomo`、`format=yaml`、`sha256` 和 `document`；
+  哈希覆盖 document 原始 UTF-8 字节，解析及重新序列化前校验。
+- `outbounds` 的 `id` 为 `protocol:panel-id`，`proxy_name` 为
+  `zn.node.<protocol>.<panel-id>`，`display_name` 只用于展示。
+- `routing` 维持元数据 v1；首轮 AI/影音组分别为 `zn.service.ai` 和
+  `zn.service.media`，各有 `.auto` / `.manual`。节点绑定同一 outbounds，最终出口有
+  明确验证来源、`exit_id` 和 `failure_domain`；未知出口不进入自动池。
+
+SDK 负责包结构、时间、哈希及元数据身份校验；宿主在 isolate 中校验 YAML 实际代理与
+outbounds 一一对应、组名无歧义、无动态代理源，再走现有 Core 校验和配置应用路径。
+没有数字账户 ID 的 user/info 不用于猜测绑定：第一份有效包绑定当前认证代际的 account_id，
+后续必须一致。登出或认证代际变化使旧绑定和在途结果失效。
+
+私有缓存写入应用数据目录，以 bundle_id 哈希命名，替换配置指针前完成校验，最多保留当前
+及上一份快照。401 沿用会话失效流程；403 只标记权益不可用并拦截旧配置再次应用，保留登录与
+账户/付费快照；503 保留同账户的最近有效记录。过期对象保留为显式手动选择的数据来源，
+自动候选清空并收敛到 REJECT，不把缓存存在当作仍有自动资格。权益、版本或绑定拒绝时不能
+使用缓存重连；普通刷新故障也仅允许同账户已有显式手动或 DIRECT 意图。
+
+`ZOLNIT_CLIENT_BUNDLE` 与 `ZOLNIT_CLIENT_BUNDLE_AUTOMATIC` 均默认 false。
+当前 Flutter 前台定时器不能保证 iOS Network Extension、Windows Helper 或应用挂起时的
+截止时间，跨进程 Core 租约未接入前不开放自动模式。后端若返回 `routing.nodes: []`，界面
+显示无合格候选，不能用地区名称或延迟补齐资格。
+
+测试只用仓库内 synthetic bundle 和无凭据 RFC 5737 代理夹具。真实 Core 离线检查只解析
+代理、Selector 和域名规则，并确认选择结果；不执行完整配置应用、监听、DNS、TUN 或联网。
+业务测试、离线 Core 检查与 CI 均不证明真实账号、出口、AI/影音解锁或设备行为已验收。
+
+## 服务智能分流元数据 v1（既有兼容载体，未上线）
+
+新 ZolNit 客户端已实现上节的独立鉴权原子 bundle 接入。本节仅记录 0d7a4a5a 的既有兼容载体与
+离线测试结构；已暂停新增订阅 YAML 传输集成，后端不应据此将扩展接入生产订阅。
 
 自动分流保持 Mihomo rule 模式和原规则目标；只替换受管订阅中的服务 Selector，并以独立的
 自动 Selector、手动 Selector、DIRECT 三个选项承接。自动组初始选择 REJECT，获得真实探测后才选节点。
@@ -260,3 +302,76 @@ DIRECT 后自动结果不得覆盖它。账号/配置代际变化使在途探测
 
 本地测试使用纯元数据、虚拟时钟和假 Core。真实出口确认、服务端扩展输出、VPN 和设备行为仍需
 对应环境验收，不能由本模块测试或其他提交的 CI 结果代替。
+
+
+### 服务端输出规则与首轮范围
+
+扩展随现有 flag=meta 的订阅 YAML 输出，不需要新增客户端 API。先按本次用户/协议兼容过滤得到
+实际 outbounds，再用稳定服务器 ID 关联受控运营元数据，最终以实际输出的 proxy_name 生成 nodes。
+源文件可以单独保存证据引用、验证时间、内部索引；客户端不读取源文件路径，也不验证这些证据或时间。
+authority 是格式标识，不是签名。来源可信性依赖既有受管订阅传递和服务端对运营元数据的保护。
+
+| 原策略组 | 首轮 service | kind | providers | 客户端生成的自动 / 手动组 |
+| --- | --- | --- | --- | --- |
+| AI 服务 | ai | ai | chatgpt, openai_api, claude, gemini_api, gemini_web | AI 自动 / AI 手动 |
+| 海外影音 | media | media | netflix | 影音自动 / 影音手动 |
+| 节点选择 | 首轮不声明 | — | — | 保留原框架 |
+| 国内服务、国内影音 | 首轮不声明 | — | — | 保留原策略 |
+| 通用服务、其他流量 | 首轮不声明 | — | — | 保留原策略 |
+
+kind 的合法值只有 ai、media、general、domestic；group/automatic/manual 都是清单给出的精确名称，
+并非固定服务列表。上表定义首轮对接范围，不禁止以后接入其他已有策略组。operator 当前测 Google
+普通连通性地址，不是国内服务探测；netflix 也不证明全部影音产品或内容可用，不能为填满分类虚构资格。
+后端不要预建 automatic/manual 两组；它们必须在原 proxy-groups 和 proxies 名称中尚未占用。
+
+| 字段 | 服务端必须输出的类型 / 语义 |
+| --- | --- |
+| version / authority | 整数 1 / 字符串 zolnit |
+| revision | 非空公开版本字符串；运营策略变动时更新 |
+| services | 1–16 个服务对象；节点清单 nodes 可为空，最多 4096 项 |
+| service.id | 唯一稳定字符串；供 node.services 引用 |
+| service.kind | 上述四个合法值之一，无缺省 |
+| service.group / automatic / manual | 已有规则策略组 / 未占用的专用自动组 / 未占用的专用手动组 |
+| service.providers | 非空、无重复、仅支持已列出的七种产品键；AI 只允许前五种 AI 键 |
+| service.allowed_countries | 非空、无重复的现行 ISO 大写二字母国家代码；再与客户端产品地区快照求交集 |
+| node.id / proxy_name | 全清单唯一的稳定字符串 ID / 与实际 proxies.name 逐字一致的名称 |
+| node.final_egress | country、source、verified 三项均显式给出；source 仅两种，verified 仅 true 才可入池 |
+| node.failure_domain | 公开且稳定的最终出口或机器标识；协议变体共享它，各 outbound 的 id 仍须不同 |
+| node.services | 无重复的已声明 service.id 列表；空列表表示没有自动资格 |
+| node.enabled | 显式 bool；false 表示不进入自动候选，无缺省 |
+| node.revision | 最终出口定义的公开版本字符串；出口重分类、来源或定义变化时更新 |
+
+ID/failure_domain 采用 1–128 个 ASCII 字符，首字符为字母或数字，其后只允许字母、数字、冒号、
+句点、下划线和连字符。数字 ID 也必须用 YAML 字符串，例如 '123'。其他文本字段非空、最长 256，
+不得带首尾空白或 ASCII 控制字符。未知附加字段会被忽略；不要附加凭据、私有源路径或订阅 token。
+
+没有隐式缺省。服务级格式错误、未知产品/版本/国家声明、重复身份或名称冲突使清单不可用于自动路由；
+单个节点缺项、来源/最终国家未知、未确认、未匹配 actual proxy 或引用未知服务时排除该节点。
+禁用节点和无资格节点不能入自动池。AI 服务被遗漏或错标时，也不得保留原 AI 服务的宽泛自动继承。
+空候选和缺少健康证据都停在 REJECT；保留显式手动与 DIRECT，不回退节点选择/通用 url-test。
+
+传输无关的完整离线 Core 输入在 packages/zolnit_client/test/fixtures/routing-core-offline.json。它只含 RFC 5737 保留地址、无认证 SOCKS5
+示例和 select 组，所有监听端口为 0、DNS/TUN 关闭。fixture 的 verified 是合成测试断言，
+不是实际出口证明，不能直接作为上线配置。
+
+### 当前策略参数与观测范围
+
+| 项目 | 实现值 |
+| --- | --- |
+| 最小驻留 / 样本有效期 | Core 确认选择后 60 秒 / 最近观测 90 秒 |
+| 延迟平滑 / 成功率窗口 | EWMA α=0.25 / 最近 20 个完成的服务样本 |
+| 评分 | 平滑延迟 ms + (1−成功率)×2000 + 已测丢包率×2000 |
+| 改善切换 | 评分收益同时达到 20 ms、当前评分 20%，同一候选至少 2 次不同的新观测 |
+| 软失败确认 | 连续 2 个失败样本；单次失败不绕过驻留 |
+| 冷却退避 | 15、30、60、120、240、300 秒，上限 5 分钟；恢复后重置 |
+| 恢复确认 | 冷却结束后连续 2 个成功样本 |
+| 调度 | 每 30 秒尝试；忙时跳过，不重叠；每服务轮转至多 8 个候选，另检查当前出口；并发上限 4 |
+
+每个样本由所列产品的 Core URLTest 构成：逐个探测固定公开 URL，均返回非负延迟才成功，
+取实际最大延迟；负值为失败，无 Core 响应则不记节点失败。没有 DNS/TCP/TLS 阶段拆分、带宽、
+独立抖动或丢包测量；丢包率保持 null，评分项缺失不等于实测为 0。来源 verified 也不是 URLTest 证据。
+
+hardFailure=true 的立即冷却和同服务 failure_domain 传播只在纯引擎注入测试中覆盖；
+当前运行时没有明确机器硬故障分类来源，不能声称已在真实设备采集。HTTP/TLS 可达性不证明账号、
+API 授权、产品资格、内容目录或解锁。既有 16 项引擎、9 项元数据、5 项转换、8 项假 Core 接入测试
+属于本地逻辑证据；完整包构建、真实 Core 验证、账号与设备验收必须分别记录。

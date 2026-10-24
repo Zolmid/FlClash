@@ -147,6 +147,8 @@ class ZolnitNode {
     required this.title,
     required this.region,
     this.countryCode,
+    this.coreProxyName,
+    this.rateKnown = true,
     this.rate = 1,
     this.tags = const [],
     this.online,
@@ -187,6 +189,9 @@ class ZolnitNode {
 
   final String id;
   final String name;
+  final String? coreProxyName;
+  String get proxyName => coreProxyName ?? name;
+  final bool rateKnown;
   final String title;
   final String region;
   final String? countryCode;

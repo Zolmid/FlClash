@@ -47,6 +47,7 @@ class SmartRoutingManifest {
     required Set<String> groupNames,
   }) {
     if (value is! Map ||
+        value['version'] is! int ||
         value['version'] != 1 ||
         value['authority'] != 'zolnit' ||
         !_text(value['revision'])) {

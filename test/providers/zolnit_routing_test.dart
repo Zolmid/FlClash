@@ -41,6 +41,7 @@ void main() {
   late Map<String, String> picks;
   late int accountGeneration;
   var safe = true;
+  var usType = 'Shadowsocks';
   Future<Delay?> Function(String url, String proxy)? probe;
 
   setUpAll(() async {
@@ -54,6 +55,7 @@ void main() {
   setUp(() {
     accountGeneration = 1;
     safe = true;
+    usType = 'Shadowsocks';
     probe = null;
     config = prepareZolnitRouting(routingFixture()).config;
     core = _Core();
@@ -80,7 +82,10 @@ void main() {
         'DIRECT': <String, dynamic>{'name': 'DIRECT', 'type': 'Direct'},
         'REJECT': <String, dynamic>{'name': 'REJECT', 'type': 'Reject'},
         for (final name in ['hk-exit', 'us-exit', 'jp-exit'])
-          name: <String, dynamic>{'name': name, 'type': 'Shadowsocks'},
+          name: <String, dynamic>{
+            'name': name,
+            'type': name == 'us-exit' ? usType : 'Shadowsocks',
+          },
         for (final g in groups)
           g['name'] as String: <String, dynamic>{
             'name': g['name'],
@@ -319,6 +324,32 @@ void main() {
       routing.activate(1, built.md5);
       await runNormally();
       expect(picks['AI 自动'], 'us-exit');
+    },
+  );
+  test(
+    'a real Core type change during probes cannot route through a direct alias',
+    () async {
+      activate();
+      probe = (url, proxy) async {
+        usType = 'Direct';
+        return Delay(
+          name: proxy,
+          url: url,
+          value: proxy == 'us-exit' ? 1 : 100,
+        );
+      };
+      await runNormally();
+      expect(picks['AI 自动'], 'jp-exit');
+    },
+  );
+  test(
+    'activation cannot bind a staged plan to another applied configuration digest',
+    () async {
+      activate();
+      routing.activate(1, 'not-the-applied-digest');
+      await runNormally();
+      verifyNever(() => core.asyncTestDelay(any(), any()));
+      verifyNever(() => core.changeProxy(any()));
     },
   );
 }

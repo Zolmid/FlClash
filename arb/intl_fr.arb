@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "Le devis est indisponible. Réessayez.",
   "zolnitAuthorizeMonthly": "Autoriser le paiement mensuel",
   "zolnitExistingRenewal": "Annulez le renouvellement automatique du forfait actuel dans Compte avant d'activer le paiement mensuel d'un autre forfait.",
-  "zolnitManageRenewals": "Gérer le renouvellement automatique"
+  "zolnitManageRenewals": "Gérer le renouvellement automatique",
+  "zolnitBundleFetchHint": "Obtenir la configuration de connexion",
+  "zolnitBundleExpired": "Les informations de sélection automatique ont expiré. Actualisez la configuration ; les choix manuel et direct restent disponibles.",
+  "zolnitBundleRefreshFailed": "Impossible d’actualiser la configuration. Les choix manuel et direct restent disponibles.",
+  "zolnitBundleForbidden": "La configuration n’est pas disponible pour ce compte. Vérifiez le forfait et le trafic restant.",
+  "zolnitBundleInvalid": "La validation de la configuration a échoué. La sélection automatique est suspendue.",
+  "zolnitBundleUnavailable": "La configuration de connexion est temporairement indisponible.",
+  "zolnitBundleNoCandidates": "Aucune sortie n’a une admissibilité confirmée. La sélection automatique est indisponible ; choisissez manuellement ou une connexion directe.",
+  "zolnitAiService": "Services IA",
+  "zolnitMediaService": "Streaming",
+  "zolnitRouteCurrent": "Trajet actuel : {node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "Indisponible",
+  "zolnitBundleAutomaticPending": "Le routage automatique est en cours de validation. Les choix manuel et direct sont disponibles."
 }

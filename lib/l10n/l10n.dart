@@ -12843,6 +12843,126 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Fetch connection configuration`
+  String get zolnitBundleFetchHint {
+    return Intl.message(
+      'Fetch connection configuration',
+      name: 'zolnitBundleFetchHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.`
+  String get zolnitBundleExpired {
+    return Intl.message(
+      'Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.',
+      name: 'zolnitBundleExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not refresh the connection configuration. Manual and direct choices remain available.`
+  String get zolnitBundleRefreshFailed {
+    return Intl.message(
+      'Could not refresh the connection configuration. Manual and direct choices remain available.',
+      name: 'zolnitBundleRefreshFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connection configuration is unavailable for this account. Check the plan and traffic allowance.`
+  String get zolnitBundleForbidden {
+    return Intl.message(
+      'Connection configuration is unavailable for this account. Check the plan and traffic allowance.',
+      name: 'zolnitBundleForbidden',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connection configuration validation failed. Automatic selection is paused.`
+  String get zolnitBundleInvalid {
+    return Intl.message(
+      'Connection configuration validation failed. Automatic selection is paused.',
+      name: 'zolnitBundleInvalid',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connection configuration is temporarily unavailable.`
+  String get zolnitBundleUnavailable {
+    return Intl.message(
+      'Connection configuration is temporarily unavailable.',
+      name: 'zolnitBundleUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.`
+  String get zolnitBundleNoCandidates {
+    return Intl.message(
+      'No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.',
+      name: 'zolnitBundleNoCandidates',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `AI services`
+  String get zolnitAiService {
+    return Intl.message(
+      'AI services',
+      name: 'zolnitAiService',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Streaming`
+  String get zolnitMediaService {
+    return Intl.message(
+      'Streaming',
+      name: 'zolnitMediaService',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Current route: {node}`
+  String zolnitRouteCurrent(String node) {
+    return Intl.message(
+      'Current route: $node',
+      name: 'zolnitRouteCurrent',
+      desc: '',
+      args: [node],
+    );
+  }
+
+  /// `Unavailable`
+  String get zolnitRouteUnavailable {
+    return Intl.message(
+      'Unavailable',
+      name: 'zolnitRouteUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic routing is still being validated. Manual and direct choices are available.`
+  String get zolnitBundleAutomaticPending {
+    return Intl.message(
+      'Automatic routing is still being validated. Manual and direct choices are available.',
+      name: 'zolnitBundleAutomaticPending',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

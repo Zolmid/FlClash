@@ -568,6 +568,37 @@ class SetupAction extends _$SetupAction {
         : null;
     final hasScript = scriptContent?.isNotEmpty == true;
     final routing = ref.read(zolnitRoutingProvider);
+    final sourceProfile = ref.read(profilesProvider).getProfile(profileId);
+    final privateBundle =
+        sourceProfile != null && isZolnitBundleProfile(sourceProfile);
+    if (privateBundle &&
+        (!ref.read(zolnitClientBundleTransportProvider) ||
+            !routing.manages(profileId) ||
+            hasScript)) {
+      throw const ClientFailure('client_bundle_binding_mismatch');
+    }
+    if (privateBundle) {
+      final failure = ref.read(zolnitSessionProvider).clientBundleFailure;
+      if (const {
+        'entitlement_unavailable',
+        'core_version_required',
+        'invalid_client_bundle',
+        'client_bundle_binding_mismatch',
+      }.contains(failure)) {
+        throw ClientFailure(failure!);
+      }
+    }
+    final clock = ref.read(zolnitBundleClockProvider);
+    final bundle = privateBundle
+        ? await readZolnitClientBundle(sourceProfile, clock())
+        : null;
+    final privatePrepared = bundle == null
+        ? null
+        : await compute(prepareClientBundleConfiguration, (
+            bundle: bundle,
+            now: clock(),
+            automaticAllowed: ref.read(zolnitClientBundleAutomaticProvider),
+          ));
     final managed = !isCustom && routing.manages(profileId);
     final accountGeneration = managed
         ? ref.read(zolnitSessionProvider).api.generation
@@ -584,6 +615,8 @@ class SetupAction extends _$SetupAction {
               groups: setupState.proxyGroups,
             ),
           }
+        : privatePrepared != null
+        ? privatePrepared.config
         : managed
         ? await compute(
             readZolnitRoutingProfile,
@@ -595,9 +628,9 @@ class SetupAction extends _$SetupAction {
     if (hasScript) {
       rawConfig = await handleEvaluate(scriptContent!, rawConfig);
     }
-    SmartRoutingManifest? routingManifest;
-    SmartRoutingEngine? routingEngine;
-    if (managed) {
+    SmartRoutingManifest? routingManifest = privatePrepared?.manifest;
+    SmartRoutingEngine? routingEngine = privatePrepared?.engine;
+    if (managed && privatePrepared == null) {
       final prepared = await compute(prepareZolnitRouting, rawConfig);
       rawConfig = prepared.config;
       routingManifest = prepared.manifest;
@@ -634,19 +667,28 @@ class SetupAction extends _$SetupAction {
         safeMode: ref.read(safeModeProvider),
       ),
     );
+    final applicationDigest = bundle == null
+        ? res.md5
+        : clientBundleApplicationDigest(res.md5, bundle);
     if (managed) {
+      if (!ref.read(zolnitSessionProvider).authenticated ||
+          ref.read(zolnitSessionProvider).api.generation != accountGeneration) {
+        throw const ClientFailure('superseded');
+      }
       routing.stage(
         profileId: profileId,
         accountGeneration: accountGeneration!,
-        digest: res.md5,
+        digest: applicationDigest,
         manifest: routingManifest,
         engine: routingEngine,
+        expiresAt: bundle?.expiresAt,
+        metadataIdentity: bundle?.routingSha256,
       );
     }
     if (profileBase == null) {
       return (
         yaml: res.yaml,
-        md5: res.md5,
+        md5: applicationDigest,
         counts: res.counts,
         base: null,
         tun: res.tun,
@@ -854,7 +896,21 @@ class SetupAction extends _$SetupAction {
         return getProfile(setupState: state, patchConfig: realPatchConfig);
       }, title: 'build profile');
       final profileFailed = realProfile == null;
-      final setupParams = _setupParams.copyWith(base: realProfile?.base);
+      final rawSetupParams = _setupParams.copyWith(base: realProfile?.base);
+      final setupParams =
+          profile != null &&
+              isZolnitBundleProfile(profile) &&
+              realProfile != null
+          ? rawSetupParams.copyWith(
+              selectedMap: ref
+                  .read(zolnitRoutingProvider)
+                  .preparedSelections(
+                    profile.id,
+                    realProfile.md5,
+                    rawSetupParams.selectedMap,
+                  ),
+            )
+          : rawSetupParams;
       final inputs = switch (setupState) {
         final state? when !profileFailed => (
           state,
@@ -902,6 +958,13 @@ class SetupAction extends _$SetupAction {
             final profileId = profile?.id;
             if (profileId != null) {
               await appPath.ensureProviderDirs(profileId);
+            }
+            if (profile != null &&
+                isZolnitBundleProfile(profile) &&
+                !ref
+                    .read(zolnitRoutingProvider)
+                    .acceptsPrepared(profile.id, yamlMd5)) {
+              throw const ClientFailure('superseded');
             }
             final message = await _core.setupConfig(
               params: setupParams,

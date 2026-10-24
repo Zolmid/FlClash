@@ -1,0 +1,80 @@
+mode: "rule"
+log-level: "silent"
+mixed-port: 0
+port: 0
+socks-port: 0
+redir-port: 0
+tproxy-port: 0
+external-controller: ""
+allow-lan: false
+tun:
+  enable: false
+dns:
+  enable: false
+proxies:
+  - name: "zn.node.socks5.1"
+    type: "socks5"
+    server: "192.0.2.1"
+    port: 1080
+  - name: "zn.node.socks5.2"
+    type: "socks5"
+    server: "198.51.100.1"
+    port: 1080
+  - name: "zn.node.socks5.3"
+    type: "socks5"
+    server: "203.0.113.1"
+    port: 1080
+proxy-groups:
+  - name: "zn.default"
+    type: "select"
+    proxies:
+      - "zn.node.socks5.1"
+      - "zn.node.socks5.2"
+      - "zn.node.socks5.3"
+      - "DIRECT"
+  - name: "zn.service.ai"
+    type: "select"
+    proxies:
+      - "zn.service.ai.auto"
+      - "zn.service.ai.manual"
+      - "DIRECT"
+  - name: "zn.service.media"
+    type: "select"
+    proxies:
+      - "zn.service.media.auto"
+      - "zn.service.media.manual"
+      - "DIRECT"
+  - name: "zn.service.ai.auto"
+    type: "select"
+    proxies:
+      - "REJECT"
+      - "zn.node.socks5.2"
+      - "zn.node.socks5.3"
+    url: "https://chatgpt.com/"
+  - name: "zn.service.ai.manual"
+    type: "select"
+    proxies:
+      - "zn.node.socks5.1"
+      - "zn.node.socks5.2"
+      - "zn.node.socks5.3"
+      - "DIRECT"
+  - name: "zn.service.media.auto"
+    type: "select"
+    proxies:
+      - "REJECT"
+      - "zn.node.socks5.1"
+      - "zn.node.socks5.2"
+      - "zn.node.socks5.3"
+    url: "https://www.netflix.com/"
+  - name: "zn.service.media.manual"
+    type: "select"
+    proxies:
+      - "zn.node.socks5.1"
+      - "zn.node.socks5.2"
+      - "zn.node.socks5.3"
+      - "DIRECT"
+rules:
+  - "DOMAIN-SUFFIX,openai.com,zn.service.ai"
+  - "DOMAIN-SUFFIX,anthropic.com,zn.service.ai"
+  - "DOMAIN-SUFFIX,netflix.com,zn.service.media"
+  - "MATCH,zn.default"

@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "견적을 불러올 수 없습니다. 다시 시도하세요.",
   "zolnitAuthorizeMonthly": "월 자동 결제 승인",
   "zolnitExistingRenewal": "다른 요금제의 월 자동 결제를 시작하려면 계정에서 기존 요금제의 자동 갱신을 먼저 취소하세요.",
-  "zolnitManageRenewals": "자동 갱신 관리"
+  "zolnitManageRenewals": "자동 갱신 관리",
+  "zolnitBundleFetchHint": "연결 설정 가져오기",
+  "zolnitBundleExpired": "자동 선택 정보가 만료되었습니다. 설정을 새로 고치세요. 수동 및 직접 연결은 사용할 수 있습니다.",
+  "zolnitBundleRefreshFailed": "연결 설정을 새로 고치지 못했습니다. 수동 및 직접 연결은 사용할 수 있습니다.",
+  "zolnitBundleForbidden": "이 계정의 연결 설정을 가져올 수 없습니다. 요금제와 데이터 사용량을 확인하세요.",
+  "zolnitBundleInvalid": "연결 설정 검증에 실패하여 자동 선택을 일시 중지했습니다.",
+  "zolnitBundleUnavailable": "연결 설정을 일시적으로 사용할 수 없습니다.",
+  "zolnitBundleNoCandidates": "사용 자격이 확인된 출구가 없습니다. 자동 선택은 사용할 수 없으며 수동 또는 직접 연결을 선택할 수 있습니다.",
+  "zolnitAiService": "AI 서비스",
+  "zolnitMediaService": "스트리밍",
+  "zolnitRouteCurrent": "현재 경로: {node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "사용 불가",
+  "zolnitBundleAutomaticPending": "자동 라우팅은 아직 검증 중입니다. 수동 또는 직접 연결을 사용할 수 있습니다."
 }

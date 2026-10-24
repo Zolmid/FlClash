@@ -1491,5 +1491,24 @@
   "zolnitQuoteUnavailable": "暫時無法取得報價，請重試。",
   "zolnitAuthorizeMonthly": "授權連續包月",
   "zolnitExistingRenewal": "請先在帳號頁的「自動續費」中取消原方案續費，再開通新的連續月繳。",
-  "zolnitManageRenewals": "管理自動續費"
+  "zolnitManageRenewals": "管理自動續費",
+  "zolnitBundleFetchHint": "取得連線設定",
+  "zolnitBundleExpired": "自動選擇資訊已過期。請更新設定；手動或直連仍可使用。",
+  "zolnitBundleRefreshFailed": "連線設定更新失敗。手動或直連仍可使用。",
+  "zolnitBundleForbidden": "目前帳號暫時無法取得連線設定，請檢查方案與流量。",
+  "zolnitBundleInvalid": "連線設定驗證失敗，自動選擇已暫停。",
+  "zolnitBundleUnavailable": "連線設定暫時無法使用。",
+  "zolnitBundleNoCandidates": "尚無已確認的出口資格。無法自動選擇，仍可手動或直連。",
+  "zolnitAiService": "AI 服務",
+  "zolnitMediaService": "海外影音",
+  "zolnitRouteCurrent": "目前線路：{node}",
+  "@zolnitRouteCurrent": {
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "zolnitRouteUnavailable": "無法使用",
+  "zolnitBundleAutomaticPending": "自動分流仍在驗證中，目前可使用手動或直連。"
 }

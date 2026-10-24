@@ -1984,20 +1984,17 @@ final class VisibleGroupsStateProvider
 String _$visibleGroupsStateHash() =>
     r'b9f560285e114ebb98625daeb3fe418926e2e9c2';
 
-/// Searches before hiding, so a group whose matches all timed out keeps them,
-/// and with them its delay test, instead of dropping out of the results.
+/// Searches first so hiding timeouts preserves matching groups for retesting.
 
 @ProviderFor(filterGroupsState)
 final filterGroupsStateProvider = FilterGroupsStateFamily._();
 
-/// Searches before hiding, so a group whose matches all timed out keeps them,
-/// and with them its delay test, instead of dropping out of the results.
+/// Searches first so hiding timeouts preserves matching groups for retesting.
 
 final class FilterGroupsStateProvider
     extends $FunctionalProvider<GroupsState, GroupsState, GroupsState>
     with $Provider<GroupsState> {
-  /// Searches before hiding, so a group whose matches all timed out keeps them,
-  /// and with them its delay test, instead of dropping out of the results.
+  /// Searches first so hiding timeouts preserves matching groups for retesting.
   FilterGroupsStateProvider._({
     required FilterGroupsStateFamily super.from,
     required String super.argument,
@@ -2051,8 +2048,7 @@ final class FilterGroupsStateProvider
 
 String _$filterGroupsStateHash() => r'd27c043b7647ce7f6182f2e5d4a880d987d2d5af';
 
-/// Searches before hiding, so a group whose matches all timed out keeps them,
-/// and with them its delay test, instead of dropping out of the results.
+/// Searches first so hiding timeouts preserves matching groups for retesting.
 
 final class FilterGroupsStateFamily extends $Family
     with $FunctionalFamilyOverride<GroupsState, String> {
@@ -2065,8 +2061,7 @@ final class FilterGroupsStateFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Searches before hiding, so a group whose matches all timed out keeps them,
-  /// and with them its delay test, instead of dropping out of the results.
+  /// Searches first so hiding timeouts preserves matching groups for retesting.
 
   FilterGroupsStateProvider call(String query) =>
       FilterGroupsStateProvider._(argument: query, from: this);
@@ -3592,7 +3587,7 @@ final class SetupStateProvider
   }
 }
 
-String _$setupStateHash() => r'eef9f0d2ec0ecb6196c699b1e2c2a73d922f8964';
+String _$setupStateHash() => r'5c4e8f4856a75b29db3a941ac093478f0384d2b9';
 
 final class SetupStateFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<SetupState>, int?> {

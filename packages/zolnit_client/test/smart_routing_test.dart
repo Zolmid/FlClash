@@ -338,4 +338,20 @@ void main() {
       expect(pick().reason, 'awaiting_probe');
     },
   );
+  test('live Core membership eligibility is applied before score and hold', () {
+    configure([node('a'), node('b')]);
+    observe('a', 10);
+    observe('b', 100);
+    confirm('a');
+    expect(
+      engine
+          .decide(serviceId: 'ai', now: at(1), availableNodeIds: {'b'})
+          .nodeId,
+      'b',
+    );
+    expect(
+      engine.decide(serviceId: 'ai', now: at(1), availableNodeIds: {}).nodeId,
+      isNull,
+    );
+  });
 }

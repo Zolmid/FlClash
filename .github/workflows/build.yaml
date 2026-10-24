@@ -208,6 +208,30 @@ jobs:
           go vet . ./cmd/...
           GOOS=linux go vet ./platform
 
+      - name: Validate client routing selectors without network
+        working-directory: core
+        env:
+          CGO_ENABLED: 0
+          GOPROXY: 'off'
+          GOSUMDB: 'off'
+          GOTOOLCHAIN: local
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess, tempfile
+          version = re.search(r'^core_version:\s*(\S+)', pathlib.Path('../build_config.yaml').read_text(), re.M).group(1)
+          fixture = str(pathlib.Path('../test/fixtures/zolnit-routing-compiled.yaml').resolve())
+          source = str(pathlib.Path('../test/core/zolnit_routing_offline_test.go').resolve())
+          with tempfile.TemporaryDirectory(prefix='zolnit-core-') as work:
+              binary = str(pathlib.Path(work) / 'routing.test')
+              subprocess.run(['go', 'test', '-mod=readonly', '-c',
+                              '-ldflags=-X github.com/metacubex/mihomo/constant.Version=' + version,
+                              '-o', binary, source], check=True)
+              subprocess.run(['sudo', '-n', 'unshare', '--net', '--', 'env',
+                              'ZOLNIT_ROUTING_CONFIG=' + fixture, 'ZOLNIT_CORE_VERSION=' + version,
+                              binary, '-test.run=^TestNativeRoutingOffline$', '-test.v', '-test.timeout=30s'],
+                             check=True)
+          PY
+
       - name: Validate the Android core library
         working-directory: core
         env:

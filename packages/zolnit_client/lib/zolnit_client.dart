@@ -20,3 +20,4 @@ export 'src/traffic.dart';
 export 'src/routing_regions.dart';
 export 'src/routing_manifest.dart';
 export 'src/smart_routing.dart';
+export 'src/client_bundle.dart';
