@@ -39,10 +39,16 @@ class ProxiesAction extends _$ProxiesAction {
   Timer? _delayFlushTimer;
 
   final Map<String, String> _pendingSelectedRollback = {};
+  final _selectionQueues = <String, Future<void>>{};
+  final _selectionIntents = <String, int>{};
 
   @override
   void build() {
     ref.onDispose(() => _delayFlushTimer?.cancel());
+    ref.listen(currentProfileIdProvider, (_, _) {
+      _pendingSelectedRollback.clear();
+      _selectionIntents.updateAll((_, intent) => intent + 1);
+    });
     ref.listen(coreStatusProvider, (_, next) {
       if (next != CoreStatus.connected) {
         cancelDelayTests();
@@ -91,6 +97,8 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   void changeProxyDebounce(String groupName, String proxyName) {
+    ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
+    _selectionIntents[groupName] = (_selectionIntents[groupName] ?? 0) + 1;
     _pendingSelectedRollback.putIfAbsent(
       groupName,
       () => _currentSelectedName(groupName),
@@ -178,10 +186,74 @@ class ProxiesAction extends _$ProxiesAction {
     required String groupName,
     required String proxyName,
   }) async {
+    ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
+    await _queueProxyChange(groupName: groupName, proxyName: proxyName);
+  }
+
+  Future<bool> changeAutomaticProxy({
+    required String groupName,
+    required String proxyName,
+    required bool Function() isCurrent,
+  }) => _queueProxyChange(
+    groupName: groupName,
+    proxyName: proxyName,
+    guard: isCurrent,
+  );
+
+  Future<bool> _queueProxyChange({
+    required String groupName,
+    required String proxyName,
+    bool Function()? guard,
+  }) {
+    final intent = (_selectionIntents[groupName] ?? 0) + 1;
+    _selectionIntents[groupName] = intent;
+    final profileId = ref.read(currentProfileProvider)?.id;
+    bool current() =>
+        ref.mounted &&
+        _selectionIntents[groupName] == intent &&
+        ref.read(currentProfileProvider)?.id == profileId &&
+        (guard?.call() ?? true);
+    final before = _selectionQueues[groupName] ?? Future<void>.value();
+    final operation = before.then((_) async {
+      if (!current()) return false;
+      return _applyProxyChange(
+        groupName: groupName,
+        proxyName: proxyName,
+        isCurrent: current,
+        automatic: guard != null,
+        profileId: profileId,
+      );
+    });
+    final tail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _selectionQueues[groupName] = tail;
+    unawaited(
+      tail.whenComplete(() {
+        if (identical(_selectionQueues[groupName], tail)) {
+          _selectionQueues.remove(groupName);
+          if (_selectionIntents[groupName] == intent) {
+            _pendingSelectedRollback.remove(groupName);
+          }
+        }
+      }),
+    );
+    return operation;
+  }
+
+  Future<bool> _applyProxyChange({
+    required String groupName,
+    required String proxyName,
+    required bool Function() isCurrent,
+    required bool automatic,
+    required int? profileId,
+  }) async {
     final profilesAction = ref.read(profilesActionProvider.notifier);
-    final rollbackName =
-        _pendingSelectedRollback.remove(groupName) ??
-        _currentSelectedName(groupName);
+    final rollbackName = _pendingSelectedRollback.putIfAbsent(
+      groupName,
+      () => _currentSelectedName(groupName),
+    );
     profilesAction.updateCurrentSelectedMap(groupName, proxyName);
     final closeConnections = ref.read(appSettingProvider).closeConnections;
     final params = ChangeProxyParams(
@@ -195,22 +267,29 @@ class ProxiesAction extends _$ProxiesAction {
       if (result.message.isNotEmpty) {
         throw MessageException(result.message);
       }
+      if (ref.mounted && ref.read(currentProfileProvider)?.id == profileId) {
+        _pendingSelectedRollback[groupName] = proxyName;
+      }
     } catch (error) {
       commonPrint.log(
         'changeProxy($groupName -> $proxyName) failed: $error',
         logLevel: coreFailureLogLevel(error),
       );
+      if (!isCurrent()) return false;
       profilesAction.updateCurrentSelectedMap(groupName, rollbackName);
-      dialogs.showNotifier(
-        currentAppLocalizations.changeProxyFailedTip,
-        level: MessageLevel.error,
-      );
-      return;
+      if (!automatic) {
+        dialogs.showNotifier(
+          currentAppLocalizations.changeProxyFailedTip,
+          level: MessageLevel.error,
+        );
+      }
+      return false;
     }
+    if (!isCurrent()) return false;
     try {
       if (!closeConnections) {
         await _core.resetConnections();
-        if (ref.read(appSettingProvider).promptCloseConnections) {
+        if (!automatic && ref.read(appSettingProvider).promptCloseConnections) {
           final context = globalState.navigatorKey.currentContext;
           if (context != null && context.mounted) {
             context.showNotifier(
@@ -238,6 +317,7 @@ class ProxiesAction extends _$ProxiesAction {
         logLevel: coreFailureLogLevel(error),
       );
     }
+    return isCurrent();
   }
 
   Future<String> updateProvider(

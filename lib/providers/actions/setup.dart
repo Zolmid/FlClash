@@ -567,9 +567,15 @@ class SetupAction extends _$SetupAction {
         ? await setupState.script?.content
         : null;
     final hasScript = scriptContent?.isNotEmpty == true;
-    final profileBase = !isCustom && !hasScript
+    final routing = ref.read(zolnitRoutingProvider);
+    final managed = !isCustom && routing.manages(profileId);
+    final accountGeneration = managed
+        ? ref.read(zolnitSessionProvider).api.generation
+        : null;
+    final profileBase = !isCustom && !hasScript && !managed
         ? await _core.getProfileBase(profileId)
         : null;
+    // Core's RawConfig omits extension metadata.
     Map<String, dynamic> rawConfig = isCustom
         ? {
             'proxies': appProxiesPayload(
@@ -578,11 +584,24 @@ class SetupAction extends _$SetupAction {
               groups: setupState.proxyGroups,
             ),
           }
+        : managed
+        ? await compute(
+            readZolnitRoutingProfile,
+            await appPath.getProfilePath(profileId.toString()),
+          )
         : profileBase?.base.config ?? await _core.getConfig(profileId);
     final proxyGroups = isCustom ? setupState.proxyGroups : <ProxyGroup>[];
     final rules = isCustom ? setupState.rules : <Rule>[];
     if (hasScript) {
       rawConfig = await handleEvaluate(scriptContent!, rawConfig);
+    }
+    SmartRoutingManifest? routingManifest;
+    SmartRoutingEngine? routingEngine;
+    if (managed) {
+      final prepared = await compute(prepareZolnitRouting, rawConfig);
+      rawConfig = prepared.config;
+      routingManifest = prepared.manifest;
+      routingEngine = prepared.engine;
     }
     final directory = await appPath.profilesPath;
     final injected = await _resolveInjectedProviders(
@@ -615,6 +634,15 @@ class SetupAction extends _$SetupAction {
         safeMode: ref.read(safeModeProvider),
       ),
     );
+    if (managed) {
+      routing.stage(
+        profileId: profileId,
+        accountGeneration: accountGeneration!,
+        digest: res.md5,
+        manifest: routingManifest,
+        engine: routingEngine,
+      );
+    }
     if (profileBase == null) {
       return (
         yaml: res.yaml,
@@ -846,12 +874,14 @@ class SetupAction extends _$SetupAction {
       final yamlString = realProfile?.yaml ?? '';
       final yamlMd5 = realProfile?.md5 ?? '';
       if (!profileFailed && yamlMd5 == globalState.lastConfigMd5 && !force) {
+        ref.read(zolnitRoutingProvider).activate(profile?.id, yamlMd5);
         _appliedInputs = inputs;
         completed = true;
         return _SetupTaskResult.completed;
       }
       // Go answers a config it rejects by running its built-in default, which
       // has no proxies, so until this push succeeds no applied config is known.
+      ref.read(zolnitRoutingProvider).suspend();
       _appliedInputs = null;
       globalState.lastConfigMd5 = null;
       globalState.lastConfigCounts = null;
@@ -896,6 +926,7 @@ class SetupAction extends _$SetupAction {
           globalState.lastConfigCounts =
               realProfile?.counts ?? configCountsOf(const {});
           _appliedInputs = inputs;
+          ref.read(zolnitRoutingProvider).activate(profile?.id, yamlMd5);
           await onUpdated?.call();
         },
         silence: true,
@@ -905,6 +936,7 @@ class SetupAction extends _$SetupAction {
         Error.throwWithStackTrace(handoffFailure!.$1, handoffFailure!.$2);
       }
       if (setupFailed || profileFailed) {
+        ref.read(zolnitRoutingProvider).clear();
         return _SetupTaskResult.failed;
       }
       completed = true;

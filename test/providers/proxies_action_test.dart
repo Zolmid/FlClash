@@ -200,6 +200,106 @@ void main() {
       when(core.resetConnections).thenAnswer((_) async => true);
     });
 
+    test(
+      'manual selection follows an in-flight automatic write and wins',
+      () async {
+        final firstStarted = Completer<void>();
+        final firstResult = Completer<ChangeProxyResult>();
+        final received = <String>[];
+        when(() => core.changeProxy(any())).thenAnswer((call) {
+          final params = call.positionalArguments.single as ChangeProxyParams;
+          received.add(params.proxyName);
+          if (received.length == 1) {
+            firstStarted.complete();
+            return firstResult.future;
+          }
+          return Future.value(const ChangeProxyResult(changed: true));
+        });
+        final container = buildContainer(profile: _selectedProfile('before'));
+        final owner = actionOf(container);
+        final automatic = owner.changeAutomaticProxy(
+          groupName: 'Proxy',
+          proxyName: 'auto',
+          isCurrent: () => true,
+        );
+        await firstStarted.future;
+        final manual = owner.changeProxy(
+          groupName: 'Proxy',
+          proxyName: 'DIRECT',
+        );
+        expect(received, ['auto']);
+        firstResult.complete(
+          const ChangeProxyResult(message: 'superseded failure'),
+        );
+        expect(await automatic, isFalse);
+        await manual;
+        expect(received, ['auto', 'DIRECT']);
+        expect(
+          container.read(currentProfileProvider)!.selectedMap['Proxy'],
+          'DIRECT',
+        );
+      },
+    );
+
+    test(
+      'an invalid automatic guard never calls Core or persists a choice',
+      () async {
+        final container = buildContainer(profile: _selectedProfile('before'));
+        expect(
+          await actionOf(container).changeAutomaticProxy(
+            groupName: 'Proxy',
+            proxyName: 'auto',
+            isCurrent: () => false,
+          ),
+          isFalse,
+        );
+        verifyNever(() => core.changeProxy(any()));
+        expect(
+          container.read(currentProfileProvider)!.selectedMap['Proxy'],
+          'before',
+        );
+      },
+    );
+
+    test(
+      'failed overlapping writes roll back to the last applied selection',
+      () async {
+        final firstStarted = Completer<void>();
+        final firstResult = Completer<ChangeProxyResult>();
+        var requests = 0;
+        when(() => core.changeProxy(any())).thenAnswer((_) {
+          if (requests++ == 0) {
+            firstStarted.complete();
+            return firstResult.future;
+          }
+          return Future.value(
+            const ChangeProxyResult(message: 'manual failure'),
+          );
+        });
+        final container = buildContainer(profile: _selectedProfile('before'));
+        final owner = actionOf(container);
+        final automatic = owner.changeAutomaticProxy(
+          groupName: 'Proxy',
+          proxyName: 'auto',
+          isCurrent: () => true,
+        );
+        await firstStarted.future;
+        final manual = owner.changeProxy(
+          groupName: 'Proxy',
+          proxyName: 'DIRECT',
+        );
+        firstResult.complete(
+          const ChangeProxyResult(message: 'automatic failure'),
+        );
+        await automatic;
+        await manual;
+        expect(
+          container.read(currentProfileProvider)!.selectedMap['Proxy'],
+          'before',
+        );
+      },
+    );
+
     test('closes connections when enabled', () async {
       final container = runningContainer();
       container.read(appSettingProvider.notifier).value = const AppSettingProps(

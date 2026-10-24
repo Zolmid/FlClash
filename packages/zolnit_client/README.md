@@ -202,3 +202,61 @@ schema_version=1、app_id=com.zolmid.zolnit；当前未发布正式产物，upda
 禁用、空或尚未支持的清单保持不可安装，不回退上游/GitHub旧身份包。后续真实签名产物和条目校验需另行验收。
 
 Web 原型仍独立并使用模拟数据，不连接真实账户或创建真实付款；宿主页面消费真实业务接口，不提供模拟付款成功按钮。
+
+## 服务智能分流元数据 v1（客户端契约，尚未确认服务端输出）
+
+自动分流保持 Mihomo rule 模式和原规则目标；只替换受管订阅中的服务 Selector，并以独立的
+自动 Selector、手动 Selector、DIRECT 三个选项承接。自动组初始选择 REJECT，获得真实探测后才选节点。
+旧 AI 服务 → 节点选择 → url-test 继承链会被截断；没有合格元数据时保留显式手动与直连，自动不可用。
+本轮没有修改订阅模板、Xboard、库存或后端接口，也没有推断服务端已经支持下列扩展。
+受管订阅由客户端在 isolate 中读取原始 YAML，保留 Core RawConfig 会省略的扩展字段；
+节点定义和元数据来自同一快照，生成的配置仍通过既有 Core 应用与校验路径。
+
+受管订阅可在 YAML 顶层提供以下对象；示例名称仅示意，不是内置节点清单：
+
+~~~yaml
+x-zolnit-routing:
+  version: 1
+  authority: zolnit
+  revision: operator-inventory-revision
+  services:
+    - id: ai
+      kind: ai
+      group: AI 服务
+      automatic: AI 自动
+      manual: AI 手动
+      providers: [chatgpt, claude, gemini_api]
+      allowed_countries: [US, JP, SG, TW]
+  nodes:
+    - id: stable-public-node-id
+      proxy_name: Exact subscription proxy name
+      final_egress:
+        country: US
+        source: operator_verified
+        verified: true
+      failure_domain: stable-machine-or-egress-id
+      services: [ai]
+      enabled: true
+      revision: final-egress-revision
+~~~
+
+group 必须是订阅中已有的规则策略组；automatic、manual 是尚未占用的专用组名。
+同一出口的 REALITY/HY2 等变体应共享 failure_domain；中转、入口位置和最终出口不能互换。
+最终出口来源只接受 operator_verified 或 egress_probe 的明确确认。国家使用现行 ISO 3166-1
+alpha-2 代码，不能从国旗、名称、标签或套餐推测。节点需与实际 Core outbound 精确对应；未知、
+缺项、禁用、不支持的产品或有歧义的重复身份不能进入自动池。动态新增节点无需客户端更新固定清单。
+
+产品键为 chatgpt、openai_api、claude、gemini_api、gemini_web、netflix、operator。
+AI 只接受前五种产品，按所列产品官方地区集合的交集限制，并额外排除 HK。
+operator 仅用于非 AI 的普通连通性策略。2026-10-24 的地区快照与来源在
+lib/src/routing_regions.dart；产品范围不同，不把 Gemini 网页支持范围当作 API 范围。
+国家信息无法处理地域例外，故涉及这类例外的 UA 在 OpenAI/Netflix 自动范围中保守排除。
+
+探测经既有 Core 对固定的公开产品地址测量，每服务独立累计；多产品组需各探测均返回有效延迟，
+取实际测量最大值。它证明传输可达性，不能证明登录、账号资格、内容解锁或付费 API 调用成功。
+丢包率没有独立测量时保持未知，不从延迟编造。每 30 秒轮转最多八个候选并检查当前出口，
+并发上限四；冷却、连续恢复、至少 60 秒驻留和重复改善证据限制抖动。用户显式选择手动组或
+DIRECT 后自动结果不得覆盖它。账号/配置代际变化使在途探测失效；SAFE_MODE 不探测或切换。
+
+本地测试使用纯元数据、虚拟时钟和假 Core。真实出口确认、服务端扩展输出、VPN 和设备行为仍需
+对应环境验收，不能由本模块测试或其他提交的 CI 结果代替。

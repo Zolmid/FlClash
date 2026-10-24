@@ -17,3 +17,6 @@ export 'src/session_vault.dart';
 export 'src/subscriptions.dart';
 export 'src/support.dart';
 export 'src/traffic.dart';
+export 'src/routing_regions.dart';
+export 'src/routing_manifest.dart';
+export 'src/smart_routing.dart';

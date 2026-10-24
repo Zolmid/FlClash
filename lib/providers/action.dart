@@ -7,6 +7,7 @@ import 'package:fl_clash/common/app_data.dart';
 import 'package:fl_clash/common/boot_guard.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/system_dns.dart';
+import 'package:fl_clash/common/zolnit_routing.dart';
 import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/database/database.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -15,6 +16,8 @@ import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/actions/system_exit.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/update_progress.dart';
 import 'package:fl_clash/ui/ui.dart';
@@ -25,6 +28,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' show basename, join;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:zolnit_client/zolnit_client.dart'
+    show SmartRoutingManifest, SmartRoutingEngine;
 
 part 'actions/common.dart';
 part 'actions/setup.dart';
