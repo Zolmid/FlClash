@@ -447,6 +447,101 @@ void main() {
     },
   );
 
+  for (final status in [404, 503]) {
+    testWidgets(
+      'configuration failure $status waits for explicit quote retry',
+      (tester) async {
+        var configurationReads = 0;
+        var failing = true;
+        harness.panel = (request) {
+          if (request.url.path.endsWith('/zolnit-stripe/config')) {
+            configurationReads++;
+            if (failing) {
+              return configurationReads < 3
+                  ? http.Response('{}', status)
+                  : zolnitJson({'enabled': false, 'configured': false});
+            }
+            return configuredChannels();
+          }
+          if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+            return zolnitJson(quoteBody('monthly'));
+          }
+          return zolnitPanelFixture(request);
+        };
+        await harness.relogin();
+        await openPlans(tester, ZolnitSkin.macos);
+        expect(configurationReads, 1);
+        expect(quoteRequests(), isEmpty);
+        expect(find.text('暂时无法获取报价，请重试。'), findsNWidgets(3));
+        expect(find.text('加载中…'), findsNothing);
+        expect(harness.session.busy, isFalse);
+        await tester.pump(const Duration(seconds: 1));
+        expect(configurationReads, 1);
+        failing = false;
+        final retry = find.text('重试').first;
+        await tester.ensureVisible(retry);
+        await tester.pumpAndSettle();
+        await tester.tap(retry);
+        await tester.pumpAndSettle();
+        expect(configurationReads, 2);
+        expect(quoteRequests(), hasLength(1));
+        expect(find.text('授权连续包月'), findsNWidgets(3));
+        expectReadOnly();
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
+  testWidgets('configuration refresh failure waits for explicit quote retry', (
+    tester,
+  ) async {
+    var configurationReads = 0;
+    var failureReads = 0;
+    var failing = false;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-stripe/config')) {
+        configurationReads++;
+        if (failing) {
+          return ++failureReads < 3
+              ? http.Response('{}', 503)
+              : zolnitJson({'enabled': false, 'configured': false});
+        }
+        return configuredChannels();
+      }
+      if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+        return zolnitJson(quoteBody('monthly'));
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await openPlans(tester, ZolnitSkin.macos);
+    expect(configurationReads, 1);
+    expect(quoteRequests(), hasLength(1));
+    failing = true;
+    await tester.tap(find.text('全部线路').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('套餐').first);
+    await tester.pumpAndSettle();
+    expect(configurationReads, 2);
+    expect(quoteRequests(), hasLength(1));
+    expect(find.text('授权连续包月'), findsNothing);
+    expect(find.textContaining('首期付款'), findsNothing);
+    expect(find.text('暂时无法获取报价，请重试。'), findsNWidgets(3));
+    expect(find.text('加载中…'), findsNothing);
+    expect(harness.session.busy, isFalse);
+    failing = false;
+    final retry = find.text('重试').first;
+    await tester.ensureVisible(retry);
+    await tester.pumpAndSettle();
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+    expect(configurationReads, 3);
+    expect(quoteRequests(), hasLength(2));
+    expect(find.text('授权连续包月'), findsNWidgets(3));
+    expectReadOnly();
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'expired quotes stop authorization and explicit retry refreshes the batch',
     (tester) async {

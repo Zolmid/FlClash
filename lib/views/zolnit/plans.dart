@@ -173,7 +173,11 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
   ) async {
     final session = widget.session;
     try {
-      await session.ensureRecurringOptions();
+      if (refresh && session.recurringMethods.isEmpty) {
+        await session.refreshRecurringOptions();
+      } else {
+        await session.ensureRecurringOptions();
+      }
       if (!_currentQuote(request, context)) return;
       final methods = session.recurringMethods;
       if (methods.isEmpty) {

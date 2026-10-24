@@ -71,6 +71,8 @@ void main() {
   late _NoPlatform platform;
   late List<http.Request> requests;
   Completer<http.Response>? pending;
+  Completer<http.Response>? pendingConfiguration;
+  var configurationStatus = 200;
   Json? responseOverride;
   var quoteStatus = 200;
   var confirmations = 0;
@@ -78,6 +80,8 @@ void main() {
   setUp(() async {
     requests = [];
     pending = null;
+    pendingConfiguration = null;
+    configurationStatus = 200;
     responseOverride = null;
     quoteStatus = 200;
     confirmations = 0;
@@ -94,13 +98,14 @@ void main() {
         }
         if (path.endsWith('/getSubscribe')) return _data({'plan_id': 1});
         if (path.endsWith('/zolnit-stripe/config')) {
+          if (pendingConfiguration != null) return pendingConfiguration!.future;
           return _data({
             'enabled': true,
             'configured': true,
             'channels': [
               {'id': 9, 'name': 'Stripe', 'enabled': true, 'configured': true},
             ],
-          });
+          }, configurationStatus);
         }
         if (path.endsWith('/zolnit-stripe/plans')) {
           if (pending != null) return pending!.future;
@@ -278,6 +283,65 @@ void main() {
       expect(quoteRequests(), hasLength(1));
     },
   );
+
+  for (final status in [401, 403]) {
+    test(
+      'configuration failure $status preserves the authentication boundary',
+      () async {
+        configurationStatus = status;
+        final generation = session.api.generation;
+        await session.refreshRecurringOptions();
+        expect(session.authenticated, status == 403);
+        expect(
+          session.api.generation,
+          status == 401 ? greaterThan(generation) : generation,
+        );
+        expect(session.recurringMethods, isEmpty);
+        expect(writes(), isEmpty);
+      },
+    );
+  }
+
+  for (final logout in [false, true]) {
+    test(
+      'late configuration cannot cross an account change (logout: $logout)',
+      () async {
+        final response = Completer<http.Response>();
+        pendingConfiguration = response;
+        final configuration = session.refreshRecurringOptions();
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          requests.where(
+            (request) => request.url.path.endsWith('/zolnit-stripe/config'),
+          ),
+          hasLength(1),
+        );
+        if (logout) {
+          await session.logout();
+        } else {
+          session.api.setAuthorization('Bearer next');
+        }
+        response.complete(
+          _data({
+            'enabled': true,
+            'configured': true,
+            'channels': [
+              {
+                'id': 9,
+                'name': 'Old account',
+                'enabled': true,
+                'configured': true,
+              },
+            ],
+          }),
+        );
+        await configuration;
+        expect(session.recurringMethods, isEmpty);
+        expect(session.authenticated, !logout);
+        expect(writes(), isEmpty);
+      },
+    );
+  }
 
   test(
     'logout rejects an in-flight response and never caches its account data',

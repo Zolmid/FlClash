@@ -69,6 +69,7 @@ class ZolnitSessionController extends ChangeNotifier {
   List<Json> _paymentMethods = const [];
   Json? _billingOverview;
   Json? _recurringConfig;
+  bool _recurringOptionsAttempted = false;
   final Map<String, Json> _recurringTerms = {};
   String? _completedTrade;
   Object? _nodesSource;
@@ -396,6 +397,7 @@ class ZolnitSessionController extends ChangeNotifier {
     _paymentMethods = const [];
     _billingOverview = null;
     _recurringConfig = null;
+    _recurringOptionsAttempted = false;
     _recurringTerms.clear();
     _completedTrade = null;
   }
@@ -497,6 +499,7 @@ class ZolnitSessionController extends ChangeNotifier {
 
   Future<void> refreshRecurringOptions() =>
       _run<void>('recurringOptions', null, (work) async {
+        _recurringOptionsAttempted = true;
         _clearQuotePreviews();
         _recurringConfig = null;
         final config = await _billing.config(authenticated: true);
@@ -507,7 +510,7 @@ class ZolnitSessionController extends ChangeNotifier {
     final pending = _flights['recurringOptions'];
     if (pending != null) {
       await pending;
-    } else if (_recurringConfig == null) {
+    } else if (!_recurringOptionsAttempted) {
       await refreshRecurringOptions();
     }
   }

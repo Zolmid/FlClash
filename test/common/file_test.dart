@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart';
+
+class _MockFileSystemEntity extends Mock implements FileSystemEntity {}
 
 void main() {
   late Directory root;
@@ -15,6 +18,86 @@ void main() {
     if (root.existsSync()) {
       root.deleteSync(recursive: true);
     }
+  });
+
+  group('safeDelete', () {
+    for (final recursive in [false, true]) {
+      test(
+        'accepts a file disappearing after exists (recursive: $recursive)',
+        () async {
+          final file = File(join(root.path, 'compiled.mrs'))
+            ..writeAsStringSync('cache');
+          final entity = _MockFileSystemEntity();
+          when(entity.exists).thenAnswer((_) async {
+            final exists = await file.exists();
+            await file.delete();
+            return exists;
+          });
+          when(
+            () => entity.delete(recursive: recursive),
+          ).thenAnswer((_) => file.delete(recursive: recursive));
+
+          await expectLater(entity.safeDelete(recursive: recursive), completes);
+
+          expect(file.existsSync(), isFalse);
+          verify(entity.exists).called(1);
+          verify(() => entity.delete(recursive: recursive)).called(1);
+        },
+      );
+    }
+
+    test('skips deletion when the entity is already missing', () async {
+      final entity = _MockFileSystemEntity();
+      when(entity.exists).thenAnswer((_) async => false);
+
+      await entity.safeDelete();
+
+      verifyNever(() => entity.delete());
+    });
+
+    final deleteErrors = <String, FileSystemException>{
+      'permission': const PathAccessException(
+        'compiled.mrs',
+        OSError('Permission denied', 13),
+      ),
+      'other IO': const FileSystemException(
+        'Input/output error',
+        'compiled.mrs',
+        OSError('Input/output error', 5),
+      ),
+    };
+    for (final entry in deleteErrors.entries) {
+      test('preserves ${entry.key} errors from delete', () async {
+        final entity = _MockFileSystemEntity();
+        when(entity.exists).thenAnswer((_) async => true);
+        when(() => entity.delete()).thenThrow(entry.value);
+
+        await expectLater(entity.safeDelete(), throwsA(same(entry.value)));
+      });
+    }
+
+    test('preserves errors from exists', () async {
+      final entity = _MockFileSystemEntity();
+      const error = PathNotFoundException('compiled.mrs', OSError('', 2));
+      when(entity.exists).thenThrow(error);
+
+      await expectLater(entity.safeDelete(), throwsA(same(error)));
+
+      verifyNever(() => entity.delete());
+    });
+
+    test('does not recursively delete by default', () async {
+      final directory = Directory(join(root.path, 'cache'))..createSync();
+      final child = File(join(directory.path, 'compiled.mrs'))
+        ..writeAsStringSync('cache');
+
+      await expectLater(
+        directory.safeDelete(),
+        throwsA(isA<FileSystemException>()),
+      );
+
+      expect(child.readAsStringSync(), 'cache');
+    });
   });
 
   group('safeDeletePath', () {

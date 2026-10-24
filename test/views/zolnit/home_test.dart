@@ -713,9 +713,24 @@ void main() {
       await mountPopulated(tester);
       await tester.tap(find.text('\u5957\u9910').first);
       await tester.pumpAndSettle();
-      final button = find.byKey(const ValueKey('zolnit-monthly-3-1'));
+      final button = find.descendant(
+        of: find.byKey(const ValueKey('zolnit-monthly-3-1')),
+        matching: find.widgetWithText(TextButton, '授权连续包月'),
+      );
       expect(button, findsOneWidget);
+      expect(consents, isEmpty);
+      expect(
+        populatedRequests.where(
+          (request) =>
+              request.method == 'POST' &&
+              request.url.path.contains('/zolnit-stripe/'),
+        ),
+        isEmpty,
+      );
+      expect(populatedPlatform.opened, isEmpty);
       approveMonthly = false;
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
       await tester.tap(button);
       await tester.pumpAndSettle();
       expect(consents.single['quote_id'], 9);
@@ -737,7 +752,23 @@ void main() {
         await mountPopulated(tester);
         await tester.tap(find.text('\u5957\u9910').first);
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('zolnit-monthly-3-1')));
+        expect(consents, isEmpty);
+        expect(
+          populatedRequests.where(
+            (request) =>
+                request.method == 'POST' &&
+                request.url.path.contains('/zolnit-stripe/'),
+          ),
+          isEmpty,
+        );
+        expect(populatedPlatform.opened, isEmpty);
+        final button = find.descendant(
+          of: find.byKey(const ValueKey('zolnit-monthly-3-1')),
+          matching: find.widgetWithText(TextButton, '授权连续包月'),
+        );
+        await tester.ensureVisible(button);
+        await tester.pumpAndSettle();
+        await tester.tap(button);
         await tester.pumpAndSettle();
         final posts = populatedRequests
             .where(
