@@ -418,6 +418,17 @@ Windows 隔离入口为 `pwsh -NoProfile -File .\tool\acceptance\windows_helper.
 Rust 测试、Windows Rust 编译检查、Go 交叉构建、PowerShell 语法和非 Windows 拒绝分支；
 真实 Windows 的暂停、Job 清零和目录清理尚未执行，不能记为通过。清理失败返回非零状态。
 
+既有开发分支 CI 已接线，只有 `codex/native-client-shared` 启用新增验收：标准 build 的
+`desktop/windows-2022` job 在 Flutter 构建前安装既有版本 Rust/rustfmt 并实际调用上述隔离
+harness；Cloud build 的 `ios/macos-26` job 在源码为 project 时构建独立 unsigned observer。
+不新增 runner/job、事件触发器或权限；patched-reference、其他分支与正式发布不运行这些步骤。
+Xcode 从私有临时源码副本构建并在 finally 清理，避免生成 workspace 元数据污染 checkout。
+iOS 步骤校验 arm64、源码 SHA、bundle/App Group、IPA/可执行文件摘要、无 provisioning/签名目录；
+缺少或畸形产物直接失败。Windows 的失败和目录清理错误继续返回非零；两端均将包含源码 SHA
+和证据范围的日志上传为独立 14 天开发 artifact，执行失败时也保留已有日志。
+本地只验证配置、脚本与失败传播；新增工作流尚未推送或触发，不能记为已产出 IPA 或 Windows
+VM 验收成功。后续 VM 结果仍不等于签名 iOS 设备、真实 Flutter 前台或 SCM 服务验收。
+
 桌面提权 Core 写出的目录及每次替换快照交还发起客户端的用户，Unix 保留 0700/0600；
 Windows 沿用账户目录 ACL，仍待真实 Helper 环境验收。物理 iPhone/iPad 还需要同一开发团队、
 匹配现有 App Group 的 observer provisioning、设备许可和首次解锁/锁屏数据保护验证；本轮不申请

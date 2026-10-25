@@ -32,9 +32,13 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True)
     with tempfile.TemporaryDirectory(prefix='zolnit-ios-observer-') as temporary:
+        source = Path(temporary) / 'source'
+        shutil.copytree(repo / 'ios/LeaseObserver', source / 'LeaseObserver')
+        (source / 'Shared').mkdir()
+        shutil.copy2(repo / 'ios/Shared/RoutingLeaseObservationReader.swift', source / 'Shared/RoutingLeaseObservationReader.swift')
         derived = Path(temporary) / 'DerivedData'
         command = [
-            'xcrun', 'xcodebuild', '-project', str(repo / 'ios/LeaseObserver/LeaseObserver.xcodeproj'),
+            'xcrun', 'xcodebuild', '-project', str(source / 'LeaseObserver/LeaseObserver.xcodeproj'),
             '-scheme', 'LeaseObserverAcceptance', '-configuration', 'Debug', '-sdk', 'iphoneos',
             '-destination', 'generic/platform=iOS', '-derivedDataPath', str(derived),
             '-disableAutomaticPackageResolution', 'ARCHS=arm64', 'ONLY_ACTIVE_ARCH=NO',

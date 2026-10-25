@@ -166,6 +166,54 @@ jobs:
         if: matrix.platform == 'windows'
         run: git config --global core.longpaths true
 
+      - name: Install isolated Helper acceptance toolchain
+        timeout-minutes: 5
+        if: matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt
+          if ($LASTEXITCODE -ne 0) { throw "Rust acceptance toolchain installation failed: $LASTEXITCODE" }
+
+      - name: Run isolated Windows Helper acceptance
+        timeout-minutes: 15
+        if: matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
+        shell: pwsh
+        env:
+          RUSTUP_TOOLCHAIN: '1.99.0'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'zolnit-windows-helper-acceptance'
+          $null = New-Item -ItemType Directory -Path $evidence -Force
+          $result = 'failed'
+          try {
+            & .\tool\acceptance\windows_helper.ps1 *>&1 | Tee-Object -FilePath (Join-Path $evidence 'harness.log')
+            if ($LASTEXITCODE -ne 0) { throw "Isolated Helper acceptance failed: $LASTEXITCODE" }
+            $result = 'passed'
+          } catch {
+            $_ | Out-String | Add-Content -LiteralPath (Join-Path $evidence 'harness.log') -Encoding utf8
+            throw
+          } finally {
+            [ordered]@{
+              source_commit = $env:GITHUB_SHA
+              result = $result
+              scope = 'CI Windows VM; owned Helper/Core/Job and dedicated frontend only'
+              signed_ios_device = $false
+              real_flutter_frontend = $false
+              scm_service = $false
+              production_http_ingress = $false
+            } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence 'result.json') -Encoding utf8
+          }
+
+      - name: Upload isolated Windows Helper evidence
+        if: always() && matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-helper-isolated-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/zolnit-windows-helper-acceptance/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Install dependencies
         run: flutter pub get
 

@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 import plistlib
 import subprocess
+import sys
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -54,6 +56,38 @@ class ObserverTargetContract(unittest.TestCase):
         scheme = ET.parse(OBSERVER / 'LeaseObserver.xcodeproj/xcshareddata/xcschemes/LeaseObserverAcceptance.xcscheme')
         self.assertEqual(scheme.find('.//BuildActionEntry').attrib['buildForArchiving'], 'NO')
         self.assertEqual({item['name'] for item in self.objects.values() if item['isa'] == 'XCBuildConfiguration'}, {'Debug'})
+
+
+    def test_failed_unsigned_build_uses_and_cleans_private_source_copy(self):
+        with tempfile.TemporaryDirectory(prefix='observer-builder-test-') as temporary:
+            root = Path(temporary)
+            shim = root / 'xcrun'
+            record = root / 'project-path.txt'
+            shim.write_text(
+                '#!' + sys.executable + '\n'
+                'import os, pathlib, sys\n'
+                'args = sys.argv[1:]\n'
+                'if args[0] != "xcodebuild":\n'
+                '    print("test-only-preflight"); sys.exit(0)\n'
+                'project = pathlib.Path(args[args.index("-project") + 1]).resolve()\n'
+                'assert not project.is_relative_to(pathlib.Path(os.environ["OBSERVER_REPO"]))\n'
+                'assert (project.parent / "LeaseObserverApp.swift").is_file()\n'
+                'assert (project.parent.parent / "Shared/RoutingLeaseObservationReader.swift").is_file()\n'
+                'pathlib.Path(os.environ["OBSERVER_PROJECT_RECORD"]).write_text(str(project))\n'
+                '(project / "generated-workspace-test").write_text("owned test metadata")\n'
+                'sys.exit(17)\n'
+            )
+            shim.chmod(0o700)
+            output = root / 'unsigned'
+            env = {**os.environ, 'PATH': str(root) + os.pathsep + os.environ['PATH'],
+                   'OBSERVER_REPO': str(ROOT), 'OBSERVER_PROJECT_RECORD': str(record)}
+            result = subprocess.run([sys.executable, str(ROOT / 'tool/acceptance/build_ios_observer.py'),
+                                     '--output', str(output)], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 17, result.stdout + result.stderr)
+            self.assertEqual(json.loads(result.stdout)['code'], 'unsigned_build_failed')
+            self.assertFalse(Path(record.read_text()).exists())
+            self.assertFalse((output / 'ZolNitLeaseObserver-unsigned.ipa').exists())
+            self.assertTrue((output / 'xcodebuild.log').is_file())
 
 
 if __name__ == '__main__':

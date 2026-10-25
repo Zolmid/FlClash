@@ -329,6 +329,58 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
           xcodebuild -version
 
+      - name: Build and validate unsigned iOS lease observer
+        timeout-minutes: 15
+        if: github.ref == 'refs/heads/codex/native-client-shared' && env.IOS_SOURCE == 'project'
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/zolnit-ios-lease-observer"
+          mkdir -p "$evidence"
+          python3 - <<'PYMETA'
+          import json, os, pathlib
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'zolnit-ios-lease-observer/context.json'
+          path.write_text(json.dumps({'source_commit': os.environ['GITHUB_SHA'],
+              'scope': 'CI macOS runner; unsigned iOS arm64 observer build only',
+              'signed_ios_device': False, 'real_flutter_frontend': False, 'scm_service': False}) + '\n')
+          PYMETA
+          python3 -m unittest discover -s test/core/ios -p '*_test.py' -v 2>&1 | tee "$evidence/contracts.log"
+          xcrun swiftc ios/Shared/RoutingLeaseObservationReader.swift ios/LeaseObserver/LeaseObservationPresentation.swift test/core/ios/lease_observer_presentation.swift -o "$evidence/presentation-check"
+          "$evidence/presentation-check" 2>&1 | tee "$evidence/presentation.log"
+          python3 tool/acceptance/build_ios_observer.py --output "$evidence/unsigned" 2>&1 | tee "$evidence/build-result.json"
+          xcrun lipo -archs "$evidence/unsigned/Payload/ZolNitLeaseObserver.app/ZolNitLeaseObserver" | tee "$evidence/architectures.log"
+          test "$(cat "$evidence/architectures.log")" = arm64
+          python3 - <<'PYVERIFY'
+          import hashlib, json, os, pathlib, plistlib, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'zolnit-ios-lease-observer'
+          result = json.loads((root / 'build-result.json').read_text())
+          assert result['ok'] is True and result['code'] == 'ios_observer_unsigned_build'
+          assert result['source_commit'] == os.environ['GITHUB_SHA'] and result['working_tree_dirty'] is False
+          assert result['signed'] is False and result['device_executed'] is False
+          ipa = root / 'unsigned/ZolNitLeaseObserver-unsigned.ipa'
+          assert ipa.stat().st_size > 0 and hashlib.sha256(ipa.read_bytes()).hexdigest() == result['ipa_sha256']
+          with zipfile.ZipFile(ipa) as bundle:
+              assert bundle.testzip() is None
+              prefix = 'Payload/ZolNitLeaseObserver.app/'
+              info = plistlib.loads(bundle.read(prefix + 'Info.plist'))
+              assert info['CFBundleIdentifier'] == 'com.zolmid.zolnit.debug.LeaseObserver'
+              assert info['ZolNitObserverAppGroup'] == 'group.com.zolmid.zolnit.debug'
+              assert hashlib.sha256(bundle.read(prefix + info['CFBundleExecutable'])).hexdigest() == result['executable_sha256']
+              assert not any('/_CodeSignature/' in name or name.endswith('/embedded.mobileprovision') for name in bundle.namelist())
+          PYVERIFY
+
+      - name: Upload unsigned iOS lease observer evidence
+        if: always() && github.ref == 'refs/heads/codex/native-client-shared' && env.IOS_SOURCE == 'project'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-lease-observer-arm64-unsigned-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/zolnit-ios-lease-observer/*.json
+            ${{ runner.temp }}/zolnit-ios-lease-observer/*.log
+            ${{ runner.temp }}/zolnit-ios-lease-observer/unsigned/ZolNitLeaseObserver-unsigned.ipa
+            ${{ runner.temp }}/zolnit-ios-lease-observer/unsigned/xcodebuild.log
+          if-no-files-found: error
+          retention-days: 14
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
