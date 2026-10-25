@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/adapter"
-	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/proxydialer"
 	C "github.com/metacubex/mihomo/constant"
 	CL "github.com/metacubex/mihomo/log"
@@ -93,6 +92,7 @@ type options struct {
 	timeout                   time.Duration
 }
 type report struct {
+	FailureStage string `json:"failure_stage,omitempty"`
 	OK           bool   `json:"ok"`
 	Code         string `json:"code"`
 	CoreVersion  string `json:"core_version"`
@@ -113,6 +113,7 @@ type validated struct {
 	proxies        map[string]map[string]any
 	names          map[string]string
 	observationKey string
+	ipv6           bool
 }
 
 func safeText(value string) bool {
@@ -239,6 +240,14 @@ func validate(input io.Reader, account string, clock func() time.Time) (*validat
 	if yaml.Unmarshal([]byte(b.Connection.Document), &document) != nil {
 		return nil, "invalid_connection_yaml"
 	}
+	ipv6 := false
+	if value, exists := document["ipv6"]; exists {
+		var ok bool
+		ipv6, ok = value.(bool)
+		if !ok {
+			return nil, "invalid_connection_ipv6"
+		}
+	}
 	raw, ok := document["proxies"].([]any)
 	if !ok || len(raw) != len(names) {
 		return nil, "invalid_outbound_mapping"
@@ -286,7 +295,7 @@ func validate(input io.Reader, account string, clock func() time.Time) (*validat
 		}
 		proxies[name] = p
 	}
-	return &validated{b, proxies, names, envelope.Observation.Key}, ""
+	return &validated{bundle: b, proxies: proxies, names: names, observationKey: envelope.Observation.Key, ipv6: ipv6}, ""
 }
 func buildProxy(v *validated, name string, stack map[string]bool, owned *[]C.Proxy) (C.Proxy, string) {
 	if stack[name] || len(stack) >= 8 || v.proxies[name] == nil {
@@ -300,7 +309,7 @@ func buildProxy(v *validated, name string, stack map[string]bool, owned *[]C.Pro
 			return nil, "unsupported_proxy_option"
 		}
 	}
-	next := C.Dialer(dialer.NewDialer())
+	next := proxyNetworkDialer(mapping, nil)
 	if value, exists := mapping["dialer-proxy"]; exists {
 		dependency, ok := value.(string)
 		if !ok || dependency == "" {
@@ -310,7 +319,7 @@ func buildProxy(v *validated, name string, stack map[string]bool, owned *[]C.Pro
 		if code != "" {
 			return nil, code
 		}
-		next = proxydialer.New(p, false)
+		next = proxyNetworkDialer(mapping, proxydialer.New(p, false))
 	}
 	proxy, err := adapter.ParseProxy(mapping, adapter.WithDialerForAPI(next))
 	if err != nil {
@@ -333,6 +342,9 @@ func isolatedTransport(proxy C.Proxy) *http.Transport {
 					_ = conn.SetDeadline(deadline)
 				}
 			}
+			if err != nil {
+				err = &networkPhaseError{stage: classifyNetworkFailure(err, "proxy_tls"), cause: err}
+			}
 			return conn, err
 		},
 	}
@@ -354,12 +366,12 @@ func isolatedHTTP(ctx context.Context, proxy C.Proxy, target string) (int, error
 	defer response.Body.Close()
 	return response.StatusCode, nil
 }
-func isolatedEgress(ctx context.Context, proxy C.Proxy, key []byte) (country, marker, code string, status int) {
+func isolatedEgress(ctx context.Context, proxy C.Proxy, key []byte, failureStage ...*string) (country, marker, code string, status int) {
 	client := isolatedClient(proxy)
 	defer client.CloseIdleConnections()
-	return requestEgress(ctx, client, key)
+	return requestEgress(ctx, client, key, failureStage...)
 }
-func requestEgress(ctx context.Context, client *http.Client, key []byte) (country, marker, code string, status int) {
+func requestEgress(ctx context.Context, client *http.Client, key []byte, failureStage ...*string) (country, marker, code string, status int) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, egressObservationURL, nil)
 	if err != nil {
 		return "", "", "egress_request_failed", 0
@@ -369,6 +381,7 @@ func requestEgress(ctx context.Context, client *http.Client, key []byte) (countr
 	request.Header.Set("User-Agent", "ZolNit-Core-Probe/1")
 	response, err := client.Do(request)
 	if err != nil {
+		setFailureStage(failureStage, err)
 		return "", "", "isolated_connection_failed", 0
 	}
 	defer response.Body.Close()
@@ -387,6 +400,7 @@ func requestEgress(ctx context.Context, client *http.Client, key []byte) (countr
 	body, err := io.ReadAll(io.LimitReader(response.Body, 4097))
 	defer clear(body)
 	if err != nil {
+		setFailureStage(failureStage, err)
 		return "", "", "isolated_connection_failed", status
 	}
 	if len(body) > 4096 {
@@ -450,6 +464,8 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 		r.Code = "outbound_required"
 		return r
 	}
+	restoreNetwork := applyRuntimeNetwork(v.ipv6)
+	defer restoreNetwork()
 	owned := []C.Proxy{}
 	defer func() {
 		for i := len(owned) - 1; i >= 0; i-- {
@@ -459,6 +475,7 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 	p, code := buildProxy(v, name, map[string]bool{}, &owned)
 	if code != "" {
 		r.Code = code
+		r.FailureStage = "parse_proxy"
 		return r
 	}
 	at := now()
@@ -478,7 +495,7 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 	var err error
 	var country, marker, observationCode string
 	if opt.observe {
-		country, marker, observationCode, status = isolatedEgress(ctx, p, observationKey)
+		country, marker, observationCode, status = isolatedEgress(ctx, p, observationKey, &r.FailureStage)
 	} else {
 		status, err = isolatedHTTP(ctx, p, targets[opt.target])
 	}
@@ -501,6 +518,7 @@ func execute(input io.Reader, opt options, now func() time.Time) (r report) {
 	}
 	if err != nil {
 		r.Code = "isolated_connection_failed"
+		r.FailureStage = classifyNetworkFailure(err, "target_tls")
 		return r
 	}
 	r.Status = status
