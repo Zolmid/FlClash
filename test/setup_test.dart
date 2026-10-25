@@ -40,6 +40,20 @@ void main() {
       );
     });
 
+    test('passive observation is explicitly compiled and off by default', () {
+      expect(
+        setup.createBuildEnvironment('dev'),
+        isNot(contains('ZOLNIT_ROUTING_OBSERVATION')),
+      );
+      expect(
+        setup.createBuildEnvironment(
+          'dev',
+          routingObservation: true,
+        )['ZOLNIT_ROUTING_OBSERVATION'],
+        'true',
+      );
+    });
+
     test('omits verbose from flutter build args by default', () {
       final args = setup.createFlutterBuildArgs(
         platform: 'android',

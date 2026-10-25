@@ -1171,7 +1171,7 @@ as int,
 /// @nodoc
 mixin _$SetupParams {
 
-@JsonKey(name: 'selected-map') Map<String, String> get selectedMap;@JsonKey(name: 'test-url') String get testUrl;@JsonKey(name: 'skip-cert-verify') bool get skipCertVerify;@JsonKey(includeIfNull: false) SetupBase? get base;@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease;
+@JsonKey(name: 'selected-map') Map<String, String> get selectedMap;@JsonKey(name: 'test-url') String get testUrl;@JsonKey(name: 'skip-cert-verify') bool get skipCertVerify;@JsonKey(includeIfNull: false) SetupBase? get base;@JsonKey(name: 'routing-observation', includeIfNull: false) bool? get routingObservation;@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease;
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1185,20 +1185,20 @@ $SetupParamsCopyWith<SetupParams> get copyWith => _$SetupParamsCopyWithImpl<Setu
 @override
 bool operator ==(Object other) {
   final _this = this as SetupParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _this.selectedMap)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.skipCertVerify, _this.skipCertVerify) || other.skipCertVerify == _this.skipCertVerify)&&(identical(other.base, _this.base) || other.base == _this.base)&&const DeepCollectionEquality().equals(other.routingLease, _this.routingLease));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _this.selectedMap)&&(identical(other.testUrl, _this.testUrl) || other.testUrl == _this.testUrl)&&(identical(other.skipCertVerify, _this.skipCertVerify) || other.skipCertVerify == _this.skipCertVerify)&&(identical(other.base, _this.base) || other.base == _this.base)&&(identical(other.routingObservation, _this.routingObservation) || other.routingObservation == _this.routingObservation)&&const DeepCollectionEquality().equals(other.routingLease, _this.routingLease));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as SetupParams;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.selectedMap),_this.testUrl,_this.skipCertVerify,_this.base,const DeepCollectionEquality().hash(_this.routingLease));
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.selectedMap),_this.testUrl,_this.skipCertVerify,_this.base,_this.routingObservation,const DeepCollectionEquality().hash(_this.routingLease));
 }
 
 @override
 String toString() {
   final _this = this as SetupParams;
-  return 'SetupParams(selectedMap: ${_this.selectedMap}, testUrl: ${_this.testUrl}, skipCertVerify: ${_this.skipCertVerify}, base: ${_this.base}, routingLease: ${_this.routingLease})';
+  return 'SetupParams(selectedMap: ${_this.selectedMap}, testUrl: ${_this.testUrl}, skipCertVerify: ${_this.skipCertVerify}, base: ${_this.base}, routingObservation: ${_this.routingObservation}, routingLease: ${_this.routingLease})';
 }
 
 
@@ -1209,7 +1209,7 @@ abstract mixin class $SetupParamsCopyWith<$Res>  {
   factory $SetupParamsCopyWith(SetupParams value, $Res Function(SetupParams) _then) = _$SetupParamsCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
+@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base,@JsonKey(name: 'routing-observation', includeIfNull: false) bool? routingObservation,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
 });
 
 
@@ -1226,13 +1226,14 @@ class _$SetupParamsCopyWithImpl<$Res>
 
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,Object? routingLease = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,Object? routingObservation = freezed,Object? routingLease = freezed,}) {
   return _then(SetupParams(
 selectedMap: null == selectedMap ? _self.selectedMap : selectedMap // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,testUrl: null == testUrl ? _self.testUrl : testUrl // ignore: cast_nullable_to_non_nullable
 as String,skipCertVerify: null == skipCertVerify ? _self.skipCertVerify : skipCertVerify // ignore: cast_nullable_to_non_nullable
 as bool,base: freezed == base ? _self.base : base // ignore: cast_nullable_to_non_nullable
-as SetupBase?,routingLease: freezed == routingLease ? _self.routingLease : routingLease // ignore: cast_nullable_to_non_nullable
+as SetupBase?,routingObservation: freezed == routingObservation ? _self.routingObservation : routingObservation // ignore: cast_nullable_to_non_nullable
+as bool?,routingLease: freezed == routingLease ? _self.routingLease : routingLease // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,
   ));
 }
@@ -1330,10 +1331,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-observation', includeIfNull: false)  bool? routingObservation, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SetupParams() when $default != null:
-return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingLease);case _:
+return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingObservation,_that.routingLease);case _:
   return orElse();
 
 }
@@ -1351,10 +1352,10 @@ return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-observation', includeIfNull: false)  bool? routingObservation, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)  $default,) {final _that = this;
 switch (_that) {
 case _SetupParams():
-return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingLease);case _:
+return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingObservation,_that.routingLease);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1371,10 +1372,10 @@ return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'selected-map')  Map<String, String> selectedMap, @JsonKey(name: 'test-url')  String testUrl, @JsonKey(name: 'skip-cert-verify')  bool skipCertVerify, @JsonKey(includeIfNull: false)  SetupBase? base, @JsonKey(name: 'routing-observation', includeIfNull: false)  bool? routingObservation, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease)?  $default,) {final _that = this;
 switch (_that) {
 case _SetupParams() when $default != null:
-return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingLease);case _:
+return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,_that.routingObservation,_that.routingLease);case _:
   return null;
 
 }
@@ -1386,7 +1387,7 @@ return $default(_that.selectedMap,_that.testUrl,_that.skipCertVerify,_that.base,
 @JsonSerializable()
 
 class _SetupParams implements SetupParams {
-  const _SetupParams({@JsonKey(name: 'selected-map') required  Map<String, String> selectedMap, @JsonKey(name: 'test-url') required this.testUrl, @JsonKey(name: 'skip-cert-verify') this.skipCertVerify = false, @JsonKey(includeIfNull: false) this.base, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease}): _selectedMap = selectedMap,_routingLease = routingLease;
+  const _SetupParams({@JsonKey(name: 'selected-map') required  Map<String, String> selectedMap, @JsonKey(name: 'test-url') required this.testUrl, @JsonKey(name: 'skip-cert-verify') this.skipCertVerify = false, @JsonKey(includeIfNull: false) this.base, @JsonKey(name: 'routing-observation', includeIfNull: false) this.routingObservation, @JsonKey(name: 'routing-lease', includeIfNull: false)  Map<String, dynamic>? routingLease}): _selectedMap = selectedMap,_routingLease = routingLease;
   factory _SetupParams.fromJson(Map<String, dynamic> json) => _$SetupParamsFromJson(json);
 
  final  Map<String, String> _selectedMap;
@@ -1399,6 +1400,7 @@ class _SetupParams implements SetupParams {
 @override@JsonKey(name: 'test-url') final  String testUrl;
 @override@JsonKey(name: 'skip-cert-verify') final  bool skipCertVerify;
 @override@JsonKey(includeIfNull: false) final  SetupBase? base;
+@override@JsonKey(name: 'routing-observation', includeIfNull: false) final  bool? routingObservation;
  final  Map<String, dynamic>? _routingLease;
 @override@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? get routingLease {
   final value = _routingLease;
@@ -1422,18 +1424,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _selectedMap)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.skipCertVerify, skipCertVerify) || other.skipCertVerify == skipCertVerify)&&(identical(other.base, base) || other.base == base)&&const DeepCollectionEquality().equals(other.routingLease, _routingLease));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetupParams&&const DeepCollectionEquality().equals(other.selectedMap, _selectedMap)&&(identical(other.testUrl, testUrl) || other.testUrl == testUrl)&&(identical(other.skipCertVerify, skipCertVerify) || other.skipCertVerify == skipCertVerify)&&(identical(other.base, base) || other.base == base)&&(identical(other.routingObservation, routingObservation) || other.routingObservation == routingObservation)&&const DeepCollectionEquality().equals(other.routingLease, _routingLease));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_selectedMap),testUrl,skipCertVerify,base,const DeepCollectionEquality().hash(_routingLease));
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_selectedMap),testUrl,skipCertVerify,base,routingObservation,const DeepCollectionEquality().hash(_routingLease));
 }
 
 @override
 String toString() {
-    return 'SetupParams(selectedMap: $selectedMap, testUrl: $testUrl, skipCertVerify: $skipCertVerify, base: $base, routingLease: $routingLease)';
+    return 'SetupParams(selectedMap: $selectedMap, testUrl: $testUrl, skipCertVerify: $skipCertVerify, base: $base, routingObservation: $routingObservation, routingLease: $routingLease)';
 }
 
 
@@ -1444,7 +1446,7 @@ abstract mixin class _$SetupParamsCopyWith<$Res> implements $SetupParamsCopyWith
   factory _$SetupParamsCopyWith(_SetupParams value, $Res Function(_SetupParams) _then) = __$SetupParamsCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
+@JsonKey(name: 'selected-map') Map<String, String> selectedMap,@JsonKey(name: 'test-url') String testUrl,@JsonKey(name: 'skip-cert-verify') bool skipCertVerify,@JsonKey(includeIfNull: false) SetupBase? base,@JsonKey(name: 'routing-observation', includeIfNull: false) bool? routingObservation,@JsonKey(name: 'routing-lease', includeIfNull: false) Map<String, dynamic>? routingLease
 });
 
 
@@ -1461,13 +1463,14 @@ class __$SetupParamsCopyWithImpl<$Res>
 
 /// Create a copy of SetupParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,Object? routingLease = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedMap = null,Object? testUrl = null,Object? skipCertVerify = null,Object? base = freezed,Object? routingObservation = freezed,Object? routingLease = freezed,}) {
   return _then(_SetupParams(
 selectedMap: null == selectedMap ? _self._selectedMap : selectedMap // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,testUrl: null == testUrl ? _self.testUrl : testUrl // ignore: cast_nullable_to_non_nullable
 as String,skipCertVerify: null == skipCertVerify ? _self.skipCertVerify : skipCertVerify // ignore: cast_nullable_to_non_nullable
 as bool,base: freezed == base ? _self.base : base // ignore: cast_nullable_to_non_nullable
-as SetupBase?,routingLease: freezed == routingLease ? _self._routingLease : routingLease // ignore: cast_nullable_to_non_nullable
+as SetupBase?,routingObservation: freezed == routingObservation ? _self.routingObservation : routingObservation // ignore: cast_nullable_to_non_nullable
+as bool?,routingLease: freezed == routingLease ? _self._routingLease : routingLease // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,
   ));
 }
@@ -2769,7 +2772,7 @@ $AccessControlPropsCopyWith<$Res> get accessControlProps {
 /// @nodoc
 mixin _$InitParams {
 
-@JsonKey(name: 'home-dir') String get homeDir; int get version;
+@JsonKey(name: 'home-dir') String get homeDir; int get version;@JsonKey(name: 'routing-observation', includeIfNull: false) bool? get routingObservation;
 /// Create a copy of InitParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2783,20 +2786,20 @@ $InitParamsCopyWith<InitParams> get copyWith => _$InitParamsCopyWithImpl<InitPar
 @override
 bool operator ==(Object other) {
   final _this = this as InitParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is InitParams&&(identical(other.homeDir, _this.homeDir) || other.homeDir == _this.homeDir)&&(identical(other.version, _this.version) || other.version == _this.version));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is InitParams&&(identical(other.homeDir, _this.homeDir) || other.homeDir == _this.homeDir)&&(identical(other.version, _this.version) || other.version == _this.version)&&(identical(other.routingObservation, _this.routingObservation) || other.routingObservation == _this.routingObservation));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as InitParams;
-  return Object.hash(runtimeType,_this.homeDir,_this.version);
+  return Object.hash(runtimeType,_this.homeDir,_this.version,_this.routingObservation);
 }
 
 @override
 String toString() {
   final _this = this as InitParams;
-  return 'InitParams(homeDir: ${_this.homeDir}, version: ${_this.version})';
+  return 'InitParams(homeDir: ${_this.homeDir}, version: ${_this.version}, routingObservation: ${_this.routingObservation})';
 }
 
 
@@ -2807,7 +2810,7 @@ abstract mixin class $InitParamsCopyWith<$Res>  {
   factory $InitParamsCopyWith(InitParams value, $Res Function(InitParams) _then) = _$InitParamsCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'home-dir') String homeDir, int version
+@JsonKey(name: 'home-dir') String homeDir, int version,@JsonKey(name: 'routing-observation', includeIfNull: false) bool? routingObservation
 });
 
 
@@ -2824,11 +2827,12 @@ class _$InitParamsCopyWithImpl<$Res>
 
 /// Create a copy of InitParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? homeDir = null,Object? version = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? homeDir = null,Object? version = null,Object? routingObservation = freezed,}) {
   return _then(InitParams(
 homeDir: null == homeDir ? _self.homeDir : homeDir // ignore: cast_nullable_to_non_nullable
 as String,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
-as int,
+as int,routingObservation: freezed == routingObservation ? _self.routingObservation : routingObservation // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -2913,10 +2917,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'home-dir')  String homeDir,  int version)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'home-dir')  String homeDir,  int version, @JsonKey(name: 'routing-observation', includeIfNull: false)  bool? routingObservation)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _InitParams() when $default != null:
-return $default(_that.homeDir,_that.version);case _:
+return $default(_that.homeDir,_that.version,_that.routingObservation);case _:
   return orElse();
 
 }
@@ -2934,10 +2938,10 @@ return $default(_that.homeDir,_that.version);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'home-dir')  String homeDir,  int version)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'home-dir')  String homeDir,  int version, @JsonKey(name: 'routing-observation', includeIfNull: false)  bool? routingObservation)  $default,) {final _that = this;
 switch (_that) {
 case _InitParams():
-return $default(_that.homeDir,_that.version);case _:
+return $default(_that.homeDir,_that.version,_that.routingObservation);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2954,10 +2958,10 @@ return $default(_that.homeDir,_that.version);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'home-dir')  String homeDir,  int version)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'home-dir')  String homeDir,  int version, @JsonKey(name: 'routing-observation', includeIfNull: false)  bool? routingObservation)?  $default,) {final _that = this;
 switch (_that) {
 case _InitParams() when $default != null:
-return $default(_that.homeDir,_that.version);case _:
+return $default(_that.homeDir,_that.version,_that.routingObservation);case _:
   return null;
 
 }
@@ -2969,11 +2973,12 @@ return $default(_that.homeDir,_that.version);case _:
 @JsonSerializable()
 
 class _InitParams implements InitParams {
-  const _InitParams({@JsonKey(name: 'home-dir') required this.homeDir, required this.version});
+  const _InitParams({@JsonKey(name: 'home-dir') required this.homeDir, required this.version, @JsonKey(name: 'routing-observation', includeIfNull: false) this.routingObservation});
   factory _InitParams.fromJson(Map<String, dynamic> json) => _$InitParamsFromJson(json);
 
 @override@JsonKey(name: 'home-dir') final  String homeDir;
 @override final  int version;
+@override@JsonKey(name: 'routing-observation', includeIfNull: false) final  bool? routingObservation;
 
 /// Create a copy of InitParams
 /// with the given fields replaced by the non-null parameter values.
@@ -2988,18 +2993,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _InitParams&&(identical(other.homeDir, homeDir) || other.homeDir == homeDir)&&(identical(other.version, version) || other.version == version));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _InitParams&&(identical(other.homeDir, homeDir) || other.homeDir == homeDir)&&(identical(other.version, version) || other.version == version)&&(identical(other.routingObservation, routingObservation) || other.routingObservation == routingObservation));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,homeDir,version);
+    return Object.hash(runtimeType,homeDir,version,routingObservation);
 }
 
 @override
 String toString() {
-    return 'InitParams(homeDir: $homeDir, version: $version)';
+    return 'InitParams(homeDir: $homeDir, version: $version, routingObservation: $routingObservation)';
 }
 
 
@@ -3010,7 +3015,7 @@ abstract mixin class _$InitParamsCopyWith<$Res> implements $InitParamsCopyWith<$
   factory _$InitParamsCopyWith(_InitParams value, $Res Function(_InitParams) _then) = __$InitParamsCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'home-dir') String homeDir, int version
+@JsonKey(name: 'home-dir') String homeDir, int version,@JsonKey(name: 'routing-observation', includeIfNull: false) bool? routingObservation
 });
 
 
@@ -3027,11 +3032,12 @@ class __$InitParamsCopyWithImpl<$Res>
 
 /// Create a copy of InitParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? homeDir = null,Object? version = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? homeDir = null,Object? version = null,Object? routingObservation = freezed,}) {
   return _then(_InitParams(
 homeDir: null == homeDir ? _self.homeDir : homeDir // ignore: cast_nullable_to_non_nullable
 as String,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
-as int,
+as int,routingObservation: freezed == routingObservation ? _self.routingObservation : routingObservation // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -4433,7 +4439,7 @@ as int?,
 /// @nodoc
 mixin _$ProbeParams {
 
- String get url;@JsonKey(name: 'proxy-name') String get proxyName; Map<String, String> get headers; int get timeout;@JsonKey(name: 'max-body') int get maxBody;
+ String get url;@JsonKey(name: 'proxy-name') String get proxyName; Map<String, String> get headers; int get timeout;@JsonKey(name: 'max-body') int get maxBody;@JsonKey(name: 'follow-redirects', includeIfNull: false) bool? get followRedirects;
 /// Create a copy of ProbeParams
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -4447,20 +4453,20 @@ $ProbeParamsCopyWith<ProbeParams> get copyWith => _$ProbeParamsCopyWithImpl<Prob
 @override
 bool operator ==(Object other) {
   final _this = this as ProbeParams;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProbeParams&&(identical(other.url, _this.url) || other.url == _this.url)&&(identical(other.proxyName, _this.proxyName) || other.proxyName == _this.proxyName)&&const DeepCollectionEquality().equals(other.headers, _this.headers)&&(identical(other.timeout, _this.timeout) || other.timeout == _this.timeout)&&(identical(other.maxBody, _this.maxBody) || other.maxBody == _this.maxBody));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProbeParams&&(identical(other.url, _this.url) || other.url == _this.url)&&(identical(other.proxyName, _this.proxyName) || other.proxyName == _this.proxyName)&&const DeepCollectionEquality().equals(other.headers, _this.headers)&&(identical(other.timeout, _this.timeout) || other.timeout == _this.timeout)&&(identical(other.maxBody, _this.maxBody) || other.maxBody == _this.maxBody)&&(identical(other.followRedirects, _this.followRedirects) || other.followRedirects == _this.followRedirects));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as ProbeParams;
-  return Object.hash(runtimeType,_this.url,_this.proxyName,const DeepCollectionEquality().hash(_this.headers),_this.timeout,_this.maxBody);
+  return Object.hash(runtimeType,_this.url,_this.proxyName,const DeepCollectionEquality().hash(_this.headers),_this.timeout,_this.maxBody,_this.followRedirects);
 }
 
 @override
 String toString() {
   final _this = this as ProbeParams;
-  return 'ProbeParams(url: ${_this.url}, proxyName: ${_this.proxyName}, headers: ${_this.headers}, timeout: ${_this.timeout}, maxBody: ${_this.maxBody})';
+  return 'ProbeParams(url: ${_this.url}, proxyName: ${_this.proxyName}, headers: ${_this.headers}, timeout: ${_this.timeout}, maxBody: ${_this.maxBody}, followRedirects: ${_this.followRedirects})';
 }
 
 
@@ -4471,7 +4477,7 @@ abstract mixin class $ProbeParamsCopyWith<$Res>  {
   factory $ProbeParamsCopyWith(ProbeParams value, $Res Function(ProbeParams) _then) = _$ProbeParamsCopyWithImpl;
 @useResult
 $Res call({
- String url,@JsonKey(name: 'proxy-name') String proxyName, Map<String, String> headers, int timeout,@JsonKey(name: 'max-body') int maxBody
+ String url,@JsonKey(name: 'proxy-name') String proxyName, Map<String, String> headers, int timeout,@JsonKey(name: 'max-body') int maxBody,@JsonKey(name: 'follow-redirects', includeIfNull: false) bool? followRedirects
 });
 
 
@@ -4488,14 +4494,15 @@ class _$ProbeParamsCopyWithImpl<$Res>
 
 /// Create a copy of ProbeParams
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? url = null,Object? proxyName = null,Object? headers = null,Object? timeout = null,Object? maxBody = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? url = null,Object? proxyName = null,Object? headers = null,Object? timeout = null,Object? maxBody = null,Object? followRedirects = freezed,}) {
   return _then(ProbeParams(
 url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,proxyName: null == proxyName ? _self.proxyName : proxyName // ignore: cast_nullable_to_non_nullable
 as String,headers: null == headers ? _self.headers : headers // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,timeout: null == timeout ? _self.timeout : timeout // ignore: cast_nullable_to_non_nullable
 as int,maxBody: null == maxBody ? _self.maxBody : maxBody // ignore: cast_nullable_to_non_nullable
-as int,
+as int,followRedirects: freezed == followRedirects ? _self.followRedirects : followRedirects // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -4580,10 +4587,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String url, @JsonKey(name: 'proxy-name')  String proxyName,  Map<String, String> headers,  int timeout, @JsonKey(name: 'max-body')  int maxBody)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String url, @JsonKey(name: 'proxy-name')  String proxyName,  Map<String, String> headers,  int timeout, @JsonKey(name: 'max-body')  int maxBody, @JsonKey(name: 'follow-redirects', includeIfNull: false)  bool? followRedirects)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProbeParams() when $default != null:
-return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxBody);case _:
+return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxBody,_that.followRedirects);case _:
   return orElse();
 
 }
@@ -4601,10 +4608,10 @@ return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxB
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String url, @JsonKey(name: 'proxy-name')  String proxyName,  Map<String, String> headers,  int timeout, @JsonKey(name: 'max-body')  int maxBody)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String url, @JsonKey(name: 'proxy-name')  String proxyName,  Map<String, String> headers,  int timeout, @JsonKey(name: 'max-body')  int maxBody, @JsonKey(name: 'follow-redirects', includeIfNull: false)  bool? followRedirects)  $default,) {final _that = this;
 switch (_that) {
 case _ProbeParams():
-return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxBody);case _:
+return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxBody,_that.followRedirects);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -4621,10 +4628,10 @@ return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxB
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String url, @JsonKey(name: 'proxy-name')  String proxyName,  Map<String, String> headers,  int timeout, @JsonKey(name: 'max-body')  int maxBody)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String url, @JsonKey(name: 'proxy-name')  String proxyName,  Map<String, String> headers,  int timeout, @JsonKey(name: 'max-body')  int maxBody, @JsonKey(name: 'follow-redirects', includeIfNull: false)  bool? followRedirects)?  $default,) {final _that = this;
 switch (_that) {
 case _ProbeParams() when $default != null:
-return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxBody);case _:
+return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxBody,_that.followRedirects);case _:
   return null;
 
 }
@@ -4636,7 +4643,7 @@ return $default(_that.url,_that.proxyName,_that.headers,_that.timeout,_that.maxB
 @JsonSerializable()
 
 class _ProbeParams implements ProbeParams {
-  const _ProbeParams({required this.url, @JsonKey(name: 'proxy-name') this.proxyName = '',  Map<String, String> headers = const {}, required this.timeout, @JsonKey(name: 'max-body') this.maxBody = 0}): _headers = headers;
+  const _ProbeParams({required this.url, @JsonKey(name: 'proxy-name') this.proxyName = '',  Map<String, String> headers = const {}, required this.timeout, @JsonKey(name: 'max-body') this.maxBody = 0, @JsonKey(name: 'follow-redirects', includeIfNull: false) this.followRedirects}): _headers = headers;
   factory _ProbeParams.fromJson(Map<String, dynamic> json) => _$ProbeParamsFromJson(json);
 
 @override final  String url;
@@ -4650,6 +4657,7 @@ class _ProbeParams implements ProbeParams {
 
 @override final  int timeout;
 @override@JsonKey(name: 'max-body') final  int maxBody;
+@override@JsonKey(name: 'follow-redirects', includeIfNull: false) final  bool? followRedirects;
 
 /// Create a copy of ProbeParams
 /// with the given fields replaced by the non-null parameter values.
@@ -4664,18 +4672,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProbeParams&&(identical(other.url, url) || other.url == url)&&(identical(other.proxyName, proxyName) || other.proxyName == proxyName)&&const DeepCollectionEquality().equals(other.headers, _headers)&&(identical(other.timeout, timeout) || other.timeout == timeout)&&(identical(other.maxBody, maxBody) || other.maxBody == maxBody));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProbeParams&&(identical(other.url, url) || other.url == url)&&(identical(other.proxyName, proxyName) || other.proxyName == proxyName)&&const DeepCollectionEquality().equals(other.headers, _headers)&&(identical(other.timeout, timeout) || other.timeout == timeout)&&(identical(other.maxBody, maxBody) || other.maxBody == maxBody)&&(identical(other.followRedirects, followRedirects) || other.followRedirects == followRedirects));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,url,proxyName,const DeepCollectionEquality().hash(_headers),timeout,maxBody);
+    return Object.hash(runtimeType,url,proxyName,const DeepCollectionEquality().hash(_headers),timeout,maxBody,followRedirects);
 }
 
 @override
 String toString() {
-    return 'ProbeParams(url: $url, proxyName: $proxyName, headers: $headers, timeout: $timeout, maxBody: $maxBody)';
+    return 'ProbeParams(url: $url, proxyName: $proxyName, headers: $headers, timeout: $timeout, maxBody: $maxBody, followRedirects: $followRedirects)';
 }
 
 
@@ -4686,7 +4694,7 @@ abstract mixin class _$ProbeParamsCopyWith<$Res> implements $ProbeParamsCopyWith
   factory _$ProbeParamsCopyWith(_ProbeParams value, $Res Function(_ProbeParams) _then) = __$ProbeParamsCopyWithImpl;
 @override @useResult
 $Res call({
- String url,@JsonKey(name: 'proxy-name') String proxyName, Map<String, String> headers, int timeout,@JsonKey(name: 'max-body') int maxBody
+ String url,@JsonKey(name: 'proxy-name') String proxyName, Map<String, String> headers, int timeout,@JsonKey(name: 'max-body') int maxBody,@JsonKey(name: 'follow-redirects', includeIfNull: false) bool? followRedirects
 });
 
 
@@ -4703,14 +4711,15 @@ class __$ProbeParamsCopyWithImpl<$Res>
 
 /// Create a copy of ProbeParams
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? url = null,Object? proxyName = null,Object? headers = null,Object? timeout = null,Object? maxBody = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? url = null,Object? proxyName = null,Object? headers = null,Object? timeout = null,Object? maxBody = null,Object? followRedirects = freezed,}) {
   return _then(_ProbeParams(
 url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,proxyName: null == proxyName ? _self.proxyName : proxyName // ignore: cast_nullable_to_non_nullable
 as String,headers: null == headers ? _self._headers : headers // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,timeout: null == timeout ? _self.timeout : timeout // ignore: cast_nullable_to_non_nullable
 as int,maxBody: null == maxBody ? _self.maxBody : maxBody // ignore: cast_nullable_to_non_nullable
-as int,
+as int,followRedirects: freezed == followRedirects ? _self.followRedirects : followRedirects // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 

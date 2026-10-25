@@ -600,20 +600,37 @@ class ZolnitRouting {
               }
               final latencies = <int>[];
               var failed = false;
-              for (final url in service.probeUrls) {
+              for (final provider in service.providers) {
+                final url = routingProviderProbeUrls[provider]!;
                 if (!_current(epoch, intent)) return;
-                final delay = await ref
+                final result = await ref
                     .read(coreHandlerProvider)
-                    .getDelay(url, node.proxyName);
+                    .probe(
+                      ProbeParams(
+                        url: url,
+                        proxyName: node.proxyName,
+                        timeout: 5000,
+                        maxBody: 4096,
+                        followRedirects: false,
+                      ),
+                    );
                 if (!_current(epoch, intent)) return;
-                // No Core reply is a channel failure, not a node measurement.
-                if (delay?.value == null) return;
-                if (delay!.value! < 0) {
+                if (result == null) return;
+                final evidence = assessRoutingHttpHealth(
+                  provider: provider,
+                  statusCode: result.statusCode,
+                  latencyMs: result.delay,
+                  error: result.error ?? '',
+                  body: result.body,
+                );
+                if (result.url != url) continue;
+                if (evidence.transportFailure) {
                   failed = true;
-                } else {
-                  latencies.add(delay.value!);
+                } else if (evidence.usableTransportSample) {
+                  latencies.add(evidence.latencyMs!);
                 }
               }
+              if (!failed && latencies.isEmpty) return;
               _engine.observe(
                 serviceId: id,
                 nodeId: node.id,

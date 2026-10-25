@@ -31,6 +31,7 @@ const (
 	getProxiesMethod                     CoreMethod = "getProxies"
 	changeProxyMethod                    CoreMethod = "changeProxy"
 	getRoutingLeaseMethod                CoreMethod = "getRoutingLease"
+	getRoutingLeaseObservationMethod     CoreMethod = "getRoutingLeaseObservation"
 	invalidateRoutingLeaseMethod         CoreMethod = "invalidateRoutingLease"
 	getTrafficMethod                     CoreMethod = "getTraffic"
 	getTotalTrafficMethod                CoreMethod = "getTotalTraffic"
@@ -96,8 +97,9 @@ type Message struct {
 }
 
 type InitParams struct {
-	HomeDir string `json:"home-dir"`
-	Version int    `json:"version"`
+	RoutingObservation bool   `json:"routing-observation,omitempty"`
+	HomeDir            string `json:"home-dir"`
+	Version            int    `json:"version"`
 }
 
 type DecryptConfigParams struct {
@@ -236,11 +238,12 @@ type Delay struct {
 }
 
 type ProbeParams struct {
-	Url       string            `json:"url"`
-	ProxyName string            `json:"proxy-name"`
-	Headers   map[string]string `json:"headers"`
-	Timeout   int64             `json:"timeout"`
-	MaxBody   int64             `json:"max-body"`
+	FollowRedirects *bool             `json:"follow-redirects,omitempty"`
+	Url             string            `json:"url"`
+	ProxyName       string            `json:"proxy-name"`
+	Headers         map[string]string `json:"headers"`
+	Timeout         int64             `json:"timeout"`
+	MaxBody         int64             `json:"max-body"`
 }
 
 type ProbeResult struct {

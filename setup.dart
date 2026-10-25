@@ -106,6 +106,8 @@ Future<void> main(List<String> args) async {
           env,
           nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
           clientBundle: Platform.environment['ZOLNIT_CLIENT_BUNDLE'] == 'true',
+          routingObservation:
+              Platform.environment['ZOLNIT_ROUTING_OBSERVATION'] == 'true',
         ),
       ),
     );
@@ -253,6 +255,7 @@ Map<String, String> createBuildEnvironment(
   String? arch,
   bool nativeUi = false,
   bool clientBundle = false,
+  bool routingObservation = false,
 }) {
   final packageArch = arch == null ? null : parsePackageArchitecture(arch).name;
   return {
@@ -260,6 +263,7 @@ Map<String, String> createBuildEnvironment(
     'APP_ARCH': ?packageArch,
     if (nativeUi) 'ZOLNIT_NATIVE_UI': 'true',
     if (clientBundle) 'ZOLNIT_CLIENT_BUNDLE': 'true',
+    if (routingObservation) 'ZOLNIT_ROUTING_OBSERVATION': 'true',
   };
 }
 
@@ -423,6 +427,8 @@ Future<int> _package(
         arch: platform == 'android' ? null : arch,
         nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
         clientBundle: Platform.environment['ZOLNIT_CLIENT_BUNDLE'] == 'true',
+        routingObservation:
+            Platform.environment['ZOLNIT_ROUTING_OBSERVATION'] == 'true',
       ),
     ),
   );

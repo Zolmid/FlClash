@@ -152,17 +152,19 @@ func stopRoutingLeaseTimerLocked(state *routingLeaseState) {
 func resetRoutingLeaseInstance() {
 	selectMu.Lock()
 	defer selectMu.Unlock()
-	revokeActiveRoutingLeaseLocked(activeRoutingLease, true)
+	revokeRoutingLeaseObservedLocked(activeRoutingLease, true, "instance_reset")
 	activeRoutingLease = nil
 	routingLeaseInstanceID = rand.Text()
 	routingConfigurationGeneration++
+	recordLeaseObservationLocked("instance_reset", "reset")
 }
 
 func clearRoutingLeaseForConfigChange() {
 	selectMu.Lock()
 	defer selectMu.Unlock()
-	revokeActiveRoutingLeaseLocked(activeRoutingLease, true)
+	revokeRoutingLeaseObservedLocked(activeRoutingLease, true, "config_replaced")
 	routingConfigurationGeneration++
+	recordLeaseObservationLocked("config_replaced", "configuration")
 }
 
 func parseRoutingLeaseServices(specs []RoutingLeaseServiceSpec, proxies map[string]constant.Proxy) (
@@ -256,6 +258,7 @@ func installRoutingLeaseLocked(spec *RoutingLeaseSpec) {
 		routingLeaseInstanceID = rand.Text()
 	}
 	if spec == nil {
+		recordLeaseObservationLocked("config_replaced", "no_lease")
 		return
 	}
 
@@ -293,11 +296,12 @@ func installRoutingLeaseLocked(spec *RoutingLeaseSpec) {
 	activeRoutingLease = state
 
 	if !valid {
-		revokeActiveRoutingLeaseLocked(state, false)
+		revokeRoutingLeaseObservedLocked(state, false, "installed")
 		return
 	}
 
 	enforceInitialRoutingLeaseSelectionsLocked(state, proxies)
+	recordLeaseObservationLocked("installed", "valid")
 	instanceID := state.instanceID
 	generation := state.configurationGeneration
 	state.timer = routingLeaseAfterFunc(remaining, func() {
@@ -342,6 +346,10 @@ func setSelectorRejectLocked(groupName string, selector outboundgroup.SelectAble
 }
 
 func revokeActiveRoutingLeaseLocked(state *routingLeaseState, refresh bool) {
+	revokeRoutingLeaseObservedLocked(state, refresh, "rpc_invalidated")
+}
+
+func revokeRoutingLeaseObservedLocked(state *routingLeaseState, refresh bool, kind string) {
 	if state == nil {
 		return
 	}
@@ -358,6 +366,8 @@ func revokeActiveRoutingLeaseLocked(state *routingLeaseState, refresh bool) {
 			}
 		}
 	}
+	// Queue the actual REJECT state before route publication can wait on the frontend.
+	recordLeaseObservationLocked(kind, "revoked")
 	if refresh && changed {
 		refreshRouteLocked(false)
 	}
@@ -371,7 +381,7 @@ func expireRoutingLease(instanceID string, configurationGeneration int) {
 		activeRoutingLease.configurationGeneration != configurationGeneration {
 		return
 	}
-	revokeActiveRoutingLeaseLocked(activeRoutingLease, true)
+	revokeRoutingLeaseObservedLocked(activeRoutingLease, true, "watchdog")
 }
 
 func serviceTopologyIntact(svc *routingLeaseService, proxies map[string]constant.Proxy) bool {
@@ -395,13 +405,13 @@ func ensureRoutingLeaseFreshLocked() {
 	}
 	now := routingLeaseNow()
 	if !now.Before(activeRoutingLease.deadline) || now.UnixMilli() >= activeRoutingLease.expiresAt {
-		revokeActiveRoutingLeaseLocked(activeRoutingLease, true)
+		revokeRoutingLeaseObservedLocked(activeRoutingLease, true, "query_expired")
 		return
 	}
 	proxies := tunnel.AllProxies()
 	for _, svc := range activeRoutingLease.serviceOrder {
 		if !serviceTopologyIntact(svc, proxies) {
-			revokeActiveRoutingLeaseLocked(activeRoutingLease, true)
+			revokeRoutingLeaseObservedLocked(activeRoutingLease, true, "config_replaced")
 			return
 		}
 	}
@@ -428,7 +438,28 @@ func handleInvalidateRoutingLease(guard *RoutingLeaseGuard) bool {
 	return true
 }
 
-func authorizeAndResolveSelectorLocked(params *ChangeProxyParams) (pickableGroup, error) {
+func authorizeAndResolveSelectorLocked(params *ChangeProxyParams) (selector pickableGroup, err error) {
+	defer func() {
+		if err != nil {
+			recordLeaseObservationLocked("write_rejected", "authorization")
+			return
+		}
+		if selector == nil || activeRoutingLease == nil {
+			return
+		}
+		kind := "manual"
+		if _, ok := activeRoutingLease.services[params.GroupName]; ok {
+			kind = "automatic"
+		} else if svc, ok := activeRoutingLease.policyGroups[params.GroupName]; ok && params.ProxyName == svc.automaticGroup {
+			kind = "automatic"
+		} else if _, ok := activeRoutingLease.manualGroups[params.GroupName]; !ok {
+			if _, policy := activeRoutingLease.policyGroups[params.GroupName]; !policy {
+				return
+			}
+		}
+		selector = observedLeaseSelector{pickableGroup: selector, kind: kind}
+	}()
+
 	ensureRoutingLeaseFreshLocked()
 	state := activeRoutingLease
 	if state == nil {

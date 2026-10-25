@@ -44,11 +44,17 @@ void main() {
   final now = DateTime.utc(2026, 10, 24);
   var safe = true;
   DateTime? leaseExpiry;
+  Future<ProbeResult?> Function(ProbeParams)? responseOverride;
+  var responseStatus = 200;
+  var responseBody = '';
   var usType = 'Shadowsocks';
   Future<Delay?> Function(String url, String proxy)? probe;
 
   setUpAll(() async {
     registerFallbackValue(<String, dynamic>{});
+    registerFallbackValue(
+      const ProbeParams(url: 'https://example.invalid/', timeout: 1000),
+    );
     registerFallbackValue(
       const ChangeProxyParams(groupName: 'g', proxyName: 'p'),
     );
@@ -59,6 +65,9 @@ void main() {
   setUp(() {
     accountGeneration = 1;
     safe = true;
+    responseStatus = 200;
+    responseOverride = null;
+    responseBody = '';
     usType = 'Shadowsocks';
     probe = null;
     config = prepareZolnitRouting(routingFixture()).config;
@@ -103,14 +112,28 @@ void main() {
         proxies: proxies,
       );
     });
-    when(() => core.asyncTestDelay(any(), any())).thenAnswer((call) async {
-      final url = call.positionalArguments[0] as String;
-      final proxy = call.positionalArguments[1] as String;
-      if (probe != null) return probe!(url, proxy);
-      final latency = url.contains('netflix')
-          ? (proxy == 'hk-exit' ? 10 : 100)
-          : (proxy == 'us-exit' ? 20 : 180);
-      return Delay(name: proxy, url: url, value: latency);
+    when(() => core.probe(any())).thenAnswer((call) async {
+      final params = call.positionalArguments.single as ProbeParams;
+      if (responseOverride != null) return responseOverride!(params);
+      final url = params.url;
+      final proxy = params.proxyName;
+      final delay = probe != null
+          ? await probe!(url, proxy)
+          : Delay(
+              name: proxy,
+              url: url,
+              value: url.contains('netflix')
+                  ? (proxy == 'hk-exit' ? 10 : 100)
+                  : (proxy == 'us-exit' ? 20 : 180),
+            );
+      if (delay == null) return null;
+      return ProbeResult(
+        statusCode: responseStatus,
+        delay: delay.value ?? 0,
+        url: url,
+        body: responseBody,
+        error: (delay.value ?? -1) < 0 ? 'failed' : null,
+      );
     });
     when(() => core.changeProxy(any())).thenAnswer((call) async {
       final params = call.positionalArguments.single as ChangeProxyParams;
@@ -196,7 +219,7 @@ void main() {
               .set(ZolnitBundleStatus.unavailable);
           activate(expiresAt: expiry);
           await runNormally();
-          verifyNever(() => core.asyncTestDelay(any(), any()));
+          verifyNever(() => core.probe(any()));
           expect(picks['AI 自动'], 'REJECT');
         },
       );
@@ -217,6 +240,68 @@ void main() {
   );
 
   test(
+    'expected anonymous API auth keeps a transport-ranked pool without credentials',
+    () async {
+      activate();
+      responseOverride = (params) async => ProbeResult(
+        statusCode: 401,
+        delay: params.proxyName == 'us-exit' ? 10 : 100,
+        url: params.url,
+        body: params.url == routingProviderProbeUrls['gemini_api']
+            ? '{"error":{"code":401,"status":"UNAUTHENTICATED"}}'
+            : '',
+      );
+      await runNormally();
+      expect(picks['AI 自动'], 'us-exit');
+      expect(picks['影音自动'], 'REJECT');
+      final requests = verify(
+        () => core.probe(captureAny()),
+      ).captured.cast<ProbeParams>();
+      expect(
+        requests.where(
+          (params) => params.url == routingProviderProbeUrls['gemini_api'],
+        ),
+        isNotEmpty,
+      );
+      expect(requests.every((params) => params.headers.isEmpty), isTrue);
+    },
+  );
+  test(
+    'unknown endpoint responses do not evict a still-fresh measured choice',
+    () async {
+      activate();
+      await runNormally();
+      expect(picks['AI 自动'], 'us-exit');
+      responseStatus = 404;
+      await routing.run();
+      expect(picks['AI 自动'], 'us-exit');
+    },
+  );
+
+  for (final status in [301, 401, 403, 404, 429, 503]) {
+    test(
+      'HTTP $status with positive RTT never selects an automatic node',
+      () async {
+        activate();
+        responseStatus = status;
+        await runNormally();
+        expect(picks['AI 自动'], 'REJECT');
+        expect(picks['影音自动'], 'REJECT');
+        verifyNever(() => core.asyncTestDelay(any(), any()));
+      },
+    );
+  }
+  test(
+    'a 200 challenge page never becomes a healthy automatic sample',
+    () async {
+      activate();
+      responseBody = '<html>Just a moment... challenge-platform</html>';
+      await runNormally();
+      expect(picks['AI 自动'], 'REJECT');
+    },
+  );
+
+  test(
     'actual service selectors receive different Core choices while rules stay intact',
     () async {
       activate();
@@ -229,7 +314,13 @@ void main() {
         'us-exit',
       );
       verifyNever(
-        () => core.asyncTestDelay(any(that: contains('chatgpt')), 'hk-exit'),
+        () => core.probe(
+          any(
+            that: isA<ProbeParams>()
+                .having((p) => p.url, 'url', contains('chatgpt'))
+                .having((p) => p.proxyName, 'proxy', 'hk-exit'),
+          ),
+        ),
       );
     },
   );
@@ -247,7 +338,7 @@ void main() {
   test('safe mode never probes or changes Core selections', () async {
     activate();
     await routing.run();
-    verifyNever(() => core.asyncTestDelay(any(), any()));
+    verifyNever(() => core.probe(any()));
     verifyNever(() => core.changeProxy(any()));
   });
 
@@ -337,7 +428,7 @@ void main() {
       );
       routing.activate(1, 'old');
       await runNormally();
-      verifyNever(() => core.asyncTestDelay(any(), any()));
+      verifyNever(() => core.probe(any()));
     },
   );
   test(
@@ -412,7 +503,7 @@ void main() {
       activate();
       routing.activate(1, 'not-the-applied-digest');
       await runNormally();
-      verifyNever(() => core.asyncTestDelay(any(), any()));
+      verifyNever(() => core.probe(any()));
       verifyNever(() => core.changeProxy(any()));
     },
   );

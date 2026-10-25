@@ -71,6 +71,24 @@ func TestHandleProbePinsTheNamedProxy(t *testing.T) {
 	}
 }
 
+func TestHandleProbeExplicitNoRedirectPreservesBlockedResponse(t *testing.T) {
+	var followed atomic.Int32
+	server := probeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/final", http.StatusFound)
+			return
+		}
+		followed.Add(1)
+		w.WriteHeader(http.StatusForbidden)
+	})
+	withProbeProxies(t, "node-a")
+	no := false
+	result := handleProbe(&ProbeParams{Url: server.URL, ProxyName: "node-a", Timeout: 2000, MaxBody: 64, FollowRedirects: &no})
+	if result == nil || result.StatusCode != 302 || result.Url != server.URL || followed.Load() != 0 {
+		t.Fatal("status-aware probe followed a redirect")
+	}
+}
+
 func TestHandleProbeFollowsRedirectsAndCapsTheBody(t *testing.T) {
 	server := probeServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

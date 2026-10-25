@@ -97,6 +97,8 @@ abstract class SetupParams with _$SetupParams {
     @JsonKey(name: 'test-url') required String testUrl,
     @Default(false) @JsonKey(name: 'skip-cert-verify') bool skipCertVerify,
     @JsonKey(includeIfNull: false) SetupBase? base,
+    @JsonKey(name: 'routing-observation', includeIfNull: false)
+    bool? routingObservation,
     @JsonKey(name: 'routing-lease', includeIfNull: false)
     Map<String, dynamic>? routingLease,
   }) = _SetupParams;
@@ -244,6 +246,8 @@ abstract class InitParams with _$InitParams {
   const factory InitParams({
     @JsonKey(name: 'home-dir') required String homeDir,
     required int version,
+    @JsonKey(name: 'routing-observation', includeIfNull: false)
+    bool? routingObservation,
   }) = _InitParams;
 
   factory InitParams.fromJson(Map<String, Object?> json) =>
@@ -312,6 +316,8 @@ abstract class ProbeParams with _$ProbeParams {
     @Default({}) Map<String, String> headers,
     required int timeout,
     @JsonKey(name: 'max-body') @Default(0) int maxBody,
+    @JsonKey(name: 'follow-redirects', includeIfNull: false)
+    bool? followRedirects,
   }) = _ProbeParams;
 
   factory ProbeParams.fromJson(Map<String, Object?> json) =>

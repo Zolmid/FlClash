@@ -25,6 +25,7 @@ enum CoreMethod {
   getProxies,
   changeProxy,
   getRoutingLease,
+  getRoutingLeaseObservation,
   invalidateRoutingLease,
   getTraffic,
   getTotalTraffic,

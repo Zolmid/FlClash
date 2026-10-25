@@ -67,6 +67,10 @@ class SetupAction extends _$SetupAction {
     final selectedMap = ref.read(selectedMapProvider);
     final appSetting = ref.read(appSettingProvider);
     return SetupParams(
+      routingObservation:
+          const bool.fromEnvironment('ZOLNIT_ROUTING_OBSERVATION')
+          ? true
+          : null,
       selectedMap: selectedMap,
       testUrl: appSetting.testUrl,
       skipCertVerify: !appSetting.checkCertificate,

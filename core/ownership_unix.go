@@ -174,6 +174,17 @@ func initOwnership(homeDir string) {
 	reclaimOwnership(homeDir)
 }
 
+func reclaimPrivateFileOwnership(file *os.File) error {
+	if !isElevated() {
+		return nil
+	}
+	homeDir, _ := reclaimHomeDir.Load().(string)
+	if !canReclaim(homeDir, realUid) {
+		return errors.New("private file home ownership unverified")
+	}
+	return file.Chown(realUid, realGid)
+}
+
 func scheduleReclaimOwnership() {
 	if !isElevated() {
 		return

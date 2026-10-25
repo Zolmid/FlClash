@@ -36,6 +36,10 @@ func handleInitClash(params *InitParams) bool {
 	sdkVersion.Store(int32(params.Version))
 	constant.SetHomeDir(params.HomeDir)
 	initOwnership(params.HomeDir)
+	if err := configureRoutingLeaseObservation(params.HomeDir, params.RoutingObservation); err != nil {
+		logError("configure routing lease observation: %v", err)
+		return false
+	}
 	clearSpilledResponses()
 	isInit.Store(true)
 	return true
@@ -92,6 +96,7 @@ func updateListeners(cfg *config.Config) {
 
 func handleShutdown() bool {
 	resetRoutingLeaseInstance()
+	stopRoutingLeaseObservation()
 	handleStopLog()
 	stopRouteWatch()
 

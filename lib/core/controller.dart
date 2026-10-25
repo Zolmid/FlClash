@@ -123,7 +123,16 @@ class CoreController {
     await ensureHomeDir();
     await initGeo();
     final homeDirPath = await appPath.homeDirPath;
-    return _interface.init(InitParams(homeDir: homeDirPath, version: version));
+    return _interface.init(
+      InitParams(
+        homeDir: homeDirPath,
+        version: version,
+        routingObservation:
+            const bool.fromEnvironment('ZOLNIT_ROUTING_OBSERVATION')
+            ? true
+            : null,
+      ),
+    );
   }
 
   FutureOr<bool> get isInit => _interface.isInit;
@@ -255,6 +264,9 @@ class CoreController {
   Future<ChangeProxyResult> changeProxy(ChangeProxyParams changeProxyParams) {
     return _interface.changeProxy(changeProxyParams);
   }
+
+  Future<Map<String, dynamic>?> getRoutingLeaseObservation() =>
+      _interface.getRoutingLeaseObservation();
 
   Future<Map<String, dynamic>?> getRoutingLease() =>
       _interface.getRoutingLease();

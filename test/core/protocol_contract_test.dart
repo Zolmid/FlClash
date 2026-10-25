@@ -141,6 +141,10 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
         'instanceId': 'fixture-core',
         'token': 'fixture-lease',
       },
+      CoreMethod.getRoutingLeaseObservation => {
+        'schema_version': 1,
+        'kind': 'zolnit_routing_lease_observation',
+      },
       CoreMethod.invalidateRoutingLease => true,
       CoreMethod.compileRuleSet => {'behavior': 'ipcidr', 'format': 'text'},
       CoreMethod.getConnectionCount => 3,
@@ -567,6 +571,40 @@ void main() {
       expect(
         (handler.calls[CoreMethod.setupConfig] as Map)['routing-lease'],
         params.routingLease,
+      );
+    },
+  );
+
+  test(
+    'passive observation RPC has no control arguments and diagnostic flags are opt-in',
+    () async {
+      final handler = _RecordingCoreHandler();
+      final result = await handler.getRoutingLeaseObservation();
+      expect(result!['kind'], 'zolnit_routing_lease_observation');
+      expect(
+        handler.calls.containsKey(CoreMethod.getRoutingLeaseObservation),
+        isTrue,
+      );
+      expect(handler.calls[CoreMethod.getRoutingLeaseObservation], isNull);
+      expect(
+        const InitParams(homeDir: '/tmp/lab', version: 0).toJson(),
+        isNot(contains('routing-observation')),
+      );
+      expect(
+        const InitParams(
+          homeDir: '/tmp/lab',
+          version: 0,
+          routingObservation: true,
+        ).toJson()['routing-observation'],
+        isTrue,
+      );
+      expect(
+        const SetupParams(
+          selectedMap: {},
+          testUrl: '',
+          routingObservation: true,
+        ).toJson()['routing-observation'],
+        isTrue,
       );
     },
   );

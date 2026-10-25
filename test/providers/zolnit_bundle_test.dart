@@ -49,6 +49,9 @@ void main() {
   setUpAll(() async {
     registerFallbackValue(<String, dynamic>{});
     registerFallbackValue(
+      const ProbeParams(url: 'https://example.invalid/', timeout: 1000),
+    );
+    registerFallbackValue(
       const ChangeProxyParams(groupName: 'g', proxyName: 'p'),
     );
     await AppLocalizations.load(const Locale('en'));
@@ -104,13 +107,10 @@ void main() {
       () => core.invalidateRoutingLease(any()),
     ).thenAnswer((_) async => true);
     when(core.resetConnections).thenAnswer((_) async => true);
-    when(() => core.asyncTestDelay(any(), any())).thenAnswer(
-      (call) async => Delay(
-        name: call.positionalArguments[1] as String,
-        url: call.positionalArguments[0] as String,
-        value: 20,
-      ),
-    );
+    when(() => core.probe(any())).thenAnswer((call) async {
+      final params = call.positionalArguments.single as ProbeParams;
+      return ProbeResult(statusCode: 200, delay: 20, url: params.url);
+    });
     when(core.getProxies).thenAnswer((_) async {
       final config = compiled!;
       final groups = (config['proxy-groups'] as List).cast<Map>();
@@ -354,7 +354,7 @@ void main() {
       clearInteractions(core);
       routing.activate(profile.id, rebuilt.md5);
       await routing.run();
-      verifyNever(() => core.asyncTestDelay(any(), any()));
+      verifyNever(() => core.probe(any()));
       expect(picks['zn.service.ai.auto'], 'REJECT');
     },
   );

@@ -105,6 +105,7 @@ _SetupParams _$SetupParamsFromJson(Map<String, dynamic> json) => _SetupParams(
   base: json['base'] == null
       ? null
       : SetupBase.fromJson(json['base'] as Map<String, dynamic>),
+  routingObservation: json['routing-observation'] as bool?,
   routingLease: json['routing-lease'] as Map<String, dynamic>?,
 );
 
@@ -114,6 +115,7 @@ Map<String, dynamic> _$SetupParamsToJson(_SetupParams instance) =>
       'test-url': instance.testUrl,
       'skip-cert-verify': instance.skipCertVerify,
       'base': ?instance.base,
+      'routing-observation': ?instance.routingObservation,
       'routing-lease': ?instance.routingLease,
     };
 
@@ -290,12 +292,14 @@ Map<String, dynamic> _$VpnOptionsToJson(_VpnOptions instance) =>
 _InitParams _$InitParamsFromJson(Map<String, dynamic> json) => _InitParams(
   homeDir: json['home-dir'] as String,
   version: (json['version'] as num).toInt(),
+  routingObservation: json['routing-observation'] as bool?,
 );
 
 Map<String, dynamic> _$InitParamsToJson(_InitParams instance) =>
     <String, dynamic>{
       'home-dir': instance.homeDir,
       'version': instance.version,
+      'routing-observation': ?instance.routingObservation,
     };
 
 _ChangeProxyParams _$ChangeProxyParamsFromJson(Map<String, dynamic> json) =>
@@ -387,6 +391,7 @@ _ProbeParams _$ProbeParamsFromJson(Map<String, dynamic> json) => _ProbeParams(
       const {},
   timeout: (json['timeout'] as num).toInt(),
   maxBody: (json['max-body'] as num?)?.toInt() ?? 0,
+  followRedirects: json['follow-redirects'] as bool?,
 );
 
 Map<String, dynamic> _$ProbeParamsToJson(_ProbeParams instance) =>
@@ -396,6 +401,7 @@ Map<String, dynamic> _$ProbeParamsToJson(_ProbeParams instance) =>
       'headers': instance.headers,
       'timeout': instance.timeout,
       'max-body': instance.maxBody,
+      'follow-redirects': ?instance.followRedirects,
     };
 
 _ProbeResult _$ProbeResultFromJson(Map<String, dynamic> json) => _ProbeResult(

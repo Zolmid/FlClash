@@ -437,7 +437,7 @@ final class SharedStateProvider
   }
 }
 
-String _$sharedStateHash() => r'221208c025138d4958f40dc144b8d8a68b308394';
+String _$sharedStateHash() => r'79470f3c3d339d5ae7025f94ea9b0e66b31ca422';
 
 @ProviderFor(BuiltProfileTun)
 final builtProfileTunProvider = BuiltProfileTunProvider._();

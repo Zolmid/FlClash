@@ -58,7 +58,16 @@ final class PacketTunnelSharedStateStore {
 
   func makeInitParams() -> String {
     let homeDirectory = appGroupDirectory()?.path ?? ""
-    return "{\"home-dir\":\"\(homeDirectory)\",\"version\":0}"
+    var params: [String: Any] = ["home-dir": homeDirectory, "version": 0]
+    if let setup = try? JSONSerialization.jsonObject(with: loadSetupParams()) as? [String: Any],
+      setup["routing-observation"] as? Bool == true
+    {
+      params["routing-observation"] = true
+    }
+    guard let encoded = try? JSONSerialization.data(withJSONObject: params),
+      let value = String(data: encoded, encoding: .utf8)
+    else { return "{}" }
+    return value
   }
 
   func appGroupDirectory() -> URL? {

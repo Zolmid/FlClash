@@ -5,9 +5,9 @@ const routingManifestKey = 'x-zolnit-routing';
 
 const routingProviderProbeUrls = <String, String>{
   'chatgpt': 'https://chatgpt.com/',
-  'openai_api': 'https://api.openai.com/',
+  'openai_api': 'https://api.openai.com/v1/models',
   'claude': 'https://claude.ai/',
-  'gemini_api': 'https://generativelanguage.googleapis.com/',
+  'gemini_api': 'https://generativelanguage.googleapis.com/v1beta/models',
   'gemini_web': 'https://gemini.google.com/',
   'netflix': 'https://www.netflix.com/',
   'operator': 'https://www.gstatic.com/generate_204',

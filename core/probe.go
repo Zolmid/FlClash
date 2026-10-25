@@ -178,12 +178,13 @@ type probeRequest struct {
 
 func handleProbe(params *ProbeParams) *ProbeResult {
 	return runProbe(context.Background(), probeRequest{
-		method:    http.MethodGet,
-		url:       params.Url,
-		proxyName: params.ProxyName,
-		headers:   params.Headers,
-		timeout:   timeoutFromMillis(params.Timeout, defaultProbeTimeout),
-		maxBody:   params.MaxBody,
+		method:     http.MethodGet,
+		url:        params.Url,
+		proxyName:  params.ProxyName,
+		headers:    params.Headers,
+		timeout:    timeoutFromMillis(params.Timeout, defaultProbeTimeout),
+		maxBody:    params.MaxBody,
+		noRedirect: params.FollowRedirects != nil && !*params.FollowRedirects,
 	})
 }
 

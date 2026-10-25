@@ -202,6 +202,10 @@ SharedState sharedState(Ref ref) {
     startTip: currentAppLocalizations.startVpn,
     localNetworkTip: currentAppLocalizations.localNetworkDeniedTip,
     setupParams: SetupParams(
+      routingObservation:
+          const bool.fromEnvironment('ZOLNIT_ROUTING_OBSERVATION')
+          ? true
+          : null,
       selectedMap: selectedMap,
       testUrl: testUrl,
       skipCertVerify: !appSetting.checkCertificate,

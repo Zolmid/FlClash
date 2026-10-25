@@ -376,11 +376,76 @@ macOS stdin 驱动创建独立的 Core adapter，不连接应用 IPC；它不能
 不足以单独证明定时器生效。应先经已授权的既有 IPC 读取 `getProxies`，再读取租约状态。
 Windows 不能以杀死/正常退出 App 代替“前台暂停”：Core 的 IPC EOF 会触发退出清理。
 
-当前缺口是独立观测入口：现有 RPC 可以提供状态，但没有交付可在 iOS App 被挂起或 Windows
-前台被冻结时独立取证的运维工具。须先提供经过授权的只读观察入口，或不会被恢复/刷新覆盖的
-Core 事件证据，再进行上述后台验收；不能用重新打开节点页后的状态或纯 Go 测试代替。
-仅带回源码/构建身份、进程是否存活、时间差、配置代际、选择是否 REJECT、旧写入是否拒绝和
-手动状态是否保留；完整 guard、账户、bundle、配置、节点地址和凭据均留在执行设备内。
+已有实际入口：显式验收构建使用 `ZOLNIT_ROUTING_OBSERVATION=true`，通过 init 参数开启 Core 的
+被动生产器；普通构建默认不产生诊断文件。Extension 从 App 已保存的 setup 参数继承开关，需
+在测试 VPN 启动前应用对应配置。Core 在固定 `<home>/diagnostics/lease-observation-<role>.json`
+写入脱敏快照（Unix 目录 0700、文件 0600），role 区分 desktop / ios_app / ios_extension / android_service。
+诊断文件不含 account、bundle、guard、token、配置摘要、节点名称/地址，只使用既有实例 nonce 的
+域分离摘要关联实例与手动选择，不生成或依赖 country.is 的 HMAC 窗口密钥。
+
+生产器由实际 Core 独立运行，每秒发布一次，有界保留 8 个事件，单文件不超过 32 KiB；文件替换
+在独立写线程中完成，不把磁盘 IO 放入 Selector 锁。watchdog 在实际 REJECT 后、前台通知前
+记录事件；`query_expired`、RPC 撤销、配置替换和手动/自动写入采用不同事件类型。
+读取 `getRoutingLeaseObservation` 只复制原始状态，不调用到期清理，不重置定时器或追加控制事件。
+
+独立 `zolnit-lease-observer` 直接只读打开快照，不连接 Core/Helper/Flutter IPC：
+`--file <快照路径> --expect-role desktop --watch-seconds 330 --interval-ms 250`。
+观察最多 600 秒、256 条状态变化；默认要求采样时间在 5 秒内（可限定 1–60 秒），不将 PID 或
+文件新鲜度当作进程存活证明。`deadline_result` 是对已采样真实选择的解释，不执行修复；
+`not_rejected` / `unverified` 不得算通过。导出的 iOS 文件须显式 `--allow-historical`，不能冒充实时状态。
+纯 Foundation `RoutingLeaseObservationReader.read(appGroupIdentifier:role:)` 提供给另一个具相同
+App Group 权限的签名测试进程使用；它不导入 UIKit/NetworkExtension、不唤醒 App、不发 Core RPC。
+目前未提供独立 iOS observer App/target，不能将这个函数视作已可安装的独立观察器；须在有 Xcode、
+签名与设备的环境补齐该进程，并验证其独立读取权限。桌面提权 Core 写出的目录及每次替换快照
+交还发起客户端的用户，Unix 保留 0700/0600；Windows 沿用账户目录 ACL，仍待真实 Helper 环境验收。
+
+本地已验证隔离的实际 Core 可执行进程、独立观察器、真实定时器、手动选择保留、重启后拒绝旧
+进程 guard；纯 Foundation 读入口仅在 macOS 合成容器验证。iOS 仍需签名实机、独立读取进程的
+App Group provisioning，并核对首次解锁/锁屏数据保护允许记录；Windows 仍需受控 x64 设备、
+匹配 Helper/Core、管理员服务重启与前台挂起窗口。这些权限和物理行为均未由 CI/Go 测试验收。
+
+### AI / 产品 HTTP 健康判据与正式开放缺口
+
+原 URLTest 传入空 expectedStatus，任意 HTTP 响应（包括 403）都可能产生正 RTT。自动调度现改用
+结构化 Core probe、GET、禁止重定向、每请求 5 秒、正文最多 4096 字节；不再将 URLTest 的延迟
+直接当成功。各服务仍使用下列固定产品源站，不以 country.is 或 gstatic 替换 AI/影音探测：
+
+| provider | 固定 URL | 可用的公开 HTTP 样本 |
+| --- | --- | --- |
+| chatgpt | https://chatgpt.com/ | 200 且未识别为挑战/错误页 |
+| openai_api | https://api.openai.com/v1/models | 200，或文档定义认证入口的结构化匿名 401；仅传输可达 |
+| claude | https://claude.ai/ | 200 且未识别为挑战/错误页，仅 Web 入口 |
+| gemini_api | https://generativelanguage.googleapis.com/v1beta/models | 200，或结构化 401 UNAUTHENTICATED；权限型 403 为资格未知 |
+| gemini_web | https://gemini.google.com/ | 200 且未识别为挑战/错误页 |
+| netflix | https://www.netflix.com/ | 200 仅为公开 HTTP 可达，不证明内容目录/解锁 |
+| operator | https://www.gstatic.com/generate_204 | 严格 204；不能给任何产品授予资格 |
+
+无密钥探测不把所有非 2xx 当网络故障：OpenAI 的结构化匿名认证 401、Gemini 的结构化
+401 UNAUTHENTICATED 可提供传输 RTT，资格仍未知；网页 401、API 权限型 JSON 403、3xx、404、
+429、5xx 均为中性/资格未知，不增加节点失败计数或冷却。403 的非 API 权限响应及常见 200
+挑战页标记为当前匿名探测受阻，不猜测是地区、账户还是边缘原因；不作为成功，也不直接增加
+节点失败、冷却或撤销产品资格。仅明确传输错误产生当前客户端路径失败样本，不传播机器硬故障。
+多个产品的公开探测中，未知项不造成功败样本；至少有一项文档定义的有效传输证据才更新网络
+评分，阻断/未知不会作为成功或节点惩罚。该网络评分不宣称所有产品健康，也不创建或替代服务端资格。
+ZolNit 登录/套餐不会因 AI 源站的 401/403 发生变更。
+
+正式自动开放仍有实质缺口：公开模型列表的匿名响应不是产品就绪/资格接口，401/404 不能证明付费 API 可用；
+公共 200 和有限挑战检测也无法证明账户权限、额度、模型访问或实际产品操作。必须与根聊天
+提供的服务端资格来源和产品级最终联调结合，明确可维护的有效探测语义；当前客户端不请求或
+持有用户 AI API 密钥，不依据 HTTP 200、GeoIP 或 RTT 自动补齐资格，routing.nodes 的开放仍由后端控制。
+[OpenAI 错误语义](https://developers.openai.com/api/docs/guides/error-codes)、
+[Claude API 错误语义](https://platform.claude.com/docs/en/api/errors)、
+[Gemini API 错误语义](https://ai.google.dev/gemini-api/docs/api-errors) 进一步表明认证/权限/限额错误不同于节点断网。
+
+根聊天报告：519 首轮 20 入口中 18 成功、2 连接失败；1c36 的 IPv6 初始化修正后，11 的 IPv6
+HY2 成功。同一 peer 的最小 2×2 对照中，10/IPv4 与 9/IPv6 的 gstatic HEAD、country GET 四项
+均 exit 0、国家观测均 TW，节点与驱动参数未改。20 个入口累计均已有成功观测；1c36 首次 9 的
+失败仍保留为原因未明的瞬时失败，不能断言 VLESS IPv6 完全不可用，也不能据此宣称长期稳定。
+后续同一 Linux peer 等待两次 35 秒权限传播后，对 9/11 各做三轮 Country 观测、轮间 30 秒，
+6/6 成功且均 TW，同窗口 egress_tag 一致；完整请求用时约 1057–1273 ms，不是链路 ping。
+根聊天报告清理字段全部 true、剩余进程 0。未为这条已成功路径修改 TLS 或绕过证书。
+短窗口观测不等于丢包率、回国方向或 AI/影音资格证明。
+519 旧二进制保持不变；后续同窗口 9/11 短采样由根聊天执行，不在客户端代码验收中重复联网。
 
 ## 服务智能分流元数据 v1（既有兼容载体，未上线）
 
