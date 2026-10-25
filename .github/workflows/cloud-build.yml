@@ -284,6 +284,8 @@ jobs:
         shell: bash
     env:
       IOS_SOURCE: ${{ needs.select.outputs.ios_source }}
+      IOS_OBSERVER_ACCEPTANCE: ${{ github.ref == 'refs/heads/codex/native-client-shared' && needs.select.outputs.ios_source == 'project' }}
+      IOS_ACCEPTANCE_BUNDLE_ID: com.zolmid.zolnit.debug
       FLUTTER_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
       GO_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}
       RUSTUP_TOOLCHAIN: '1.99.0'
@@ -346,7 +348,7 @@ jobs:
           python3 -m unittest discover -s test/core/ios -p '*_test.py' -v 2>&1 | tee "$evidence/contracts.log"
           xcrun swiftc ios/Shared/RoutingLeaseObservationReader.swift ios/LeaseObserver/LeaseObservationPresentation.swift test/core/ios/lease_observer_presentation.swift -o "$evidence/presentation-check"
           "$evidence/presentation-check" 2>&1 | tee "$evidence/presentation.log"
-          python3 tool/acceptance/build_ios_observer.py --output "$evidence/unsigned" 2>&1 | tee "$evidence/build-result.json"
+          python3 tool/acceptance/build_ios_observer.py --app-bundle-id "$IOS_ACCEPTANCE_BUNDLE_ID" --output "$evidence/unsigned" 2>&1 | tee "$evidence/build-result.json"
           xcrun lipo -archs "$evidence/unsigned/Payload/ZolNitLeaseObserver.app/ZolNitLeaseObserver" | tee "$evidence/architectures.log"
           test "$(cat "$evidence/architectures.log")" = arm64
           python3 - <<'PYVERIFY'
@@ -362,8 +364,8 @@ jobs:
               assert bundle.testzip() is None
               prefix = 'Payload/ZolNitLeaseObserver.app/'
               info = plistlib.loads(bundle.read(prefix + 'Info.plist'))
-              assert info['CFBundleIdentifier'] == 'com.zolmid.zolnit.debug.LeaseObserver'
-              assert info['ZolNitObserverAppGroup'] == 'group.com.zolmid.zolnit.debug'
+              assert info['CFBundleIdentifier'] == os.environ['IOS_ACCEPTANCE_BUNDLE_ID'] + '.LeaseObserver'
+              assert info['ZolNitObserverAppGroup'] == 'group.' + os.environ['IOS_ACCEPTANCE_BUNDLE_ID']
               assert hashlib.sha256(bundle.read(prefix + info['CFBundleExecutable'])).hexdigest() == result['executable_sha256']
               assert not any('/_CodeSignature/' in name or name.endswith('/embedded.mobileprovision') for name in bundle.namelist())
           PYVERIFY
@@ -407,7 +409,13 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Compile unsigned device IPA
-        run: dart setup.dart ios --env dev --no-codesign -v
+        run: |
+          set -euo pipefail
+          if [[ "$IOS_OBSERVER_ACCEPTANCE" == true ]]; then
+            ZOLNIT_ROUTING_OBSERVATION=true dart setup.dart ios --env dev --ios-bundle-id "$IOS_ACCEPTANCE_BUNDLE_ID" --no-codesign -v
+          else
+            dart setup.dart ios --env dev --no-codesign -v
+          fi
 
       - name: Collect IPA and provenance
         run: |
@@ -431,6 +439,12 @@ jobs:
             echo "workflow_commit=$GITHUB_SHA"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
+            echo "routing_observation=$IOS_OBSERVER_ACCEPTANCE"
+            if [[ "$IOS_OBSERVER_ACCEPTANCE" == true ]]; then
+              echo "app_bundle_id=$IOS_ACCEPTANCE_BUNDLE_ID"
+              echo "observer_bundle_id=$IOS_ACCEPTANCE_BUNDLE_ID.LeaseObserver"
+              echo "app_group=group.$IOS_ACCEPTANCE_BUNDLE_ID"
+            fi
             echo 'target=iOS arm64 physical device; simulator unsupported'
             echo 'signing=ad hoc unsigned IPA; requires provisioning for device installation'
             git submodule status --recursive

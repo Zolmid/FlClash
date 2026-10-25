@@ -408,6 +408,19 @@ Windows 不能以杀死/正常退出 App 代替“前台暂停”：Core 的 IPC
 实际 unsigned 尝试返回 `xcode_iphoneos_sdk_unavailable`、未产生 IPA；仅工程/权限/门禁检查、
 Foundation 行为及基于本机 Mac SDK 的 SwiftUI 类型检查通过，不代表 iOS 编译或设备运行。
 
+iOS 验收包必须成对匹配：原有历史 unsigned 主包使用 `com.zolmid.zolnit`，而独立 observer
+默认使用 `com.zolmid.zolnit.debug.LeaseObserver`。开发分支 project 源码的 CI 现统一以
+`com.zolmid.zolnit.debug` 构建主 App/NECore/Widget 和 observer，App Group 均为
+`group.com.zolmid.zolnit.debug`；只在这个未签名验收主包显式开启 `ZOLNIT_ROUTING_OBSERVATION`。
+普通构建仍默认关闭该诊断；其他分支和 patched-reference 保留原命令。产物来源记录两者的
+bundle/App Group 和诊断开关，不能将旧正式 bundle 的包直接混配到 debug observer。
+
+核对签名条件只需先确认系统版本和所需能力是否已具备：主 App/NECore 目标为 iOS 15+，
+Widget 目标为 iOS 18+；设备安装需要匹配团队/设备的 provisioning，包含 Packet Tunnel 和 App
+Group 能力，独立 observer 需要相同 App Group。unsigned/ad hoc 临时代码签名不代表已具备这些
+权限。源码和构建准备不读取或索取 Apple 账号密码、证书私钥，也不创建外部 App ID/App Group、
+申请会员或自动获取 provisioning；签名/设备运行条件未确认时，只交付 unsigned 构建。
+
 Windows 隔离入口为 `pwsh -NoProfile -File .\tool\acceptance\windows_helper.ps1`。它在自建私有临时
 目录编译绑定 Core 哈希的 `isolated-acceptance` Helper、Core、只读 observer 和专用前端；Helper
 走私有 stdin/stdout，复用实际 Hub/Job 子进程所有权，不访问共享 HTTP 入口、SCM、服务注册表或
@@ -418,9 +431,44 @@ Windows 隔离入口为 `pwsh -NoProfile -File .\tool\acceptance\windows_helper.
 Rust 测试、Windows Rust 编译检查、Go 交叉构建、PowerShell 语法和非 Windows 拒绝分支；
 真实 Windows 的暂停、Job 清零和目录清理尚未执行，不能记为通过。清理失败返回非零状态。
 
+Windows 架构验收分开记录，不从进程位数推断物理设备：
+
+| 执行类型 | 必须检测到的原生 OS | 四个用户态程序 | 证据范围 |
+| --- | --- | --- | --- |
+| NativeArm64 | ARM64 | ARM64 Helper/Core/observer/harness | ARM64 用户态；不证明物理硬件或 TUN |
+| X64OnArm64 | Windows 11 ARM64 | 全部 x64，经仿真执行 | x64 仿真用户态；不证明 x64 内核/物理机 |
+| NativeX64 | x64 | 全部 x64 | x64 用户态；VM 与物理机仍需单独标明 |
+
+便携验收包由既有 Windows CI runner 生成两份：`windows-helper-tools-x64.zip` 和
+`windows-helper-tools-arm64.zip`，每份只有四个匹配的可执行文件、运行脚本和 SHA256/源码清单。
+包内 Helper 使用静态 CRT，Go 关闭 CGO；实际 Windows 链接与运行仍需验收。包的
+`classification=build-only`、`executed=false` 不代表已在目标架构运行。
+测试者无需 Go/Rust/VS，解压后进入对应目录执行一条命令：
+
+- ARM64 原生：`pwsh -NoProfile -File .\windows_helper.ps1 -PrebuiltDirectory . -ExecutionType NativeArm64`
+- WOA x64 仿真：使用 x64 包，`pwsh -NoProfile -File .\windows_helper.ps1 -PrebuiltDirectory . -ExecutionType X64OnArm64`
+- x64 用户态：使用 x64 包，`pwsh -NoProfile -File .\windows_helper.ps1 -PrebuiltDirectory . -ExecutionType NativeX64`
+
+脚本先核对 OS/进程架构、Windows 版本及全部文件的 PE/SHA256，再在自建私有目录中执行；
+不会安装应用或服务，也不启用 TUN。不要混用包中的文件，不把 build-only 清单或开始运行的
+架构记录当作成功，须等待退出码为 0 及 Job/目录清理完成。VM/物理机信息由验收记录单独注明，
+工具保持 hardwareType=unknown，不自动把 x64 架构认作物理机。
+若从源码准备包，使用 `-BuildOnly -ExecutionType NativeArm64 -OutputDirectory <新目录>`
+可在 x64 Windows 上交叉构建 ARM64，严禁执行外架构目标程序；`NativeX64` 同理。
+
+检测使用 `IsWow64Process2` 的 native machine；未知或混合 PE 架构在启动前拒绝，不根据
+`PROCESSOR_ARCHITECTURE` 或 `GetNativeSystemInfo` 单独认定 WOA。四个程序和 Core 哈希绑定
+必须匹配。构建映射已有 Windows ARM64 Core 和 MSVC Helper；本地两架构 Go 交叉构建及
+ARM64 Rust 编译检查不等于完整原生 Flutter/WinUI 客户端已交付。既有完整 Windows 产物仍为 x64。
+固定依赖的 Wintun 包中已发现 ARM64 native-subsystem payload，但签名、加载、内核驱动和 TUN
+行为仍未验收；以上隔离 harness 始终关闭 TUN，结果不得推广为驱动兼容。
+[Microsoft 仿真边界](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation) 明确
+只覆盖用户态，内核组件需要 ARM64；[既有 runner 工具清单](https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md)
+列出 ARM64 编译工具，交叉构建不需要新增 ARM64 runner，但不能据此声称已在 ARM64 上运行。
+
 既有开发分支 CI 已接线，只有 `codex/native-client-shared` 启用新增验收：标准 build 的
 `desktop/windows-2022` job 在 Flutter 构建前安装既有版本 Rust/rustfmt 并实际调用上述隔离
-harness；Cloud build 的 `ios/macos-26` job 在源码为 project 时构建独立 unsigned observer。
+harness，并只交叉构建两架构便携包；Cloud build 的 `ios/macos-26` job 在源码为 project 时构建独立 unsigned observer。
 不新增 runner/job、事件触发器或权限；patched-reference、其他分支与正式发布不运行这些步骤。
 Xcode 从私有临时源码副本构建并在 finally 清理，避免生成 workspace 元数据污染 checkout。
 iOS 步骤校验 arm64、源码 SHA、bundle/App Group、IPA/可执行文件摘要、无 provisioning/签名目录；

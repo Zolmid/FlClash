@@ -174,6 +174,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           rustup toolchain install 1.99.0 --profile minimal --component rustfmt
           if ($LASTEXITCODE -ne 0) { throw "Rust acceptance toolchain installation failed: $LASTEXITCODE" }
+          rustup target add --toolchain 1.99.0 x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { throw "Rust acceptance target installation failed: $LASTEXITCODE" }
 
       - name: Run isolated Windows Helper acceptance
         timeout-minutes: 15
@@ -187,6 +189,8 @@ jobs:
           $null = New-Item -ItemType Directory -Path $evidence -Force
           $result = 'failed'
           try {
+            pwsh -NoLogo -NoProfile -NonInteractive -File .\tool\acceptance\windows_helper_architecture_test.ps1 *>&1 | Tee-Object -FilePath (Join-Path $evidence 'architecture-tests.log')
+            if ($LASTEXITCODE -ne 0) { throw "Architecture contract failed: $LASTEXITCODE" }
             & .\tool\acceptance\windows_helper.ps1 *>&1 | Tee-Object -FilePath (Join-Path $evidence 'harness.log')
             if ($LASTEXITCODE -ne 0) { throw "Isolated Helper acceptance failed: $LASTEXITCODE" }
             $result = 'passed'
@@ -211,6 +215,43 @@ jobs:
         with:
           name: windows-helper-isolated-${{ github.run_number }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/zolnit-windows-helper-acceptance/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build portable Windows acceptance packages
+        timeout-minutes: 20
+        if: matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
+        shell: pwsh
+        env:
+          RUSTUP_TOOLCHAIN: '1.99.0'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = Join-Path $env:RUNNER_TEMP 'zolnit-windows-acceptance-packages'
+          $null = New-Item -ItemType Directory -Path $packages -Force
+          try {
+            foreach ($entry in @(@{ Name = 'x64'; Type = 'NativeX64' }, @{ Name = 'arm64'; Type = 'NativeArm64' })) {
+              $directory = Join-Path $packages $entry.Name
+              & .\tool\acceptance\windows_helper.ps1 -BuildOnly -ExecutionType $entry.Type -OutputDirectory $directory *>&1 | Tee-Object -FilePath (Join-Path $packages ($entry.Name + '-build.log'))
+              if ($LASTEXITCODE -ne 0) { throw "Portable package build failed: $LASTEXITCODE" }
+              $manifest = Get-Content -LiteralPath (Join-Path $directory 'manifest.json') -Raw | ConvertFrom-Json
+              if ($manifest.executed -ne $false -or $manifest.classification -ne 'build-only' -or $manifest.source.commit -ne $env:GITHUB_SHA -or $manifest.source.dirty -ne $false) {
+                throw 'Portable package provenance must match a clean checkout and remain build-only.'
+              }
+              Compress-Archive -Path "$directory/*" -DestinationPath (Join-Path $packages ('windows-helper-tools-' + $entry.Name + '.zip'))
+            }
+          } catch {
+            $_ | Out-String | Add-Content -LiteralPath (Join-Path $packages 'package-error.log') -Encoding utf8
+            throw
+          }
+
+      - name: Upload portable Windows acceptance packages
+        if: always() && matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-helper-tools-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/zolnit-windows-acceptance-packages/*.zip
+            ${{ runner.temp }}/zolnit-windows-acceptance-packages/*.log
           if-no-files-found: error
           retention-days: 14
 
