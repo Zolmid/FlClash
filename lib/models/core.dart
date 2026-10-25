@@ -311,6 +311,8 @@ abstract class Delay with _$Delay {
 @freezed
 abstract class ProbeParams with _$ProbeParams {
   const factory ProbeParams({
+    @JsonKey(name: 'automatic-routing', includeIfNull: false)
+    bool? automaticRouting,
     required String url,
     @JsonKey(name: 'proxy-name') @Default('') String proxyName,
     @Default({}) Map<String, String> headers,
@@ -327,6 +329,7 @@ abstract class ProbeParams with _$ProbeParams {
 @freezed
 abstract class ProbeResult with _$ProbeResult {
   const factory ProbeResult({
+    @JsonKey(name: 'retry-after', includeIfNull: false) String? retryAfter,
     @JsonKey(name: 'status-code') @Default(0) int statusCode,
     @Default(0) int delay,
     @Default('') String body,

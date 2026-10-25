@@ -354,4 +354,35 @@ void main() {
       isNull,
     );
   });
+  test(
+    'aggregate observation time cannot extend earliest provider validity',
+    () {
+      configure([node('a')]);
+      engine.observe(
+        serviceId: 'ai',
+        nodeId: 'a',
+        generation: generation,
+        sample: SmartProbeSample(
+          at: at(20),
+          success: true,
+          latencyMs: 10,
+          validUntil: at(90),
+        ),
+      );
+      confirm('a', time: 20);
+      engine.observe(
+        serviceId: 'ai',
+        nodeId: 'a',
+        generation: generation,
+        sample: SmartProbeSample(
+          at: at(80),
+          success: true,
+          latencyMs: 10,
+          validUntil: at(90),
+        ),
+      );
+      expect(pick(time: 89).nodeId, 'a');
+      expect(pick(time: 90).nodeId, isNull);
+    },
+  );
 }

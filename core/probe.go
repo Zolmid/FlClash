@@ -8,6 +8,8 @@ import (
 	"github.com/metacubex/http"
 	"io"
 	"net"
+	stdhttp "net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -161,6 +163,7 @@ func probeErrorKind(err error) string {
 }
 
 type probeRequest struct {
+	automatic bool
 	method    string
 	url       string
 	proxyName string
@@ -178,13 +181,14 @@ type probeRequest struct {
 
 func handleProbe(params *ProbeParams) *ProbeResult {
 	return runProbe(context.Background(), probeRequest{
+		automatic:  params.AutomaticRouting,
 		method:     http.MethodGet,
 		url:        params.Url,
 		proxyName:  params.ProxyName,
 		headers:    params.Headers,
 		timeout:    timeoutFromMillis(params.Timeout, defaultProbeTimeout),
 		maxBody:    params.MaxBody,
-		noRedirect: params.FollowRedirects != nil && !*params.FollowRedirects,
+		noRedirect: params.AutomaticRouting || (params.FollowRedirects != nil && !*params.FollowRedirects),
 	})
 }
 
@@ -252,6 +256,13 @@ func runProbe(parent context.Context, req probeRequest) *ProbeResult {
 		}
 	}
 
+	if req.automatic {
+		complete, admitted := automaticRoutingProbes.acquire(req.url)
+		if !admitted {
+			return nil
+		}
+		defer func() { complete(result.StatusCode, result.RetryAfter) }()
+	}
 	start := time.Now()
 	response, err := client.Do(request)
 	if err != nil {
@@ -262,6 +273,23 @@ func runProbe(parent context.Context, req probeRequest) *ProbeResult {
 	}()
 	result.Delay = time.Since(start).Milliseconds()
 	result.StatusCode = response.StatusCode
+	if response.StatusCode == 429 {
+		value := strings.TrimSpace(response.Header.Get("Retry-After"))
+		if len(value) > 0 && len(value) <= 128 {
+			digits := true
+			for _, digit := range value {
+				if digit < '0' || digit > '9' {
+					digits = false
+					break
+				}
+			}
+			if digits {
+				result.RetryAfter = value
+			} else if date, e := stdhttp.ParseTime(value); e == nil {
+				result.RetryAfter = date.UTC().Format(stdhttp.TimeFormat)
+			}
+		}
+	}
 	result.header = response.Header
 	result.Url = response.Request.URL.String()
 	if route := dialer.route(); route != nil {

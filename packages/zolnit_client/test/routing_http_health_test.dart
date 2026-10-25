@@ -159,6 +159,7 @@ void main() {
         assess(status: 404),
         assess(status: 302),
         assess(status: 429),
+        assess(status: 429, error: 'timeout after response'),
         assess(status: 503),
         assess(
           provider: 'gemini_api',

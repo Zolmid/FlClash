@@ -22,3 +22,5 @@ export 'src/routing_manifest.dart';
 export 'src/routing_http_health.dart';
 export 'src/smart_routing.dart';
 export 'src/client_bundle.dart';
+export 'src/routing_probe_scheduler.dart';
+export 'src/routing_provider_health.dart';

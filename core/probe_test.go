@@ -344,3 +344,50 @@ func TestHandleProbeTimesOutWhileTheTunnelStaysSuspended(t *testing.T) {
 		t.Fatalf("result = %+v, want a timeout", result)
 	}
 }
+
+func TestProbeExposesOnlyNormalizedRetryAfterOn429(t *testing.T) {
+	withProbeProxies(t, "DIRECT")
+	for _, tc := range []struct {
+		status       int
+		header, want string
+	}{
+		{429, "120", "120"},
+		{429, "Wed, 21 Oct 2026 07:28:00 GMT", "Wed, 21 Oct 2026 07:28:00 GMT"},
+		{429, "private-invalid-header", ""},
+		{200, "120", ""},
+	} {
+		server := probeServer(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Retry-After", tc.header)
+			w.WriteHeader(tc.status)
+		})
+		result := handleProbe(&ProbeParams{Url: server.URL, ProxyName: "DIRECT", Timeout: 1000, MaxBody: 32})
+		if result == nil || result.Error != "" || result.RetryAfter != tc.want {
+			t.Fatalf("retry-after=%+v want %q", result, tc.want)
+		}
+	}
+}
+
+func TestAutomaticProbePhysicalHTTPWindow(t *testing.T) {
+	withProbeProxies(t, "DIRECT")
+	previous := automaticRoutingProbes
+	now := time.Now()
+	automaticRoutingProbes = &routingProbeLimits{now: func() time.Time { return now }}
+	t.Cleanup(func() { automaticRoutingProbes = previous })
+	var requests atomic.Int32
+	server := probeServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_, _ = w.Write([]byte("ok"))
+	})
+	for i := 0; i < 31; i++ {
+		result := handleProbe(&ProbeParams{AutomaticRouting: true, Url: server.URL, ProxyName: "DIRECT", Timeout: 1000, MaxBody: 16})
+		if i < 30 && (result == nil || result.Error != "") {
+			t.Fatalf("request %d failed", i)
+		}
+		if i == 30 && result != nil {
+			t.Fatal("exhausted request did not remain unknown")
+		}
+	}
+	if requests.Load() != 30 {
+		t.Fatalf("actual HTTP count %d, want 30", requests.Load())
+	}
+}

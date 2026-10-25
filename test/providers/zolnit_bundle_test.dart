@@ -156,6 +156,12 @@ void main() {
         zolnitClientBundleTransportProvider.overrideWithValue(true),
         zolnitClientBundleAutomaticProvider.overrideWithValue(true),
         zolnitBundleClockProvider.overrideWithValue(() => now),
+        zolnitRoutingProbeSchedulerProvider.overrideWithValue(
+          RoutingProbeScheduler(
+            elapsed: () => now.difference(bundleTime(1001)),
+            wallClock: () => now,
+          ),
+        ),
         profilesProvider.overrideWith(() => TestProfiles()),
         currentProfileIdProvider.overrideWithBuild((_, _) => null),
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),

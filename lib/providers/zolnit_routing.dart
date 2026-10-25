@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/zolnit_routing.dart';
@@ -10,6 +9,16 @@ import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zolnit_client/zolnit_client.dart';
+
+final zolnitRoutingProbeSchedulerProvider = Provider<RoutingProbeScheduler>((
+  ref,
+) {
+  final scheduler = RoutingProbeScheduler(
+    wallClock: ref.read(zolnitBundleClockProvider),
+  );
+  ref.onDispose(scheduler.dispose);
+  return scheduler;
+});
 
 final zolnitRoutingProvider = Provider<ZolnitRouting>((ref) {
   final routing = ZolnitRouting(ref);
@@ -54,11 +63,18 @@ typedef _RoutingPlan = ({
 typedef _LeaseIdentity = (int, int, DateTime, String?);
 
 class ZolnitRouting {
-  ZolnitRouting(this.ref);
+  ZolnitRouting(this.ref)
+    : _probeScheduler = ref.read(zolnitRoutingProbeSchedulerProvider) {
+    _providerHealth.resetGeneration(_epoch);
+  }
 
   final Ref ref;
   var _engine = SmartRoutingEngine();
-  final _pool = TaskPool(4);
+  final RoutingProbeScheduler _probeScheduler;
+  final _providerHealth = RoutingProviderHealthStore();
+  Object _probeScope = Object();
+  num? _previousTraffic;
+  var _servicePosition = 0;
   final _positions = <String, int>{};
   ZolnitSessionController? _session;
   _RoutingPlan? _staged;
@@ -305,6 +321,8 @@ class ZolnitRouting {
     _invalidLeaseToken = token;
     _invalidatedLeases[_leaseIdentity(_active!)!] = status;
     _engine.resetGeneration(++_epoch);
+    _providerHealth.resetGeneration(_epoch);
+    _probeScope = Object();
     final epoch = _epoch;
     ref.read(zolnitBundleStatusProvider.notifier).set(status);
     final manifest = _active?.manifest;
@@ -375,6 +393,8 @@ class ZolnitRouting {
     _positions.clear();
     _engine = plan.engine ?? SmartRoutingEngine();
     _engine.resetGeneration(++_epoch);
+    _providerHealth.resetGeneration(_epoch);
+    _probeScope = Object();
     _leaseTimers();
     _timer?.cancel();
     if (!ref.read(safeModeProvider) && plan.manifest != null) {
@@ -410,6 +430,8 @@ class ZolnitRouting {
   void suspend() {
     _revokeCoreLease();
     _epoch++;
+    _providerHealth.resetGeneration(_epoch);
+    _probeScope = Object();
     _active = null;
     _timer?.cancel();
     _timer = null;
@@ -421,6 +443,8 @@ class ZolnitRouting {
   void clear() {
     _revokeCoreLease();
     _epoch++;
+    _providerHealth.resetGeneration(_epoch);
+    _probeScope = Object();
     _active = null;
     _staged = null;
     _preparedPlans.clear();
@@ -445,6 +469,17 @@ class ZolnitRouting {
   void manualSelection(String group, String proxy) {
     final manifest = _active?.manifest;
     if (manifest == null) return;
+    if (!manifest.services.any(
+      (service) =>
+          group == service.groupName ||
+          group == service.manualGroup ||
+          group == service.route.groupName,
+    )) {
+      _intent++;
+      _providerHealth.resetGeneration(_epoch);
+      _probeScope = Object();
+      return;
+    }
     for (final service in manifest.services) {
       if (group == service.manualGroup) {
         final selected = ref
@@ -523,6 +558,17 @@ class ZolnitRouting {
     unawaited(run());
   }
 
+  bool _probeDemand() {
+    final traffic = ref.read(totalTrafficProvider);
+    final total = traffic.up + traffic.down;
+    final changed = _previousTraffic != null && total > _previousTraffic!;
+    _previousTraffic = total;
+    return ref.read(appVisibleProvider) || changed;
+  }
+
+  String _semantics(ManagedRouteService service) =>
+      'http-transport-v2:${service.route.isAi}:${(service.route.allowedCountries.toList()..sort()).join(',')}:${(service.providers.toList()..sort()).join(',')}';
+
   Future<void> run() async {
     if (_active?.expiresAt != null && !_active!.expiresAt!.isAfter(_now)) {
       await _invalidateAutomatic(ZolnitBundleStatus.expired);
@@ -542,6 +588,9 @@ class ZolnitRouting {
     if (manifest == null || !_current(epoch, intent)) return;
     _busy = true;
     _cycleDone = Completer<void>();
+    var completedProbeCycle = false;
+    var usableObservation = false;
+    var attemptedObservation = false;
     try {
       Map<String, dynamic>? guard;
       if (_active!.expiresAt != null) {
@@ -555,7 +604,25 @@ class ZolnitRouting {
       }
       final owner = ref.read(proxiesActionProvider.notifier);
       await owner.updateGroups();
-      for (final service in manifest.services) {
+      final activeDemand = _probeDemand();
+      final probeAllowed =
+          manifest.services.any(
+            (service) =>
+                _automatic(service) &&
+                _engine.candidates(service.route.id).isNotEmpty,
+          ) &&
+          _probeScheduler.beginCycle(activeDemand: activeDemand);
+      completedProbeCycle = probeAllowed;
+      final start = manifest.services.isEmpty
+          ? 0
+          : _servicePosition++ % manifest.services.length;
+      for (
+        var serviceIndex = 0;
+        serviceIndex < manifest.services.length;
+        serviceIndex++
+      ) {
+        final service = manifest
+            .services[(start + serviceIndex) % manifest.services.length];
         if (!_current(epoch, intent)) return;
         if (!_automatic(service)) continue;
         final id = service.route.id;
@@ -581,71 +648,104 @@ class ZolnitRouting {
             generation: epoch,
           );
         }
+        final semantics = _semantics(service);
         final probes = <SmartRouteNode>{};
         if (current != null) probes.add(current);
         if (candidates.isNotEmpty) {
-          final offset = (_positions[id] ?? 0) % candidates.length;
-          for (var i = 0; i < math.min(8, candidates.length); i++) {
-            probes.add(candidates[(offset + i) % candidates.length]);
+          var offset = (_positions[id] ?? 0) % candidates.length;
+          final targetCount = activeDemand ? 2 : 1;
+          for (
+            var attempted = 0;
+            attempted < candidates.length && probes.length < targetCount;
+            attempted++
+          ) {
+            probes.add(candidates[offset]);
+            offset = (offset + 1) % candidates.length;
           }
-          _positions[id] = (offset + 8) % candidates.length;
+          _positions[id] = offset;
         }
-        await Future.wait(
-          probes.map(
-            (node) => _pool.run(() async {
-              if (!_current(epoch, intent)) return;
-              final now = _now;
-              if (_engine.nextProbeAt(id, node.id)?.isAfter(now) == true) {
+        if (probeAllowed) {
+          final scope = (_probeScope, intent);
+          await Future.wait(
+            probes.map((node) async {
+              if (_engine.nextProbeAt(id, node.id)?.isAfter(_now) == true) {
                 return;
               }
-              final latencies = <int>[];
-              var failed = false;
               for (final provider in service.providers) {
+                if (!_current(epoch, intent)) return;
                 final url = routingProviderProbeUrls[provider]!;
-                if (!_current(epoch, intent)) return;
-                final result = await ref
-                    .read(coreHandlerProvider)
-                    .probe(
-                      ProbeParams(
-                        url: url,
-                        proxyName: node.proxyName,
-                        timeout: 5000,
-                        maxBody: 4096,
-                        followRedirects: false,
-                      ),
-                    );
-                if (!_current(epoch, intent)) return;
-                if (result == null) return;
-                final evidence = assessRoutingHttpHealth(
+                final observation = await _probeScheduler.request(
+                  scope: scope,
+                  nodeId: '${node.id}:${node.proxyName}',
                   provider: provider,
-                  statusCode: result.statusCode,
-                  latencyMs: result.delay,
-                  error: result.error ?? '',
-                  body: result.body,
+                  semantics: semantics,
+                  isCurrent: () => _current(epoch, intent),
+                  send: () async {
+                    final result = await ref
+                        .read(coreHandlerProvider)
+                        .probe(
+                          ProbeParams(
+                            automaticRouting: true,
+                            url: url,
+                            proxyName: node.proxyName,
+                            timeout: 5000,
+                            maxBody: 4096,
+                            followRedirects: false,
+                          ),
+                        );
+                    if (result == null || result.url != url) return null;
+                    return RoutingProbeReply(
+                      statusCode: result.statusCode,
+                      latencyMs: result.delay,
+                      body: result.body,
+                      error: result.error ?? '',
+                      retryAfter: result.retryAfter ?? '',
+                    );
+                  },
                 );
-                if (result.url != url) continue;
-                if (evidence.transportFailure) {
-                  failed = true;
-                } else if (evidence.usableTransportSample) {
-                  latencies.add(evidence.latencyMs!);
-                }
+                if (!_current(epoch, intent)) return;
+                if (observation == null) continue;
+                attemptedObservation = true;
+                usableObservation =
+                    usableObservation ||
+                    observation.health.usableTransportSample;
+                _providerHealth.observe(
+                  generation: epoch,
+                  nodeId: node.id,
+                  provider: provider,
+                  sequence: observation.sequence,
+                  observedAt: observation.observedAt,
+                  health: observation.health,
+                  semantics: semantics,
+                );
               }
-              if (!failed && latencies.isEmpty) return;
+              if (!_current(epoch, intent)) return;
+              final evidence = _providerHealth.assess(
+                nodeId: node.id,
+                providers: service.providers,
+                now: _now,
+                semantics: semantics,
+              );
+              if (!evidence.usableTransportSample &&
+                  !evidence.transportFailure) {
+                return;
+              }
               _engine.observe(
                 serviceId: id,
                 nodeId: node.id,
                 generation: epoch,
                 sample: SmartProbeSample(
-                  at: _now,
-                  success: !failed,
-                  latencyMs: failed
-                      ? null
-                      : latencies.reduce(math.max).toDouble(),
+                  at: evidence.observedAt!,
+                  success: evidence.usableTransportSample,
+                  validUntil: evidence.usableTransportSample
+                      ? evidence.validUntil
+                      : null,
+                  latencyMs: evidence.latencyMs?.toDouble(),
                 ),
               );
             }),
-          ),
-        );
+          );
+        }
         if (!_current(epoch, intent)) return;
         await owner.updateGroups();
         if (!_current(epoch, intent) || !_automatic(service)) continue;
@@ -663,7 +763,16 @@ class ZolnitRouting {
           now: _now,
           availableNodeIds: {
             for (final node in candidates)
-              if (liveMembers.contains(node.proxyName)) node.id,
+              if (liveMembers.contains(node.proxyName) &&
+                  _providerHealth
+                      .assess(
+                        nodeId: node.id,
+                        providers: service.providers,
+                        now: _now,
+                        semantics: semantics,
+                      )
+                      .usableTransportSample)
+                node.id,
           },
         );
         if (decision.manual) continue;
@@ -705,6 +814,12 @@ class ZolnitRouting {
         );
       }
     } finally {
+      if (completedProbeCycle) {
+        _probeScheduler.finishCycle(
+          usableObservation: usableObservation,
+          attemptedObservation: attemptedObservation,
+        );
+      }
       _busy = false;
       _cycleDone?.complete();
       _cycleDone = null;

@@ -382,6 +382,7 @@ Map<String, dynamic> _$DelayToJson(_Delay instance) => <String, dynamic>{
 };
 
 _ProbeParams _$ProbeParamsFromJson(Map<String, dynamic> json) => _ProbeParams(
+  automaticRouting: json['automatic-routing'] as bool?,
   url: json['url'] as String,
   proxyName: json['proxy-name'] as String? ?? '',
   headers:
@@ -396,6 +397,7 @@ _ProbeParams _$ProbeParamsFromJson(Map<String, dynamic> json) => _ProbeParams(
 
 Map<String, dynamic> _$ProbeParamsToJson(_ProbeParams instance) =>
     <String, dynamic>{
+      'automatic-routing': ?instance.automaticRouting,
       'url': instance.url,
       'proxy-name': instance.proxyName,
       'headers': instance.headers,
@@ -405,6 +407,7 @@ Map<String, dynamic> _$ProbeParamsToJson(_ProbeParams instance) =>
     };
 
 _ProbeResult _$ProbeResultFromJson(Map<String, dynamic> json) => _ProbeResult(
+  retryAfter: json['retry-after'] as String?,
   statusCode: (json['status-code'] as num?)?.toInt() ?? 0,
   delay: (json['delay'] as num?)?.toInt() ?? 0,
   body: json['body'] as String? ?? '',
@@ -420,6 +423,7 @@ _ProbeResult _$ProbeResultFromJson(Map<String, dynamic> json) => _ProbeResult(
 
 Map<String, dynamic> _$ProbeResultToJson(_ProbeResult instance) =>
     <String, dynamic>{
+      'retry-after': ?instance.retryAfter,
       'status-code': instance.statusCode,
       'delay': instance.delay,
       'body': instance.body,

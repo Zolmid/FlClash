@@ -238,15 +238,17 @@ type Delay struct {
 }
 
 type ProbeParams struct {
-	FollowRedirects *bool             `json:"follow-redirects,omitempty"`
-	Url             string            `json:"url"`
-	ProxyName       string            `json:"proxy-name"`
-	Headers         map[string]string `json:"headers"`
-	Timeout         int64             `json:"timeout"`
-	MaxBody         int64             `json:"max-body"`
+	AutomaticRouting bool              `json:"automatic-routing,omitempty"`
+	FollowRedirects  *bool             `json:"follow-redirects,omitempty"`
+	Url              string            `json:"url"`
+	ProxyName        string            `json:"proxy-name"`
+	Headers          map[string]string `json:"headers"`
+	Timeout          int64             `json:"timeout"`
+	MaxBody          int64             `json:"max-body"`
 }
 
 type ProbeResult struct {
+	RetryAfter  string   `json:"retry-after,omitempty"`
 	StatusCode  int      `json:"status-code"`
 	Delay       int64    `json:"delay"`
 	Body        string   `json:"body"`

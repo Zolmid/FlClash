@@ -41,6 +41,7 @@ RoutingHttpHealth assessRoutingHttpHealth({
   if (!routingProviderProbeUrls.containsKey(provider)) {
     return deny('unknown_provider');
   }
+  if (statusCode == 429) return deny('rate_limited');
   if (error.isNotEmpty) return deny('transport_error', failed: true);
   final isApi = provider == 'openai_api' || provider == 'gemini_api';
   Map? apiError;
@@ -79,7 +80,6 @@ RoutingHttpHealth assessRoutingHttpHealth({
   }
   if (statusCode >= 300 && statusCode < 400) return deny('redirect');
   if (statusCode == 404) return deny('endpoint_unknown');
-  if (statusCode == 429) return deny('rate_limited');
   if (statusCode >= 500 && statusCode < 600) return deny('upstream_error');
   if (statusCode != (provider == 'operator' ? 204 : 200)) {
     return deny('unexpected_status');

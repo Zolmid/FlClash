@@ -41,7 +41,7 @@ void main() {
   late Map<String, dynamic> config;
   late Map<String, String> picks;
   late int accountGeneration;
-  final now = DateTime.utc(2026, 10, 24);
+  var now = DateTime.utc(2026, 10, 24);
   var safe = true;
   DateTime? leaseExpiry;
   Future<ProbeResult?> Function(ProbeParams)? responseOverride;
@@ -63,6 +63,7 @@ void main() {
   });
 
   setUp(() {
+    now = DateTime.utc(2026, 10, 24);
     accountGeneration = 1;
     safe = true;
     responseStatus = 200;
@@ -170,6 +171,15 @@ void main() {
         safeModeProvider.overrideWith((_) => safe),
         zolnitBundleClockProvider.overrideWithValue(() => now),
         zolnitClientBundleAutomaticProvider.overrideWithValue(true),
+        appVisibleProvider.overrideWithBuild((_, _) => true),
+        zolnitRoutingProbeSchedulerProvider.overrideWithValue(
+          RoutingProbeScheduler(
+            wallClock: () => now,
+            activeInterval: Duration.zero,
+            idleInterval: Duration.zero,
+            cacheLifetime: Duration.zero,
+          ),
+        ),
       ],
     );
     container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
@@ -240,7 +250,7 @@ void main() {
   );
 
   test(
-    'expected anonymous API auth keeps a transport-ranked pool without credentials',
+    'one anonymous API response cannot qualify the other providers',
     () async {
       activate();
       responseOverride = (params) async => ProbeResult(
@@ -252,7 +262,7 @@ void main() {
             : '',
       );
       await runNormally();
-      expect(picks['AI 自动'], 'us-exit');
+      expect(picks['AI 自动'], 'REJECT');
       expect(picks['影音自动'], 'REJECT');
       final requests = verify(
         () => core.probe(captureAny()),
@@ -264,8 +274,96 @@ void main() {
         isNotEmpty,
       );
       expect(requests.every((params) => params.headers.isEmpty), isTrue);
+      expect(
+        requests.every((params) => params.automaticRouting == true),
+        isTrue,
+      );
     },
   );
+  test(
+    'shared budget survives reactivation and metadata alone never creates health',
+    () async {
+      final scheduler = container.read(zolnitRoutingProbeSchedulerProvider);
+      for (var i = 0; i < 30; i++) {
+        await scheduler.request(
+          scope: Object(),
+          nodeId: 'budget-$i',
+          provider: 'chatgpt',
+          semantics: 'offline-budget-test',
+          isCurrent: () => true,
+          send: () async =>
+              const RoutingProbeReply(statusCode: 200, latencyMs: 1),
+        );
+      }
+      activate();
+      await runNormally();
+      expect(picks['AI 自动'], 'REJECT');
+      verifyNever(() => core.probe(any()));
+      routing.clear();
+      activate();
+      await routing.run();
+      expect(scheduler.requestsInWindow, 30);
+      expect(picks['AI 自动'], 'REJECT');
+      verifyNever(() => core.probe(any()));
+    },
+  );
+
+  test(
+    'a fresh provider cannot renew expired peers in the same service',
+    () async {
+      activate();
+      await runNormally();
+      expect(picks['AI 自动'], 'us-exit');
+      now = now.add(const Duration(seconds: 91));
+      responseOverride = (params) async => ProbeResult(
+        statusCode: params.url == routingProviderProbeUrls['gemini_api']
+            ? 200
+            : 401,
+        delay: 10,
+        url: params.url,
+      );
+      await routing.run();
+      expect(picks['AI 自动'], 'REJECT');
+    },
+  );
+
+  test(
+    '429 origin cooling survives reconfiguration without probing another node',
+    () async {
+      activate();
+      responseOverride = (params) async => ProbeResult(
+        statusCode: params.url == routingProviderProbeUrls['chatgpt']
+            ? 429
+            : 200,
+        retryAfter: params.url == routingProviderProbeUrls['chatgpt']
+            ? '120'
+            : null,
+        delay: 10,
+        url: params.url,
+      );
+      await runNormally();
+      var requests = verify(
+        () => core.probe(captureAny()),
+      ).captured.cast<ProbeParams>();
+      expect(
+        requests.where((p) => p.url == routingProviderProbeUrls['chatgpt']),
+        hasLength(1),
+      );
+      expect(picks['AI 自动'], 'REJECT');
+      routing.clear();
+      activate();
+      await routing.run();
+      requests = verify(
+        () => core.probe(captureAny()),
+      ).captured.cast<ProbeParams>();
+      expect(
+        requests.where((p) => p.url == routingProviderProbeUrls['chatgpt']),
+        isEmpty,
+      );
+      expect(picks['AI 自动'], 'REJECT');
+    },
+  );
+
   for (final status in [301, 401, 403, 404, 429, 503]) {
     test(
       'unknown HTTP $status does not evict or penalize a fresh measured choice',

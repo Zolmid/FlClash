@@ -59,9 +59,11 @@ class SmartProbeSample {
     this.latencyMs,
     this.packetLoss,
     this.hardFailure = false,
+    this.validUntil,
   });
 
   final DateTime at;
+  final DateTime? validUntil;
   final bool success;
   final double? latencyMs;
   final double? packetLoss;
@@ -127,6 +129,7 @@ class SmartRouteMetrics {
 class _Health {
   final samples = Queue<bool>();
   DateTime? at;
+  DateTime? validUntil;
   DateTime? cooldownUntil;
   double? latency;
   double? packetLoss;
@@ -289,6 +292,11 @@ class SmartRoutingEngine {
     final latency = sample.latencyMs;
     final loss = sample.packetLoss;
     if (sample.success &&
+        sample.validUntil != null &&
+        !sample.validUntil!.isAfter(sample.at)) {
+      return;
+    }
+    if (sample.success &&
         (sample.hardFailure ||
             latency == null ||
             !latency.isFinite ||
@@ -304,6 +312,7 @@ class SmartRoutingEngine {
     }
     if (health.at != null && !sample.at.isAfter(health.at!)) return;
     health.at = sample.at;
+    if (sample.success) health.validUntil = sample.validUntil;
     health.samples.add(sample.success);
     while (health.samples.length > tuning.windowSize) {
       health.samples.removeFirst();
@@ -383,7 +392,8 @@ class SmartRoutingEngine {
         !(nextProbeAt(serviceId, node.id)?.isAfter(now) ?? false) &&
         health.at != null &&
         !health.at!.isAfter(now) &&
-        now.difference(health.at!) <= tuning.sampleLifetime;
+        now.difference(health.at!) <= tuning.sampleLifetime &&
+        (health.validUntil == null || now.isBefore(health.validUntil!));
   }
 
   SmartRouteDecision decide({
