@@ -393,11 +393,35 @@ Windows 不能以杀死/正常退出 App 代替“前台暂停”：Core 的 IPC
 观察最多 600 秒、256 条状态变化；默认要求采样时间在 5 秒内（可限定 1–60 秒），不将 PID 或
 文件新鲜度当作进程存活证明。`deadline_result` 是对已采样真实选择的解释，不执行修复；
 `not_rejected` / `unverified` 不得算通过。导出的 iOS 文件须显式 `--allow-historical`，不能冒充实时状态。
-纯 Foundation `RoutingLeaseObservationReader.read(appGroupIdentifier:role:)` 提供给另一个具相同
-App Group 权限的签名测试进程使用；它不导入 UIKit/NetworkExtension、不唤醒 App、不发 Core RPC。
-目前未提供独立 iOS observer App/target，不能将这个函数视作已可安装的独立观察器；须在有 Xcode、
-签名与设备的环境补齐该进程，并验证其独立读取权限。桌面提权 Core 写出的目录及每次替换快照
-交还发起客户端的用户，Unix 保留 0700/0600；Windows 沿用账户目录 ACL，仍待真实 Helper 环境验收。
+独立 iOS 验收 target 为 `ios/LeaseObserver/LeaseObserver.xcodeproj`，scheme 为
+`LeaseObserverAcceptance`，只编译原有 Foundation reader 和诊断显示，不链接 Core、Flutter 或 VPN
+框架。独立进程每秒从 App Group 读文件，只在自身前台活动时轮询，不向主 App/Extension 发 RPC，
+不读写共享偏好，也不启动 VPN。显示文件新鲜度、实际 `deadline_result` 和已验证的脱敏 JSON；
+`not_rejected`、`unverified`、陈旧/时钟偏差/已停止生产器不能当作后台保护通过。
+
+该 target 只允许显式 `Debug` 验收构建，默认开关为 NO，拒绝 Release/归档；不加入 Runner 的构建
+或嵌入依赖。默认 bundle 为 `com.zolmid.zolnit.debug.LeaseObserver`，App Group 严格沿用
+`group.$(APP_BUNDLE_ID)`。在已有完整 Xcode/iPhoneOS SDK 的机器执行：
+`python3 tool/acceptance/build_ios_observer.py --output <尚不存在的输出目录>`。
+可用 `--app-bundle-id <主 App 的 base bundle>` 明确匹配另一验收包；脚本关闭签名和自动凭据获取，
+只构建 arm64 unsigned App/IPA，不注册外部应用、不生成签名资料。当前 Mac 缺 Xcode/iPhoneOS SDK，
+实际 unsigned 尝试返回 `xcode_iphoneos_sdk_unavailable`、未产生 IPA；仅工程/权限/门禁检查、
+Foundation 行为及基于本机 Mac SDK 的 SwiftUI 类型检查通过，不代表 iOS 编译或设备运行。
+
+Windows 隔离入口为 `pwsh -NoProfile -File .\tool\acceptance\windows_helper.ps1`。它在自建私有临时
+目录编译绑定 Core 哈希的 `isolated-acceptance` Helper、Core、只读 observer 和专用前端；Helper
+走私有 stdin/stdout，复用实际 Hub/Job 子进程所有权，不访问共享 HTTP 入口、SCM、服务注册表或
+既有服务。只暂停自己持有句柄的前端并从独立 observer 验证 watchdog REJECT/手动选择保留，
+再终止自建 Helper、确认 Job 结束旧 Core，重启新实例并确认同代际/截止时间的旧 guard 被拒绝、
+新 guard 可用；清理仅限自建目录、Job 和保留的进程句柄。该程序验证专用前端进程暂停，
+不等同 Flutter 前台或 SCM 服务重启验收。需 Windows x64 和已有 Go/Cargo；本机已完成可移植
+Rust 测试、Windows Rust 编译检查、Go 交叉构建、PowerShell 语法和非 Windows 拒绝分支；
+真实 Windows 的暂停、Job 清零和目录清理尚未执行，不能记为通过。清理失败返回非零状态。
+
+桌面提权 Core 写出的目录及每次替换快照交还发起客户端的用户，Unix 保留 0700/0600；
+Windows 沿用账户目录 ACL，仍待真实 Helper 环境验收。物理 iPhone/iPad 还需要同一开发团队、
+匹配现有 App Group 的 observer provisioning、设备许可和首次解锁/锁屏数据保护验证；本轮不申请
+或生成这些凭据，也不唤醒现有客户端来替代独立观察。
 
 本地已验证隔离的实际 Core 可执行进程、独立观察器、真实定时器、手动选择保留、重启后拒绝旧
 进程 guard；纯 Foundation 读入口仅在 macOS 合成容器验证。iOS 仍需签名实机、独立读取进程的

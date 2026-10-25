@@ -241,6 +241,8 @@ impl VerifiedCore {
             .current_dir(&self.directory)
             .stderr(Stdio::piped())
             .arg(address);
+        #[cfg(all(windows, feature = "isolated-acceptance"))]
+        command.stdout(Stdio::null());
         #[cfg(target_os = "linux")]
         adopt_core_owner(&mut command)?;
         command.spawn()
@@ -1531,4 +1533,13 @@ mod tests {
             .iter()
             .any(|entry| entry == "helper still logs after poisoning"));
     }
+}
+
+#[cfg(all(windows, feature = "isolated-acceptance"))]
+#[path = "acceptance.rs"]
+mod acceptance;
+
+#[cfg(all(windows, feature = "isolated-acceptance"))]
+pub fn acceptance_stdio() -> anyhow::Result<()> {
+    acceptance::run()
 }

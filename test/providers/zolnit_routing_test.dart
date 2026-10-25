@@ -266,17 +266,22 @@ void main() {
       expect(requests.every((params) => params.headers.isEmpty), isTrue);
     },
   );
-  test(
-    'unknown endpoint responses do not evict a still-fresh measured choice',
-    () async {
-      activate();
-      await runNormally();
-      expect(picks['AI 自动'], 'us-exit');
-      responseStatus = 404;
-      await routing.run();
-      expect(picks['AI 自动'], 'us-exit');
-    },
-  );
+  for (final status in [301, 401, 403, 404, 429, 503]) {
+    test(
+      'unknown HTTP $status does not evict or penalize a fresh measured choice',
+      () async {
+        activate();
+        await runNormally();
+        expect(picks['AI 自动'], 'us-exit');
+        clearInteractions(core);
+        responseStatus = status;
+        await routing.run();
+        expect(picks['AI 自动'], 'us-exit');
+        verify(() => core.probe(any())).called(greaterThan(0));
+        verifyNever(() => core.changeProxy(any()));
+      },
+    );
+  }
 
   for (final status in [301, 401, 403, 404, 429, 503]) {
     test(

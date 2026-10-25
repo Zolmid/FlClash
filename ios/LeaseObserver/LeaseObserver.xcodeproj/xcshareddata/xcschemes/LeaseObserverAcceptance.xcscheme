@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion="1660" version="1.3">
+  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="NO">
+    <BuildActionEntries>
+      <BuildActionEntry buildForTesting="NO" buildForRunning="YES" buildForProfiling="NO" buildForArchiving="NO" buildForAnalyzing="NO">
+        <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A02500000000000000000005" BuildableName="ZolNitLeaseObserver.app" BlueprintName="LeaseObserver" ReferencedContainer="container:LeaseObserver.xcodeproj" />
+      </BuildActionEntry>
+    </BuildActionEntries>
+  </BuildAction>
+  <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.PosixSpawn" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES">
+    <BuildableProductRunnable runnableDebuggingMode="0">
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A02500000000000000000005" BuildableName="ZolNitLeaseObserver.app" BlueprintName="LeaseObserver" ReferencedContainer="container:LeaseObserver.xcodeproj" />
+    </BuildableProductRunnable>
+  </LaunchAction>
+</Scheme>

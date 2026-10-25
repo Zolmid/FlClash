@@ -7,6 +7,14 @@ edition = "2021"
 name = "helper"
 path = "src/main.rs"
 
+[features]
+isolated-acceptance = []
+
+[[bin]]
+name = "helper-acceptance"
+path = "src/acceptance.rs"
+required-features = ["isolated-acceptance"]
+
 [dependencies]
 windows-service = { version = "0.7.0", optional = true }
 tokio = { version = "1", features = ["full"] }

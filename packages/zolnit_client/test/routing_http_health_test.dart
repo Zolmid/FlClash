@@ -159,6 +159,7 @@ void main() {
         assess(status: 404),
         assess(status: 302),
         assess(status: 429),
+        assess(status: 503),
         assess(
           provider: 'gemini_api',
           status: 403,
@@ -169,10 +170,14 @@ void main() {
         expect(result.probeBlocked, isFalse);
         expect(result.transportFailure, isFalse);
       }
-      expect(
-        assess(status: 403, body: '<html>edge blocked</html>').probeBlocked,
-        isTrue,
-      );
+      for (final blocked in [
+        assess(status: 403, body: '<html>edge blocked</html>'),
+        assess(status: 200, body: '<title>Just a moment...</title>'),
+      ]) {
+        expect(blocked.probeBlocked, isTrue);
+        expect(blocked.transportFailure, isFalse);
+        expect(blocked.usableTransportSample, isFalse);
+      }
     },
   );
 
