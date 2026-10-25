@@ -427,6 +427,10 @@ jobs:
           fi
           mkdir -p cloud-artifacts
           cp "${ipas[@]}" cloud-artifacts/
+          if [[ "$IOS_OBSERVER_ACCEPTANCE" == true ]]; then
+            test "${#ipas[@]}" -eq 1
+            python3 tool/acceptance/validate_ios_pair.py --client "${ipas[0]}" --observer "$RUNNER_TEMP/zolnit-ios-lease-observer/unsigned/ZolNitLeaseObserver-unsigned.ipa" --base-bundle-id "$IOS_ACCEPTANCE_BUNDLE_ID" --source-commit "$GITHUB_SHA" > cloud-artifacts/acceptance-pair.json
+          fi
           source_repo="$GITHUB_REPOSITORY"
           if [[ "$IOS_SOURCE" == patched-reference ]]; then
             source_repo=chenx-dust/FlClash-Patched

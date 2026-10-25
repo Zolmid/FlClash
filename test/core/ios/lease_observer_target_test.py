@@ -1,4 +1,7 @@
 import json
+import importlib.util
+import struct
+import zipfile
 import os
 from pathlib import Path
 import plistlib
@@ -88,6 +91,45 @@ class ObserverTargetContract(unittest.TestCase):
             self.assertFalse(Path(record.read_text()).exists())
             self.assertFalse((output / 'ZolNitLeaseObserver-unsigned.ipa').exists())
             self.assertTrue((output / 'xcodebuild.log').is_file())
+
+
+    def test_actual_ipa_pairing_rejects_mismatched_bundles_groups_and_signing(self):
+        spec = importlib.util.spec_from_file_location('pair_validator', ROOT / 'tool/acceptance/validate_ios_pair.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        base = 'com.zolmid.zolnit.debug'
+
+        def executable(entitlements, flags=2):
+            xml = plistlib.dumps(entitlements)
+            directory = struct.pack('>IIII', 0xfade0c02, 16, 0, flags)
+            plist = struct.pack('>II', 0xfade7171, len(xml) + 8) + xml
+            signature = struct.pack('>III', 0xfade0cc0, 28 + len(directory) + len(plist), 2)
+            signature += struct.pack('>IIII', 0, 28, 5, 28 + len(directory)) + directory + plist
+            header = struct.pack('<IIIIIIII', 0xfeedfacf, 0x0100000c, 0, 2, 1, 16, 0, 0)
+            return header + struct.pack('<IIII', 0x1d, 16, 48, len(signature)) + signature
+
+        with tempfile.TemporaryDirectory(prefix='ios-pair-fixture-') as temporary:
+            client, observer = Path(temporary) / 'client.ipa', Path(temporary) / 'observer.ipa'
+            for failure in ('none', 'main-id', 'ne-group', 'widget-group', 'observer-group', 'certificate', 'profile'):
+                with zipfile.ZipFile(client, 'w') as archive:
+                    for suffix, prefix in [('', 'Payload/Runner.app/'), ('.NECore', 'Payload/Runner.app/PlugIns/NECore.appex/'), ('.Widget', 'Payload/Runner.app/PlugIns/Widget.appex/')]:
+                        identifier = base + suffix
+                        info_id = 'wrong.app' if failure == 'main-id' and not suffix else identifier
+                        archive.writestr(prefix + 'Info.plist', plistlib.dumps({'CFBundleIdentifier': info_id, 'CFBundleExecutable': 'fixture'}))
+                        group = 'group.wrong' if (failure == 'ne-group' and suffix == '.NECore') or (failure == 'widget-group' and suffix == '.Widget') else 'group.' + base
+                        entitlements = {'com.apple.security.application-groups': [group], 'application-identifier': 'UNKNOWN000.' + identifier,
+                                        'com.apple.developer.team-identifier': 'UNKNOWN000', 'com.apple.developer.networking.networkextension': ['packet-tunnel-provider']}
+                        archive.writestr(prefix + 'fixture', executable(entitlements, 0 if failure == 'certificate' else 2))
+                    if failure == 'profile': archive.writestr('Payload/Runner.app/embedded.mobileprovision', b'test-only')
+                with zipfile.ZipFile(observer, 'w') as archive:
+                    archive.writestr('Payload/ZolNitLeaseObserver.app/Info.plist', plistlib.dumps({'CFBundleIdentifier': base + '.LeaseObserver',
+                                     'ZolNitObserverAppGroup': 'group.wrong' if failure == 'observer-group' else 'group.' + base}))
+                if failure == 'none':
+                    result = module.validate(client, observer, base, 'a' * 40)
+                    self.assertEqual(result['app_group'], 'group.' + base)
+                    self.assertFalse(result['device_installable'])
+                else:
+                    with self.assertRaises(ValueError, msg=failure): module.validate(client, observer, base, 'a' * 40)
 
 
 if __name__ == '__main__':
