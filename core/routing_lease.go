@@ -322,6 +322,40 @@ func enforceInitialRoutingLeaseSelectionsLocked(state *routingLeaseState, proxie
 	}
 }
 
+func renewRoutingLeaseLocked(spec *RoutingLeaseSpec) bool {
+	state := activeRoutingLease
+	now := routingLeaseNow()
+	if state == nil || state.revoked || spec == nil || state.accountID != spec.AccountID ||
+		!now.Before(state.deadline) || spec.BundleID == "" || spec.ConfigurationDigest == "" {
+		return false
+	}
+	remaining := time.UnixMilli(spec.ExpiresAt).Sub(now)
+	services, policy, manual, order, valid := parseRoutingLeaseServices(spec.Services, tunnel.AllProxies())
+	if !valid || remaining <= 0 || remaining > maxRoutingLeaseTTL {
+		return false
+	}
+	for _, service := range order {
+		current := service.automaticSelector.Now()
+		if current != rejectProxyName && service.allowedProxies[current] == nil {
+			return false
+		}
+	}
+	stopRoutingLeaseTimerLocked(state)
+	routingConfigurationGeneration++
+	state.configurationGeneration = routingConfigurationGeneration
+	state.accountGeneration = spec.AccountGeneration
+	state.bundleID = spec.BundleID
+	state.configurationDigest = spec.ConfigurationDigest
+	state.expiresAt = spec.ExpiresAt
+	state.deadline = now.Add(remaining)
+	state.services, state.policyGroups, state.manualGroups, state.serviceOrder = services, policy, manual, order
+	state.rotateToken()
+	instance, generation := state.instanceID, state.configurationGeneration
+	state.timer = routingLeaseAfterFunc(remaining, func() { expireRoutingLease(instance, generation) })
+	recordLeaseObservationLocked("installed", "valid")
+	return true
+}
+
 func setSelectorRejectLocked(groupName string, selector outboundgroup.SelectAble) bool {
 	if selector == nil {
 		return false

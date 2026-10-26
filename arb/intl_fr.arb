@@ -1510,5 +1510,16 @@
     }
   },
   "zolnitRouteUnavailable": "Indisponible",
-  "zolnitBundleAutomaticPending": "Le routage automatique est en cours de validation. Les choix manuel et direct sont disponibles."
+  "zolnitBundleAutomaticPending": "Le routage automatique est en cours de validation. Les choix manuel et direct sont disponibles.",
+  "zolnitAppleSubscribe": "S’abonner avec l’App Store",
+  "zolnitAppleAutoRenewal": "Abonnement App Store à renouvellement automatique",
+  "zolnitAppleConsent": "L’abonnement se renouvelle au prix App Store affiché jusqu’à son annulation dans les abonnements de l’App Store.",
+  "zolnitAppleRestore": "Restaurer les achats App Store",
+  "zolnitAppleManage": "Gérer les abonnements App Store",
+  "zolnitAppleUnavailable": "Ce forfait n’est pas disponible à l’achat sur l’App Store.",
+  "zolnitApplePending": "En attente de validation par l’App Store ou le serveur.",
+  "zolnitReturnRoute": "Itinéraire vers la Chine",
+  "zolnitReturnDirect": "Accès direct à la Chine",
+  "zolnitReturnHkLite": "Hong Kong préféré",
+  "zolnitReturnHkOptimized": "Hong Kong optimisé"
 }

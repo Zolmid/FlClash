@@ -1510,5 +1510,16 @@
     }
   },
   "zolnitRouteUnavailable": "Недоступно",
-  "zolnitBundleAutomaticPending": "Автомаршрутизация проходит проверку. Доступны ручной выбор и прямое подключение."
+  "zolnitBundleAutomaticPending": "Автомаршрутизация проходит проверку. Доступны ручной выбор и прямое подключение.",
+  "zolnitAppleSubscribe": "Подписаться через App Store",
+  "zolnitAppleAutoRenewal": "Автопродляемая подписка App Store",
+  "zolnitAppleConsent": "Подписка продлевается по указанной цене App Store, пока вы не отмените её в управлении подписками App Store.",
+  "zolnitAppleRestore": "Восстановить покупки App Store",
+  "zolnitAppleManage": "Управлять подписками App Store",
+  "zolnitAppleUnavailable": "Этот тариф пока нельзя приобрести в App Store.",
+  "zolnitApplePending": "Ожидание проверки App Store или сервера.",
+  "zolnitReturnRoute": "Маршрут в Китай",
+  "zolnitReturnDirect": "Напрямую в Китай",
+  "zolnitReturnHkLite": "Гонконг: приоритет",
+  "zolnitReturnHkOptimized": "Гонконг: оптимизация"
 }

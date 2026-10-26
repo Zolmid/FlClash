@@ -225,9 +225,11 @@ const zolnitViewports = <ZolnitSkin, (Size, TargetPlatform)>{
 /// Set ZOLNIT_CAPTURE_DIR to write PNGs; ZOLNIT_FONT_PATH,
 /// ZOLNIT_CJK_FONT_PATH and ZOLNIT_CJK_BOLD_FONT_PATH name the fonts to load.
 class ZolnitHarness {
-  ZolnitHarness._(this.overrides);
+  ZolnitHarness._(this.overrides, this.clientPlatform, this.distribution);
 
   final List<Override> overrides;
+  final String? clientPlatform;
+  final String? distribution;
 
   late ZolnitSessionController session;
   late ProviderContainer container;
@@ -235,8 +237,12 @@ class ZolnitHarness {
   FutureOr<http.Response> Function(http.Request) panel = zolnitPanelFixture;
   final requests = <http.Request>[];
 
-  static ZolnitHarness register({List<Override> overrides = const []}) {
-    final harness = ZolnitHarness._(overrides);
+  static ZolnitHarness register({
+    List<Override> overrides = const [],
+    String? clientPlatform,
+    String? distribution,
+  }) {
+    final harness = ZolnitHarness._(overrides, clientPlatform, distribution);
     setUpAll(harness._loadFonts);
     setUp(harness._start);
     tearDown(harness._stop);
@@ -266,6 +272,8 @@ class ZolnitHarness {
     await useAppPaths(_paths);
     final api = XboardClient(
       origin: Uri.parse('https://panel.example'),
+      clientPlatform: clientPlatform,
+      distribution: distribution,
       client: MockClient((request) async {
         requests.add(request);
         return panel(request);
@@ -278,7 +286,7 @@ class ZolnitHarness {
         backend: _Backend(),
         platform: _Platform(),
         allowedHttpsOrigins: {'https://checkout.stripe.com'},
-        allowStripe: true,
+        allowStripe: distribution != 'apple-app-store',
       ),
     );
     container = ProviderContainer(
@@ -315,6 +323,7 @@ class ZolnitHarness {
     Locale locale = const Locale('zh', 'CN'),
     Size? size,
     Widget? child,
+    bool includeNavigatorKey = false,
   }) async {
     final (viewport, platform) = zolnitViewports[skin]!;
     tester.view.devicePixelRatio = 1;
@@ -325,7 +334,7 @@ class ZolnitHarness {
       UncontrolledProviderScope(
         container: container,
         child: TestApp(
-          includeNavigatorKey: false,
+          includeNavigatorKey: includeNavigatorKey,
           locale: locale,
           theme: ThemeData(
             platform: platform,

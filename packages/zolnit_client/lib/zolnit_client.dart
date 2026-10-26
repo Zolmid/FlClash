@@ -3,6 +3,7 @@ library;
 export 'src/account.dart';
 export 'src/api.dart';
 export 'src/apple.dart';
+export 'src/apple_config.dart';
 export 'src/billing_api.dart';
 export 'src/catalog.dart';
 export 'src/checkout.dart';

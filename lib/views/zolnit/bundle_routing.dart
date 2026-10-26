@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
+import 'package:fl_clash/providers/zolnit_return_route.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,6 +46,8 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
     final managed =
         profile != null && isCurrentZolnitBundleProfile(profile, session);
     final connected = ref.watch(coreStatusProvider) == CoreStatus.connected;
+    final returnRoute = currentZolnitReturnRoute(session, profile, groups);
+    final returnEnabled = connected && !ref.watch(safeModeProvider);
     final available =
         managed &&
         !ref.watch(safeModeProvider) &&
@@ -117,7 +122,9 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                   .firstOrNull
                   ?.displayName ??
               l10n.unknown;
-    if (message == null && (!managed || service == null)) {
+    if (message == null &&
+        (!managed || service == null) &&
+        returnRoute == null) {
       return const SizedBox.shrink();
     }
     final colors = ZolnitColors.of(context);
@@ -127,6 +134,34 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (returnRoute != null) ...[
+              Text(l10n.zolnitReturnRoute, style: zolnitText(context, 13)),
+              DropdownButton<String>(
+                key: const ValueKey('bundle-return-route'),
+                isExpanded: true,
+                value: returnRoute.selectedId,
+                hint: Text(l10n.unknown),
+                icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
+                underline: const SizedBox.shrink(),
+                items: [
+                  for (final option in returnRoute.options)
+                    DropdownMenuItem(
+                      value: option.id,
+                      child: Text(option.label(l10n)),
+                    ),
+                ],
+                onChanged: !returnEnabled
+                    ? null
+                    : (value) {
+                        if (value != null) {
+                          unawaited(
+                            selectZolnitReturnRoute(ref, session, value),
+                          );
+                        }
+                      },
+              ),
+              const SizedBox(height: 12),
+            ],
             if (message != null)
               Text(
                 message,

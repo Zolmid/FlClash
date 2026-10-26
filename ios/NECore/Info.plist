@@ -11,5 +11,11 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).PacketTunnelProvider</string>
 	</dict>
+	<key>ZolNitRenewalKeychainAccessGroup</key>
+	<string>$(ZOLNIT_RENEWAL_KEYCHAIN_GROUP)</string>
+	<key>ZolNitDistribution</key>
+	<string>$(ZOLNIT_NATIVE_DISTRIBUTION)</string>
+	<key>ZolNitRenewalWhileLocked</key>
+	<false/>
 </dict>
 </plist>

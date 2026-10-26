@@ -23,7 +23,17 @@ internal data class NativeUiSnapshot(
     val usage: NativeUiUsage,
     val traffic: NativeUiTraffic,
     val labels: Map<String, String>,
+    val returnRoute: NativeUiReturnRoute? = null,
 )
+
+internal data class NativeUiReturnRoute(
+    val title: String,
+    val selectedId: String?,
+    val enabled: Boolean,
+    val options: List<NativeUiReturnRouteOption>,
+)
+
+internal data class NativeUiReturnRouteOption(val id: String, val label: String)
 
 internal data class NativeUiServer(
     val id: String,
@@ -97,11 +107,34 @@ internal object NativeUiProtocol {
             usage = json.requiredObject("usage").parseUsage(),
             traffic = json.requiredObject("traffic").parseTraffic(),
             labels = labels,
+            returnRoute = parseReturnRoute(json.opt("returnRoute")),
         )
     } catch (_: JSONException) {
         null
     } catch (_: IllegalArgumentException) {
         null
+    }
+
+    private fun parseReturnRoute(raw: Any?): NativeUiReturnRoute? {
+        val value = raw as? JSONObject ?: return null
+        if (value.keys().asSequence().any { it !in setOf("title", "selectedId", "enabled", "options") }) return null
+        val title = value.opt("title") as? String ?: return null
+        val enabled = value.opt("enabled") as? Boolean ?: return null
+        val options = value.opt("options") as? JSONArray ?: return null
+        if (title.isEmpty() || title.length > 4096 || options.length() > 3) return null
+        val parsed = mutableListOf<NativeUiReturnRouteOption>()
+        for (index in 0 until options.length()) {
+            val option = options.opt(index) as? JSONObject ?: return null
+            if (option.keys().asSequence().any { it !in setOf("id", "label") }) return null
+            val id = option.opt("id") as? String ?: return null
+            val label = option.opt("label") as? String ?: return null
+            if (id !in setOf("direct", "hk_lite", "hk_optimized") || parsed.any { it.id == id } || label.isEmpty() || label.length > 4096) return null
+            parsed.add(NativeUiReturnRouteOption(id, label))
+        }
+        val selected = if (!value.has("selectedId") || value.isNull("selectedId")) null
+            else value.opt("selectedId") as? String ?: return null
+        if (selected != null && parsed.none { it.id == selected }) return null
+        return NativeUiReturnRoute(title, selected, enabled, parsed)
     }
 
     fun command(

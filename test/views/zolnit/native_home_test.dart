@@ -3,17 +3,39 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/zolnit/shell.dart';
 import 'package:fl_clash/views/zolnit/native_home.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_native_ui/zolnit_native_ui.dart';
 
 import 'harness.dart';
+import '../../helpers/test_profiles.dart';
+import '../../helpers/zolnit_return_route_fixture.dart';
+
+class _ReturnRouteAction extends ProxiesAction {
+  final selections = <(String, String)>[];
+  @override
+  void build() {}
+  @override
+  Future<bool> changeProxyIfCurrent({
+    required String groupName,
+    required String proxyName,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return false;
+    selections.add((groupName, proxyName));
+    return true;
+  }
+}
 
 Future<Object?> _fromPlatform(String method, [Object? arguments]) {
   const codec = StandardMethodCodec();
@@ -34,7 +56,10 @@ Future<Object?> _fromPlatform(String method, [Object? arguments]) {
 
 void main() {
   const enabled = bool.fromEnvironment('ZOLNIT_NATIVE_UI');
-  final harness = ZolnitHarness.register();
+  final harness = ZolnitHarness.register(
+    clientPlatform: 'macos',
+    distribution: 'direct',
+  );
   const macos = TargetPlatformVariant({TargetPlatform.macOS});
   const channel = MethodChannel(nativeUiChannelName);
   var availabilityChecks = 0;
@@ -80,6 +105,82 @@ void main() {
     onPreferences: () {},
     onHelp: () async {},
     child: const Text('existing destination'),
+  );
+
+  testWidgets(
+    'native return roles dispatch exact Core aliases and hide aliases from snapshots',
+    (tester) async {
+      final raw = returnRouteFixture();
+      harness.panel = (request) => request.url.path.endsWith('/client/bundle')
+          ? zolnitJson(raw)
+          : zolnitPanelFixture(request);
+      await tester.runAsync(
+        () => harness.session.refreshClientBundle(
+          coreVersion: 'v1.19.32',
+          clock: () =>
+              DateTime.fromMillisecondsSinceEpoch(1001000, isUtc: true),
+        ),
+      );
+      final profile = Profile(
+        id: 1,
+        autoUpdateDuration: Duration.zero,
+        zolnitAccountId: 'account-1',
+        zolnitBundleId: harness.session.clientBundle!.bundleId,
+        zolnitOrigin: harness.session.api.origin.origin,
+      );
+      harness.container.dispose();
+      harness.container = ProviderContainer(
+        overrides: [
+          zolnitSessionProvider.overrideWithValue(harness.session),
+          zolnitSyncProfileProvider.overrideWithValue(() async => null),
+          safeModeProvider.overrideWithValue(false),
+          zolnitClientBundleTransportProvider.overrideWithValue(true),
+          profilesProvider.overrideWith(() => TestProfiles([profile])),
+          currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+          proxiesActionProvider.overrideWith(_ReturnRouteAction.new),
+        ],
+      );
+      globalState.container = harness.container;
+      harness.container.read(groupsProvider.notifier).value =
+          returnRouteCoreGroups();
+      harness.container.read(coreStatusProvider.notifier).value =
+          CoreStatus.connected;
+      await harness.mount(tester, ZolnitSkin.macos, child: host());
+      final snapshot = NativeUiSnapshot.decode(
+        await _fromPlatform('getSnapshot') as String,
+      );
+      expect(
+        jsonEncode(snapshot.toJson()['returnRoute']),
+        isNot(contains('zn.group.')),
+      );
+      expect(snapshot.toJson()['returnRoute']['options'], hasLength(3));
+      final mapping = (raw['routing']['ui_groups'] as List).single;
+      for (final option in mapping['options'] as List) {
+        final response =
+            jsonDecode(
+                  await _fromPlatform(
+                        'performCommand',
+                        jsonEncode({
+                          'schemaVersion': 1,
+                          'id': 'route-${option['id']}',
+                          'accountGeneration': snapshot.accountGeneration,
+                          'action': 'selectReturnRoute',
+                          'payload': {'optionId': option['id']},
+                        }),
+                      )
+                      as String,
+                )
+                as Map;
+        expect(response['accepted'], isTrue);
+        final owner =
+            harness.container.read(proxiesActionProvider.notifier)
+                as _ReturnRouteAction;
+        expect(owner.selections.last, (mapping['group'], option['target']));
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+    skip: !enabled,
+    variant: macos,
   );
 
   testWidgets(

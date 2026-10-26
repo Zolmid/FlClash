@@ -106,6 +106,7 @@ class NativeUiBridge {
       'connect',
       'disconnect',
       'selectServer',
+      'selectReturnRoute',
       'setMode',
     }.contains(command.action);
     if (current.safeMode && changesNetwork) {
@@ -114,6 +115,7 @@ class NativeUiBridge {
     final requiresAccount = {
       'connect',
       'selectServer',
+      'selectReturnRoute',
       'setMode',
     }.contains(command.action);
     if (requiresAccount && current.sessionStatus != 'signedIn') {
@@ -138,6 +140,17 @@ class NativeUiBridge {
         return NativeUiReceipt.rejected(command.id, 'invalid_command');
       }
       return previous.result.future;
+    }
+    if (command.action == 'selectReturnRoute') {
+      final route = current.returnRoute;
+      if (route == null ||
+          !route.options.containsKey(command.payload['optionId'])) {
+        return NativeUiReceipt.rejected(command.id, 'invalid_command');
+      }
+      if (!route.enabled ||
+          _commands.values.any((flight) => !flight.complete)) {
+        return NativeUiReceipt.rejected(command.id, 'unavailable');
+      }
     }
     while (_commands.length >= 128) {
       final completed = _commands.entries

@@ -1,0 +1,133 @@
+{
+    "schema_version": 1,
+    "account_id": "account-1",
+    "bundle_id": "8cbec7cc29609c2815a4dcc6302891a49b4ee9821d6854a2c67a410494e12536",
+    "issued_at": 1000,
+    "expires_at": 1300,
+    "connection": {
+        "engine": "mihomo",
+        "format": "yaml",
+        "sha256": "85a95fc950f8b5d69891f92eb37fd1f36085732ec270f9211c9c9efbef43c0f4",
+        "document": "mixed-port: 7890\nproxies:\n    -\n        name: zn.node.vless.7\n        type: vless\n        server: edge.example\n        port: 443\n        uuid: CONNECTION_CREDENTIAL\n        ws-opts:\n            headers:\n                Host: '美国 原名'\n        dialer-proxy: zn.node.hysteria.8\n    -\n        name: zn.node.hysteria.8\n        type: hysteria2\n        server: '2001:db8::8'\n        port: 443\n        password: AUTHORIZED_PASSWORD\n    -\n        name: zn.node.trojan.9\n        type: trojan\n        server: unknown.example\n        port: 443\n        password: OTHER_CREDENTIAL\nproxy-groups:\n    -\n        name: zn.group.7d6c0940067f8441016b14eb\n        type: select\n        proxies:\n            - zn.node.hysteria.8\n            - zn.node.vless.7\n            - DIRECT\n    -\n        name: zn.service.ai\n        type: select\n        proxies:\n            - REJECT\n            - DIRECT\n    -\n        name: zn.service.media\n        type: select\n        proxies:\n            - REJECT\n            - DIRECT\n    -\n        name: zn.group.2ac3e0af3446c328d72b7721\n        type: select\n        proxies:\n            - zn.node.vless.7\n            - zn.group.f18b99b823e30f52efe4c111\n            - zn.group.62642b95dd759de89cc3a26e\n            - DIRECT\n    -\n        name: zn.group.f18b99b823e30f52efe4c111\n        type: url-test\n        proxies:\n            - zn.node.hysteria.8\n            - zn.node.trojan.9\n        url: 'https://example.test/check'\n        interval: 300\n    -\n        name: zn.group.62642b95dd759de89cc3a26e\n        type: fallback\n        proxies:\n            - zn.node.hysteria.8\n        url: 'https://example.test/check'\n        interval: 300\nrule-providers:\n    ai:\n        type: http\n        url: 'https://example.test/美国 原名'\n        proxy: zn.group.7d6c0940067f8441016b14eb\nrules:\n    - 'DOMAIN,美国 原名,zn.node.vless.7'\n    - 'AND,((DOMAIN,a.example),(NETWORK,TCP)),zn.service.ai'\n    - 'IP-CIDR,1.2.3.0/24,zn.service.media,no-resolve'\n    - 'RULE-SET,ai,zn.service.ai'\n    - 'MATCH,zn.group.7d6c0940067f8441016b14eb'\ndns:\n    nameserver:\n        - 'https://1.1.1.1/dns-query#zn.group.7d6c0940067f8441016b14eb'\n    nameserver-policy:\n        'rule-set:ai': 'https://1.0.0.1/dns-query#zn.service.ai'\n"
+    },
+    "outbounds": [
+        {
+            "id": "hysteria:8",
+            "proxy_name": "zn.node.hysteria.8",
+            "display_name": "香港"
+        },
+        {
+            "id": "trojan:9",
+            "proxy_name": "zn.node.trojan.9",
+            "display_name": "Unknown"
+        },
+        {
+            "id": "vless:7",
+            "proxy_name": "zn.node.vless.7",
+            "display_name": "美国 原名"
+        }
+    ],
+    "routing": {
+        "version": 1,
+        "authority": "zolnit",
+        "revision": "revision-1",
+        "services": [
+            {
+                "id": "ai",
+                "kind": "ai",
+                "group": "zn.service.ai",
+                "automatic": "zn.service.ai.auto",
+                "manual": "zn.service.ai.manual",
+                "providers": [
+                    "chatgpt",
+                    "openai_api",
+                    "claude",
+                    "gemini_api",
+                    "gemini_web"
+                ],
+                "allowed_countries": [
+                    "US",
+                    "JP",
+                    "SG",
+                    "TW"
+                ]
+            },
+            {
+                "id": "media",
+                "kind": "media",
+                "group": "zn.service.media",
+                "automatic": "zn.service.media.auto",
+                "manual": "zn.service.media.manual",
+                "providers": [
+                    "netflix"
+                ],
+                "allowed_countries": [
+                    "HK",
+                    "US",
+                    "JP",
+                    "SG",
+                    "TW"
+                ]
+            }
+        ],
+        "nodes": [
+            {
+                "id": "hysteria:8",
+                "proxy_name": "zn.node.hysteria.8",
+                "enabled": true,
+                "final_egress": {
+                    "country": "HK",
+                    "source": "egress_probe",
+                    "verified": true
+                },
+                "exit_id": "exit-hk-1",
+                "failure_domain": "provider-b",
+                "services": [
+                    "media"
+                ],
+                "revision": "revision-1"
+            },
+            {
+                "id": "vless:7",
+                "proxy_name": "zn.node.vless.7",
+                "enabled": true,
+                "final_egress": {
+                    "country": "US",
+                    "source": "operator_verified",
+                    "verified": true
+                },
+                "exit_id": "exit-us-1",
+                "failure_domain": "provider-a",
+                "services": [
+                    "ai",
+                    "media"
+                ],
+                "revision": "revision-1"
+            }
+        ],
+        "ui_groups": [
+            {
+                "id": "return_route",
+                "group": "zn.group.2ac3e0af3446c328d72b7721",
+                "display_name": "回国线路",
+                "options": [
+                    {
+                        "id": "direct",
+                        "target": "zn.node.vless.7",
+                        "display_name": "直达"
+                    },
+                    {
+                        "id": "hk_lite",
+                        "target": "zn.group.f18b99b823e30f52efe4c111",
+                        "display_name": "香港优选"
+                    },
+                    {
+                        "id": "hk_optimized",
+                        "target": "zn.group.62642b95dd759de89cc3a26e",
+                        "display_name": "香港优化"
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -2185,6 +2185,27 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("모든 서버"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("전체 지역"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("결제 금액"),
+    "zolnitAppleAutoRenewal": MessageLookupByLibrary.simpleMessage(
+      "App Store 자동 갱신 구독",
+    ),
+    "zolnitAppleConsent": MessageLookupByLibrary.simpleMessage(
+      "App Store 구독 관리에서 취소할 때까지 표시된 App Store 가격으로 자동 갱신됩니다.",
+    ),
+    "zolnitAppleManage": MessageLookupByLibrary.simpleMessage(
+      "App Store 구독 관리",
+    ),
+    "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
+      "App Store 또는 서버 확인을 기다리는 중입니다.",
+    ),
+    "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
+      "App Store 구입 복원",
+    ),
+    "zolnitAppleSubscribe": MessageLookupByLibrary.simpleMessage(
+      "App Store에서 구독",
+    ),
+    "zolnitAppleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "이 요금제는 현재 App Store에서 구입할 수 없습니다.",
+    ),
     "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
       "월 자동 결제 승인",
     ),
@@ -2490,6 +2511,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "승인한 요금제에 따라 자동 결제를 재개합니다.",
     ),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("중국 직접 연결"),
+    "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage("홍콩 우선"),
+    "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage("홍콩 최적화"),
+    "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("중국 연결 경로"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage("이 세션 로그아웃"),
     "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(
       "로그인 세션이 종료되었습니다.",

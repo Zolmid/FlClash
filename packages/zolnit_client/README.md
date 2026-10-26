@@ -123,9 +123,12 @@ checkout；401/403/409、超时、5xx 和畸形响应均不回退。连续付费
 
 ## Android 原生 Stripe
 
-后端尚未提供 README 草案中的 `type:3 / kind:stripe_android` 动作，Android direct 请求目前只会得到 Embedded 结果，
-被客户端按设计拒绝。因此 Android 的 Stripe 入口默认如实显示为不可用；仅在后端就绪后用
-`--dart-define=ZOLNIT_ANDROID_NATIVE_STRIPE=true` 联调，桌面与 Apple 渠道策略不受影响。
+Android direct 支持已有 type:1 Hosted Checkout 与已确认的 type:3 / kind:stripe_android 动作。
+当前原生协商范围为 WeChat 单次付款；不据此声明银行卡、支付宝或微信连续包月已开放。
+微信 AppID 从 `--dart-define=ZOLNIT_WECHAT_APP_ID=...` 固定，默认空值明确返回 sdk_unavailable。
+当前 type3 响应包含冻结的 wechat_app_id；仅兼容旧载荷缺字段时使用客户端固定值，
+显式 null/空值无效，任意不匹配均拒绝。包名/签名/AppID 的
+真实登记与 SDK 跳转仍待验收，不使用临时 AppID，也不将不支持的原生动作降级为其他收银台。
 
 桌面 Hosted Checkout 消费 type:1,data:HTTPS-url 或已确认的 hosted 对象。运维会话已确认该后端适配上线，
 并独立验证测试会话及清理；这不等于客户端界面或真实扣款验收。既有 Embedded 会话仍使用网站继续，不能为桌面重复创建付款。
@@ -135,9 +138,9 @@ Embedded 的 cs_ client_secret 不属于 PaymentIntent，客户端明确拒绝�
 付款成功和取消均可通过站内 HTTPS 落地页唤起 zolnit://safepay；可含 trade_no/session_id，但不能携带 bearer
 或任何支付 secret。前台深链通知不转发原始 URL，App resumed 同样触发原订单查询；回跳参数不证明交付。
 
-## 后续原生支付能力：仍需服务端契约与渠道配置
+## 原生支付合同与尚未配置的渠道
 
-下面的 Android PaymentIntent 扩展与 Apple 路径仍是尚未部署确认的原生契约，不由客户端实现后端。
+下面是本地消费者已对齐的合同；后端部署范围与真实支付能力由根会话独立确认，不由客户端测试证明。
 Apple Developer/App Store Connect 应用、商品和 Android 微信应用登记/签名尚未配置，实际入口保持未就绪。
 
 Stripe 使用既有 `/api/v1/user/order/checkout`。普通订单兼容 `type:1,data:https-url` 和 `type:-1,data:true`；
@@ -153,7 +156,6 @@ Stripe 使用既有 `/api/v1/user/order/checkout`。普通订单兼容 `type:1,d
     "publishable_key": "pk_test_EXAMPLE",
     "client_secret": "pi_EXAMPLE_secret_EXAMPLE",
     "return_url": "zolnit://safepay",
-    "wechat_app_id": "wxEXAMPLE",
     "qr": {"payload": "PROVIDER_QR_PAYLOAD", "expires_at": 1900000000}
   }
 }
@@ -164,9 +166,10 @@ kind 为 `hosted` 时提供 url；为 `qr` 时提供 qr；wallet 还支持 `card
 Android 微信需要 Stripe 的 Android app next_action，不能只返回网页收银台。
 客户端不把 QR 失败转成创建新订单，也不把旧 `type:0` 无过期载荷当成已协商好的扩展协议。
 
-Apple 路径必须由 `AppleBillingPaths` 显式配置，不猜测或硬编码现有 Xboard 接口：
+Apple 从 `/api/v1/zolnit-apple/config` 获取账户绑定、SKU 到套餐/周期的映射与固定 prepare/verify 路径。
+enabled/configured 均为 true 且 StoreKit 返回实际商品时才显示购买；价格仅使用商店当地价格。
 
-- prepare 输入 product_id，返回 account_id / product_id / app_account_token。
+- prepare 输入 product_id，返回 account_id / product_id / app_account_token / entitlement_effect；替换赠送权益时还需 gift.expires_at。
 - verify 输入 product_id / transaction_id / verification_data / source；返回相同 transaction_id、product_id、
   account_id，以及严格 bool applied。applied 只能表示服务端验证与持久交付均已完成。
 - 商品映射、服务端验签、账户归属、幂等、退款/撤销/续费及权益账务全部由后端会话负责。
@@ -496,6 +499,62 @@ Windows 沿用账户目录 ACL，仍待真实 Helper 环境验收。物理 iPhon
 App Group provisioning，并核对首次解锁/锁屏数据保护允许记录；Windows 仍需受控 x64 设备、
 匹配 Helper/Core、管理员服务重启与前台挂起窗口。这些权限和物理行为均未由 CI/Go 测试验收。
 
+### 后台续租接线与验证边界
+
+`ios/Shared/ClientBundleRenewalState.swift` 保持为 Foundation 值状态机；本分支另有原生 owner、
+HTTP/Core 适配器、持久 epoch 与会话发布器。Android 对接现有加密存储与 ServiceController。
+这些接线经过合成离线验证，尚无平台完整构建、真实安全存储或后台设备验收。iOS 缺少已签名
+共享 Keychain 配置时返回 signing_capability_required；Flutter 保留既有续租路径。
+Main 保持 `session.dart` / `zolnit_vault.dart` 的登录持久化、验证恢复和注销代际权威；普通关闭
+不删除登录。macOS/Windows 关窗口继续复用当前用户进程，真正退出沿用现有 CoreProcessLease
+停止路径，不新建守护服务、不将用户凭据交给 LocalSystem Helper。
+
+iOS 已加入受配置控制的接入点：`PacketTunnelProvider.startTunnel` 在 Core/TUN 成功后启动 NE 续租 owner，
+`stopTunnel` 取消并排空 owner 后停止 TUN；`handleAppMessage` 接收不含凭据的代际/停止控制。
+`PacketTunnelSharedStateStore` 只承担非秘密 owner/epoch 状态，不承载 Bearer。
+`CoreMessageRouter` / `ServiceChannel` 处理 owner 交接；VPN 活跃时 Main 的
+`ZolnitRouting._leaseTimers/refreshBundle` 停止独立续租，读取 NE 状态。NE 使用独立可取消的
+URLSession 请求、ephemeral/no-cache/拒绝重定向策略，复用既有 Bearer 和实际 Core-Version，
+仅请求现有 bundle GET；60 秒基准调度，401 与403、429、传输失败分别处理，TTL 始终由服务端
+issued/expires 决定且不超过300秒，不用旧磁盘快照或本地延期替代网络续租。
+
+Core 不读账号 Keychain、Bearer 或登录 API。将现有 CLI 的纯 bundle/hash/binding 校验提炼为
+共享 Go 包供原生桥接与 CLI 复用；验证后的 bundle 经 `installClientBundle` 安装，原 Core 租约定时器
+继续作为到期保护。安装与注销必须由单一 NE 队列串行：网络成功只暂存，收到匹配 Core 安装
+ACK 才更新有效租约。Main/NE/Core owner 实例、session epoch、attempt sequence 不符则丢弃。
+
+注销顺序：Main 先发布递增 epoch 屏障并停止旧代际入队，再取消 URLSessionTask，排空或围栏
+已提交的 Core 安装，撤销自动租约/关联连接，然后按旧 epoch 删除授权并清理旧 bundle。
+仅取消 HTTP 不足以撤销已在执行的 Core 安装；若不能确认排空/撤销，保持关闭并阻止新 owner
+接管，不能让迟到安装 ACK 恢复权限。登录/恢复、owner 交接、续租安装和注销使用同一串行
+协调契约；新登录不能被旧代际删除操作覆盖。状态机 `generation` 仅为 owner 内存围栏，
+不替代 Main 持久化的 `SessionEpoch`；适配器完成对应 Main 屏障后才 ACK publication intent。
+`OwnerInstance` 是本地不复用的 opaque handle，安装适配器另须保留并验证完整 Core instance guard。
+普通 owner stop 的 clear-old-bundle 仅清理易失续租/暂存状态，保留登录和既有显式手动缓存；
+账号退出的持久私有数据清理由现有账号生命周期按旧 epoch 执行，不删除新登录的记录。
+
+待明确批准的边界是实际共享 Keychain/迁移与签名，不是新增后端授权：Main/NE 需要专用共享
+Keychain access group，建议命名 `$(AppIdentifierPrefix)$(APP_BUNDLE_ID).renewal`：未来仅在
+`ios/Runner/Runner.entitlements` 和 `ios/NECore/NECore.entitlements` 声明；Widget/observer 不加入。
+Main 保留现有私有组用于受控迁移，NE 不获得 Main 私有组或 wildcard。运行时从受签名配置解析
+access group，不能把 Team ID 当作 AppIdentifierPrefix 硬编码；Dart vault 与原生 reader 使用相同
+service/account 名称及旧 epoch 定位。不得把 Bearer 放进共用诊断 App Group 文件。
+现有 iOS item 默认 when-unlocked。锁屏续租建议评估 after-first-unlock-this-device-only，
+不启用同步/生物识别交互，首次解锁前无可用授权；这是保护等级与迁移决策，尚未执行。
+迁移需先验证共享记录和代际可读，再切换权威并清理旧私有项；注销覆盖新旧旧代际项。
+Windows 现有 vault 的 AES key 由当前用户 Credential Manager 保护；SYSTEM 服务没有相同
+凭据语境。macOS 现有 legacy login Keychain 也不能假设新签名进程自动继承访问权。
+本地验证未创建真实凭据、Keychain item、外部 App ID/App Group、签名或后台服务。
+iOS plist 仅声明构建变量；尚未配置共享 entitlements，也未执行旧 Keychain 迁移。
+
+### 回国线路展示映射
+
+可选 `routing.ui_groups` 中的 `return_route` 只映射现有 Core Selector 和其真实成员；
+`direct`、`hk_lite`、`hk_optimized` 为角色 ID，直达不等于 `DIRECT`。映射缺失、重复、成员
+不存在或引用 `DIRECT`、`REJECT`、自有 service selector 时整组隐藏。八语言标签共享到
+Flutter、Compose、SwiftUI 和 WinUI；原生命令仅提交角色 ID，由当前账号/配置再次校验后
+通过既有代理选择队列调用 Core。回国选择不改写连接文档、规则或 AI/手动/DIRECT 策略。
+
 ### AI / 产品 HTTP 健康判据与正式开放缺口
 
 原 URLTest 传入空 expectedStatus，任意 HTTP 响应（包括 403）都可能产生正 RTT。自动调度现改用
@@ -519,8 +578,9 @@ App Group provisioning，并核对首次解锁/锁屏数据保护允许记录；
 节点失败、冷却或撤销产品资格。仅明确传输错误产生当前客户端路径失败样本，不传播机器硬故障。
 provider 观测按配置代际、实际节点、provider 和策略语义独立保存；未知、预算耗尽、冷却或取消
 不创造失败样本，也不续期旧成功。所有声明的 provider 都有 90 秒内实际有效样本时才产生聚合
-传输分数，有效期取其中最早到期时间，不被其他 provider 的新成功延长。显式传输失败或任一
-provider 过期会撤销当前候选。类别 membership、国家、verified、bundle 更新均不能生成
+传输分数，有效期取其中最早到期时间，不被其他 provider 的新成功延长。样本过期只使健康分数
+未知，仍合格的现有选择保持粘性，直到 bundle 租约到期、资格撤销或明确传输失败。未知健康
+不能选出新候选。类别 membership、国家、verified、bundle 更新均不能生成
 provider 成功或产品解锁资格。
 ZolNit 登录/套餐不会因 AI 源站的 401/403 发生变更。
 
@@ -680,7 +740,7 @@ ID/failure_domain 采用 1–128 个 ASCII 字符，首字符为字母或数字�
 | 延迟平滑 / 成功率窗口 | EWMA α=0.25 / 最近 20 个完成的服务样本 |
 | 评分 | 平滑延迟 ms + (1−成功率)×2000 + 已测丢包率×2000 |
 | 改善切换 | 评分收益同时达到 20 ms、当前评分 20%，同一候选至少 2 次不同的新观测 |
-| 失败确认 | 纯引擎连续 2 失败进入退避；运行时 provider 失效/过期先撤销当前候选，不由其他成功掩盖 |
+| 失败确认 | 明确传输失败按失败策略处理；过期/未知样本保留仍合格的现选节点，不续期健康、不选新节点 |
 | 冷却退避 | 15、30、60、120、240、300 秒，上限 5 分钟；恢复后重置 |
 | 恢复确认 | 冷却结束后连续 2 个成功样本 |
 | 调度 | 自动探测 30/滚动分钟、并发 2/同源 1；活跃 30 秒、空闲 60 秒；每服务最多 2 节点；持续无效退避最多 300 秒 |

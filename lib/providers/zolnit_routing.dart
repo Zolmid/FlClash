@@ -7,6 +7,11 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_native_renewal.dart';
+import 'package:fl_clash/providers/zolnit_vault.dart';
+import 'package:fl_clash/common/zolnit_native_renewal.dart';
+import 'package:flutter/widgets.dart'
+    show WidgetsBinding, WidgetsBindingObserver, AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
@@ -58,19 +63,37 @@ typedef _RoutingPlan = ({
   String? metadataIdentity,
   String? accountId,
   String? bundleId,
+  String? renewalOverlay,
+  String? connectionDigest,
 });
 
 typedef _LeaseIdentity = (int, int, DateTime, String?);
 
-class ZolnitRouting {
+class ZolnitRouting with WidgetsBindingObserver {
   ZolnitRouting(this.ref)
-    : _probeScheduler = ref.read(zolnitRoutingProbeSchedulerProvider) {
+    : _probeScheduler = ref.read(zolnitRoutingProbeSchedulerProvider),
+      _nativeClient = ref.read(zolnitNativeRenewalClientProvider),
+      _nativeSupported = ref.read(zolnitNativeRenewalSupportedProvider) {
     _providerHealth.resetGeneration(_epoch);
+    if (_nativeSupported) {
+      _nativeClient.addListener(_nativeChanged);
+      WidgetsBinding.instance.addObserver(this);
+    }
   }
 
   final Ref ref;
   var _engine = SmartRoutingEngine();
   final RoutingProbeScheduler _probeScheduler;
+  final ZolnitNativeRenewalClient _nativeClient;
+  final bool _nativeSupported;
+  bool _nativeOwned = false;
+  bool _nativeConfiguring = false;
+  bool _nativePolling = false;
+  bool _resuming = false;
+  int? _nativeGeneration;
+  String? _nativeDigest;
+  Timer? _nativePollTimer;
+  Timer? _nativeStaleTimer;
   final _providerHealth = RoutingProviderHealthStore();
   Object _probeScope = Object();
   num? _previousTraffic;
@@ -133,6 +156,8 @@ class ZolnitRouting {
     String? metadataIdentity,
     String? accountId,
     String? bundleId,
+    String? renewalOverlay,
+    String? connectionDigest,
   }) {
     if (!manages(profileId)) return;
     final session = ref.read(zolnitSessionProvider);
@@ -152,6 +177,8 @@ class ZolnitRouting {
       metadataIdentity: metadataIdentity,
       accountId: accountId,
       bundleId: bundleId,
+      renewalOverlay: renewalOverlay,
+      connectionDigest: connectionDigest,
     );
     _preparedPlans[(profileId, digest)] = _staged!;
     while (_preparedPlans.length > 8) {
@@ -191,6 +218,11 @@ class ZolnitRouting {
       'accountGeneration': plan.accountGeneration,
       'bundleId': plan.bundleId,
       'configurationDigest': plan.digest,
+      if (plan.connectionDigest != null)
+        'connectionDigest': plan.connectionDigest,
+      if (plan.metadataIdentity != null)
+        'metadataDigest': plan.metadataIdentity,
+      if (plan.renewalOverlay != null) 'renewalOverlay': plan.renewalOverlay,
       'expiresAt': plan.expiresAt!.millisecondsSinceEpoch,
       'services': [
         for (final service
@@ -262,6 +294,7 @@ class ZolnitRouting {
     _refreshTimer?.cancel();
     final expiry = _active?.expiresAt;
     if (expiry == null) return;
+    if (_nativeOwned) return;
     _invalidLeaseToken = null;
     final remaining = expiry.difference(_now);
     _expiryTimer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
@@ -279,6 +312,7 @@ class ZolnitRouting {
   }
 
   Future<void> refreshBundle() async {
+    if (_nativeOwned) return;
     if (_refreshing || _disposed || _active?.expiresAt == null) return;
     final profileId = _active!.profileId;
     final generation = _active!.accountGeneration;
@@ -313,6 +347,24 @@ class ZolnitRouting {
   }
 
   Future<void> _invalidateAutomatic(ZolnitBundleStatus status) async {
+    if (_nativeOwned) {
+      final plan = _active;
+      final generation = _session?.api.generation;
+      final guard = await ref.read(coreHandlerProvider).getRoutingLease();
+      if (_disposed ||
+          !_nativeOwned ||
+          !identical(plan, _active) ||
+          generation != _session?.api.generation ||
+          plan == null) {
+        return;
+      }
+      if (guard != null && guard['accountId'] == plan.accountId) {
+        await ref.read(coreHandlerProvider).invalidateRoutingLease(guard);
+      }
+      _leaseReady(false);
+      ref.read(zolnitBundleStatusProvider.notifier).set(status);
+      return;
+    }
     if (_disposed || _active?.expiresAt == null || _invalidLeaseToken != null) {
       return;
     }
@@ -385,10 +437,12 @@ class ZolnitRouting {
         identical(configuration, _configuration)) {
       _active = plan;
       _leaseTimers();
+      unawaited(_configureNative());
       return;
     }
     _revokeCoreLease();
     _active = plan;
+    _nativeOwned = false;
     _configuration = configuration;
     _positions.clear();
     _engine = plan.engine ?? SmartRoutingEngine();
@@ -396,6 +450,7 @@ class ZolnitRouting {
     _providerHealth.resetGeneration(_epoch);
     _probeScope = Object();
     _leaseTimers();
+    unawaited(_configureNative());
     _timer?.cancel();
     if (!ref.read(safeModeProvider) && plan.manifest != null) {
       _timer = Timer.periodic(const Duration(seconds: 30), (_) => kick());
@@ -407,6 +462,9 @@ class ZolnitRouting {
     final generation = _active?.accountGeneration ?? _staged?.accountGeneration;
     if (_session?.authenticated != true ||
         (generation != null && generation != _session?.api.generation)) {
+      if (_nativeSupported) {
+        unawaited(_nativeClient.logout().catchError((Object _) {}));
+      }
       clear();
       if (!_disposed) {
         ref
@@ -456,6 +514,11 @@ class ZolnitRouting {
     _refreshTimer?.cancel();
     _invalidLeaseToken = null;
     _engine = SmartRoutingEngine()..resetGeneration(_epoch);
+    _nativeOwned = false;
+    _nativeGeneration = null;
+    _nativeDigest = null;
+    _nativePollTimer?.cancel();
+    _nativeStaleTimer?.cancel();
   }
 
   void dispose() {
@@ -464,6 +527,161 @@ class ZolnitRouting {
     _expiryTimer?.cancel();
     _refreshTimer?.cancel();
     _session?.removeListener(_accountChanged);
+    _nativePollTimer?.cancel();
+    _nativeStaleTimer?.cancel();
+    if (_nativeSupported) {
+      _nativeClient.removeListener(_nativeChanged);
+      WidgetsBinding.instance.removeObserver(this);
+    }
+  }
+
+  Future<void> _configureNative() async {
+    final plan = _active;
+    if (!_nativeSupported ||
+        _disposed ||
+        _nativeConfiguring ||
+        ref.read(safeModeProvider) ||
+        plan?.accountId == null ||
+        _nativeDigest == plan!.digest ||
+        _session?.authenticated != true) {
+      return;
+    }
+    _nativeConfiguring = true;
+    _nativeDigest = plan.digest;
+    _nativeGeneration = plan.accountGeneration;
+    try {
+      final authorization = await ref
+          .read(zolnitSessionVaultProvider)
+          .readAuthorization();
+      if (authorization == null ||
+          _disposed ||
+          !identical(plan, _active) ||
+          _session?.api.generation != plan.accountGeneration) {
+        return;
+      }
+      final status = await _nativeClient.configure(
+        accountId: plan.accountId!,
+        accountGeneration: plan.accountGeneration,
+        authorization: authorization,
+        distribution: _session!.api.distribution ?? 'direct',
+      );
+      if (_disposed ||
+          !identical(plan, _active) ||
+          _session?.api.generation != plan.accountGeneration) {
+        return;
+      }
+      _nativePollTimer?.cancel();
+      if (status.sessionEpoch != null) {
+        _nativePollTimer = Timer.periodic(
+          const Duration(seconds: 2),
+          (_) => unawaited(_pollNative()),
+        );
+      }
+      _nativeChanged();
+    } catch (_) {
+      if (!_disposed) _nativeChanged();
+    } finally {
+      _nativeConfiguring = false;
+      if (!_disposed && _active != null && _active!.digest != _nativeDigest) {
+        unawaited(_configureNative());
+      }
+    }
+  }
+
+  Future<void> _pollNative() async {
+    if (_disposed || _nativePolling || _active == null) return;
+    _nativePolling = true;
+    try {
+      await _nativeClient.poll();
+    } catch (_) {
+      if (!_disposed && _nativeOwned) _leaseReady(false);
+    } finally {
+      _nativePolling = false;
+    }
+  }
+
+  void _nativeChanged() {
+    if (_disposed ||
+        _active == null ||
+        _nativeGeneration != _session?.api.generation) {
+      return;
+    }
+    final status = _nativeClient.snapshot;
+    if (status.state == 'logged_out' && _session?.authenticated == true) {
+      unawaited(_invalidateNativeSession());
+      return;
+    }
+    if (status.ownsRenewal) {
+      if (!_nativeOwned) {
+        _nativeOwned = true;
+        _epoch++;
+        _providerHealth.resetGeneration(_epoch);
+        _probeScope = Object();
+        _timer?.cancel();
+        _expiryTimer?.cancel();
+        _refreshTimer?.cancel();
+      }
+      _leaseReady(status.ready);
+      if (status.ready) {
+        ref
+            .read(zolnitBundleStatusProvider.notifier)
+            .set(ZolnitBundleStatus.ready);
+      }
+      _nativeStaleTimer?.cancel();
+      _nativeStaleTimer = Timer(const Duration(seconds: 5), () {
+        if (!_disposed && _nativeOwned) _leaseReady(false);
+      });
+    } else if (_nativeOwned) {
+      _nativeOwned = false;
+      _leaseReady(false);
+      _leaseTimers();
+    }
+  }
+
+  Future<void> _invalidateNativeSession() async {
+    final session = _session;
+    if (session == null || !session.authenticated) return;
+    final deletion = session.logout();
+    try {
+      if (!ref.read(safeModeProvider)) {
+        await ref.read(setupActionProvider.notifier).setRunning(false);
+      }
+      await deletion;
+    } catch (_) {
+      if (!_disposed) _leaseReady(false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed ||
+        _disposed ||
+        !_nativeSupported ||
+        _resuming ||
+        _session?.authenticated != true ||
+        _active == null) {
+      return;
+    }
+    unawaited(_resumeNativeMirror());
+  }
+
+  Future<void> _resumeNativeMirror() async {
+    _resuming = true;
+    final generation = _session?.api.generation;
+    try {
+      await _pollNative();
+      await ref.read(zolnitSyncClientBundleProvider)();
+      if (!_disposed &&
+          _session?.authenticated == true &&
+          generation == _session?.api.generation) {
+        await ref
+            .read(setupActionProvider.notifier)
+            .applyProfile(silence: true);
+      }
+    } catch (_) {
+    } finally {
+      _resuming = false;
+    }
   }
 
   void manualSelection(String group, String proxy) {
@@ -518,6 +736,7 @@ class ZolnitRouting {
   bool _current(int epoch, int intent, {bool allowExpired = false}) {
     final plan = _active;
     return !_disposed &&
+        !_nativeOwned &&
         plan != null &&
         epoch == _epoch &&
         intent == _intent &&
@@ -554,7 +773,7 @@ class ZolnitRouting {
   }
 
   void kick() {
-    if (_busy || _disposed || _active?.manifest == null) return;
+    if (_nativeOwned || _busy || _disposed || _active?.manifest == null) return;
     unawaited(run());
   }
 
@@ -570,6 +789,7 @@ class ZolnitRouting {
       'http-transport-v2:${service.route.isAi}:${(service.route.allowedCountries.toList()..sort()).join(',')}:${(service.providers.toList()..sort()).join(',')}';
 
   Future<void> run() async {
+    if (_nativeOwned) return;
     if (_active?.expiresAt != null && !_active!.expiresAt!.isAfter(_now)) {
       await _invalidateAutomatic(ZolnitBundleStatus.expired);
       return;
@@ -761,6 +981,10 @@ class ZolnitRouting {
         final decision = _engine.decide(
           serviceId: id,
           now: _now,
+          qualifiedCurrentNodeId: candidates
+              .where((node) => node.proxyName == refreshed?.realNow)
+              .firstOrNull
+              ?.id,
           availableNodeIds: {
             for (final node in candidates)
               if (liveMembers.contains(node.proxyName) &&

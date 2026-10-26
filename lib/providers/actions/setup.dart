@@ -689,6 +689,13 @@ class SetupAction extends _$SetupAction {
         metadataIdentity: bundle?.routingSha256,
         accountId: bundle?.accountId,
         bundleId: bundle?.bundleId,
+        connectionDigest: bundle?.connectionSha256,
+        renewalOverlay: bundle == null
+            ? null
+            : await compute(prepareBundleRenewalOverlay, (
+                source: rawConfig,
+                compiledYaml: res.yaml,
+              )),
       );
     }
     if (profileBase == null) {

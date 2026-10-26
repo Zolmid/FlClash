@@ -129,6 +129,53 @@ void main() {
     await controller.settled;
   }
 
+  test('declined local-price consent never launches StoreKit', () async {
+    controller.dispose();
+    controller = ApplePurchaseController(
+      store: store,
+      backend: backend,
+      productIds: {'monthly'},
+      enabled: true,
+      confirmPurchase: (product, context) async {
+        expect(product.price, 'US\$4.99');
+        expect(context.accountId, 'accountA');
+        return false;
+      },
+    )..setAccount('accountA');
+    await controller.loadProducts();
+    await controller.buy('monthly');
+    expect(controller.stage, ApplePurchaseStage.cancelled);
+    expect(store.buys, 0);
+    expect(store.finishes, 0);
+  });
+
+  test(
+    'late subscription consent cannot purchase for a replacement account',
+    () async {
+      final entered = Completer<void>();
+      final approval = Completer<bool>();
+      controller.dispose();
+      controller = ApplePurchaseController(
+        store: store,
+        backend: backend,
+        productIds: {'monthly'},
+        enabled: true,
+        confirmPurchase: (_, _) {
+          entered.complete();
+          return approval.future;
+        },
+      )..setAccount('accountA');
+      await controller.loadProducts();
+      final buying = controller.buy('monthly');
+      await entered.future;
+      controller.setAccount('accountB');
+      approval.complete(true);
+      await buying;
+      expect(store.buys, 0);
+      expect(store.finishes, 0);
+    },
+  );
+
   test(
     'uses StoreKit product prices and binds purchases to a UUID account token',
     () async {
@@ -416,6 +463,72 @@ void main() {
     await refresh;
     expect(localController.stage, ApplePurchaseStage.idle);
     await localStore.close();
+  });
+
+  for (final mismatch in ['product', 'transaction']) {
+    test('mismatched $mismatch never completes StoreKit transaction', () async {
+      backend.verifying = Completer();
+      store.events.add([purchase()]);
+      await Future<void>.delayed(Duration.zero);
+      backend.verifying!.complete(
+        AppleVerification(
+          accountId: 'accountA',
+          productId: mismatch == 'product' ? 'foreign' : 'monthly',
+          transactionId: mismatch == 'transaction' ? 'foreign' : 'transaction1',
+          applied: true,
+        ),
+      );
+      await controller.settled;
+      expect(store.finishes, 0);
+      expect(controller.failure, 'purchase_identity_mismatch');
+    });
+  }
+
+  test(
+    'logout drops a late verification without completing or applying',
+    () async {
+      backend.verifying = Completer();
+      store.events.add([purchase()]);
+      await Future<void>.delayed(Duration.zero);
+      controller.setAccount(null);
+      backend.verifying!.complete(
+        const AppleVerification(
+          accountId: 'accountA',
+          productId: 'monthly',
+          transactionId: 'transaction1',
+          applied: true,
+        ),
+      );
+      await controller.settled;
+      await controller.retryVerification();
+      expect(store.finishes, 0);
+      expect(backend.verifications, 1);
+      expect(controller.stage, ApplePurchaseStage.idle);
+    },
+  );
+
+  test(
+    'restored transaction with backend applied false stays retryable',
+    () async {
+      backend.applied = false;
+      await controller.restore();
+      await send(purchase(status: PurchaseStatus.restored));
+      expect(controller.stage, ApplePurchaseStage.awaitingBackend);
+      expect(store.finishes, 0);
+      backend.applied = true;
+      await controller.retryVerification();
+      expect(controller.stage, ApplePurchaseStage.applied);
+      expect(store.finishes, 1);
+      expect(store.buys, 0);
+    },
+  );
+
+  test('incomplete product catalog cannot advertise purchases', () async {
+    store.querying = Completer()..complete([]);
+    await controller.loadProducts();
+    expect(controller.products, isEmpty);
+    expect(controller.stage, ApplePurchaseStage.failed);
+    expect(controller.failure, 'apple_products_unavailable');
   });
 
   test('invalidating a scheduled purchase prevents native work', () async {

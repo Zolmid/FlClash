@@ -1510,5 +1510,16 @@
     }
   },
   "zolnitRouteUnavailable": "사용 불가",
-  "zolnitBundleAutomaticPending": "자동 라우팅은 아직 검증 중입니다. 수동 또는 직접 연결을 사용할 수 있습니다."
+  "zolnitBundleAutomaticPending": "자동 라우팅은 아직 검증 중입니다. 수동 또는 직접 연결을 사용할 수 있습니다.",
+  "zolnitAppleSubscribe": "App Store에서 구독",
+  "zolnitAppleAutoRenewal": "App Store 자동 갱신 구독",
+  "zolnitAppleConsent": "App Store 구독 관리에서 취소할 때까지 표시된 App Store 가격으로 자동 갱신됩니다.",
+  "zolnitAppleRestore": "App Store 구입 복원",
+  "zolnitAppleManage": "App Store 구독 관리",
+  "zolnitAppleUnavailable": "이 요금제는 현재 App Store에서 구입할 수 없습니다.",
+  "zolnitApplePending": "App Store 또는 서버 확인을 기다리는 중입니다.",
+  "zolnitReturnRoute": "중국 연결 경로",
+  "zolnitReturnDirect": "중국 직접 연결",
+  "zolnitReturnHkLite": "홍콩 우선",
+  "zolnitReturnHkOptimized": "홍콩 최적화"
 }

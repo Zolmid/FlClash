@@ -98,6 +98,8 @@ flutter {
 
 dependencies {
     implementation(project(":service"))
+    implementation(project(":flutter_secure_storage"))
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(project(":common"))
     implementation(project(":core"))
     implementation(libs.core.splashscreen)
@@ -106,5 +108,6 @@ dependencies {
         exclude(group = "com.google.guava", module = "guava")
     }
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20250517")
     testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -2869,6 +2869,27 @@ class MessageLookup extends MessageLookupByLibrary {
       "Todas las regiones",
     ),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Importe a pagar"),
+    "zolnitAppleAutoRenewal": MessageLookupByLibrary.simpleMessage(
+      "Suscripción de App Store con renovación automática",
+    ),
+    "zolnitAppleConsent": MessageLookupByLibrary.simpleMessage(
+      "La suscripción se renueva al precio de App Store indicado hasta que la canceles en las suscripciones de App Store.",
+    ),
+    "zolnitAppleManage": MessageLookupByLibrary.simpleMessage(
+      "Gestionar suscripciones de App Store",
+    ),
+    "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
+      "Esperando la verificación de App Store o del servidor.",
+    ),
+    "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
+      "Restaurar compras de App Store",
+    ),
+    "zolnitAppleSubscribe": MessageLookupByLibrary.simpleMessage(
+      "Suscribirse con App Store",
+    ),
+    "zolnitAppleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Este plan no está disponible para comprar en App Store.",
+    ),
     "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
       "Autorizar el pago mensual",
     ),
@@ -3262,6 +3283,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "Reanudar los cargos automáticos según el plan autorizado.",
     ),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage(
+      "Acceso directo a China",
+    ),
+    "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage(
+      "Hong Kong preferido",
+    ),
+    "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage(
+      "Hong Kong optimizado",
+    ),
+    "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("Ruta a China"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
       "Cerrar esta sesión",
     ),

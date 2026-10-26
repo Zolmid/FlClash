@@ -1,0 +1,265 @@
+{
+  "data": {
+    "schema_version": 1,
+    "account_id": "4242",
+    "bundle_id": "cd62fc98a8ed58c7cc87d139485c6c38cf889a846e4e64c72cfbdff7e63ab0a3",
+    "issued_at": 1000,
+    "expires_at": 1150,
+    "connection": {
+      "engine": "mihomo",
+      "format": "yaml",
+      "sha256": "d1708766c466efec831d8d5deb8af11c85ec1d0201200c0461a7c8bf723254d8",
+      "document": "ipv6: true\nallow-lan: false\nbind-address: 127.0.0.1\nproxies:\n    -\n        name: zn.node.vless.1\n        type: vless\n        server: node-1.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.2\n        type: hysteria2\n        server: node-2.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.3\n        type: vless\n        server: node-3.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.4\n        type: hysteria2\n        server: node-4.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.5\n        type: vless\n        server: node-5.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.6\n        type: hysteria2\n        server: node-6.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.7\n        type: vless\n        server: node-7.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.8\n        type: hysteria2\n        server: node-8.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.9\n        type: vless\n        server: node-9.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.vless.10\n        type: vless\n        server: node-10.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.11\n        type: hysteria2\n        server: node-11.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.hysteria.12\n        type: hysteria2\n        server: node-12.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.13\n        type: vless\n        server: node-13.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.14\n        type: hysteria2\n        server: node-14.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.15\n        type: vless\n        server: node-15.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.16\n        type: hysteria2\n        server: node-16.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.17\n        type: vless\n        server: node-17.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.18\n        type: hysteria2\n        server: node-18.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\n    -\n        name: zn.node.vless.19\n        type: vless\n        server: node-19.example.test\n        port: 10086\n        udp: true\n        uuid: 00000000-0000-4000-8000-000000000001\n        tls: true\n        servername: node.example.test\n        reality-opts:\n            public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n            short-id: 0123456789abcdef\n    -\n        name: zn.node.hysteria.20\n        type: hysteria2\n        server: node-20.example.test\n        port: 10086\n        udp: true\n        password: synthetic-fixture\n        sni: node.example.test\nproxy-groups:\n    -\n        name: zn.group.187b88cd44e46d10201e1d86\n        type: select\n        proxies:\n            - DIRECT\n            - zn.node.vless.1\n            - zn.node.hysteria.2\n            - zn.node.vless.3\n            - zn.node.hysteria.4\n            - zn.node.vless.5\n            - zn.node.hysteria.6\n            - zn.node.vless.7\n            - zn.node.hysteria.8\n            - zn.node.vless.9\n            - zn.node.vless.10\n            - zn.node.hysteria.11\n            - zn.node.hysteria.12\n            - zn.node.vless.13\n            - zn.node.hysteria.14\n            - zn.node.vless.15\n            - zn.node.hysteria.16\n            - zn.node.vless.17\n            - zn.node.hysteria.18\n            - zn.node.vless.19\n            - zn.node.hysteria.20\n    -\n        name: zn.service.ai\n        type: select\n        proxies:\n            - REJECT\n            - DIRECT\n    -\n        name: zn.service.media\n        type: select\n        proxies:\n            - REJECT\n            - DIRECT\nrules:\n    - 'DOMAIN,ai.example.test,zn.service.ai'\n    - 'DOMAIN,media.example.test,zn.service.media'\n    - 'MATCH,zn.group.187b88cd44e46d10201e1d86'\n"
+    },
+    "outbounds": [
+      {
+        "id": "hysteria:11",
+        "proxy_name": "zn.node.hysteria.11",
+        "display_name": "测试入口 11"
+      },
+      {
+        "id": "hysteria:12",
+        "proxy_name": "zn.node.hysteria.12",
+        "display_name": "测试入口 12"
+      },
+      {
+        "id": "hysteria:14",
+        "proxy_name": "zn.node.hysteria.14",
+        "display_name": "测试入口 14"
+      },
+      {
+        "id": "hysteria:16",
+        "proxy_name": "zn.node.hysteria.16",
+        "display_name": "测试入口 16"
+      },
+      {
+        "id": "hysteria:18",
+        "proxy_name": "zn.node.hysteria.18",
+        "display_name": "测试入口 18"
+      },
+      {
+        "id": "hysteria:2",
+        "proxy_name": "zn.node.hysteria.2",
+        "display_name": "测试入口 2"
+      },
+      {
+        "id": "hysteria:20",
+        "proxy_name": "zn.node.hysteria.20",
+        "display_name": "测试入口 20"
+      },
+      {
+        "id": "hysteria:4",
+        "proxy_name": "zn.node.hysteria.4",
+        "display_name": "测试入口 4"
+      },
+      {
+        "id": "hysteria:6",
+        "proxy_name": "zn.node.hysteria.6",
+        "display_name": "测试入口 6"
+      },
+      {
+        "id": "hysteria:8",
+        "proxy_name": "zn.node.hysteria.8",
+        "display_name": "测试入口 8"
+      },
+      {
+        "id": "vless:1",
+        "proxy_name": "zn.node.vless.1",
+        "display_name": "测试入口 1"
+      },
+      {
+        "id": "vless:10",
+        "proxy_name": "zn.node.vless.10",
+        "display_name": "测试入口 10"
+      },
+      {
+        "id": "vless:13",
+        "proxy_name": "zn.node.vless.13",
+        "display_name": "测试入口 13"
+      },
+      {
+        "id": "vless:15",
+        "proxy_name": "zn.node.vless.15",
+        "display_name": "测试入口 15"
+      },
+      {
+        "id": "vless:17",
+        "proxy_name": "zn.node.vless.17",
+        "display_name": "测试入口 17"
+      },
+      {
+        "id": "vless:19",
+        "proxy_name": "zn.node.vless.19",
+        "display_name": "测试入口 19"
+      },
+      {
+        "id": "vless:3",
+        "proxy_name": "zn.node.vless.3",
+        "display_name": "测试入口 3"
+      },
+      {
+        "id": "vless:5",
+        "proxy_name": "zn.node.vless.5",
+        "display_name": "测试入口 5"
+      },
+      {
+        "id": "vless:7",
+        "proxy_name": "zn.node.vless.7",
+        "display_name": "测试入口 7"
+      },
+      {
+        "id": "vless:9",
+        "proxy_name": "zn.node.vless.9",
+        "display_name": "测试入口 9"
+      }
+    ],
+    "routing": {
+      "version": 1,
+      "authority": "zolnit",
+      "revision": "fixture-qualified-v1",
+      "services": [
+        {
+          "id": "ai",
+          "kind": "ai",
+          "group": "zn.service.ai",
+          "automatic": "zn.service.ai.auto",
+          "manual": "zn.service.ai.manual",
+          "providers": [
+            "chatgpt",
+            "openai_api",
+            "claude",
+            "gemini_api",
+            "gemini_web"
+          ],
+          "allowed_countries": [
+            "US",
+            "JP",
+            "SG",
+            "TW"
+          ]
+        },
+        {
+          "id": "media",
+          "kind": "media",
+          "group": "zn.service.media",
+          "automatic": "zn.service.media.auto",
+          "manual": "zn.service.media.manual",
+          "providers": [
+            "netflix"
+          ],
+          "allowed_countries": [
+            "HK",
+            "US",
+            "JP",
+            "SG",
+            "TW"
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "id": "hysteria:14",
+          "proxy_name": "zn.node.hysteria.14",
+          "enabled": true,
+          "final_egress": {
+            "country": "US",
+            "source": "operator_verified",
+            "verified": true
+          },
+          "exit_id": "machine-6",
+          "failure_domain": "machine-6",
+          "services": [
+            "ai",
+            "media"
+          ],
+          "revision": "fixture-qualified-v1"
+        },
+        {
+          "id": "hysteria:20",
+          "proxy_name": "zn.node.hysteria.20",
+          "enabled": true,
+          "final_egress": {
+            "country": "SG",
+            "source": "operator_verified",
+            "verified": true
+          },
+          "exit_id": "machine-9",
+          "failure_domain": "machine-9",
+          "services": [
+            "ai",
+            "media"
+          ],
+          "revision": "fixture-qualified-v1"
+        },
+        {
+          "id": "hysteria:6",
+          "proxy_name": "zn.node.hysteria.6",
+          "enabled": true,
+          "final_egress": {
+            "country": "JP",
+            "source": "operator_verified",
+            "verified": true
+          },
+          "exit_id": "machine-3",
+          "failure_domain": "machine-3",
+          "services": [
+            "ai",
+            "media"
+          ],
+          "revision": "fixture-qualified-v1"
+        },
+        {
+          "id": "vless:13",
+          "proxy_name": "zn.node.vless.13",
+          "enabled": true,
+          "final_egress": {
+            "country": "US",
+            "source": "operator_verified",
+            "verified": true
+          },
+          "exit_id": "machine-6",
+          "failure_domain": "machine-6",
+          "services": [
+            "ai",
+            "media"
+          ],
+          "revision": "fixture-qualified-v1"
+        },
+        {
+          "id": "vless:19",
+          "proxy_name": "zn.node.vless.19",
+          "enabled": true,
+          "final_egress": {
+            "country": "SG",
+            "source": "operator_verified",
+            "verified": true
+          },
+          "exit_id": "machine-9",
+          "failure_domain": "machine-9",
+          "services": [
+            "ai",
+            "media"
+          ],
+          "revision": "fixture-qualified-v1"
+        },
+        {
+          "id": "vless:5",
+          "proxy_name": "zn.node.vless.5",
+          "enabled": true,
+          "final_egress": {
+            "country": "JP",
+            "source": "operator_verified",
+            "verified": true
+          },
+          "exit_id": "machine-3",
+          "failure_domain": "machine-3",
+          "services": [
+            "ai",
+            "media"
+          ],
+          "revision": "fixture-qualified-v1"
+        }
+      ]
+    }
+  }
+}

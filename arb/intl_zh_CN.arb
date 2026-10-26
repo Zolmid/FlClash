@@ -1510,5 +1510,16 @@
     }
   },
   "zolnitRouteUnavailable": "不可用",
-  "zolnitBundleAutomaticPending": "自动分流仍在验证中，当前可使用手动或直连。"
+  "zolnitBundleAutomaticPending": "自动分流仍在验证中，当前可使用手动或直连。",
+  "zolnitAppleSubscribe": "通过 App Store 订阅",
+  "zolnitAppleAutoRenewal": "App Store 自动续费订阅",
+  "zolnitAppleConsent": "订阅将按显示的 App Store 价格自动续费，直到你在 App Store 订阅管理中取消。",
+  "zolnitAppleRestore": "恢复 App Store 购买",
+  "zolnitAppleManage": "管理 App Store 订阅",
+  "zolnitAppleUnavailable": "此套餐暂不支持 App Store 购买。",
+  "zolnitApplePending": "正在等待 App Store 或服务端验证。",
+  "zolnitReturnRoute": "回国线路",
+  "zolnitReturnDirect": "直达",
+  "zolnitReturnHkLite": "香港优选",
+  "zolnitReturnHkOptimized": "香港优化"
 }

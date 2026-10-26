@@ -15,6 +15,13 @@ import (
 type CoreMethod string
 
 const (
+	getClientBundleOwnerMethod   CoreMethod = "getClientBundleOwner"
+	beginClientBundleOwnerMethod CoreMethod = "beginClientBundleOwner"
+	installClientBundleMethod    CoreMethod = "installClientBundle"
+	endClientBundleOwnerMethod   CoreMethod = "endClientBundleOwner"
+)
+
+const (
 	messageMethod                        CoreMethod = "message"
 	initClashMethod                      CoreMethod = "initClash"
 	getIsInitMethod                      CoreMethod = "getIsInit"
@@ -128,6 +135,9 @@ type RoutingLeaseServiceSpec struct {
 }
 
 type RoutingLeaseSpec struct {
+	ConnectionDigest    string                    `json:"connectionDigest,omitempty"`
+	MetadataDigest      string                    `json:"metadataDigest,omitempty"`
+	RenewalOverlay      string                    `json:"renewalOverlay,omitempty"`
 	AccountID           string                    `json:"accountId"`
 	AccountGeneration   int                       `json:"accountGeneration"`
 	BundleID            string                    `json:"bundleId"`

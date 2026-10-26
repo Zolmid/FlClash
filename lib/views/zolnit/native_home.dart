@@ -5,6 +5,8 @@ import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_return_route.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
 import 'package:flutter/foundation.dart';
@@ -107,6 +109,9 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
     final usage = session.usage;
     final groups = ref.watch(currentGroupsStateProvider).value;
     final profile = ref.watch(currentProfileProvider);
+    final returnRoute = ref.watch(zolnitClientBundleTransportProvider)
+        ? currentZolnitReturnRoute(session, profile, ref.watch(groupsProvider))
+        : null;
     final names = session.nodeList.map((node) => node.name).toSet();
     final managed = profile?.label == zolnitProfileLabel(session);
     final selector = managed
@@ -168,6 +173,17 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
       'mode': mode == Mode.global ? 'global' : 'rule',
       'selectedServerId': servers.containsKey(selected) ? selected : null,
       'servers': servers.values.toList(growable: false),
+      if (returnRoute != null)
+        'returnRoute': {
+          'title': text.zolnitReturnRoute,
+          'selectedId': returnRoute.selectedId,
+          'enabled':
+              !safe && ref.watch(coreStatusProvider) == CoreStatus.connected,
+          'options': [
+            for (final option in returnRoute.options)
+              {'id': option.id, 'label': option.label(text)},
+          ],
+        },
       'planName': usage?.planName,
       'planExpiresAt': usage?.expiresAt == null
           ? null
@@ -253,16 +269,31 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
           'connect',
           'disconnect',
           'selectServer',
+          'selectReturnRoute',
           'setMode',
         }.contains(command.action) &&
         ref.read(safeModeProvider)) {
       return NativeUiReceipt.rejected(command.id, 'safe_mode');
     }
-    if ({'connect', 'selectServer', 'setMode'}.contains(command.action) &&
+    if ({
+          'connect',
+          'selectServer',
+          'selectReturnRoute',
+          'setMode',
+        }.contains(command.action) &&
         !session.authenticated) {
       return NativeUiReceipt.rejected(command.id, 'unauthenticated');
     }
     switch (command.action) {
+      case 'selectReturnRoute':
+        final applied = await selectZolnitReturnRoute(
+          ref,
+          session,
+          command.payload['optionId'] as String,
+        );
+        if (!applied) {
+          return NativeUiReceipt.rejected(command.id, 'unavailable');
+        }
       case 'connect':
       case 'disconnect':
         final desired = command.action == 'connect';

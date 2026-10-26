@@ -2792,6 +2792,27 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("Все серверы"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("Все регионы"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("К оплате"),
+    "zolnitAppleAutoRenewal": MessageLookupByLibrary.simpleMessage(
+      "Автопродляемая подписка App Store",
+    ),
+    "zolnitAppleConsent": MessageLookupByLibrary.simpleMessage(
+      "Подписка продлевается по указанной цене App Store, пока вы не отмените её в управлении подписками App Store.",
+    ),
+    "zolnitAppleManage": MessageLookupByLibrary.simpleMessage(
+      "Управлять подписками App Store",
+    ),
+    "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
+      "Ожидание проверки App Store или сервера.",
+    ),
+    "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
+      "Восстановить покупки App Store",
+    ),
+    "zolnitAppleSubscribe": MessageLookupByLibrary.simpleMessage(
+      "Подписаться через App Store",
+    ),
+    "zolnitAppleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Этот тариф пока нельзя приобрести в App Store.",
+    ),
     "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
       "Разрешить ежемесячную оплату",
     ),
@@ -3170,6 +3191,18 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "Возобновить автоматические списания по одобренному тарифу.",
+    ),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage(
+      "Напрямую в Китай",
+    ),
+    "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage(
+      "Гонконг: приоритет",
+    ),
+    "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage(
+      "Гонконг: оптимизация",
+    ),
+    "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage(
+      "Маршрут в Китай",
     ),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
       "Выйти из этого сеанса",

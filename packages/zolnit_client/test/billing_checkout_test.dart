@@ -89,6 +89,165 @@ class _Harness {
 }
 
 void main() {
+  Json native(String wallet) => {
+    'trade_no': 'orderA',
+    'kind': 'stripe_android',
+    'wallet': wallet,
+    'publishable_key': 'pk_test_fixture',
+    'client_secret': 'pi_fixture_secret_fixture',
+    'return_url': 'zolnit://safepay',
+    if (wallet == 'wechat_pay') 'wechat_app_id': 'wx1234567890abcdef',
+  };
+
+  test(
+    'ordinary WeChat action retains original order and exact checkout POST',
+    () async {
+      final h = _Harness(
+        probe: (_) async => http.Response('{}', 404),
+        ordinary: {'type': 3, 'data': native('wechat_pay')},
+      );
+      final action = await h.backend.start('orderA', 2) as StripeCheckout;
+      expect(action.wallet, StripeWallet.wechatPay);
+      expect(action.wechatAppId, 'wx1234567890abcdef');
+      expect(h.paths, [_detail, _probe, _checkout]);
+      expect(jsonDecode(h.posts.single.body), {
+        'trade_no': 'orderA',
+        'method': 2,
+      });
+    },
+  );
+
+  for (final wallet in ['card', 'alipay', 'wechat_pay']) {
+    for (final wrapped in [true, false]) {
+      test(
+        'recurring native $wallet wrapped=$wrapped preserves subscribe contract',
+        () async {
+          final h = _Harness(
+            probe: (_) async => _data(_intent()),
+            confirm: (_) async => true,
+            subscribed: wrapped
+                ? {'type': 3, 'data': native(wallet)}
+                : native(wallet),
+          );
+          if (wallet == 'wechat_pay') {
+            await expectLater(
+              h.backend.startRecurring('orderA', 2, approvedTerms: _intent()),
+              throwsA(_failure('recurring_wallet_unsupported')),
+            );
+          } else {
+            expect(
+              await h.backend.startRecurring(
+                'orderA',
+                2,
+                approvedTerms: _intent(),
+              ),
+              isA<StripeCheckout>(),
+            );
+          }
+          expect(h.paths, [_detail, _probe, _subscribe]);
+          expect(jsonDecode(h.posts.single.body), {
+            'trade_no': 'orderA',
+            'payment_id': 2,
+            'plan_id': 3,
+            'period': 'monthly',
+            'quote_id': 4,
+            'consent': true,
+          });
+        },
+      );
+    }
+  }
+
+  test('ordinary WeChat pre-confirm response may omit app ID', () async {
+    final payload = native('wechat_pay')..remove('wechat_app_id');
+    final h = _Harness(
+      probe: (_) async => http.Response('{}', 404),
+      ordinary: {'type': 3, 'data': payload},
+    );
+    final action = await h.backend.start('orderA', 2) as StripeCheckout;
+    expect(action.wallet, StripeWallet.wechatPay);
+    expect(action.wechatAppId, isNull);
+    expect(h.posts.length, 1);
+  });
+
+  for (final patch in <Json>[
+    {'trade_no': 'foreign'},
+    {'wechat_app_id': null},
+    {'wechat_app_id': ''},
+    {'wechat_app_id': 123},
+    {'return_url': 'zolnit://safepay?foreign=true'},
+    {'client_secret': 'cs_invalid_secret_value'},
+  ]) {
+    test('invalid native WeChat payload is rejected $patch', () async {
+      final h = _Harness(
+        probe: (_) async => http.Response('{}', 404),
+        ordinary: {
+          'type': 3,
+          'data': {...native('wechat_pay'), ...patch},
+        },
+      );
+      await expectLater(
+        h.backend.start('orderA', 2),
+        throwsA(isA<ClientFailure>()),
+      );
+      expect(h.posts.length, 1);
+    });
+  }
+
+  test(
+    'changed recurring identity requires renewed explicit consent',
+    () async {
+      var confirmations = 0;
+      final h = _Harness(
+        probe: (_) async => _data(_intent()),
+        confirm: (_) async {
+          confirmations++;
+          return false;
+        },
+      );
+      await expectLater(
+        h.backend.startRecurring(
+          'orderA',
+          2,
+          approvedTerms: {..._intent(), 'plan_id': 999},
+        ),
+        throwsA(_failure('recurring_consent_required')),
+      );
+      expect(confirmations, 1);
+      expect(h.posts, isEmpty);
+    },
+  );
+
+  test(
+    'late subscribe action after logout is superseded without replacement',
+    () async {
+      final pending = Completer<http.Response>();
+      final reached = Completer<void>();
+      final paths = <String>[];
+      final api = XboardClient(
+        origin: Uri.parse('https://panel.example'),
+        client: MockClient((r) async {
+          paths.add(r.url.path);
+          if (r.url.path == _detail) return _data({'trade_no': 'orderA'});
+          if (r.url.path == _probe) return _data(_intent());
+          reached.complete();
+          return pending.future;
+        }),
+      )..setAuthorization('Bearer accountA');
+      addTearDown(api.close);
+      final result = XboardCheckoutBackend(
+        api,
+        confirmRecurring: (_) async => true,
+      ).start('orderA', 2);
+      final assertion = expectLater(result, throwsA(_failure('superseded')));
+      await reached.future;
+      api.setAuthorization(null);
+      pending.complete(_data({'type': 3, 'data': native('card')}));
+      await assertion;
+      expect(paths, [_detail, _probe, _subscribe]);
+    },
+  );
+
   test(
     'known recurring order never falls back when its intent is missing',
     () async {

@@ -14,22 +14,26 @@ constexpr char kChannel[] = "com.zolmid.zolnit/native-ui";
 
 class SnapshotResult final : public flutter::MethodResult<flutter::EncodableValue> {
  public:
-  explicit SnapshotResult(std::function<void(const std::string&)> on_success)
-      : on_success_(std::move(on_success)) {}
+  explicit SnapshotResult(std::function<void(const std::string&)> on_success,
+                          std::function<void()> on_failure = {})
+      : on_success_(std::move(on_success)), on_failure_(std::move(on_failure)) {}
 
  protected:
   void SuccessInternal(const flutter::EncodableValue* result) override {
     if (const auto* json = result == nullptr ? nullptr : std::get_if<std::string>(result)) {
       on_success_(*json);
+    } else if (on_failure_) {
+      on_failure_();
     }
   }
 
   void ErrorInternal(const std::string&, const std::string&,
-                     const flutter::EncodableValue*) override {}
-  void NotImplementedInternal() override {}
+                     const flutter::EncodableValue*) override { if (on_failure_) on_failure_(); }
+  void NotImplementedInternal() override { if (on_failure_) on_failure_(); }
 
  private:
   std::function<void(const std::string&)> on_success_;
+  std::function<void()> on_failure_;
 };
 
 const std::string* JsonArgument(
@@ -76,6 +80,7 @@ ZolnitNativeUiPlugin::ZolnitNativeUiPlugin(
 }
 
 ZolnitNativeUiPlugin::~ZolnitNativeUiPlugin() {
+  alive_.reset();
   if (window_proc_delegate_id_) {
     registrar_->UnregisterTopLevelWindowProcDelegate(*window_proc_delegate_id_);
   }
@@ -140,8 +145,14 @@ void ZolnitNativeUiPlugin::RequestSnapshot() {
 }
 
 void ZolnitNativeUiPlugin::PerformCommand(const std::string& command) {
+  const std::weak_ptr<bool> alive = alive_;
+  const auto complete = [this, alive, command]() {
+    if (alive.expired()) return;
+    surface_->CompleteCommand(command);
+  };
   channel_->InvokeMethod("performCommand",
-      std::make_unique<flutter::EncodableValue>(command));
+      std::make_unique<flutter::EncodableValue>(command),
+      std::make_unique<SnapshotResult>([complete](const std::string&) { complete(); }, complete));
 }
 
 bool ZolnitNativeUiPlugin::ProcessMessage(HWND window, UINT message,

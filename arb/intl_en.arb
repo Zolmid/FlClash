@@ -1510,5 +1510,16 @@
     }
   },
   "zolnitRouteUnavailable": "Unavailable",
-  "zolnitBundleAutomaticPending": "Automatic routing is still being validated. Manual and direct choices are available."
+  "zolnitBundleAutomaticPending": "Automatic routing is still being validated. Manual and direct choices are available.",
+  "zolnitAppleSubscribe": "Subscribe with App Store",
+  "zolnitAppleAutoRenewal": "Auto-renewing App Store subscription",
+  "zolnitAppleConsent": "The subscription renews automatically at the displayed App Store price until you cancel it in App Store subscriptions.",
+  "zolnitAppleRestore": "Restore App Store purchases",
+  "zolnitAppleManage": "Manage App Store subscriptions",
+  "zolnitAppleUnavailable": "App Store purchases are not available for this plan.",
+  "zolnitApplePending": "Waiting for App Store or server verification.",
+  "zolnitReturnRoute": "Return route",
+  "zolnitReturnDirect": "Direct to China",
+  "zolnitReturnHkLite": "Hong Kong preferred",
+  "zolnitReturnHkOptimized": "Hong Kong optimized"
 }

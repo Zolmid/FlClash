@@ -1,6 +1,7 @@
 import Flutter
 import Foundation
 import os
+import Shared
 
 @MainActor
 private final class CoreMessageRouterReference {
@@ -41,6 +42,7 @@ final class ServiceChannel {
   private let tunnelController: TunnelController
   private let coreMessageRouter: CoreMessageRouter
   private let coreEventRelay: CoreEventRelay
+  private lazy var bundleRenewal = ClientBundleSessionBridge(tunnel: tunnelController)
   private var isInitialized = false
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "com.zolmid.zolnit",
@@ -140,6 +142,22 @@ final class ServiceChannel {
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     log("handle method=\(call.method)")
     switch call.method {
+    case "configureClientBundleRenewal", "logoutClientBundleRenewal", "clientBundleRenewalStatus":
+      Task {
+        do {
+          if call.method == "logoutClientBundleRenewal" {
+            result(try await bundleRenewal.logout(call.arguments))
+          } else {
+            let status = call.method == "configureClientBundleRenewal"
+              ? try await bundleRenewal.configure(call.arguments) : try await bundleRenewal.status()
+            let data = try JSONEncoder().encode(status)
+            result(try JSONSerialization.jsonObject(with: data))
+          }
+        } catch {
+          result(FlutterError(code: "BUNDLE_RENEWAL_ERROR",
+            message: "Native bundle renewal operation did not complete", details: nil))
+        }
+      }
     case "invokeMethod":
       guard let data = methodCallData(call) else {
         result(invalidMethodCallResponse)

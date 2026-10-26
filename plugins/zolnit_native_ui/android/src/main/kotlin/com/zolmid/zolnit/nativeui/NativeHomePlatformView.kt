@@ -93,6 +93,8 @@ internal class NativeHomePlatformView(
     private var pendingAction by mutableStateOf<String?>(null)
     private var feedbackKey by mutableStateOf<String?>(null)
     private var renderedRevision = -1L
+    private var commandSerial = 0L
+    private var commandInFlight = false
     private val composeView = ComposeView(context).apply {
         context.findOwner<LifecycleOwner>()?.let { setViewTreeLifecycleOwner(it) }
         context.findOwner<ViewModelStoreOwner>()?.let { setViewTreeViewModelStoreOwner(it) }
@@ -102,8 +104,13 @@ internal class NativeHomePlatformView(
 
     fun render(next: NativeUiSnapshot) {
         runOnMain {
-            if (next.revision > renderedRevision) {
+            if (snapshot?.accountGeneration != next.accountGeneration) {
+                commandSerial++
+                commandInFlight = false
                 pendingAction = null
+            }
+            if (next.revision > renderedRevision) {
+                if (!commandInFlight) pendingAction = null
                 feedbackKey = null
             }
             renderedRevision = next.revision
@@ -122,11 +129,24 @@ internal class NativeHomePlatformView(
     }
 
     private fun issueCommand(action: String, payload: JSONObject) {
+        if (pendingAction != null) return
+        if (action == "selectReturnRoute") {
+            val route = snapshot?.returnRoute ?: return
+            if (!route.enabled || route.options.none { it.id == payload.opt("optionId") }) return
+        }
+        val generation = snapshot?.accountGeneration ?: return
+        val serial = ++commandSerial
+        commandInFlight = true
         pendingAction = action
         feedbackKey = null
         onCommand(action, payload) { receipt ->
             runOnMain {
-                if (receipt?.accepted == true) return@runOnMain
+                if (serial != commandSerial || snapshot?.accountGeneration != generation) return@runOnMain
+                commandInFlight = false
+                if (receipt?.accepted == true) {
+                    if (action == "selectReturnRoute") pendingAction = null
+                    return@runOnMain
+                }
                 pendingAction = null
                 feedbackKey = when (receipt?.errorCode) {
                     "unauthenticated", "stale_account" -> "signIn"
@@ -271,6 +291,7 @@ private fun ConnectScreen(
             TrafficSummary(snapshot)
             Surface(shape = panelShape, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ReturnRoutePicker(snapshot, pendingAction == null, onCommand)
                     ModeSelector(snapshot, pendingAction == null && snapshot.canManageSubscription(), onCommand)
                     key(snapshot.accountGeneration) {
                         ServerPicker(snapshot, pendingAction == null && snapshot.canManageSubscription(), onCommand)
@@ -416,6 +437,35 @@ private fun ModeSelector(
                     enabled = enabled,
                     shape = SegmentedButtonDefaults.itemShape(index, 2),
                     label = { Text(snapshot.label(label)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReturnRoutePicker(
+    snapshot: NativeUiSnapshot,
+    idle: Boolean,
+    onCommand: (String, JSONObject) -> Unit,
+) {
+    val route = snapshot.returnRoute ?: return
+    val enabled = idle && route.enabled
+    var expanded by remember(snapshot.accountGeneration, route) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(route.title, style = MaterialTheme.typography.titleMedium)
+        FilledTonalButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+            Text(route.options.firstOrNull { it.id == route.selectedId }?.label ?: "—")
+        }
+        DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+            route.options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    enabled = enabled,
+                    onClick = {
+                        expanded = false
+                        onCommand("selectReturnRoute", JSONObject().put("optionId", option.id))
+                    },
                 )
             }
         }

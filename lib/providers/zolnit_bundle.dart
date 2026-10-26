@@ -211,6 +211,27 @@ PreparedZolnitRouting prepareClientBundleConfiguration(
   }
 }
 
+String prepareBundleRenewalOverlay(
+  ({Map<String, dynamic> source, String compiledYaml}) input,
+) {
+  final value = loadPlainYaml(input.compiledYaml);
+  if (value is! Map) throw const ClientFailure('invalid_client_bundle');
+  final overlay = Map<String, dynamic>.from(value);
+  for (final key in ['proxies', 'proxy-groups', 'sub-rules']) {
+    overlay.remove(key);
+  }
+  final original = input.source['rules'];
+  final compiled = overlay['rules'];
+  if (original is! List || compiled is! List) {
+    throw const ClientFailure('invalid_client_bundle');
+  }
+  final serverRules = original.toSet();
+  overlay['rules'] = compiled
+      .where((rule) => !serverRules.contains(rule))
+      .toList();
+  return jsonEncode(overlay);
+}
+
 Future<void> _privateMode(String location, String mode) async {
   if (Platform.isWindows || Platform.isAndroid || Platform.isIOS) return;
   final result = await Process.run('/bin/chmod', [mode, location]);

@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.Looper
 import com.zolmid.zolnit.common.GlobalState
 import com.zolmid.zolnit.common.intent
+import com.zolmid.zolnit.renewal.AndroidClientBundleRenewal
 import com.zolmid.zolnit.core.Core
 import com.zolmid.zolnit.service.ManagedService
 import com.zolmid.zolnit.service.ProxyService
@@ -41,7 +42,9 @@ object ServiceController {
     }
 
     // The Core listens exactly while a run exists, so every path that ends one closes it.
-    private fun release() {
+    private suspend fun release() {
+        runCatching { AndroidClientBundleRenewal.stop() }
+            .onFailure { GlobalState.log("Bundle renewal drain failed") }
         clearBinding()
         runtime = null
         Core.stopListener()
@@ -111,6 +114,7 @@ object ServiceController {
             options = options,
             requestedOptions = requestedOptions,
         )
+        AndroidClientBundleRenewal.start()
         true
     }
 
@@ -120,6 +124,8 @@ object ServiceController {
     }
 
     private suspend fun tearDownServices() {
+        runCatching { AndroidClientBundleRenewal.stop() }
+            .onFailure { GlobalState.log("Bundle renewal drain failed") }
         binding?.useService { service -> service.stop() }
             ?.onFailure { error ->
                 GlobalState.log("Unable to stop background service: $error")

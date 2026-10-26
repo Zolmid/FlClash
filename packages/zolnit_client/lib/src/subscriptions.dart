@@ -259,6 +259,8 @@ class ZolnitBillingClient {
       generation: generation,
       terms: Map<String, dynamic>.unmodifiable({
         ...offer,
+        'payment_id': paymentId,
+        'plan_id': planId,
         'total_cents': offer['recurring_total_cents'],
       }),
     );

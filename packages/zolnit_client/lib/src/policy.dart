@@ -48,11 +48,17 @@ class ClientPaymentPolicy {
   String get distributionHeader =>
       distribution == ClientDistribution.direct ? 'direct' : 'apple-app-store';
 
-  bool get allowStripe =>
-      distribution == ClientDistribution.direct &&
-      (platform != TargetPlatform.android || isWeb || androidNativeStripe);
+  bool get allowStripe => distribution == ClientDistribution.direct;
   bool get allowAndroidSdk =>
       allowStripe && !isWeb && platform == TargetPlatform.android;
+
+  bool supportsNativeCapability(Json capability, {bool recurring = false}) =>
+      allowAndroidSdk &&
+      !recurring &&
+      capability['available'] == true &&
+      capability['platform'] == 'android' &&
+      capability['payment_method'] == 'wechat_pay' &&
+      capability['recurring'] == false;
   bool get allowAppleIap =>
       !isWeb &&
       {TargetPlatform.iOS, TargetPlatform.macOS}.contains(platform) &&

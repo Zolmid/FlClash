@@ -646,8 +646,10 @@ class ZolnitMembershipCard extends StatelessWidget {
                   height: skin == ZolnitSkin.android ? 8 : 5,
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 12,
+                  runSpacing: 4,
                   children: [
                     Text(text.zolnitTrafficUsed, style: small(1)),
                     if ((current?.resetDay ?? 0) > 0)

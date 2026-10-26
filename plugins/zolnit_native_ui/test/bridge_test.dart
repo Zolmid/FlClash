@@ -110,6 +110,212 @@ void main() {
     messenger.setMockMethodCallHandler(channel, null);
   });
 
+  Map<String, dynamic> returnRoute({bool enabled = true}) => {
+    'title': 'RETURN ROUTE',
+    'selectedId': null,
+    'enabled': enabled,
+    'options': [
+      {'id': 'direct', 'label': 'Direct localized'},
+      {'id': 'hk_lite', 'label': 'HK Lite localized'},
+      {'id': 'hk_optimized', 'label': 'HK Optimized localized'},
+    ],
+  };
+
+  test(
+    'optional return route preserves no selection and hides malformed data',
+    () {
+      expect(NativeUiSnapshot.fromJson(snapshot()).returnRoute, isNull);
+      for (final selected in [null, 'direct', 'hk_lite', 'hk_optimized']) {
+        final route = returnRoute()..['selectedId'] = selected;
+        final decoded = NativeUiSnapshot.decode(
+          NativeUiSnapshot.fromJson(
+            snapshot()..['returnRoute'] = route,
+          ).encode(),
+        );
+        expect(decoded.returnRoute!.selectedId, selected);
+        expect(decoded.returnRoute!.options['hk_lite'], 'HK Lite localized');
+      }
+      for (final raw in [
+        null,
+        false,
+        [],
+        {},
+        returnRoute()..['enabled'] = 'true',
+        returnRoute()..['title'] = 1,
+        returnRoute()..['selectedId'] = 'DIRECT',
+        returnRoute()..['selectedId'] = 1,
+        returnRoute()
+          ..['options'] = [
+            {'id': 'direct', 'label': 'A'},
+            {'id': 'direct', 'label': 'B'},
+          ],
+        returnRoute()
+          ..['options'] = [
+            {'id': 'DIRECT', 'label': 'Alias'},
+          ],
+        returnRoute()
+          ..['options'] = [
+            {'id': 'direct', 'label': null},
+          ],
+      ]) {
+        final decoded = NativeUiSnapshot.fromJson(
+          snapshot()..['returnRoute'] = raw,
+        );
+        expect(decoded.returnRoute, isNull);
+        expect(decoded.toJson()['returnRoute'], isNull);
+      }
+      final missing = returnRoute()..remove('selectedId');
+      expect(
+        NativeUiSnapshot.fromJson(
+          snapshot()..['returnRoute'] = missing,
+        ).returnRoute!.selectedId,
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'return route follows session safe mode and any pending command',
+    () async {
+      final value = bridge();
+      for (final entry in [
+        (1, 'signedOut', false, 'unauthenticated'),
+        (2, 'offline', false, 'unavailable'),
+        (3, 'signedIn', true, 'safe_mode'),
+      ]) {
+        await value.publishSnapshot(
+          NativeUiSnapshot.fromJson(
+            snapshot(revision: entry.$1, session: entry.$2, safe: entry.$3)
+              ..['returnRoute'] = returnRoute(),
+          ),
+        );
+        expect(
+          (await sendCommand(
+            command(
+              action: 'selectReturnRoute',
+              payload: {'optionId': 'direct'},
+            ),
+          ))['errorCode'],
+          entry.$4,
+        );
+      }
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot(revision: 4)..['returnRoute'] = returnRoute(),
+        ),
+      );
+      expect(
+        (await sendCommand(
+          command(
+            id: 'accepted',
+            action: 'selectReturnRoute',
+            payload: {'optionId': 'hk_optimized'},
+          ),
+        ))['accepted'],
+        true,
+      );
+      expect(value.snapshot!.returnRoute!.selectedId, isNull);
+      final pending = Completer<NativeUiReceipt>();
+      final busy = bridge(handler: (_) => pending.future);
+      await busy.publishSnapshot(
+        NativeUiSnapshot.fromJson(snapshot()..['returnRoute'] = returnRoute()),
+      );
+      final refresh = sendCommand(command(id: 'refresh', action: 'refresh'));
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        (await sendCommand(
+          command(action: 'selectReturnRoute', payload: {'optionId': 'direct'}),
+        ))['errorCode'],
+        'unavailable',
+      );
+      pending.complete(const NativeUiReceipt.accepted('refresh'));
+      await refresh;
+    },
+  );
+
+  test('return route command validates exact payload', () {
+    final parsed = NativeUiCommand.decode(
+      command(action: 'selectReturnRoute', payload: {'optionId': 'hk_lite'}),
+    );
+    expect(parsed.payload, {'optionId': 'hk_lite'});
+    for (final payload in <Map<String, dynamic>>[
+      {},
+      {'optionId': 'DIRECT'},
+      {'optionId': 'direct', 'alias': 'DIRECT'},
+    ]) {
+      expect(
+        () => NativeUiCommand.decode(
+          command(action: 'selectReturnRoute', payload: payload),
+        ),
+        throwsFormatException,
+      );
+    }
+  });
+
+  test(
+    'return route gates presence enabled busy generation and option membership',
+    () async {
+      final pending = Completer<NativeUiReceipt>();
+      final value = bridge(
+        handler: (cmd) {
+          calls++;
+          return pending.future;
+        },
+      );
+      Future<Map<String, dynamic>> select(
+        String id, {
+        String option = 'hk_lite',
+        int generation = 1,
+      }) => sendCommand(
+        command(
+          id: id,
+          generation: generation,
+          action: 'selectReturnRoute',
+          payload: {'optionId': option},
+        ),
+      );
+      await value.publishSnapshot(NativeUiSnapshot.fromJson(snapshot()));
+      expect((await select('absent'))['errorCode'], 'invalid_command');
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot(revision: 2)..['returnRoute'] = returnRoute(enabled: false),
+        ),
+      );
+      expect((await select('disabled'))['errorCode'], 'unavailable');
+      final route = returnRoute()
+        ..['options'] = [
+          {'id': 'hk_lite', 'label': 'Lite'},
+        ];
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot(revision: 3)..['returnRoute'] = route,
+        ),
+      );
+      expect(
+        (await select('missing', option: 'direct'))['errorCode'],
+        'invalid_command',
+      );
+      expect(
+        (await select('stale', generation: 0))['errorCode'],
+        'stale_account',
+      );
+      final first = select('first');
+      await Future<void>.delayed(Duration.zero);
+      expect((await select('busy'))['errorCode'], 'unavailable');
+      expect(calls, 1);
+      expect(value.snapshot!.returnRoute!.selectedId, isNull);
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot(revision: 4, generation: 2)..['returnRoute'] = route,
+        ),
+      );
+      expect((await first)['errorCode'], 'stale_account');
+      pending.complete(const NativeUiReceipt.accepted('first'));
+      await Future<void>.delayed(Duration.zero);
+      expect(value.snapshot!.returnRoute!.selectedId, isNull);
+    },
+  );
+
   testWidgets(
     'macOS surface receives the app theme independently of the OS theme',
     (tester) async {

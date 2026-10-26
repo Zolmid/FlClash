@@ -13,6 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../packages/zolnit_client/test/client_bundle_fixture.dart';
 import '../../helpers/test_app.dart';
 import '../../helpers/test_profiles.dart';
+import '../../helpers/zolnit_return_route_fixture.dart';
 
 class _Recording extends ProxiesAction {
   final selections = <(String, String)>[];
@@ -21,6 +22,16 @@ class _Recording extends ProxiesAction {
   @override
   void changeProxyDebounce(String groupName, String proxyName) =>
       selections.add((groupName, proxyName));
+  @override
+  Future<bool> changeProxyIfCurrent({
+    required String groupName,
+    required String proxyName,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return false;
+    selections.add((groupName, proxyName));
+    return true;
+  }
 }
 
 void main() {
@@ -124,6 +135,56 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'all return roles select the exact producer target without aliases in labels',
+    (tester) async {
+      final raw = returnRouteFixture();
+      fixture.onBundle = (_) async => clientBundleResponse(raw);
+      await tester.runAsync(
+        () => fixture.session.refreshClientBundle(
+          coreVersion: 'v1.19.32',
+          clock: () => now,
+        ),
+      );
+      profile = profile.copyWith(
+        zolnitBundleId: fixture.session.clientBundle!.bundleId,
+      );
+      container.read(profilesProvider.notifier).put(profile);
+      container.read(groupsProvider.notifier).value = returnRouteCoreGroups();
+      await mount(tester);
+      final mapping = (raw['routing']['ui_groups'] as List).single;
+      for (final (id, label) in [
+        ('direct', 'Direct to China'),
+        ('hk_lite', 'Hong Kong preferred'),
+        ('hk_optimized', 'Hong Kong optimized'),
+      ]) {
+        await tester.tap(find.byKey(const ValueKey('bundle-return-route')));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('zn.group.'), findsNothing);
+        await tester.tap(find.text(label).last);
+        await tester.pumpAndSettle();
+        final option = (mapping['options'] as List).singleWhere(
+          (o) => o['id'] == id,
+        );
+        final owner =
+            container.read(proxiesActionProvider.notifier) as _Recording;
+        expect(owner.selections.last, (mapping['group'], option['target']));
+        expect(owner.selections.last.$2, isNot('DIRECT'));
+      }
+      container.read(coreStatusProvider.notifier).value =
+          CoreStatus.disconnected;
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<DropdownButton<String>>(
+              find.byKey(const ValueKey('bundle-return-route')),
+            )
+            .onChanged,
+        isNull,
+      );
+    },
+  );
 
   testWidgets(
     'current display follows Core data rather than a display-name guess',

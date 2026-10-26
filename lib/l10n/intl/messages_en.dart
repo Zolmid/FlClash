@@ -2628,6 +2628,27 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("All servers"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("All regions"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("Amount due"),
+    "zolnitAppleAutoRenewal": MessageLookupByLibrary.simpleMessage(
+      "Auto-renewing App Store subscription",
+    ),
+    "zolnitAppleConsent": MessageLookupByLibrary.simpleMessage(
+      "The subscription renews automatically at the displayed App Store price until you cancel it in App Store subscriptions.",
+    ),
+    "zolnitAppleManage": MessageLookupByLibrary.simpleMessage(
+      "Manage App Store subscriptions",
+    ),
+    "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
+      "Waiting for App Store or server verification.",
+    ),
+    "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
+      "Restore App Store purchases",
+    ),
+    "zolnitAppleSubscribe": MessageLookupByLibrary.simpleMessage(
+      "Subscribe with App Store",
+    ),
+    "zolnitAppleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "App Store purchases are not available for this plan.",
+    ),
     "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage(
       "Authorize monthly billing",
     ),
@@ -2995,6 +3016,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "Resume automatic charges under the authorized plan.",
     ),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage(
+      "Direct to China",
+    ),
+    "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage(
+      "Hong Kong preferred",
+    ),
+    "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage(
+      "Hong Kong optimized",
+    ),
+    "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("Return route"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
       "Sign out of this session",
     ),

@@ -200,13 +200,30 @@ class ProxiesAction extends _$ProxiesAction {
     groupName: groupName,
     proxyName: proxyName,
     guard: isCurrent,
+    automatic: true,
     routingLease: routingLease,
   );
+
+  Future<bool> changeProxyIfCurrent({
+    required String groupName,
+    required String proxyName,
+    required bool Function() isCurrent,
+  }) async {
+    ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
+    final applied = await _queueProxyChange(
+      groupName: groupName,
+      proxyName: proxyName,
+      guard: isCurrent,
+    );
+    if (applied && isCurrent()) await updateGroups();
+    return applied && isCurrent();
+  }
 
   Future<bool> _queueProxyChange({
     required String groupName,
     required String proxyName,
     bool Function()? guard,
+    bool automatic = false,
     Map<String, dynamic>? routingLease,
   }) {
     final intent = (_selectionIntents[groupName] ?? 0) + 1;
@@ -224,7 +241,7 @@ class ProxiesAction extends _$ProxiesAction {
         groupName: groupName,
         proxyName: proxyName,
         isCurrent: current,
-        automatic: guard != null,
+        automatic: automatic,
         routingLease: routingLease,
         profileId: profileId,
       );

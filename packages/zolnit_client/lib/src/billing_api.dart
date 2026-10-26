@@ -1,5 +1,6 @@
 import 'api.dart';
 import 'apple.dart';
+import 'apple_config.dart';
 import 'checkout.dart';
 
 String _string(Json json, String key) {
@@ -42,6 +43,12 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
   }) => _start(tradeNo, methodId, approvedTerms, recurring: true);
 
   static const _termFields = [
+    'payment_id',
+    'plan_id',
+    'period',
+    'price_cents',
+    'handling_amount_cents',
+    'charge_currency',
     'quote_id',
     'first_total_cents',
     'first_charge_amount_cents',
@@ -147,6 +154,19 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
       throw const ClientFailure('invalid_billing_response');
     }
     _rejectEmbedded(value);
+    if (value['type'] == 3 || value['kind'] == 'stripe_android') {
+      final action = _checkout(
+        value['type'] == 3 ? value : {'type': 3, 'data': value},
+        tradeNo,
+      );
+      if (action is! StripeCheckout) {
+        throw const ClientFailure('invalid_billing_response');
+      }
+      if (action.wallet == StripeWallet.wechatPay) {
+        throw const ClientFailure('recurring_wallet_unsupported');
+      }
+      return action;
+    }
     if (value['checkout_mode'] != 'hosted' ||
         value['session_id'] is! String ||
         !RegExp(
@@ -206,6 +226,9 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
         if (qr == null) throw const ClientFailure('invalid_billing_response');
         return QrCheckout(qr);
       case 'stripe_android':
+        if (response['type'] != 3) {
+          throw const ClientFailure('invalid_billing_response');
+        }
         final wallet = switch (value['wallet']) {
           'card' => StripeWallet.card,
           'alipay' => StripeWallet.alipay,
@@ -217,7 +240,9 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
           clientSecret: _string(value, 'client_secret'),
           wallet: wallet,
           returnUri: Uri.parse(_string(value, 'return_url')),
-          wechatAppId: value['wechat_app_id'] as String?,
+          wechatAppId: value.containsKey('wechat_app_id')
+              ? _string(value, 'wechat_app_id')
+              : null,
           fallbackQr: qr,
         );
       default:
@@ -230,7 +255,13 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
 }
 
 class AppleBillingPaths {
-  const AppleBillingPaths({required this.prepare, required this.verify});
+  const AppleBillingPaths({
+    this.prepare = '/api/v1/zolnit-apple/prepare',
+    this.verify = '/api/v1/zolnit-apple/verify',
+  });
+
+  factory AppleBillingPaths.fromConfig(AppleBillingConfig config) =>
+      AppleBillingPaths(prepare: config.preparePath, verify: config.verifyPath);
 
   final String prepare;
   final String verify;
@@ -242,6 +273,10 @@ class XboardAppleBillingBackend implements AppleBillingBackend {
   final XboardClient api;
   final AppleBillingPaths paths;
 
+  Future<AppleBillingConfig> config({
+    String path = '/api/v1/zolnit-apple/config',
+  }) async => AppleBillingConfig.parse(await api.request(path));
+
   @override
   Future<ApplePurchaseContext> prepare(String productId) async {
     final value = await api.request(
@@ -249,11 +284,27 @@ class XboardAppleBillingBackend implements AppleBillingBackend {
       method: 'POST',
       body: {'product_id': productId},
     );
-    if (value is! Json) throw const ClientFailure('invalid_billing_response');
+    if (value is! Json || value['product_id'] != productId) {
+      throw const ClientFailure('invalid_billing_response');
+    }
     return ApplePurchaseContext(
       accountId: _string(value, 'account_id'),
       productId: _string(value, 'product_id'),
       appAccountToken: _string(value, 'app_account_token'),
+      entitlementEffect: switch (value['entitlement_effect']) {
+        'replace_gift_after_verified_payment' =>
+          'replace_gift_after_verified_payment',
+        'start_paid_after_verified_payment' =>
+          'start_paid_after_verified_payment',
+        null => null,
+        _ => throw const ClientFailure('invalid_apple_context'),
+      },
+      giftExpiresAt: switch (value['gift']) {
+        {'source': 'gift', 'expires_at': final int expires} when expires > 0 =>
+          DateTime.fromMillisecondsSinceEpoch(expires * 1000, isUtc: true),
+        null => null,
+        _ => throw const ClientFailure('invalid_apple_context'),
+      },
     );
   }
 
@@ -269,7 +320,10 @@ class XboardAppleBillingBackend implements AppleBillingBackend {
         'source': proof.source,
       },
     );
-    if (value is! Json || value['applied'] is! bool) {
+    if (value is! Json ||
+        value['applied'] is! bool ||
+        value['product_id'] != proof.productId ||
+        value['transaction_id'] != proof.transactionId) {
       throw const ClientFailure('invalid_billing_response');
     }
     return AppleVerification(

@@ -1510,5 +1510,16 @@
     }
   },
   "zolnitRouteUnavailable": "無法使用",
-  "zolnitBundleAutomaticPending": "自動分流仍在驗證中，目前可使用手動或直連。"
+  "zolnitBundleAutomaticPending": "自動分流仍在驗證中，目前可使用手動或直連。",
+  "zolnitAppleSubscribe": "透過 App Store 訂閱",
+  "zolnitAppleAutoRenewal": "App Store 自動續訂訂閱",
+  "zolnitAppleConsent": "訂閱將按顯示的 App Store 價格自動續訂，直到你在 App Store 訂閱管理中取消。",
+  "zolnitAppleRestore": "回復 App Store 購買",
+  "zolnitAppleManage": "管理 App Store 訂閱",
+  "zolnitAppleUnavailable": "此方案暫不支援 App Store 購買。",
+  "zolnitApplePending": "正在等待 App Store 或伺服器驗證。",
+  "zolnitReturnRoute": "回國線路",
+  "zolnitReturnDirect": "直達",
+  "zolnitReturnHkLite": "香港優選",
+  "zolnitReturnHkOptimized": "香港最佳化"
 }

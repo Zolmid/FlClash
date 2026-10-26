@@ -20,6 +20,7 @@ class WinUiSurface {
 
   bool Initialize();
   bool PublishSnapshot(const std::string& snapshot_json);
+  void CompleteCommand(const std::string& command_json);
   bool SetBounds(double x, double y, double width, double height,
                  double device_pixel_ratio);
   void Show();

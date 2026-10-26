@@ -400,6 +400,7 @@ class SmartRoutingEngine {
     required String serviceId,
     required DateTime now,
     Set<String>? availableNodeIds,
+    String? qualifiedCurrentNodeId,
   }) {
     final state = _states[serviceId];
     if (state == null) return const SmartRouteDecision(null, 'unconfigured');
@@ -414,6 +415,16 @@ class SmartRoutingEngine {
         'manual',
         manual: true,
       );
+    }
+    final retained = _nodes[qualifiedCurrentNodeId];
+    if (retained != null && eligible(serviceId, retained.id)) {
+      final health = _health[(serviceId, retained.id)];
+      final fresh =
+          _healthy(serviceId, retained, now) &&
+          (availableNodeIds?.contains(retained.id) ?? true);
+      if (!fresh && (health == null || health.failures == 0)) {
+        return SmartRouteDecision(retained.id, 'probe_unknown');
+      }
     }
     final eligibleNodes = candidates(
       serviceId,

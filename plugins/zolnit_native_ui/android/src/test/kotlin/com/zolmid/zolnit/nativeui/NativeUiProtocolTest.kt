@@ -12,7 +12,7 @@ class NativeUiProtocolTest {
         val snapshot = NativeUiProtocol.parseSnapshot(snapshotJson())
 
         requireNotNull(snapshot)
-        assertEquals(7, snapshot.revision)
+        assertEquals(7L, snapshot.revision)
         assertEquals("connected", snapshot.connectionState)
         assertEquals("node-1", snapshot.selectedServerId)
         assertEquals(1, snapshot.servers.size)
@@ -47,7 +47,7 @@ class NativeUiProtocolTest {
 
         assertEquals(1, command.getInt("schemaVersion"))
         assertEquals("command-1", command.getString("id"))
-        assertEquals(3, command.getLong("accountGeneration"))
+        assertEquals(3L, command.getLong("accountGeneration"))
         assertEquals("global", command.getJSONObject("payload").getString("mode"))
     }
 
@@ -97,6 +97,31 @@ class NativeUiProtocolTest {
         assertNull(snapshot.selectedServerId)
         assertNull(snapshot.planName)
         assertTrue(snapshot.servers.single().available)
+    }
+
+    @Test
+    fun optionalReturnRouteIsStrictAndPreservesNoSelection() {
+        val route = JSONObject("""{"title":"RETURN ROUTE","enabled":true,"options":[{"id":"direct","label":"Direct"},{"id":"hk_lite","label":"Lite"},{"id":"hk_optimized","label":"Optimized"}]}""")
+        fun parse(raw: Any) = requireNotNull(NativeUiProtocol.parseSnapshot(JSONObject(snapshotJson()).put("returnRoute", raw).toString()))
+        assertNull(requireNotNull(NativeUiProtocol.parseSnapshot(snapshotJson())).returnRoute)
+        assertNull(parse(route).returnRoute?.selectedId)
+        assertEquals(3, parse(route).returnRoute?.options?.size)
+        assertEquals("Lite", parse(route).returnRoute?.options?.get(1)?.label)
+        for (selected in listOf("direct", "hk_lite", "hk_optimized")) {
+            assertEquals(selected, parse(JSONObject(route.toString()).put("selectedId", selected)).returnRoute?.selectedId)
+        }
+        for (raw in listOf(
+            JSONObject.NULL, false, JSONObject(),
+            JSONObject(route.toString()).put("enabled", "true"),
+            JSONObject(route.toString()).put("title", 1),
+            JSONObject(route.toString()).put("selectedId", "DIRECT"),
+            JSONObject(route.toString()).put("selectedId", 1),
+            JSONObject(route.toString()).put("options", org.json.JSONArray("""[{"id":"direct","label":"A"},{"id":"direct","label":"B"}]""")),
+            JSONObject(route.toString()).put("options", org.json.JSONArray("""[{"id":"DIRECT","label":"Alias"}]""")),
+        )) assertNull(parse(raw).returnRoute)
+        val command = JSONObject(NativeUiProtocol.command("route", 3, "selectReturnRoute", JSONObject().put("optionId", "hk_lite")))
+        assertEquals("selectReturnRoute", command.getString("action"))
+        assertEquals("hk_lite", command.getJSONObject("payload").getString("optionId"))
     }
 
     private fun snapshotJson(): String = JSONObject()

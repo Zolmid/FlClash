@@ -81,6 +81,41 @@ void main() {
   });
 
   test(
+    'unknown stale probes retain only a qualified actual current selection',
+    () {
+      configure([node('current'), node('unmeasured', country: 'SG')]);
+      observe('current', 100);
+      confirm('current');
+      final retained = engine.decide(
+        serviceId: 'ai',
+        now: at(91),
+        availableNodeIds: {},
+        qualifiedCurrentNodeId: 'current',
+      );
+      expect(retained.nodeId, 'current');
+      expect(retained.reason, 'probe_unknown');
+      expect(
+        engine
+            .decide(serviceId: 'ai', now: at(91), availableNodeIds: {})
+            .nodeId,
+        isNull,
+      );
+      observe('current', null, time: 92, success: false);
+      expect(
+        engine
+            .decide(
+              serviceId: 'ai',
+              now: at(92),
+              availableNodeIds: {},
+              qualifiedCurrentNodeId: 'current',
+            )
+            .nodeId,
+        isNull,
+      );
+    },
+  );
+
+  test(
     'AI excludes HK and builtins before scoring regardless of display name',
     () {
       configure([

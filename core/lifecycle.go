@@ -33,6 +33,10 @@ func handleInitClash(params *InitParams) bool {
 		return false
 	}
 	resetRoutingLeaseInstance()
+	stopClientBundleRoutingLocked()
+	clientBundleOwner, clientBundleSetup = nil, nil
+	clientBundleEpochFloor, clientBundleOwnerFloor, clientBundleGenFloor = 0, 0, 0
+	clientBundleRetiredEpoch = 0
 	sdkVersion.Store(int32(params.Version))
 	constant.SetHomeDir(params.HomeDir)
 	initOwnership(params.HomeDir)
@@ -95,13 +99,15 @@ func updateListeners(cfg *config.Config) {
 }
 
 func handleShutdown() bool {
-	resetRoutingLeaseInstance()
 	stopRoutingLeaseObservation()
 	handleStopLog()
 	stopRouteWatch()
 
 	configMu.Lock()
+	resetRoutingLeaseInstance()
+	stopClientBundleRoutingLocked()
 	isRunning.Store(false)
+	clientBundleOwner, clientBundleSetup = nil, nil
 	listener.StopListener()
 	updater.StopGeoUpdater()
 	executor.Shutdown()

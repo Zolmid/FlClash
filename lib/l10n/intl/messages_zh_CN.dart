@@ -1982,6 +1982,27 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("全部线路"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("全部地区"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("应付金额"),
+    "zolnitAppleAutoRenewal": MessageLookupByLibrary.simpleMessage(
+      "App Store 自动续费订阅",
+    ),
+    "zolnitAppleConsent": MessageLookupByLibrary.simpleMessage(
+      "订阅将按显示的 App Store 价格自动续费，直到你在 App Store 订阅管理中取消。",
+    ),
+    "zolnitAppleManage": MessageLookupByLibrary.simpleMessage(
+      "管理 App Store 订阅",
+    ),
+    "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
+      "正在等待 App Store 或服务端验证。",
+    ),
+    "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
+      "恢复 App Store 购买",
+    ),
+    "zolnitAppleSubscribe": MessageLookupByLibrary.simpleMessage(
+      "通过 App Store 订阅",
+    ),
+    "zolnitAppleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "此套餐暂不支持 App Store 购买。",
+    ),
     "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage("授权连续包月"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("账户余额"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage("按月付费，轻松开始"),
@@ -2245,6 +2266,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "恢复后将按已授权的套餐安排自动扣款。",
     ),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("直达"),
+    "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage("香港优选"),
+    "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage("香港优化"),
+    "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("回国线路"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage("退出此会话"),
     "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage("登录会话已结束。"),
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(

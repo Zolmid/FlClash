@@ -25,6 +25,7 @@ public struct NativeUiSnapshot: Codable, Equatable {
     public let usage: Usage
     public let traffic: Traffic
     public let labels: [String: String]
+    public let returnRoute: ReturnRoute?
 
     public init(
         schemaVersion: Int,
@@ -43,7 +44,8 @@ public struct NativeUiSnapshot: Codable, Equatable {
         planExpiresAt: Int?,
         usage: Usage,
         traffic: Traffic,
-        labels: [String: String]
+        labels: [String: String],
+        returnRoute: ReturnRoute? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.revision = revision
@@ -62,6 +64,61 @@ public struct NativeUiSnapshot: Codable, Equatable {
         self.usage = usage
         self.traffic = traffic
         self.labels = labels
+        self.returnRoute = returnRoute
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, revision, accountGeneration, locale, textDirection, safeMode, sessionStatus, connectionState, destination, mode, selectedServerId, servers, planName, planExpiresAt, usage, traffic, labels, returnRoute
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+        revision = try values.decode(Int.self, forKey: .revision)
+        accountGeneration = try values.decode(Int.self, forKey: .accountGeneration)
+        locale = try values.decode(String.self, forKey: .locale)
+        textDirection = try values.decode(TextDirection.self, forKey: .textDirection)
+        safeMode = try values.decode(Bool.self, forKey: .safeMode)
+        sessionStatus = try values.decode(SessionStatus.self, forKey: .sessionStatus)
+        connectionState = try values.decode(ConnectionState.self, forKey: .connectionState)
+        destination = try values.decode(Destination.self, forKey: .destination)
+        mode = try values.decode(ConnectionMode.self, forKey: .mode)
+        selectedServerId = try values.decodeIfPresent(String.self, forKey: .selectedServerId)
+        servers = try values.decode([Server].self, forKey: .servers)
+        planName = try values.decodeIfPresent(String.self, forKey: .planName)
+        planExpiresAt = try values.decodeIfPresent(Int.self, forKey: .planExpiresAt)
+        usage = try values.decode(Usage.self, forKey: .usage)
+        traffic = try values.decode(Traffic.self, forKey: .traffic)
+        labels = try values.decode([String: String].self, forKey: .labels)
+        returnRoute = try? values.decode(ReturnRoute.self, forKey: .returnRoute)
+    }
+
+    public struct ReturnRoute: Codable, Equatable {
+        public let title: String
+        public let selectedId: String?
+        public let enabled: Bool
+        public let options: [Option]
+
+        public struct Option: Codable, Equatable, Identifiable {
+            public let id: String
+            public let label: String
+        }
+
+        private enum CodingKeys: String, CodingKey { case title, selectedId, enabled, options }
+
+        public init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            title = try values.decode(String.self, forKey: .title)
+            selectedId = try values.decodeIfPresent(String.self, forKey: .selectedId)
+            enabled = try values.decode(Bool.self, forKey: .enabled)
+            options = try values.decode([Option].self, forKey: .options)
+            guard !title.isEmpty, title.count <= 4096, options.count <= 3,
+                  Set(options.map(\.id)).count == options.count,
+                  options.allSatisfy({ ["direct", "hk_lite", "hk_optimized"].contains($0.id) && !$0.label.isEmpty && $0.label.count <= 4096 }),
+                  selectedId.map({ selected in options.contains { $0.id == selected } }) ?? true else {
+                throw NativeUiSnapshotError.invalidValue
+            }
+        }
     }
 
     public enum TextDirection: String, Codable { case ltr, rtl }
@@ -154,7 +211,7 @@ public struct NativeUiCommand: Codable, Equatable {
     public let action: Action
     public let payload: [String: String]
 
-    public enum Action: String, Codable, Hashable { case connect, disconnect, selectServer, setMode, navigate, refresh, preferences, help }
+    public enum Action: String, Codable, Hashable { case connect, disconnect, selectServer, selectReturnRoute, setMode, navigate, refresh, preferences, help }
 
     public init(id: String = UUID().uuidString, accountGeneration: Int, action: Action, payload: [String: String] = [:]) {
         self.schemaVersion = NativeUiContract.schemaVersion
@@ -226,6 +283,10 @@ public final class NativeUiBridge: ObservableObject {
 
     public func send(_ action: NativeUiCommand.Action, payload: [String: String] = [:]) {
         guard let snapshot = store.snapshot, !pendingActions.contains(action) else { return }
+        if action == .selectReturnRoute {
+            guard pendingActions.isEmpty, let route = snapshot.returnRoute, route.enabled,
+                  let optionId = payload["optionId"], route.options.contains(where: { $0.id == optionId }) else { return }
+        }
         let command = NativeUiCommand(accountGeneration: snapshot.accountGeneration, action: action, payload: payload)
         guard let data = try? JSONEncoder().encode(command), let json = String(data: data, encoding: .utf8) else { return }
         pendingActions.insert(action)
@@ -246,6 +307,8 @@ public final class NativeUiBridge: ObservableObject {
             }
         }
     }
+
+    public var hasPendingCommand: Bool { !pendingActions.isEmpty }
 
     public func isPending(_ action: NativeUiCommand.Action) -> Bool { pendingActions.contains(action) }
 
@@ -374,6 +437,7 @@ public struct NativeHomeView: View {
             } else {
                 HStack(spacing: 24) { iosPower(snapshot); iosConnectionCopy(snapshot) }
             }
+            returnRoutePicker(snapshot)
             Divider().overlay(iosAccent.opacity(0.1))
             Button { bridge.send(.navigate, payload: ["destination": "servers"]) } label: {
                 HStack(spacing: 12) {
@@ -620,6 +684,7 @@ public struct NativeHomeView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 27)
+            returnRoutePicker(snapshot)
             Rectangle().fill(accent.opacity(0.15)).frame(height: 1)
             HStack(spacing: 12) {
                 Button { bridge.send(.navigate, payload: ["destination": "servers"]) } label: {
@@ -797,6 +862,7 @@ public struct NativeHomeView: View {
             }
             .pickerStyle(.segmented)
             .disabled(!canManageConnectionSettings(snapshot) || bridge.isPending(.setMode))
+            returnRoutePicker(snapshot)
             traffic(snapshot)
             if let feedback = bridge.feedback {
                 Text(label(snapshot, feedback.rawValue))
@@ -805,6 +871,24 @@ public struct NativeHomeView: View {
         }
         .padding()
         .navigationTitle(label(snapshot, "connect"))
+    }
+
+    @ViewBuilder private func returnRoutePicker(_ snapshot: NativeUiSnapshot) -> some View {
+        if let route = snapshot.returnRoute {
+            Picker(route.title, selection: Binding<String?>(
+                get: { route.selectedId },
+                set: { optionId in
+                    guard let optionId else { return }
+                    bridge.send(.selectReturnRoute, payload: ["optionId": optionId])
+                }
+            )) {
+                if route.selectedId == nil { Text("—").tag(nil as String?) }
+                ForEach(route.options) { option in
+                    Text(option.label).tag(Optional(option.id))
+                }
+            }
+            .disabled(!route.enabled || bridge.hasPendingCommand)
+        }
     }
 
     private func traffic(_ snapshot: NativeUiSnapshot) -> some View {

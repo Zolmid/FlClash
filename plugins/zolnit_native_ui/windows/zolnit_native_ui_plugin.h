@@ -34,6 +34,7 @@ class ZolnitNativeUiPlugin : public flutter::Plugin {
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
   std::unique_ptr<WinUiSurface> surface_;
   std::optional<int> window_proc_delegate_id_;
+  std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
 };
 
 }  // namespace zolnit

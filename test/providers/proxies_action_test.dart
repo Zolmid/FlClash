@@ -201,6 +201,59 @@ void main() {
     });
 
     test(
+      'mapped manual choice reaches Core exactly and rejects a stale guard',
+      () async {
+        when(core.getProxies).thenAnswer(
+          (_) async => ProxiesData(
+            all: const ['return-group'],
+            proxies: Map<String, dynamic>.from({
+              'return-group': Map<String, dynamic>.from({
+                'name': 'return-group',
+                'type': 'Selector',
+                'all': ['actual-return-target'],
+                'now': 'actual-return-target',
+              }),
+              'actual-return-target': Map<String, dynamic>.from({
+                'name': 'actual-return-target',
+                'type': 'URLTest',
+              }),
+            }),
+          ),
+        );
+        final container = buildContainer(profile: _selectedProfile('before'));
+        final owner = actionOf(container);
+        expect(
+          await owner.changeProxyIfCurrent(
+            groupName: 'return-group',
+            proxyName: 'actual-return-target',
+            isCurrent: () => true,
+          ),
+          isTrue,
+        );
+        final sent =
+            verify(() => core.changeProxy(captureAny())).captured.single
+                as ChangeProxyParams;
+        expect(
+          (sent.groupName, sent.proxyName),
+          ('return-group', 'actual-return-target'),
+        );
+        expect(
+          container.read(groupsProvider).single.realNow,
+          'actual-return-target',
+        );
+        expect(
+          await owner.changeProxyIfCurrent(
+            groupName: 'return-group',
+            proxyName: 'DIRECT',
+            isCurrent: () => false,
+          ),
+          isFalse,
+        );
+        verifyNever(() => core.changeProxy(any()));
+      },
+    );
+
+    test(
       'manual selection follows an in-flight automatic write and wins',
       () async {
         final firstStarted = Completer<void>();

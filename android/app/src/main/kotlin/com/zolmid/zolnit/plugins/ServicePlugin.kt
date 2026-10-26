@@ -1,5 +1,7 @@
 package com.zolmid.zolnit.plugins
 
+import com.zolmid.zolnit.common.GlobalState
+import com.zolmid.zolnit.renewal.AndroidClientBundleRenewal
 import com.zolmid.zolnit.ServiceController
 import com.zolmid.zolnit.ServiceState
 import com.zolmid.zolnit.common.Components
@@ -51,6 +53,8 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "configureClientBundleRenewal", "logoutClientBundleRenewal", "clientBundleRenewalStatus" ->
+                renewal(call, result)
             "init" -> initialize(result)
             "shutdown" -> shutdown(result)
             "getRunTime" -> getRunTime(result)
@@ -67,6 +71,38 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 
+    private fun renewal(call: MethodCall, result: MethodChannel.Result) {
+        GlobalState.launch(Dispatchers.Main.immediate) {
+            val response = runCatching {
+                when (call.method) {
+                    "configureClientBundleRenewal" -> {
+                        val account = requireNotNull(call.argument<String>("accountId"))
+                        val authorization = requireNotNull(call.argument<String>("authorization"))
+                        val generation = renewalInteger(call, "accountGeneration")
+                        AndroidClientBundleRenewal.configure(account, authorization, generation)
+                    }
+                    "logoutClientBundleRenewal" -> {
+                        val epoch = renewalInteger(call, "sessionEpoch")
+                        require(epoch > 0)
+                        AndroidClientBundleRenewal.logout(epoch)
+                    }
+                    else -> AndroidClientBundleRenewal.status()
+                }
+            }
+            launch(Dispatchers.Main) {
+                response.fold({ result.success(it) }, {
+                    result.error("BUNDLE_RENEWAL_ERROR", "Native bundle renewal operation failed", null)
+                })
+            }
+        }
+    }
+
+    private fun renewalInteger(call: MethodCall, key: String): Long {
+        val value = call.argument<Any>(key)
+        require(value is Int || value is Long)
+        return (value as Number).toLong().also { require(it > 0) }
+    }
+
     private fun onCoreMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "invokeMethod" -> invokeMethod(call, result)
@@ -81,8 +117,11 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     }
 
     private fun shutdown(result: MethodChannel.Result) {
-        ServiceController.setEventListener(null)
-        result.success(true)
+        GlobalState.launch(Dispatchers.Main.immediate) {
+            val stopped = runCatching { ServiceState.requestStop().await() }.getOrDefault(false)
+            ServiceController.setEventListener(null)
+            result.success(stopped)
+        }
     }
 
     private fun invokeMethod(call: MethodCall, result: MethodChannel.Result) {

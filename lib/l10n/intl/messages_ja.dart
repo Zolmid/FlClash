@@ -2235,6 +2235,27 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitAllNodes": MessageLookupByLibrary.simpleMessage("すべてのサーバー"),
     "zolnitAllRegions": MessageLookupByLibrary.simpleMessage("すべての地域"),
     "zolnitAmountDue": MessageLookupByLibrary.simpleMessage("支払い金額"),
+    "zolnitAppleAutoRenewal": MessageLookupByLibrary.simpleMessage(
+      "App Store の自動更新サブスクリプション",
+    ),
+    "zolnitAppleConsent": MessageLookupByLibrary.simpleMessage(
+      "App Store のサブスクリプション管理で解約するまで、表示された App Store 価格で自動更新されます。",
+    ),
+    "zolnitAppleManage": MessageLookupByLibrary.simpleMessage(
+      "App Store のサブスクリプションを管理",
+    ),
+    "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
+      "App Store またはサーバーの確認を待っています。",
+    ),
+    "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
+      "App Store の購入を復元",
+    ),
+    "zolnitAppleSubscribe": MessageLookupByLibrary.simpleMessage(
+      "App Store で登録",
+    ),
+    "zolnitAppleUnavailable": MessageLookupByLibrary.simpleMessage(
+      "このプランは現在 App Store で購入できません。",
+    ),
     "zolnitAuthorizeMonthly": MessageLookupByLibrary.simpleMessage("月額自動更新を承認"),
     "zolnitBalance": MessageLookupByLibrary.simpleMessage("アカウント残高"),
     "zolnitBilledMonthly": MessageLookupByLibrary.simpleMessage("月払いで、気軽にスタート"),
@@ -2530,6 +2551,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "承認済みプランに基づく自動請求を再開します。",
     ),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("中国へ直接"),
+    "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage("香港優先"),
+    "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage("香港最適化"),
+    "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("中国への経路"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
       "このセッションからログアウト",
     ),

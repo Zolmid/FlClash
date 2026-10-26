@@ -8,9 +8,13 @@ import 'api.dart';
 import 'checkout.dart';
 
 class NativeCheckoutPlatform implements CheckoutPlatform {
-  NativeCheckoutPlatform({required this.merchantName});
+  NativeCheckoutPlatform({
+    required this.merchantName,
+    this.wechatAppId = const String.fromEnvironment('ZOLNIT_WECHAT_APP_ID'),
+  });
 
   final String merchantName;
+  final String wechatAppId;
   static bool _confirming = false;
 
   @override
@@ -29,6 +33,12 @@ class NativeCheckoutPlatform implements CheckoutPlatform {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       throw const ClientFailure('sdk_unavailable');
     }
+    if (action.wallet == StripeWallet.wechatPay &&
+        (!RegExp(r'^wx[A-Za-z0-9]+$').hasMatch(wechatAppId) ||
+            (action.wechatAppId != null &&
+                action.wechatAppId != wechatAppId))) {
+      throw const ClientFailure('sdk_unavailable');
+    }
     if (_confirming) throw const ClientFailure('purchase_in_progress');
     _confirming = true;
     try {
@@ -40,7 +50,7 @@ class NativeCheckoutPlatform implements CheckoutPlatform {
         await ZolnitWechatPay().confirm(
           publishableKey: action.publishableKey,
           clientSecret: action.clientSecret,
-          appId: action.wechatAppId!,
+          appId: wechatAppId,
         );
         return;
       }

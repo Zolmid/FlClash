@@ -229,11 +229,13 @@ class ZolnitClientBundle {
   static Object? _freeze(Object? value) {
     if (value is Map) {
       final result = <String, dynamic>{};
-      for (final entry in value.entries) {
-        if (entry.key is! String) {
-          throw const ClientFailure('invalid_client_bundle');
-        }
-        result[entry.key as String] = _freeze(entry.value);
+      final keys = value.keys.toList();
+      if (keys.any((key) => key is! String)) {
+        throw const ClientFailure('invalid_client_bundle');
+      }
+      keys.sort((a, b) => (a as String).compareTo(b as String));
+      for (final key in keys) {
+        result[key as String] = _freeze(value[key]);
       }
       return Map<String, dynamic>.unmodifiable(result);
     }

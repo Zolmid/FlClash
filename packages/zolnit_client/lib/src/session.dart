@@ -740,13 +740,18 @@ class ZolnitSessionController extends ChangeNotifier {
   Future<void> refreshPayment() => _run<void>('payment', null, (work) async {
     await checkout.refresh();
     if (!_current(work)) return;
+    if (checkout.stage == CheckoutStage.completed) {
+      await _reconcilePayment(work);
+    } else if (checkout.stage == CheckoutStage.cancelled) {
+      await refresh();
+    }
+    if (!_current(work)) return;
     if (checkout.failure != null && checkout.stage != CheckoutStage.completed) {
       throw ClientFailure(
         checkout.failure!,
         serverMessage: checkout.failureMessage,
       );
     }
-    await _reconcilePayment(work);
   });
 
   @override

@@ -2,6 +2,75 @@ import XCTest
 @testable import ZolnitNativeUiCore
 
 final class NativeUiContractTests: XCTestCase {
+    private func routeSnapshot(_ route: Any? = nil, revision: Int = 1, generation: Int = 1) throws -> String {
+        let snapshot = NativeUiSnapshot(
+            schemaVersion: 1, revision: revision, accountGeneration: generation, locale: "en",
+            textDirection: .ltr, safeMode: false, sessionStatus: .signedIn,
+            connectionState: .disconnected, destination: .connect, mode: .rule,
+            selectedServerId: nil, servers: [], planName: nil, planExpiresAt: nil,
+            usage: .init(usedBytes: nil, totalBytes: nil), traffic: .init(uploadBps: nil, downloadBps: nil),
+            labels: Dictionary(uniqueKeysWithValues: NativeUiSnapshot.requiredLabels.map { ($0, $0) })
+        )
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(snapshot)) as? [String: Any])
+        json["returnRoute"] = route
+        return try XCTUnwrap(String(data: JSONSerialization.data(withJSONObject: json), encoding: .utf8))
+    }
+
+    private var route: [String: Any] {
+        ["title": "RETURN ROUTE", "enabled": true, "options": [
+            ["id": "direct", "label": "Direct"], ["id": "hk_lite", "label": "Lite"],
+            ["id": "hk_optimized", "label": "Optimized"],
+        ]]
+    }
+
+    func testOptionalReturnRouteHidesMalformedWithoutRejectingSnapshot() throws {
+        XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot()).returnRoute)
+        XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot(route)).returnRoute?.selectedId)
+        for id in ["direct", "hk_lite", "hk_optimized"] {
+            var value = route
+            value["selectedId"] = id
+            XCTAssertEqual(try NativeUiSnapshot.decode(json: routeSnapshot(value)).returnRoute?.selectedId, id)
+        }
+        var badEnabled = route; badEnabled["enabled"] = "true"
+        var badSelected = route; badSelected["selectedId"] = "DIRECT"
+        var badType = route; badType["selectedId"] = 1
+        var duplicate = route; duplicate["options"] = [["id": "direct", "label": "A"], ["id": "direct", "label": "B"]]
+        for value in [NSNull(), false, [:], badEnabled, badSelected, badType, duplicate] as [Any] {
+            XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot(value)).returnRoute)
+        }
+    }
+
+    func testReturnRouteUsesExistingCommandAndBusyGenerationChannel() throws {
+        let store = NativeUiStore()
+        XCTAssertTrue(store.publish(json: try routeSnapshot(route)))
+        var sent: [NativeUiCommand] = []
+        var completion: ((String?) -> Void)?
+        let bridge = NativeUiBridge(store: store) { json, finish in
+            sent.append(try! JSONDecoder().decode(NativeUiCommand.self, from: Data(json.utf8)))
+            completion = finish
+        }
+        bridge.send(.selectReturnRoute, payload: ["optionId": "DIRECT"])
+        XCTAssertTrue(sent.isEmpty)
+        bridge.send(.selectReturnRoute, payload: ["optionId": "hk_lite"])
+        bridge.send(.selectReturnRoute, payload: ["optionId": "direct"])
+        XCTAssertEqual(sent.count, 1)
+        XCTAssertEqual(sent.first?.payload, ["optionId": "hk_lite"])
+        XCTAssertEqual(sent.first?.accountGeneration, 1)
+        XCTAssertNil(store.snapshot?.returnRoute?.selectedId)
+        XCTAssertTrue(bridge.hasPendingCommand)
+        XCTAssertTrue(store.publish(json: try routeSnapshot(route, revision: 2, generation: 2)))
+        completion?(nil)
+        let settled = expectation(description: "old receipt")
+        DispatchQueue.main.async { settled.fulfill() }
+        wait(for: [settled], timeout: 1)
+        XCTAssertNil(bridge.feedback)
+        XCTAssertFalse(bridge.hasPendingCommand)
+        var disabled = route; disabled["enabled"] = false
+        XCTAssertTrue(store.publish(json: try routeSnapshot(disabled, revision: 3, generation: 2)))
+        bridge.send(.selectReturnRoute, payload: ["optionId": "direct"])
+        XCTAssertEqual(sent.count, 1)
+    }
+
     func testBinaryByteTextPreservesUnknownAndMeasuredZero() {
         XCTAssertEqual(NativeByteText.format(100 * 1024 * 1024 * 1024, locale: "en_US"), "100 GiB")
         XCTAssertEqual(NativeByteText.format(1024, locale: "en_US"), "1 KiB")

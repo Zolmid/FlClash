@@ -12,12 +12,12 @@ void main() {
   const channel = MethodChannel('zolnit/stripe_wechat_pay');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  StripeCheckout action() => StripeCheckout(
+  StripeCheckout action({String? appId = 'wxdemo'}) => StripeCheckout(
     publishableKey: 'pk_test_demo',
     clientSecret: 'pi_demo_secret_demo',
     wallet: StripeWallet.wechatPay,
     returnUri: Uri.parse('zolnit://safepay'),
-    wechatAppId: 'wxdemo',
+    wechatAppId: appId,
   );
 
   setUp(() {
@@ -36,9 +36,50 @@ void main() {
     });
     await NativeCheckoutPlatform(
       merchantName: 'ZolNit',
+      wechatAppId: 'wxdemo',
     ).confirmStripe(action(), isCurrent: () => true);
     expect(methods, ['isBusy', 'confirm']);
   });
+
+  test('WeChat uses the fixed client AppID when checkout omits it', () async {
+    Object? confirmed;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'confirm') confirmed = call.arguments;
+      return call.method == 'isBusy' ? false : null;
+    });
+    await NativeCheckoutPlatform(
+      merchantName: 'ZolNit',
+      wechatAppId: 'wxdemo',
+    ).confirmStripe(action(appId: null), isCurrent: () => true);
+    expect((confirmed as Map)['appId'], 'wxdemo');
+  });
+
+  for (final configuredId in ['', 'wxtrusted']) {
+    test(
+      'unconfigured or mismatched WeChat AppID never invokes the SDK ($configuredId)',
+      () async {
+        var calls = 0;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls++;
+          return false;
+        });
+        await expectLater(
+          NativeCheckoutPlatform(
+            merchantName: 'ZolNit',
+            wechatAppId: configuredId,
+          ).confirmStripe(action(), isCurrent: () => true),
+          throwsA(
+            isA<ClientFailure>().having(
+              (e) => e.code,
+              'code',
+              'sdk_unavailable',
+            ),
+          ),
+        );
+        expect(calls, 0);
+      },
+    );
+  }
 
   test(
     'account invalidation during SDK preparation prevents native confirmation',
@@ -57,6 +98,7 @@ void main() {
       });
       final operation = NativeCheckoutPlatform(
         merchantName: 'ZolNit',
+        wechatAppId: 'wxdemo',
       ).confirmStripe(action(), isCurrent: () => current);
       final assertion = expectLater(operation, throwsA(isA<ClientFailure>()));
       await queried.future;
@@ -79,11 +121,13 @@ void main() {
     });
     final first = NativeCheckoutPlatform(
       merchantName: 'ZolNit',
+      wechatAppId: 'wxdemo',
     ).confirmStripe(action(), isCurrent: () => true);
     await queried.future;
     await expectLater(
       NativeCheckoutPlatform(
         merchantName: 'ZolNit',
+        wechatAppId: 'wxdemo',
       ).confirmStripe(action(), isCurrent: () => true),
       throwsA(
         isA<ClientFailure>().having(
@@ -152,22 +196,73 @@ void main() {
     },
   );
 
-  test('Android Stripe is unavailable by default, available with flag', () {
-    const blocked = ClientPaymentPolicy(
-      platform: TargetPlatform.android,
-      isWeb: false,
-      distribution: ClientDistribution.direct,
-    );
-    expect(blocked.allowStripe, isFalse);
-    expect(blocked.allowAndroidSdk, isFalse);
+  test(
+    'Android eligibility needs server capability rather than a build flag',
+    () {
+      const blocked = ClientPaymentPolicy(
+        platform: TargetPlatform.android,
+        isWeb: false,
+        distribution: ClientDistribution.direct,
+      );
+      expect(blocked.allowStripe, isTrue);
+      expect(blocked.allowAndroidSdk, isTrue);
 
-    const enabled = ClientPaymentPolicy(
-      platform: TargetPlatform.android,
-      isWeb: false,
-      distribution: ClientDistribution.direct,
-      androidNativeStripe: true,
-    );
-    expect(enabled.allowStripe, isTrue);
-    expect(enabled.allowAndroidSdk, isTrue);
-  });
+      const enabled = ClientPaymentPolicy(
+        platform: TargetPlatform.android,
+        isWeb: false,
+        distribution: ClientDistribution.direct,
+        androidNativeStripe: true,
+      );
+      expect(enabled.allowStripe, isTrue);
+      expect(enabled.allowAndroidSdk, isTrue);
+      const capability = <String, dynamic>{
+        'available': true,
+        'platform': 'android',
+        'payment_method': 'wechat_pay',
+        'recurring': false,
+      };
+      expect(blocked.supportsNativeCapability(capability), isTrue);
+      expect(
+        enabled.supportsNativeCapability({...capability, 'available': false}),
+        isFalse,
+      );
+      expect(
+        enabled.supportsNativeCapability({...capability, 'available': 'true'}),
+        isFalse,
+      );
+      expect(
+        enabled.supportsNativeCapability({
+          ...capability,
+          'payment_method': 'card',
+        }),
+        isFalse,
+      );
+      expect(
+        enabled.supportsNativeCapability({
+          ...capability,
+          'payment_method': 'alipay',
+        }),
+        isFalse,
+      );
+      expect(
+        enabled.supportsNativeCapability(capability, recurring: true),
+        isFalse,
+      );
+      expect(enabled.supportsNativeCapability({}), isFalse);
+      for (final platform in [
+        TargetPlatform.iOS,
+        TargetPlatform.macOS,
+        TargetPlatform.android,
+      ]) {
+        final policy = ClientPaymentPolicy(
+          platform: platform,
+          isWeb: false,
+          distribution: ClientDistribution.appleAppStore,
+          androidNativeStripe: true,
+        );
+        expect(policy.allowStripe, isFalse);
+        expect(policy.supportsNativeCapability(capability), isFalse);
+      }
+    },
+  );
 }

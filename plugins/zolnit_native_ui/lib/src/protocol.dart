@@ -37,11 +37,13 @@ const nativeUiRequiredLabels = <String>{
 };
 
 const _destinations = {'connect', 'servers', 'plans', 'account'};
+const _returnRouteIds = {'direct', 'hk_lite', 'hk_optimized'};
 const _modes = {'rule', 'global'};
 const _actions = {
   'connect',
   'disconnect',
   'selectServer',
+  'selectReturnRoute',
   'setMode',
   'navigate',
   'refresh',
@@ -101,6 +103,71 @@ Map<String, dynamic> _decode(String source, {int maxLength = 2097152}) {
   }
 }
 
+class NativeUiReturnRoute {
+  NativeUiReturnRoute._(
+    this.title,
+    this.selectedId,
+    this.enabled,
+    this.options,
+  );
+
+  static NativeUiReturnRoute? parse(Object? raw) {
+    if (raw == null) return null;
+    try {
+      final value = _object(raw, 'returnRoute');
+      _keys(value, {
+        'title',
+        'selectedId',
+        'enabled',
+        'options',
+      }, 'returnRoute');
+      final title = _string(value['title'], 'returnRoute.title');
+      if (value['enabled'] is! bool) _invalid('returnRoute.enabled');
+      final options = value['options'];
+      if (options is! List || options.length > 3) {
+        _invalid('returnRoute.options');
+      }
+      final labels = <String, String>{};
+      for (final rawOption in options) {
+        final option = _object(rawOption, 'returnRoute.option');
+        _keys(option, {'id', 'label'}, 'returnRoute.option');
+        _choice(option['id'], _returnRouteIds, 'returnRoute.option.id');
+        final id = option['id'] as String;
+        if (labels.containsKey(id)) _invalid('returnRoute.option.id');
+        labels[id] = _string(option['label'], 'returnRoute.option.label');
+      }
+      final selected = value['selectedId'];
+      if (selected != null &&
+          (selected is! String || !labels.containsKey(selected))) {
+        _invalid('returnRoute.selectedId');
+      }
+      return NativeUiReturnRoute._(
+        title,
+        selected as String?,
+        value['enabled'] as bool,
+        Map.unmodifiable(labels),
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+
+  final String title;
+  final String? selectedId;
+  final bool enabled;
+  final Map<String, String> options;
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'selectedId': selectedId,
+    'enabled': enabled,
+    'options': [
+      for (final entry in options.entries)
+        {'id': entry.key, 'label': entry.value},
+    ],
+  };
+}
+
 class NativeUiSnapshot {
   NativeUiSnapshot._(
     this._encoded,
@@ -108,6 +175,7 @@ class NativeUiSnapshot {
     this.accountGeneration,
     this.sessionStatus,
     this.safeMode,
+    this.returnRoute,
     Set<String> availableServers,
   ) : _availableServers = Set.unmodifiable(availableServers);
 
@@ -133,6 +201,7 @@ class NativeUiSnapshot {
       'usage',
       'traffic',
       'labels',
+      'returnRoute',
     }, 'snapshot');
     _version(value);
     final revision = _integer(value['revision'], 'revision');
@@ -202,7 +271,12 @@ class NativeUiSnapshot {
     for (final key in nativeUiRequiredLabels) {
       _string(labels[key], 'labels.$key');
     }
-    final encoded = jsonEncode(value);
+    final returnRoute = NativeUiReturnRoute.parse(value['returnRoute']);
+    final normalized = Map<String, dynamic>.of(value);
+    if (value.containsKey('returnRoute')) {
+      normalized['returnRoute'] = returnRoute?.toJson();
+    }
+    final encoded = jsonEncode(normalized);
     if (encoded.length > 2097152) _invalid('payload');
     return NativeUiSnapshot._(
       encoded,
@@ -210,6 +284,7 @@ class NativeUiSnapshot {
       generation,
       value['sessionStatus'] as String,
       value['safeMode'] as bool,
+      returnRoute,
       availableServers,
     );
   }
@@ -219,6 +294,7 @@ class NativeUiSnapshot {
   final int accountGeneration;
   final String sessionStatus;
   final bool safeMode;
+  final NativeUiReturnRoute? returnRoute;
   final Set<String> _availableServers;
 
   String encode() => _encoded;
@@ -256,6 +332,9 @@ class NativeUiCommand {
       case 'selectServer':
         _keys(payload, {'serverId'}, 'payload');
         _string(payload['serverId'], 'serverId', maxLength: 512);
+      case 'selectReturnRoute':
+        _keys(payload, {'optionId'}, 'payload');
+        _choice(payload['optionId'], _returnRouteIds, 'optionId');
       case 'setMode':
         _keys(payload, {'mode'}, 'payload');
         _choice(payload['mode'], _modes, 'mode');

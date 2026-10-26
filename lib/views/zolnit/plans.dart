@@ -11,6 +11,7 @@ import 'brand.dart';
 import 'data.dart';
 import 'kit.dart';
 import 'skin.dart';
+import 'apple_plans.dart';
 
 const _periodKeys = <String>[
   'month_price',
@@ -158,6 +159,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
         : null;
     _quoteLoading =
         widget.session.authenticated &&
+        widget.session.api.distribution != 'apple-app-store' &&
         widget.session.checkout.allowStripe &&
         period != null;
     if (_quoteLoading) {
@@ -303,6 +305,12 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.session.api.distribution == 'apple-app-store') {
+      return ZolnitApplePlansPage(
+        session: widget.session,
+        compact: widget.compact,
+      );
+    }
     final text = context.appLocalizations;
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);

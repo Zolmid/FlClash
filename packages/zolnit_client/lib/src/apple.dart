@@ -25,6 +25,8 @@ class ApplePurchaseContext {
     required this.accountId,
     required this.productId,
     required this.appAccountToken,
+    this.entitlementEffect,
+    this.giftExpiresAt,
   }) {
     if (accountId.isEmpty ||
         productId.isEmpty ||
@@ -38,6 +40,8 @@ class ApplePurchaseContext {
   final String accountId;
   final String productId;
   final String appAccountToken;
+  final String? entitlementEffect;
+  final DateTime? giftExpiresAt;
 }
 
 class ApplePurchaseProof {
@@ -136,6 +140,7 @@ class ApplePurchaseController extends ChangeNotifier {
     required this.backend,
     required Set<String> productIds,
     required this.enabled,
+    this.confirmPurchase,
   }) : productIds = Set.unmodifiable(productIds) {
     if (enabled) {
       _subscription = store.purchases.listen(
@@ -154,6 +159,11 @@ class ApplePurchaseController extends ChangeNotifier {
   final AppleBillingBackend backend;
   final Set<String> productIds;
   final bool enabled;
+  final Future<bool> Function(
+    ProductDetails product,
+    ApplePurchaseContext context,
+  )?
+  confirmPurchase;
   ApplePurchaseStage _stage = ApplePurchaseStage.idle;
   String? _failure;
   List<ProductDetails> _products = const [];
@@ -213,6 +223,11 @@ class ApplePurchaseController extends ChangeNotifier {
       if (!_catalogCurrent(generation, catalogRev)) return;
       final result = await store.products(productIds);
       if (!_catalogCurrent(generation, catalogRev)) return;
+      final returnedIds = result.map((product) => product.id).toSet();
+      if (returnedIds.length != result.length ||
+          !setEquals(returnedIds, productIds)) {
+        throw const ClientFailure('apple_products_unavailable');
+      }
       _products = List.unmodifiable(result);
       _set(ApplePurchaseStage.idle);
     } catch (_) {
@@ -254,6 +269,14 @@ class ApplePurchaseController extends ChangeNotifier {
       if (!_current(generation)) return;
       if (context.accountId != _accountId || context.productId != productId) {
         throw const ClientFailure('purchase_identity_mismatch');
+      }
+      if (confirmPurchase != null) {
+        final approved = await confirmPurchase!(matching.single, context);
+        if (!_current(generation)) return;
+        if (!approved) {
+          _set(ApplePurchaseStage.cancelled);
+          return;
+        }
       }
       final launched = await store.buy(
         matching.single,
@@ -307,7 +330,8 @@ class ApplePurchaseController extends ChangeNotifier {
     final id = purchase.purchaseID;
     if (id == null ||
         id.isEmpty ||
-        purchase.verificationData.serverVerificationData.isEmpty) {
+        purchase.verificationData.serverVerificationData.isEmpty ||
+        purchase.verificationData.source.isEmpty) {
       _failure = 'invalid_purchase';
       _set(ApplePurchaseStage.failed);
       return;

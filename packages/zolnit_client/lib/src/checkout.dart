@@ -74,7 +74,8 @@ class StripeCheckout extends CheckoutAction {
         returnUri.hasQuery ||
         returnUri.hasFragment ||
         (wallet == StripeWallet.wechatPay &&
-            !RegExp(r'^wx[A-Za-z0-9]+$').hasMatch(wechatAppId ?? ''))) {
+            wechatAppId != null &&
+            !RegExp(r'^wx[A-Za-z0-9]+$').hasMatch(wechatAppId!))) {
       throw const ClientFailure('invalid_stripe_action');
     }
   }
@@ -291,6 +292,8 @@ class CheckoutController extends ChangeNotifier {
     try {
       final status = await backend.status(tradeNo);
       if (!_current(generation)) return;
+      _failure = null;
+      _failureMessage = null;
       switch (status) {
         case 0:
           _set(

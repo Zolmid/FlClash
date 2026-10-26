@@ -148,6 +148,13 @@ func applyConfig(params *SetupParams) error {
 	runtime.GC()
 	configMu.Lock()
 	defer configMu.Unlock()
+	stopClientBundleRoutingLocked()
+	clientBundleOwner = nil
+	if reuseClientBundleConfigurationLocked(params) {
+		rememberClientBundleSetupLocked(params)
+		return nil
+	}
+	clientBundleSetup = nil
 
 	clearRoutingLeaseForConfigChange()
 	setTestURL(params.TestURL)
@@ -170,6 +177,14 @@ func applyConfig(params *SetupParams) error {
 		cfg = fallback
 	}
 
+	applyParsedConfigLocked(cfg, params, err)
+	if err == nil {
+		rememberClientBundleSetupLocked(params)
+	}
+	return err
+}
+
+func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError error) {
 	if runtime.GOOS == "ios" && !isRunning.Load() {
 		disableStandaloneListeners(cfg)
 	}
@@ -183,7 +198,7 @@ func applyConfig(params *SetupParams) error {
 		hub.ApplyConfig(cfg)
 		replaceRulesGenerationLocked(tunnel.Rules())
 		patchSelectGroupLocked(params.SelectedMap)
-		if err == nil {
+		if applyError == nil {
 			installRoutingLeaseLocked(params.RoutingLease)
 		} else {
 			installRoutingLeaseLocked(nil)
@@ -193,7 +208,6 @@ func applyConfig(params *SetupParams) error {
 	updateListeners(cfg)
 	reconcileGeoUpdater()
 	scheduleLoadMemoryRelease()
-	return err
 }
 
 func updateConfig(params *UpdateParams) error {
@@ -202,6 +216,7 @@ func updateConfig(params *UpdateParams) error {
 	if currentConfig == nil {
 		return errConfigNotApplied
 	}
+	patchClientBundlePreferencesLocked(params)
 
 	general := currentConfig.General
 	if params.MixedPort != nil {

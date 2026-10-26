@@ -309,7 +309,7 @@ void main() {
   );
 
   test(
-    'a fresh provider cannot renew expired peers in the same service',
+    'stale peers preserve qualified current without qualifying a new choice',
     () async {
       activate();
       await runNormally();
@@ -322,6 +322,11 @@ void main() {
         delay: 10,
         url: params.url,
       );
+      await routing.run();
+      expect(picks['AI 自动'], 'us-exit');
+      routing.clear();
+      picks['AI 自动'] = 'REJECT';
+      activate();
       await routing.run();
       expect(picks['AI 自动'], 'REJECT');
     },

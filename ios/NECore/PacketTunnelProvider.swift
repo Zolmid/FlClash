@@ -6,6 +6,7 @@ import os
 final class PacketTunnelProvider: NEPacketTunnelProvider {
   private let sharedStateStore = PacketTunnelSharedStateStore()
   private let networkConfiguration = PacketTunnelNetworkConfiguration()
+  private let bundleRenewal = NEClientBundleRenewal()
   private lazy var eventQueue = NECoreEventQueue(
     sharedStateStore: sharedStateStore
   )
@@ -107,6 +108,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         )
         if started {
           self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
+          Task { await self.bundleRenewal.start() }
         }
         completionHandler(
           started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
@@ -120,6 +122,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     completionHandler: @escaping () -> Void
   ) {
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
+    Task {
+      try? await bundleRenewal.stop(sessionEpoch: nil, invalidatingSession: false)
+      self.finishStop(reason: reason, completionHandler: completionHandler)
+    }
+  }
+
+  private func finishStop(reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
     sharedStateStore.clearRunTime()
     reloadWidgets()
     eventQueue.stop()
@@ -175,6 +184,26 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       return
     }
 
+    Task {
+      if let response = await bundleRenewal.handle(messageData) {
+        completionHandler(response)
+        return
+      }
+      if let payload = try? JSONSerialization.jsonObject(with: messageData) as? [String: Any],
+        payload["method"] as? String == "setupConfig"
+      {
+        do { try await bundleRenewal.stop(sessionEpoch: nil, invalidatingSession: false) }
+        catch {
+          completionHandler(methodErrorResponse(messageData: messageData,
+            code: "native_renewal_incomplete", message: "Previous renewal owner did not drain"))
+          return
+        }
+      }
+      self.invokeCoreMessage(messageData, completionHandler: completionHandler)
+    }
+  }
+
+  private func invokeCoreMessage(_ messageData: Data, completionHandler: @escaping (Data?) -> Void) {
     NECoreBridge.invokeMethod(messageData) { response in
       guard let response else {
         self.logger.warning("handleAppMessage empty core response")

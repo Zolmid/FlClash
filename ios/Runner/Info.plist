@@ -118,5 +118,11 @@
 			<string>arrow.triangle.2.circlepath</string>
 		</dict>
 	</array>
+	<key>ZolNitRenewalKeychainAccessGroup</key>
+	<string>$(ZOLNIT_RENEWAL_KEYCHAIN_GROUP)</string>
+	<key>ZolNitDistribution</key>
+	<string>$(ZOLNIT_NATIVE_DISTRIBUTION)</string>
+	<key>ZolNitRenewalWhileLocked</key>
+	<false/>
 </dict>
 </plist>

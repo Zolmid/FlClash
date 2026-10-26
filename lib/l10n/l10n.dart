@@ -12963,6 +12963,116 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Subscribe with App Store`
+  String get zolnitAppleSubscribe {
+    return Intl.message(
+      'Subscribe with App Store',
+      name: 'zolnitAppleSubscribe',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Auto-renewing App Store subscription`
+  String get zolnitAppleAutoRenewal {
+    return Intl.message(
+      'Auto-renewing App Store subscription',
+      name: 'zolnitAppleAutoRenewal',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The subscription renews automatically at the displayed App Store price until you cancel it in App Store subscriptions.`
+  String get zolnitAppleConsent {
+    return Intl.message(
+      'The subscription renews automatically at the displayed App Store price until you cancel it in App Store subscriptions.',
+      name: 'zolnitAppleConsent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Restore App Store purchases`
+  String get zolnitAppleRestore {
+    return Intl.message(
+      'Restore App Store purchases',
+      name: 'zolnitAppleRestore',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Manage App Store subscriptions`
+  String get zolnitAppleManage {
+    return Intl.message(
+      'Manage App Store subscriptions',
+      name: 'zolnitAppleManage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `App Store purchases are not available for this plan.`
+  String get zolnitAppleUnavailable {
+    return Intl.message(
+      'App Store purchases are not available for this plan.',
+      name: 'zolnitAppleUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Waiting for App Store or server verification.`
+  String get zolnitApplePending {
+    return Intl.message(
+      'Waiting for App Store or server verification.',
+      name: 'zolnitApplePending',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Return route`
+  String get zolnitReturnRoute {
+    return Intl.message(
+      'Return route',
+      name: 'zolnitReturnRoute',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Direct to China`
+  String get zolnitReturnDirect {
+    return Intl.message(
+      'Direct to China',
+      name: 'zolnitReturnDirect',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Hong Kong preferred`
+  String get zolnitReturnHkLite {
+    return Intl.message(
+      'Hong Kong preferred',
+      name: 'zolnitReturnHkLite',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Hong Kong optimized`
+  String get zolnitReturnHkOptimized {
+    return Intl.message(
+      'Hong Kong optimized',
+      name: 'zolnitReturnHkOptimized',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

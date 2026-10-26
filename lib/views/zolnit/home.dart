@@ -117,7 +117,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
     });
     if (index == 3) unawaited(ref.read(zolnitSessionProvider).refreshBilling());
     if (index == 2) {
-      unawaited(ref.read(zolnitSessionProvider).refreshRecurringOptions());
+      final session = ref.read(zolnitSessionProvider);
+      if (session.checkout.allowStripe &&
+          session.api.distribution != 'apple-app-store') {
+        unawaited(session.refreshRecurringOptions());
+      }
     }
   }
 
