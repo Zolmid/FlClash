@@ -187,7 +187,9 @@ Android 微信的包名、签名、App ID 需要在微信开放平台配置。St
 
 本地定向验证：`flutter pub get --enforce-lockfile`、`flutter analyze --no-fatal-infos`、`flutter test`。
 Android SDK 编译、App 旋转/后台/进程重启、支付 App 回跳，以及 Apple 沙盒需对应设备和真实商店配置验证。
-本机为 macOS，客户端模拟测试使用临时锁定 Flutter；Android SDK、完整 Xcode、商店资料和真机支付未在本轮验收。
+本机为 macOS，客户端模拟测试使用锁定 Flutter。`4f6f9b0e` 的 Cloud `40336864251` 已通过
+Android SDK、Windows、双架构 macOS 和 iOS 未签名整包构建；标准检查 `40336863976` 的
+8 项检查成功，Dart 因两项更新界面测试失败，不能记为全绿。商店资料、生产签名和真机支付仍未验收。
 Dart 通过不等于原生路径已验证。安装身份采用用户批准的 com.zolmid.zolnit，调试身份另加独立后缀；
 不读取、迁移或覆盖上游 FlClash 数据，不生成签名。验证命令：
 
@@ -503,7 +505,7 @@ App Group provisioning，并核对首次解锁/锁屏数据保护允许记录；
 
 `ios/Shared/ClientBundleRenewalState.swift` 保持为 Foundation 值状态机；本分支另有原生 owner、
 HTTP/Core 适配器、持久 epoch 与会话发布器。Android 对接现有加密存储与 ServiceController。
-这些接线经过合成离线验证，尚无平台完整构建、真实安全存储或后台设备验收。iOS 缺少已签名
+这些接线已在 `4f6f9b0e` 的 Cloud run `40336864251` 完成五平台整包编译，仍未完成真实安全存储或后台设备验收。iOS 缺少已签名
 共享 Keychain 配置时返回 signing_capability_required；Flutter 保留既有续租路径。
 Main 保持 `session.dart` / `zolnit_vault.dart` 的登录持久化、验证恢复和注销代际权威；普通关闭
 不删除登录。macOS/Windows 关窗口继续复用当前用户进程，真正退出沿用现有 CoreProcessLease

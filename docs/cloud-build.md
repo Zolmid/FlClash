@@ -31,22 +31,77 @@
 | macOS x64 | macOS 15 Intel | 所选 FlClash 分支 | app zip |
 | iOS arm64 | macOS 26 / Xcode | 显式选择的 iOS 源码 | 无 provisioning 的 IPA |
 
-这些是用于开发验证的构建产物：Android 为 Debug，其余为 Release 模式，桌面产物不是安装器。
+在 `codex/zolnit-client` 和 `codex/native-client-shared` 分支上，桌面平台还会生成网站更新器
+可识别的标准命名包。这些产物与旧格式并列输出，内容相同，仅文件名不同：
+
+| 平台 | 标准命名 | 说明 |
+| --- | --- | --- |
+| Linux x64 | `ZolNit-<版本>-linux-x64.zip` | 与 tar.gz 同源的 ZIP，保留可执行权限和符号链接 |
+| Windows x64 | `ZolNit-<版本>-windows-x64.zip` | 便携 ZIP，与旧 zip 内容一致 |
+| Windows x64 | `ZolNit-<版本>-windows-x64-setup.exe` | Inno Setup 编译的安装器（仅编译验证，未签名） |
+| macOS arm64/x64 | `ZolNit-<版本>-macos-<架构>.dmg` | 含 Applications 快捷方式的 DMG，使用 hdiutil 创建 |
+
+版本号取自 `pubspec.yaml` 的 `version` 字段，去除 `+build` 后缀（如 `0.9.1`）。
+这些是开发构建产物，未经生产签名或公证，不适合直接分发给终端用户。
+Android debug APK 保持 `.debug` application ID 和开发签名，不生成标准命名的发布包。
+
+客户端分支的桌面 Release 和 Android 发布构建均显式编译 `ZOLNIT_DISTRIBUTION=direct`，
+使 `ClientPaymentPolicy.fromEnvironment()` 选择 Stripe 网站支付通道。
+非客户端分支保持空值，Apple 平台按默认进入 `apple-app-store` 通道。
+iOS 为独立构建任务，不受此设置影响。每份产物的 `source-provenance.txt` 记录
+实际编译时的 `distribution_channel` 值。
+
+### Android 发布签名
+
+手动触发 **Run workflow** 时可选 `android_release=true`，仅在客户端分支
+（`codex/zolnit-client`、`codex/native-client-shared`）且目标含 Android 时生效，其他组合直接拒绝。该模式使用独立的
+`ZOLNIT_ANDROID_*` 仓库 Secret 提供签名材料，不读取 local.properties 或复用
+任何通用 FlClash Secret：
+
+| Secret | 说明 |
+| --- | --- |
+| `ZOLNIT_ANDROID_KEYSTORE_BASE64` | Base64 编码的 `.keystore` 文件 |
+| `ZOLNIT_ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
+| `ZOLNIT_ANDROID_KEY_ALIAS` | 签名密钥别名 |
+| `ZOLNIT_ANDROID_KEY_PASSWORD` | 签名密钥密码 |
+
+工作流在解码前先验证四个 Secret 均已配置且非空；keystore 写入 `$RUNNER_TEMP` 下
+随机命名目录（umask 077），构建结束后无条件清除整个目录。
+四个 Secret 缺少任意一个时构建立即失败，不会退回 debug 签名或输出无签名的 APK。
+发布产物在归档前由 `apksigner verify` 确认签名有效、`aapt2` 确认 application ID
+为 `com.zolmid.zolnit`（非 `.debug`）且非 debuggable，版本与源码一致；
+公钥证书指纹记录在 `dist/apk-signing-report.txt` 中。
+产物使用标准命名 `ZolNit-<版本>-android-arm64-v8a.apk`，application ID 为
+`com.zolmid.zolnit`（无 `.debug` 后缀）。
+
+Gradle 层面同样实行 fail-closed：`release` 构建类型在缺少签名配置时不分配
+`signingConfig`，且 assemble、bundle、package、sign 的 Release 任务链入专用 guard 任务，
+在缺少 `ZOLNIT_ANDROID_*` 环境变量时直接以缺配置消息终止构建。
+旧的 debug 签名回退和 `local.properties`/`keystore.jks` 通用入口均已移除。
+Push 自动构建和默认的手动构建仍使用 `--debug`，不触及发布签名路径。
+
+这些产物仍用于开发与发布前验收：默认 Android 为 Debug，客户端分支额外保留桌面规范安装候选。
+网站渠道 Release 内容使用 `APP_ENV=stable`，安全调试包与普通 Android Debug 保持 `dev`；
+构建标记不等于已经正式发布、完成生产签名或设备验收。
 每个下载包含 `source-provenance.txt` 和 `SHA256SUMS`，用于确认源码、子模块、工具链和校验值。
-工作流仅授予 `contents: read` 权限。自动和手动构建均不使用生产签名，不发布 Release，
+工作流仅授予 `contents: read` 权限。默认自动和手动开发构建不使用生产签名；只有显式 Android release 模式消费专用签名。
+工作流不发布 Release，
 不上传 TestFlight，不向 Telegram、Homebrew 或 F-Droid 推送。
 上游已有的 `build.yaml` 保持原样，继续负责已有检查。
 Windows 云任务在编译后实际运行代理归属状态 gtest 和托盘菜单原生 CTest；
 只编译桌面 bundle 不计作这些测试已经执行。
 Windows 还执行自启任务清理的原生 CTest，并在 Compile desktop 后通过固定 provider 调用实际
 Inno Setup 6 编译安装器。该步骤复用刚生成的 Release bundle，不重编 Flutter、不运行安装器，
-只清理本次唯一的验证 EXE、ISS 和 staging，发布 artifact 仍是桌面 zip。
+只清理本次唯一的验证 EXE、ISS 和 staging。在客户端分支上，编译后的安装器 EXE 在清理前
+复制到 `dist/` 并包含在 artifact 和 SHA256SUMS 中；其他分支仍只保留桌面 zip。
 
 ## iOS 源码选择
 
 默认 `ios_source=project` 构建本仓库所选分支的实验性 iOS 移植。
 实现包含 Runner、Packet Tunnel 扩展、Widget、Flutter 服务桥，以及普通和低内存 Go 静态库。
-它保留当前 FlClash 的 `core/Clash.Meta` 子模块和 `com.follow.clash` 应用标识。
+它保留固定 `core/Clash.Meta` 子模块，ZolNit 基础应用标识为 `com.zolmid.zolnit`。
+共享开发分支的未签名验收主包显式使用 `com.zolmid.zolnit.debug`，与独立 observer 配对；
+这些构建标识不代表外部 Apple App ID、会员或 provisioning 已配置。
 本地共享代码检查不能证明 Xcode 编译通过或真机 VPN 可用。
 
 `ios_source=patched-reference` 构建独立参考项目
@@ -94,7 +149,7 @@ Simulator 和非 arm64 slice 会明确失败。
 
 ## 签名与调试
 
-Android 未配置生产 keystore 时，项目使用开发密钥和 `.dev` application ID。
+Android 未配置生产 keystore 时，项目使用开发密钥和 `.debug` application ID。
 此工作流使用 Debug APK，避免触发上游 Release 任务中的 Crashlytics mapping 上传。
 不同执行器的开发密钥可能不同，升级安装前可能需要卸载旧的开发包。
 macOS 产物为 ad hoc 签名，未经公证；Windows 产物没有生产签名。

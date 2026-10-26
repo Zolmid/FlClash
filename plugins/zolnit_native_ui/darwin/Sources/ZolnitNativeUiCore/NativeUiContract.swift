@@ -672,18 +672,18 @@ public struct NativeHomeView: View {
                     Text(label(snapshot, snapshot.safeMode ? "safeMode" : "selectServer"))
                         .font(.system(size: 12)).foregroundStyle(muted)
                         .fixedSize(horizontal: false, vertical: true)
-                    Picker(label(snapshot, "smartMode"), selection: Binding(
-                        get: { snapshot.mode }, set: { bridge.send(.setMode, payload: ["mode": $0.rawValue]) }
-                    )) {
-                        Text(label(snapshot, "smartMode")).tag(NativeUiSnapshot.ConnectionMode.rule)
-                        Text(label(snapshot, "globalMode")).tag(NativeUiSnapshot.ConnectionMode.global)
+                    if !compact {
+                        macModePicker(snapshot).frame(maxWidth: 190)
                     }
-                    .labelsHidden().pickerStyle(.segmented).frame(maxWidth: 190)
-                    .disabled(!canManageConnectionSettings(snapshot) || bridge.isPending(.setMode))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 27)
+            if compact {
+                macModePicker(snapshot)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 20)
+            }
             returnRoutePicker(snapshot)
             Rectangle().fill(accent.opacity(0.15)).frame(height: 1)
             HStack(spacing: 12) {
@@ -722,6 +722,17 @@ public struct NativeHomeView: View {
         }
         .background(card)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func macModePicker(_ snapshot: NativeUiSnapshot) -> some View {
+        Picker(label(snapshot, "smartMode"), selection: Binding(
+            get: { snapshot.mode }, set: { bridge.send(.setMode, payload: ["mode": $0.rawValue]) }
+        )) {
+            Text(label(snapshot, "smartMode")).tag(NativeUiSnapshot.ConnectionMode.rule)
+            Text(label(snapshot, "globalMode")).tag(NativeUiSnapshot.ConnectionMode.global)
+        }
+        .labelsHidden().pickerStyle(.segmented)
+        .disabled(!canManageConnectionSettings(snapshot) || bridge.isPending(.setMode))
     }
 
     private func powerButton(_ snapshot: NativeUiSnapshot) -> some View {

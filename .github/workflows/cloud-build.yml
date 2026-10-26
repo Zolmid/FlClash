@@ -21,6 +21,11 @@ on:
         required: true
         default: project
         options: [project, patched-reference]
+      android_release:
+        description: Android release APK (requires ZOLNIT_ANDROID_* secrets)
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -41,15 +46,22 @@ jobs:
       enabled: ${{ steps.select.outputs.enabled }}
       platform: ${{ steps.select.outputs.platform }}
       ios_source: ${{ steps.select.outputs.ios_source }}
+      android_release: ${{ steps.select.outputs.android_release }}
     env:
       PLATFORM: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}
       IOS_SOURCE: ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
       CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared' }}
+      ANDROID_RELEASE_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.android_release }}
+      ANDROID_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.android_release && (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') }}
     steps:
       - id: select
         run: |
           node <<'JS'
           const fs = require('fs');
+          if (process.env.ANDROID_RELEASE_REQUESTED === 'true' &&
+              (process.env.CLIENT_BRANCH !== 'true' || !['all', 'android'].includes(process.env.PLATFORM))) {
+            throw new Error('Android release requires a client branch and an Android target');
+          }
           const targets = [
             {platform: 'linux', os: 'ubuntu-22.04', arch: 'x64'},
             {platform: 'windows', os: 'windows-2022', arch: 'x64'},
@@ -62,7 +74,7 @@ jobs:
             targets.push({platform: 'macos', os: 'macos-26', arch: 'arm64', safe_preview: true});
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
-            `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
+            `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nandroid_release=${process.env.ANDROID_RELEASE === 'true'}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
           JS
 
   project:
@@ -85,6 +97,10 @@ jobs:
       TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_ARCH: ${{ matrix.arch }}
       CLIENT_SAFE_PREVIEW: ${{ matrix.safe_preview }}
+      CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared' }}
+      ANDROID_RELEASE: ${{ needs.select.outputs.android_release }}
+      ZOLNIT_DISTRIBUTION: ${{ (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') && 'direct' || '' }}
+      CLIENT_BUILD_ENV: ${{ (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') && 'stable' || 'dev' }}
     steps:
       - name: Enable Windows long paths
         if: matrix.platform == 'windows'
@@ -156,6 +172,17 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
 
+      - name: Read package version
+        if: env.CLIENT_BRANCH == 'true' && !matrix.safe_preview
+        id: version
+        run: |
+          ver=$(sed -n 's/^version: *\([^ +]*\).*/\1/p' pubspec.yaml)
+          if [[ ! "$ver" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo '::error::Website packages require a stable semantic version'
+            exit 1
+          fi
+          echo "package=$ver" >> "$GITHUB_OUTPUT"
+
       - name: Validate native Apple surface contract
         if: matrix.platform == 'macos' && matrix.safe_preview && env.ZOLNIT_NATIVE_UI == 'true'
         run: |
@@ -168,7 +195,7 @@ jobs:
           if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
             flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
           else
-            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV="$CLIENT_BUILD_ENV" --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
           fi
 
       - name: Compile Windows installer for validation
@@ -176,13 +203,69 @@ jobs:
         working-directory: windows/packaging/exe/test
         run: |
           dart pub get --enforce-lockfile
-          dart run bin/compile_installer.dart
+          if [[ "$CLIENT_BRANCH" == true ]]; then
+            dart run bin/compile_installer.dart --retain
+          else
+            dart run bin/compile_installer.dart
+          fi
+
+      - name: Reject Android release without dedicated signing
+        if: matrix.platform == 'android' && env.ANDROID_RELEASE != 'true'
+        working-directory: android
+        run: |
+          log=$(mktemp "$RUNNER_TEMP/zolnit-signing-check-XXXXXX")
+          trap 'rm -f "$log"' EXIT
+          if env -u ZOLNIT_ANDROID_KEYSTORE_PATH -u ZOLNIT_ANDROID_KEYSTORE_PASSWORD -u ZOLNIT_ANDROID_KEY_ALIAS -u ZOLNIT_ANDROID_KEY_PASSWORD ./gradlew :app:releaseGuard -Ptarget-platform=android-arm64 > "$log" 2>&1; then
+            echo '::error::Missing release signing was unexpectedly accepted'
+            exit 1
+          fi
+          if ! grep -Fq 'Release signing requires ZOLNIT_ANDROID_KEYSTORE_PATH' "$log"; then
+            cat "$log"
+            exit 1
+          fi
+
+      - name: Provision Android release signing
+        if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'
+        env:
+          ZOLNIT_ANDROID_KEYSTORE_BASE64: ${{ secrets.ZOLNIT_ANDROID_KEYSTORE_BASE64 }}
+          ZOLNIT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEYSTORE_PASSWORD }}
+          ZOLNIT_ANDROID_KEY_ALIAS: ${{ secrets.ZOLNIT_ANDROID_KEY_ALIAS }}
+          ZOLNIT_ANDROID_KEY_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEY_PASSWORD }}
+        run: |
+          for var in ZOLNIT_ANDROID_KEYSTORE_BASE64 ZOLNIT_ANDROID_KEYSTORE_PASSWORD ZOLNIT_ANDROID_KEY_ALIAS ZOLNIT_ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error::Required secret $var is not configured"
+              exit 1
+            fi
+          done
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/zolnit-signing-XXXXXX")
+          echo "ZOLNIT_SIGNING_DIR=$signing_dir" >> "$GITHUB_ENV"
+          (umask 077 && printenv ZOLNIT_ANDROID_KEYSTORE_BASE64 | base64 -d > "$signing_dir/release.keystore")
+          if [[ ! -s "$signing_dir/release.keystore" ]]; then
+            echo '::error::Decoded keystore is empty'
+            exit 1
+          fi
+          echo "ZOLNIT_ANDROID_KEYSTORE_PATH=$signing_dir/release.keystore" >> "$GITHUB_ENV"
 
       - name: Compile Android
-        if: matrix.platform == 'android'
+        if: matrix.platform == 'android' && env.ANDROID_RELEASE != 'true'
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+
+      - name: Compile Android release
+        if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          ZOLNIT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEYSTORE_PASSWORD }}
+          ZOLNIT_ANDROID_KEY_ALIAS: ${{ secrets.ZOLNIT_ANDROID_KEY_ALIAS }}
+          ZOLNIT_ANDROID_KEY_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ ! -f "$ZOLNIT_ANDROID_KEYSTORE_PATH" ]]; then
+            echo '::error::Signing keystore not found; provision step may have failed'
+            exit 1
+          fi
+          flutter build apk --release --target-platform android-arm64 --dart-define=APP_ENV=stable --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
 
       - name: Test native Android contract
         if: matrix.platform == 'android' && env.ZOLNIT_NATIVE_UI == 'true'
@@ -216,6 +299,12 @@ jobs:
           mkdir -p dist
           tar -C build/linux/x64/release/bundle -czf dist/FlClash-linux-x64-release.tar.gz .
 
+      - name: Create canonical Linux portable
+        if: matrix.platform == 'linux' && env.CLIENT_BRANCH == 'true'
+        run: |
+          pkg="${{ steps.version.outputs.package }}"
+          (cd build/linux/x64/release/bundle && zip -ryq "$GITHUB_WORKSPACE/dist/ZolNit-${pkg}-linux-x64.zip" .)
+
       - name: Archive macOS app
         if: matrix.platform == 'macos'
         run: |
@@ -226,6 +315,17 @@ jobs:
             ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/ZolNit.app "dist/FlClash-macos-$TARGET_ARCH-release.zip"
           fi
 
+      - name: Create canonical macOS DMG
+        if: matrix.platform == 'macos' && env.CLIENT_BRANCH == 'true' && !matrix.safe_preview
+        run: |
+          pkg="${{ steps.version.outputs.package }}"
+          staging=$(mktemp -d "${RUNNER_TEMP}/zolnit-dmg-XXXXXX")
+          trap 'rm -rf "$staging"' EXIT
+          ditto build/macos/Build/Products/Release/ZolNit.app "$staging/ZolNit.app"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname ZolNit -srcfolder "$staging" -format UDZO "dist/ZolNit-${pkg}-macos-$TARGET_ARCH.dmg"
+          hdiutil verify "dist/ZolNit-${pkg}-macos-$TARGET_ARCH.dmg"
+
       - name: Archive Windows bundle
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -233,14 +333,63 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/FlClash-windows-x64-release.zip
 
+      - name: Create canonical Windows portable
+        if: matrix.platform == 'windows' && env.CLIENT_BRANCH == 'true'
+        shell: pwsh
+        run: |
+          Copy-Item dist/FlClash-windows-x64-release.zip "dist/ZolNit-${{ steps.version.outputs.package }}-windows-x64.zip"
+
       - name: Collect Android APK
         if: matrix.platform == 'android'
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-debug.apk dist/FlClash-android-arm64-development.apk
+          if [[ "$ANDROID_RELEASE" == true ]]; then
+            pkg="${{ steps.version.outputs.package }}"
+            apk=build/app/outputs/flutter-apk/app-release.apk
+            if [[ ! -f "$apk" ]]; then
+              echo '::error::Release APK was not produced'
+              exit 1
+            fi
+            build_tools="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+            "$build_tools/apksigner" verify --verbose --print-certs "$apk" > dist/apk-signing-report.txt 2>&1
+            if ! grep -q 'Verified using' dist/apk-signing-report.txt; then
+              echo '::error::Release APK failed signature verification'
+              exit 1
+            fi
+            "$build_tools/aapt2" dump badging "$apk" > "$RUNNER_TEMP/apk-badging.txt" 2>&1
+            badging="$RUNNER_TEMP/apk-badging.txt"
+            if grep -q 'application-debuggable' "$badging"; then
+              echo '::error::Release APK is marked debuggable'
+              exit 1
+            fi
+            apk_pkg=$(sed -n "s/.*package: name='\([^']*\)'.*/\1/p" "$badging")
+            apk_ver=$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" "$badging")
+            if [[ "$apk_pkg" != 'com.zolmid.zolnit' ]]; then
+              echo "::error::APK package is '$apk_pkg', expected 'com.zolmid.zolnit'"
+              exit 1
+            fi
+            if [[ "$apk_ver" != "$pkg" ]]; then
+              echo "::error::APK versionName is '$apk_ver', expected '$pkg'"
+              exit 1
+            fi
+            cp "$apk" "dist/ZolNit-${pkg}-android-arm64-v8a.apk"
+          else
+            cp build/app/outputs/flutter-apk/app-debug.apk dist/FlClash-android-arm64-development.apk
+          fi
+
+      - name: Clean Android signing material
+        if: always() && matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'
+        run: |
+          if [[ "${ZOLNIT_SIGNING_DIR:-}" == "$RUNNER_TEMP"/zolnit-signing-* && -d "$ZOLNIT_SIGNING_DIR" ]]; then
+            rm -rf -- "$ZOLNIT_SIGNING_DIR"
+          fi
 
       - name: Record source and toolchain
         run: |
+          compiled_env="$CLIENT_BUILD_ENV"
+          if [[ "$CLIENT_SAFE_PREVIEW" == true || ( "$TARGET_PLATFORM" == android && "$ANDROID_RELEASE" != true ) ]]; then
+            compiled_env=dev
+          fi
           {
             echo "source_repository=$GITHUB_REPOSITORY"
             echo "source_commit=$(git rev-parse HEAD)"
@@ -248,11 +397,19 @@ jobs:
             echo "client_safe_preview=$CLIENT_SAFE_PREVIEW"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
+            echo "distribution_channel=$ZOLNIT_DISTRIBUTION"
+            echo "client_build_env=$compiled_env"
             if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
               echo 'client_defines=APP_ENV=dev;SAFE_MODE=true;ZOLNIT_DISTRIBUTION=direct'
+            elif [[ -n "$ZOLNIT_DISTRIBUTION" ]]; then
+              echo "client_defines=APP_ENV=$compiled_env;ZOLNIT_DISTRIBUTION=$ZOLNIT_DISTRIBUTION"
             fi
             echo "run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-            echo 'distribution=development artifact; no production signing or notarization'
+            if [[ "$TARGET_PLATFORM" == android && "$ANDROID_RELEASE" == true ]]; then
+              echo 'distribution=Android signed release candidate; not published'
+            else
+              echo 'distribution=development artifact; no production signing or notarization'
+            fi
             git submodule status --recursive
             flutter --version
             go version

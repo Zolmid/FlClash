@@ -1,26 +1,19 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
-    }
+val zolnitKeystorePath = System.getenv("ZOLNIT_ANDROID_KEYSTORE_PATH")
+val zolnitKeystorePassword = System.getenv("ZOLNIT_ANDROID_KEYSTORE_PASSWORD")
+val zolnitKeyAlias = System.getenv("ZOLNIT_ANDROID_KEY_ALIAS")
+val zolnitKeyPassword = System.getenv("ZOLNIT_ANDROID_KEY_PASSWORD")
+val hasZolnitSigning = run {
+    val values = listOf(zolnitKeystorePath, zolnitKeystorePassword, zolnitKeyAlias, zolnitKeyPassword)
+    values.all { !it.isNullOrBlank() } &&
+        zolnitKeystorePath!!.let { file(it).isFile }
 }
-
-val releaseStoreFile = file("keystore.jks")
-val releaseStorePassword = localProperties.getProperty("storePassword")
-val releaseKeyAlias = localProperties.getProperty("keyAlias")
-val releaseKeyPassword = localProperties.getProperty("keyPassword")
-val hasReleaseSigning = releaseStoreFile.exists() &&
-    releaseStorePassword != null &&
-    releaseKeyAlias != null &&
-    releaseKeyPassword != null
 
 android {
     namespace = "com.zolmid.zolnit"
@@ -41,12 +34,12 @@ android {
     }
 
     signingConfigs {
-        if (hasReleaseSigning) {
+        if (hasZolnitSigning) {
             create("release") {
-                storeFile = releaseStoreFile
-                storePassword = releaseStorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
+                storeFile = file(zolnitKeystorePath!!)
+                storePassword = zolnitKeystorePassword
+                keyAlias = zolnitKeyAlias
+                keyPassword = zolnitKeyPassword
             }
         }
     }
@@ -66,11 +59,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (hasReleaseSigning) {
+            if (hasZolnitSigning) {
                 signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-                applicationIdSuffix = ".debug"
             }
 
             proguardFiles(
@@ -89,6 +79,24 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+if (!hasZolnitSigning) {
+    val releaseGuard by tasks.registering {
+        doFirst {
+            throw GradleException(
+                "Release signing requires ZOLNIT_ANDROID_KEYSTORE_PATH, " +
+                    "ZOLNIT_ANDROID_KEYSTORE_PASSWORD, ZOLNIT_ANDROID_KEY_ALIAS, " +
+                    "and ZOLNIT_ANDROID_KEY_PASSWORD environment variables " +
+                    "pointing to a valid keystore file."
+            )
+        }
+    }
+    tasks.configureEach {
+        if (name.matches(Regex("(assemble|bundle|package|sign).*Release(Bundle)?"))) {
+            dependsOn(releaseGuard)
+        }
     }
 }
 

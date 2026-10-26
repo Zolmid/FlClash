@@ -159,6 +159,33 @@ void main() {
   });
 
   test(
+    'compiled macOS distribution binds billing policy and API headers',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      const channel = String.fromEnvironment('ZOLNIT_DISTRIBUTION');
+      final website = channel == 'direct';
+      final policy = ClientPaymentPolicy.fromEnvironment();
+      expect(policy.platformHeader, 'macos');
+      expect(policy.allowStripe, website);
+      expect(policy.allowAppleIap, !website);
+      final api = XboardClient(
+        origin: Uri.parse('https://panel.example'),
+        clientPlatform: policy.platformHeader,
+        distribution: policy.distributionHeader,
+        client: MockClient((request) async {
+          expect(
+            request.headers['X-ZolNit-Distribution'],
+            website ? 'direct' : 'apple-app-store',
+          );
+          return http.Response('{"data":{}}', 200);
+        }),
+      );
+      addTearDown(api.close);
+      await api.request('/api/v1/guest/comm/config', authenticated: false);
+    },
+  );
+
+  test(
     'all supported platform policies construct an API client with canonical headers',
     () async {
       for (final (platform, header) in [

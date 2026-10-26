@@ -29,7 +29,11 @@ void main() {
 
   setUp(() {
     previousDirectory = Directory.current;
-    repository = Directory.systemTemp.createTempSync('installer_compile_test_');
+    repository = Directory(
+      Directory.systemTemp
+          .createTempSync('installer_compile_test_')
+          .resolveSymbolicLinksSync(),
+    );
     File(
       p.join(repository.path, 'pubspec.yaml'),
     ).writeAsStringSync('name: fl_clash\nversion: 1.0.0+1\n');
@@ -108,5 +112,62 @@ void main() {
     );
     expect(maker.captured, isNull);
     expect(Directory(p.join(repository.path, 'dist')).listSync(), hasLength(1));
+  });
+
+  test('retainAs copies the compiled EXE and still cleans staging', () async {
+    final maker = _Maker();
+    final retained = p.join(
+      repository.path,
+      'dist/ZolNit-1.0.0-windows-x64-setup.exe',
+    );
+    await validation.compileInstaller(
+      repository: repository,
+      retainAs: retained,
+      maker: maker,
+    );
+    final distFiles = Directory(
+      p.join(repository.path, 'dist'),
+    ).listSync().map((e) => p.basename(e.path)).toList()..sort();
+    expect(distFiles, ['ZolNit-1.0.0-windows-x64-setup.exe', 'existing.zip']);
+    expect(File(retained).readAsStringSync(), 'compile-only fixture');
+  });
+
+  test('retainAs refuses when destination already exists', () async {
+    final maker = _Maker();
+    final retained = p.join(repository.path, 'dist/existing.zip');
+    await expectLater(
+      validation.compileInstaller(
+        repository: repository,
+        retainAs: retained,
+        maker: maker,
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('already exists'),
+        ),
+      ),
+    );
+  });
+
+  test('retainAs refuses path outside the repository', () async {
+    final maker = _Maker();
+    final outside = p.join(Directory.systemTemp.path, 'escape.exe');
+    await expectLater(
+      validation.compileInstaller(
+        repository: repository,
+        retainAs: outside,
+        maker: maker,
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('inside the repository'),
+        ),
+      ),
+    );
+    expect(File(outside).existsSync(), isFalse);
   });
 }

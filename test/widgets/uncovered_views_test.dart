@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_client.dart';
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/l10n_labels.dart';
@@ -34,8 +35,8 @@ import '../helpers/test_profiles.dart';
 import '../plugins/code_forge/support.dart';
 
 class _PendingAdapter implements HttpClientAdapter {
+  final requests = <RequestOptions>[];
   final response = Completer<ResponseBody>();
-  int requests = 0;
 
   @override
   Future<ResponseBody> fetch(
@@ -43,7 +44,7 @@ class _PendingAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) {
-    requests++;
+    requests.add(options);
     return response.future;
   }
 
@@ -230,23 +231,34 @@ void main() {
     addTearDown(() => appUpdateClient.dio.httpClientAdapter = originalAdapter);
     final adapter = _PendingAdapter();
     appUpdateClient.dio.httpClientAdapter = adapter;
+    Future<void> pumpUntil(bool Function() isComplete) async {
+      for (var attempt = 0; attempt < 250; attempt++) {
+        await settle(tester, 1);
+        if (isComplete()) return;
+      }
+      fail('Update check did not reach the expected state');
+    }
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const TestApp(child: AboutView()),
+        child: const TestApp(child: AboutView(platform: SupportPlatform.Linux)),
       ),
     );
     await tester.pump();
     expect(find.byType(LinearProgressIndicator), findsNothing);
 
     await tester.tap(find.text('Check for updates'));
+    await pumpUntil(() => adapter.requests.isNotEmpty);
+    final sent = adapter.requests.single;
+    expect(sent.method, 'GET');
+    expect(sent.uri.toString(), websiteReleaseManifestUrl);
     await tester.pump();
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
     await tester.tap(find.text('Check for updates'));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(adapter.requests, 1);
+    expect(adapter.requests, hasLength(1));
 
     adapter.response.complete(
       ResponseBody.fromString(
@@ -262,12 +274,16 @@ void main() {
         },
       ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pumpAndSettle();
+    await pumpUntil(
+      () => !container.read(loadingProvider(LoadingTag.checkUpdate)),
+    );
+    await pumpUntil(
+      () => find.text('The app is already up to date').evaluate().isNotEmpty,
+    );
 
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.text('The app is already up to date'), findsOneWidget);
+    expect(adapter.requests, hasLength(1));
     expect(tester.takeException(), null);
   });
 
@@ -312,7 +328,9 @@ void main() {
   testWidgets('a new script asks before a name alone is discarded', (
     tester,
   ) async {
-    await tester.runAsync(initEditorNative);
+    final originalEditorNativeReady = editorNativeReady;
+    addTearDown(() => editorNativeReady = originalEditorNativeReady);
+    editorNativeReady = () => false;
     final container = _containerFor(
       tester,
       overrides: [scriptsProvider.overrideWith(() => _TestScripts(const []))],

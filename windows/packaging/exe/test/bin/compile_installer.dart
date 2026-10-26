@@ -4,6 +4,7 @@ import 'package:flutter_app_packager/src/makers/exe/app_package_maker_exe.dart';
 import 'package:path/path.dart' as p;
 
 Future<void> compileInstaller({
+  String? retainAs,
   required Directory repository,
   AppPackageMakerExe? maker,
 }) async {
@@ -31,7 +32,6 @@ Future<void> compileInstaller({
       buildOutputFiles: [executable],
     );
     final output = config.outputFile;
-    // The provider getter creates staging before ownership can be checked.
     final packagingPath = output.path.replaceAll('.exe', '_exe');
     final candidates = <FileSystemEntity>[
       output,
@@ -57,6 +57,19 @@ Future<void> compileInstaller({
         'Inno Setup did not produce the expected validation EXE',
       );
     }
+    if (retainAs != null) {
+      final destination = File(retainAs);
+      if (!p.isWithin(repository.absolute.path, destination.absolute.path)) {
+        throw StateError('Retention path must be inside the repository');
+      }
+      if (await destination.exists()) {
+        throw StateError(
+          'Retention destination already exists: ${destination.path}',
+        );
+      }
+      await destination.parent.create(recursive: true);
+      await output.copy(destination.path);
+    }
     stdout.writeln('Inno Setup compile-only validation passed.');
   } finally {
     try {
@@ -75,15 +88,39 @@ Future<void> compileInstaller({
   }
 }
 
+String? _retainPath(Directory repository, List<String> arguments) {
+  if (arguments.isEmpty) return null;
+  if (arguments.length == 1 && arguments.single == '--retain') {
+    final pubspec = File(p.join(repository.path, 'pubspec.yaml'));
+    final match = RegExp(
+      r'^version:\s*(\S+)',
+      multiLine: true,
+    ).firstMatch(pubspec.readAsStringSync());
+    if (match == null) throw StateError('Cannot read version from pubspec');
+    final version = match.group(1)!.split('+').first;
+    return p.join(
+      repository.path,
+      'dist',
+      'ZolNit-$version-windows-x64-setup.exe',
+    );
+  }
+  if (arguments.length == 1) return arguments.single;
+  throw StateError('Usage: compile_installer [--retain | <output-path>]');
+}
+
 Future<void> main(List<String> arguments) async {
-  if (!Platform.isWindows || arguments.isNotEmpty) {
-    stderr.writeln('Run this compile-only check on Windows without arguments.');
+  if (!Platform.isWindows) {
+    stderr.writeln('Run this compile-only check on Windows.');
     exitCode = 64;
     return;
   }
+  final repository = Directory.fromUri(
+    Platform.script.resolve('../../../../../'),
+  );
   try {
     await compileInstaller(
-      repository: Directory.fromUri(Platform.script.resolve('../../../../../')),
+      repository: repository,
+      retainAs: _retainPath(repository, arguments),
     );
   } catch (error, stackTrace) {
     stderr.writeln(error);
