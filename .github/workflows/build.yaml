@@ -293,8 +293,10 @@ jobs:
             gofmt -l ./*.go ./cmd ./mobile ./platform ./tun >&2
             exit 1
           }
-          go test -count=1 . ./cmd/zolnit-bundle-probe
-          go vet . ./cmd/...
+          go test -count=1 . ./clientbundle ./cmd/zolnit-bundle-probe
+          go test -count=1 -tags=zolnit_acceptance . ./cmd/zolnit-bundle-probe
+          go vet . ./clientbundle ./cmd/...
+          go vet -tags=zolnit_acceptance . ./cmd/zolnit-bundle-probe
           GOOS=linux go vet ./platform
 
       - name: Validate client routing selectors without network

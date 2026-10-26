@@ -318,6 +318,7 @@ func main() {
 	flags.BoolVar(&opt.observe, "observe-egress", false, "observe country and private egress marker through one fixed HTTPS endpoint")
 	seconds := flags.Int("timeout-seconds", 10, "connection deadline from 1 through20seconds")
 	versionOnly := flags.Bool("version", false, "report compiled source and Core version without reading stdin")
+	vertical := addVerticalFlag(flags)
 	if flags.Parse(os.Args[1:]) != nil || flags.NArg() != 0 {
 		_ = json.NewEncoder(os.Stdout).Encode(report{Code: "invalid_arguments", CoreVersion: C.Version, SourceCommit: sourceCommit})
 		os.Exit(2)
@@ -328,10 +329,24 @@ func main() {
 		}
 	})
 	if *versionOnly {
-		_ = json.NewEncoder(os.Stdout).Encode(report{OK: true, Code: "version", CoreVersion: C.Version, SourceCommit: sourceCommit, Mode: "metadata"})
+		mode := "metadata"
+		if vertical != nil && *vertical {
+			mode = "vertical_metadata"
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(report{OK: true, Code: "version", CoreVersion: C.Version, SourceCommit: sourceCommit, Mode: mode})
 		return
 	}
 	opt.timeout = time.Duration(*seconds) * time.Second
+	if vertical != nil && *vertical {
+		if opt.account != "2" || opt.probe || opt.observe || opt.targetExplicit || opt.outbound != "" || opt.timeout < time.Second || opt.timeout > 20*time.Second {
+			_ = json.NewEncoder(os.Stdout).Encode(report{Code: "invalid_arguments", CoreVersion: C.Version, SourceCommit: sourceCommit, Mode: "vertical"})
+			os.Exit(2)
+		}
+		if !runVerticalMode(os.Stdin, os.Stdout, sourceCommit, opt.timeout) {
+			os.Exit(1)
+		}
+		return
+	}
 	result := execute(os.Stdin, opt, time.Now)
 	_ = json.NewEncoder(os.Stdout).Encode(result)
 	if !result.OK {

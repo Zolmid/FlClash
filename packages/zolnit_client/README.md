@@ -278,9 +278,9 @@ Core 单测覆盖无 Flutter 的 TTL 定时拒绝、旧配置/实例/定时器�
 代理、Selector 和域名规则，并确认选择结果；不执行完整配置应用、监听、DNS、TUN 或联网。
 业务测试、离线 Core 检查与 CI 均不证明真实账号、出口、AI/影音解锁或设备行为已验收。
 
-### 凭据隔离的真实 Core 联调驱动
+### 凭据隔离的真实 Core 联调驱动（默认模式）
 
-源码在 `core/cmd/zolnit-bundle-probe/`，使用固定子模块内的 `adapter.ParseProxy` 和
+默认模式源码在 `core/cmd/zolnit-bundle-probe/`，使用固定子模块内的 `adapter.ParseProxy` 和
 `Proxy.DialContext`；不调用完整配置解析/应用，不启动应用、VPN、系统代理、DNS 监听或外部控制器。
 只提取静态代理及其精确的 `dialer-proxy` 链；规则、规则源、DNS/TUN 配置都不执行。
 支持的协议由代码显式列出，不支持的协议/代理组链直接失败，不使用 DIRECT 或通用订阅回退。
@@ -326,6 +326,71 @@ Bearer、原始响应及连接凭据不得进入 shell 参数、环境变量、�
 `routing.nodes=[]` 仍可验证并显式测一个授权 outbound，但不产生自动服务资格。成功仅证明本次
 选定协议到测试地址的传输和 HTTPS 请求完成；不证明出口国家、账号产品权限、AI/影音解锁，
 也不覆盖 iOS Extension 或实际移动设备。403/503/无效 TTL 不连接、不读取旧缓存。
+
+### 无 TUN 纵向验收（显式编译模式）
+
+沿用 `zolnit-bundle-probe`，仅以 `-tags=zolnit_acceptance` 编译时提供 `--vertical`；
+默认二进制和正常客户端不包含该模式。它复用客户端的 bundle 准备、Core 配置发布、原生
+owner/install ACK、规则 provider、实际 HTTP probe 和回国选择 guard，不启动 Flutter、
+Helper、TUN、系统代理或外部控制器。首次配置在内存中应用，不写连接文档或响应文件。
+
+```sh
+ZOLNIT_PROBE_SHA=$(git rev-parse HEAD)
+ZOLNIT_CORE_VERSION=$(sed -n 's/^core_version: *//p' build_config.yaml)
+(cd core && CGO_ENABLED=0 go build -mod=readonly -tags=zolnit_acceptance \
+  -ldflags="-X github.com/metacubex/mihomo/constant.Version=$ZOLNIT_CORE_VERSION -X main.sourceCommit=$ZOLNIT_PROBE_SHA" \
+  -o /private/tmp/zolnit-bundle-probe-vertical ./cmd/zolnit-bundle-probe)
+/private/tmp/zolnit-bundle-probe-vertical --vertical --version
+```
+
+交付前须确认源码干净，并记录二进制 SHA256、源码提交和实际 Go/Core 版本。根线程从已交付
+二进制启动子进程，使用其 stdin/stdout 管道逐条交换 NDJSON；命令行为：
+
+```sh
+/private/tmp/zolnit-bundle-probe-vertical --vertical --account-id 2 --timeout-seconds 10 2>/dev/null
+```
+
+每行一个 JSON 对象，`schema_version` 固定为 1，`action` 如下；不得把 JSON 作为参数或环境变量。
+写入 `finish` 后关闭子进程 stdin，再读完 stdout 并等待退出码；不能只看到中间某条 `ok`
+就认定整轮通过。规则初始化、每次 probe 和进程总时限分别记录。
+
+| action | 额外 stdin 字段 | 验收含义 |
+| --- | --- | --- |
+| `install` | `frame` 为原有 `http_status/source_path/body` 响应帧 | 首次真实 bundle 安装、owner/install ACK 和规则初始化 |
+| `renew` | 同结构 `frame` | 新响应经真实 install ACK 续租，并保存旧 guard 作负控 |
+| `inspect` | 无 | 只读当前配置哈希、provider 和 outbound 计数 |
+| `select_return` | `role` 为三个已映射角色之一 | 使用当前配置 guard 切换可达角色 |
+| `assert_stale_return` | `role` | 使用续租前 guard，只有实际拒绝才通过 |
+| `assert_unavailable_return` | `role` | 使用新 guard，只有不可达角色的实际写入被拒绝才通过 |
+| `probe` | `url`，必须附 `outbound_id`，或成对的 `role/cn_provider` | 显式物理 outbound 请求，或经实际规则和回国组的请求 |
+| `finish` | 无 | 结束并清理本进程创建的资源 |
+
+根线程在内存中执行实际私有 API 请求并保留完整原始响应；驱动不接收 Bearer、不登录、不请求
+或修改账号。官网 macOS 请求复用业务层契约：`GET https://link.zolmid.com/api/v1/zolnit/client/bundle`，
+`Accept: application/json`、当前客户端 User-Agent，以及 `X-ZolNit-Platform: macos`、
+`X-ZolNit-Distribution: direct`、`X-ZolNit-Core-Version: v1.19.32`；Bearer 只留在根线程请求程序内存。
+保留原 HTTP 状态与 `body.data` 外层，不把 `source_path` 文本当作 HTTPS 来源证明。
+只允许账号 2，凭据轮转须先获用户批准，不能用普通客户绕过白名单。它可由本机
+IPv4 网络运行；某个实际 outbound 若仅能经 IPv6 连接，失败不能改写为另一协议/节点的成功。
+
+回国 `probe` 的 `url` 必须是已维护 CN 规则中的国内服务；`cn_provider` 为当前配置实际加载
+且匹配该目标的分类 provider，由根线程从维护清单选定，不能仅凭 provider 名称推断 CN。
+驱动还核对实际请求路由是否经过当前回国选择，外域优先规则
+绕开的请求不能算通过。Gstatic、Cloudflare 或 Country.is 的海外分类结果不能替代这一步。
+HTTP 成功不直接证明出口国家、AI/影音解锁或真实设备行为；出口国家观测仍按下节单独记录。
+每次请求计入根线程既有跨国探测限额，不自动批量扫描、增加探测额度或重试其他节点。
+
+stdout 只保留固定结果码、版本、哈希和计数/状态，错误不回显输入、地址、凭据、配置或响应体。
+程序调用方同样将 stderr 接到空设备，不将原始输入、异常对象或子进程输出追加到普通日志。
+规则集就绪必须等待实际初始化证据，配置安装 ACK 不能替代；规则缓存仅在自建临时目录内，
+不写原始连接文档，结束时清理。调用方须为 stdin 等待和整个进程另设总超时。
+保留实际 select/url-test/fallback 类型，并在发布前关闭验收配置自己的后台健康探测。
+HTTP 规则源仅接受代码中列出的 MetaCubeX/SagerNet 公开仓库及受限 canonical jsDelivr 路径；
+文件规则源、外部 proxy-provider、非空顶层 TLS 配置、HTTP classical 规则源和隐式 geodata
+初始化均明确拒绝，不静默改写为其他源。`unsafe_configuration` 表示当前驱动不接受该配置。
+`rules_not_ready`、`probe_leaf_mismatch`、`return_route_mismatch`、`cleanup_failed`、
+`acceptance_panic` 均为失败；只有完成所有命令、最后 `finish` 成功且退出码 0 才整轮通过。
+Apple/Windows 的系统 TUN、平台签名、后台及真机路径继续单独验收。
 
 ### 出口国家观测 v1（本地运维交付）
 
