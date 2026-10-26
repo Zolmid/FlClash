@@ -59,6 +59,7 @@ type routingLeaseState struct {
 	policyGroups            map[string]*routingLeaseService
 	manualGroups            map[string]*routingLeaseService
 	serviceOrder            []*routingLeaseService
+	returnRoute             *returnRoutePolicy
 	timer                   *time.Timer
 }
 
@@ -88,6 +89,10 @@ func (s *routingLeaseState) guard() *RoutingLeaseGuard {
 	if s == nil || s.revoked {
 		return nil
 	}
+	return s.identityGuard()
+}
+
+func (s *routingLeaseState) identityGuard() *RoutingLeaseGuard {
 	return &RoutingLeaseGuard{
 		InstanceID:              s.instanceID,
 		Token:                   s.token,
@@ -162,6 +167,7 @@ func resetRoutingLeaseInstance() {
 func clearRoutingLeaseForConfigChange() {
 	selectMu.Lock()
 	defer selectMu.Unlock()
+	retireReturnRouteLocked()
 	revokeRoutingLeaseObservedLocked(activeRoutingLease, true, "config_replaced")
 	routingConfigurationGeneration++
 	recordLeaseObservationLocked("config_replaced", "configuration")
@@ -294,6 +300,7 @@ func installRoutingLeaseLocked(spec *RoutingLeaseSpec) {
 		serviceOrder:            order,
 	}
 	activeRoutingLease = state
+	installReturnRouteLocked(state, spec.ReturnRoute, proxies)
 
 	if !valid {
 		revokeRoutingLeaseObservedLocked(state, false, "installed")
@@ -350,6 +357,7 @@ func renewRoutingLeaseLocked(spec *RoutingLeaseSpec) bool {
 	state.deadline = now.Add(remaining)
 	state.services, state.policyGroups, state.manualGroups, state.serviceOrder = services, policy, manual, order
 	state.rotateToken()
+	installReturnRouteLocked(state, spec.ReturnRoute, tunnel.AllProxies())
 	instance, generation := state.instanceID, state.configurationGeneration
 	state.timer = routingLeaseAfterFunc(remaining, func() { expireRoutingLease(instance, generation) })
 	recordLeaseObservationLocked("installed", "valid")
@@ -504,6 +512,9 @@ func authorizeAndResolveSelectorLocked(params *ChangeProxyParams) (selector pick
 	}
 
 	proxies := tunnel.AllProxies()
+	if state.returnRoute != nil && params.GroupName == state.returnRoute.spec.GroupName {
+		return authorizeReturnRouteLocked(state, params, proxies)
+	}
 	if svc, isAuto := state.services[params.GroupName]; isAuto {
 		if !serviceTopologyIntact(svc, proxies) {
 			revokeActiveRoutingLeaseLocked(state, false)

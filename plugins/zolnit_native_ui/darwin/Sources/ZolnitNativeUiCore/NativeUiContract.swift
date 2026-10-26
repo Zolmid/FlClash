@@ -112,7 +112,7 @@ public struct NativeUiSnapshot: Codable, Equatable {
             selectedId = try values.decodeIfPresent(String.self, forKey: .selectedId)
             enabled = try values.decode(Bool.self, forKey: .enabled)
             options = try values.decode([Option].self, forKey: .options)
-            guard !title.isEmpty, title.count <= 4096, options.count <= 3,
+            guard !title.isEmpty, title.count <= 4096, (1...3).contains(options.count),
                   Set(options.map(\.id)).count == options.count,
                   options.allSatisfy({ ["direct", "hk_lite", "hk_optimized"].contains($0.id) && !$0.label.isEmpty && $0.label.count <= 4096 }),
                   selectedId.map({ selected in options.contains { $0.id == selected } }) ?? true else {

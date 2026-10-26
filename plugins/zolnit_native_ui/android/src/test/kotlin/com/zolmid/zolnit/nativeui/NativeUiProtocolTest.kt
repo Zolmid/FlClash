@@ -112,6 +112,7 @@ class NativeUiProtocolTest {
         }
         for (raw in listOf(
             JSONObject.NULL, false, JSONObject(),
+            JSONObject(route.toString()).put("options", org.json.JSONArray()),
             JSONObject(route.toString()).put("enabled", "true"),
             JSONObject(route.toString()).put("title", 1),
             JSONObject(route.toString()).put("selectedId", "DIRECT"),
@@ -122,6 +123,26 @@ class NativeUiProtocolTest {
         val command = JSONObject(NativeUiProtocol.command("route", 3, "selectReturnRoute", JSONObject().put("optionId", "hk_lite")))
         assertEquals("selectReturnRoute", command.getString("action"))
         assertEquals("hk_lite", command.getJSONObject("payload").getString("optionId"))
+    }
+
+    @Test
+    fun returnRouteDowngradeKeepsOnlySelectedLiteAndRejectsStaleSelection() {
+        val route = JSONObject("""{"title":"RETURN ROUTE","enabled":true,"selectedId":"direct","options":[{"id":"direct","label":"Direct"},{"id":"hk_lite","label":"Lite"},{"id":"hk_optimized","label":"Optimized"}]}""")
+        fun parse(value: JSONObject, revision: Int) = requireNotNull(NativeUiProtocol.parseSnapshot(
+            JSONObject(snapshotJson()).put("revision", revision).put("returnRoute", value).toString(),
+        ))
+        val full = parse(route, 7)
+        assertEquals(listOf("direct", "hk_lite", "hk_optimized"), full.returnRoute?.options?.map { it.id })
+        val lite = JSONObject(route.toString())
+            .put("options", org.json.JSONArray("""[{"id":"hk_lite","label":"Lite"}]"""))
+            .put("selectedId", "hk_lite")
+        val downgraded = parse(lite, 8)
+        assertEquals(listOf("hk_lite"), downgraded.returnRoute?.options?.map { it.id })
+        assertEquals("hk_lite", downgraded.returnRoute?.selectedId)
+        for (removed in listOf("direct", "hk_optimized")) {
+            assertNull(parse(JSONObject(lite.toString()).put("selectedId", removed), 9).returnRoute)
+        }
+        assertEquals(listOf("direct", "hk_lite", "hk_optimized"), full.returnRoute?.options?.map { it.id })
     }
 
     private fun snapshotJson(): String = JSONObject()

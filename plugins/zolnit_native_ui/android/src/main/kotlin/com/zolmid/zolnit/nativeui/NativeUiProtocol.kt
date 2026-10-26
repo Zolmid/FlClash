@@ -121,7 +121,7 @@ internal object NativeUiProtocol {
         val title = value.opt("title") as? String ?: return null
         val enabled = value.opt("enabled") as? Boolean ?: return null
         val options = value.opt("options") as? JSONArray ?: return null
-        if (title.isEmpty() || title.length > 4096 || options.length() > 3) return null
+        if (title.isEmpty() || title.length > 4096 || options.length() !in 1..3) return null
         val parsed = mutableListOf<NativeUiReturnRouteOption>()
         for (index in 0 until options.length()) {
             val option = options.opt(index) as? JSONObject ?: return null

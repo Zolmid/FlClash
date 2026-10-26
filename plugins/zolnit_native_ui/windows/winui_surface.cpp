@@ -105,7 +105,7 @@ std::optional<ReturnRoute> ParseReturnRoute(const wdj::JsonObject& snapshot) {
     if (title.empty() || title.size() > 4096 || !value.HasKey(L"enabled") ||
         value.GetNamedValue(L"enabled").ValueType() != wdj::JsonValueType::Boolean) return std::nullopt;
     const auto options = value.GetNamedArray(L"options");
-    if (options.Size() > 3) return std::nullopt;
+    if (options.Size() < 1 || options.Size() > 3) return std::nullopt;
     ReturnRoute route{title, L"", value.GetNamedBoolean(L"enabled"), {}};
     std::set<std::wstring> ids;
     for (const auto& raw : options) {

@@ -69,6 +69,11 @@ void main() {
     'service target': (raw) =>
         raw['routing']['ui_groups'][0]['options'][0]['target'] =
             'zn.service.ai.manual',
+    'mixed case service selector': (raw) =>
+        raw['routing']['ui_groups'][0]['group'] = 'Zn.Service.ai',
+    'client service target': (raw) =>
+        raw['routing']['ui_groups'][0]['options'][0]['target'] =
+            'ClientZn.Service.ai.manual',
     'unknown option': (raw) =>
         raw['routing']['ui_groups'][0]['options'][0]['id'] = 'other',
     'malformed option': (raw) =>
@@ -115,4 +120,66 @@ void main() {
       isNull,
     );
   });
+  test(
+    'authorized graph exposes one or three roles without changing the wire mapping',
+    () {
+      for (final restricted in [true, false]) {
+        final raw = returnRouteAvailabilityFixture(restricted: restricted);
+        final bundle = parse(raw);
+        final route = ZolnitReturnRoute.resolve(
+          bundle,
+          returnRouteCoreGroups(raw),
+        )!;
+        expect(
+          route.options.map((option) => option.id),
+          restricted ? ['hk_lite'] : ['direct', 'hk_lite', 'hk_optimized'],
+        );
+        expect(
+          (ZolnitReturnRoute.corePolicy(bundle)!['options'] as List),
+          hasLength(3),
+        );
+        expect(bundle.routingJson['ui_groups'][0]['options'], hasLength(3));
+      }
+    },
+  );
+
+  test(
+    'nested cycles cannot borrow siblings but a physical exit remains usable',
+    () {
+      final raw = returnRouteAvailabilityFixture();
+      final bundle = parse(raw);
+      final groups = returnRouteCoreGroups(raw);
+      final initial = ZolnitReturnRoute.resolve(bundle, groups)!;
+      final direct = initial.options.first.target;
+      List<Group> graph(List<Proxy> edges) => [
+        for (final group in groups)
+          group.name == direct ? group.copyWith(all: edges) : group,
+      ];
+      final blocked = graph([
+        Proxy(name: direct, type: 'URLTest'),
+        Proxy(name: initial.group, type: 'Selector'),
+        const Proxy(name: 'REJECT', type: 'Reject'),
+        const Proxy(name: 'DIRECT', type: 'Direct'),
+      ]);
+      expect(
+        ZolnitReturnRoute.resolve(bundle, blocked)!.options.map((o) => o.id),
+        ['hk_lite', 'hk_optimized'],
+      );
+      final exiting = graph([
+        Proxy(name: direct, type: 'URLTest'),
+        const Proxy(name: 'zn.node.vless.7', type: 'Vless'),
+      ]);
+      expect(
+        ZolnitReturnRoute.resolve(bundle, exiting)!.options.map((o) => o.id),
+        ['direct', 'hk_lite', 'hk_optimized'],
+      );
+      final alias = graph([
+        const Proxy(name: 'zn.node.vless.7', type: 'Direct'),
+      ]);
+      expect(
+        ZolnitReturnRoute.resolve(bundle, alias)!.options.map((o) => o.id),
+        ['hk_lite', 'hk_optimized'],
+      );
+    },
+  );
 }

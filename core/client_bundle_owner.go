@@ -10,11 +10,12 @@ import (
 )
 
 type ClientBundleOwnerContext struct {
-	OwnerSerial             uint64 `json:"ownerSerial"`
-	InstanceID              string `json:"instanceId"`
-	AccountID               string `json:"accountId"`
-	AccountGeneration       int    `json:"accountGeneration"`
-	ConfigurationGeneration int    `json:"configurationGeneration"`
+	ReturnRouteGuard        *RoutingLeaseGuard `json:"returnRouteGuard,omitempty"`
+	OwnerSerial             uint64             `json:"ownerSerial"`
+	InstanceID              string             `json:"instanceId"`
+	AccountID               string             `json:"accountId"`
+	AccountGeneration       int                `json:"accountGeneration"`
+	ConfigurationGeneration int                `json:"configurationGeneration"`
 }
 
 type BeginClientBundleOwnerParams struct {
@@ -118,6 +119,10 @@ func reuseClientBundleConfigurationLocked(params *SetupParams) bool {
 	}
 	selectMu.Lock()
 	defer selectMu.Unlock()
+	proxies := tunnel.AllProxies()
+	if _, valid := returnRouteSelector(after.ReturnRoute, proxies); valid && !returnRouteMember(after.ReturnRoute, rejectProxyName, proxies) {
+		return false
+	}
 	return renewRoutingLeaseLocked(after)
 }
 
@@ -134,7 +139,7 @@ func clientBundleContextLocked() *ClientBundleOwnerContext {
 		serial = clientBundleOwner.Serial
 	}
 	return &ClientBundleOwnerContext{InstanceID: routingLeaseInstanceID, AccountID: spec.AccountID,
-		AccountGeneration: spec.AccountGeneration, ConfigurationGeneration: routingConfigurationGeneration, OwnerSerial: serial}
+		AccountGeneration: spec.AccountGeneration, ConfigurationGeneration: routingConfigurationGeneration, OwnerSerial: serial, ReturnRouteGuard: returnRouteGuardLocked()}
 }
 
 func handleGetClientBundleOwner() *ClientBundleOwnerContext {
@@ -143,11 +148,16 @@ func handleGetClientBundleOwner() *ClientBundleOwnerContext {
 	return clientBundleContextLocked()
 }
 
+func sameClientBundleOwnerBinding(a, b ClientBundleOwnerContext) bool {
+	return a.OwnerSerial == b.OwnerSerial && a.InstanceID == b.InstanceID && a.AccountID == b.AccountID &&
+		a.AccountGeneration == b.AccountGeneration && a.ConfigurationGeneration == b.ConfigurationGeneration
+}
+
 func handleBeginClientBundleOwner(params *BeginClientBundleOwnerParams) (*ClientBundleOwnerGuard, error) {
 	configMu.Lock()
 	defer configMu.Unlock()
 	context := clientBundleContextLocked()
-	if params == nil || context == nil || params.ClientBundleOwnerContext != *context ||
+	if params == nil || context == nil || !sameClientBundleOwnerBinding(params.ClientBundleOwnerContext, *context) ||
 		params.SessionEpoch == 0 || params.OwnerID == 0 || params.Generation == 0 ||
 		params.SessionEpoch < clientBundleEpochFloor || params.SessionEpoch <= clientBundleRetiredEpoch {
 		return nil, errors.New("invalid client bundle owner")
@@ -251,6 +261,9 @@ func handleEndClientBundleOwner(params *EndClientBundleOwnerParams) bool {
 	clientBundleOwner = nil
 	stopClientBundleRoutingLocked()
 	selectMu.Lock()
+	if params.InvalidateSession {
+		retireReturnRouteLocked()
+	}
 	revokeActiveRoutingLeaseLocked(activeRoutingLease, true)
 	selectMu.Unlock()
 	return true
@@ -261,7 +274,7 @@ func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *
 		BundleID: prepared.Bundle.ID, ConfigurationDigest: prepared.Digest,
 		ExpiresAt:        time.Unix(prepared.Bundle.Expires, 0).UnixMilli(),
 		ConnectionDigest: prepared.Bundle.Connection.SHA, MetadataDigest: prepared.MetadataDigest,
-		RenewalOverlay: previous.RoutingLease.RenewalOverlay}
+		RenewalOverlay: previous.RoutingLease.RenewalOverlay, ReturnRoute: prepared.ReturnRoute}
 	for _, service := range prepared.Services {
 		lease.Services = append(lease.Services, RoutingLeaseServiceSpec{GroupName: service.GroupName,
 			AutomaticGroup: service.AutomaticGroup, ManualGroup: service.ManualGroup, AllowedProxies: service.AllowedProxies})
@@ -277,7 +290,7 @@ func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *
 	if err != nil {
 		return false, errors.New("invalid renewed client configuration")
 	}
-	cfg, err := parsePlatformConfig(raw)
+	cfg, err := parsePlatformConfig(withReturnRouteReject(raw, lease))
 	if err != nil || prepared.Bundle.Expires <= routingLeaseNow().Unix() {
 		return false, errors.New("invalid renewed client configuration")
 	}

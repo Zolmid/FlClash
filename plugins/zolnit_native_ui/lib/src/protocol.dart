@@ -124,7 +124,7 @@ class NativeUiReturnRoute {
       final title = _string(value['title'], 'returnRoute.title');
       if (value['enabled'] is! bool) _invalid('returnRoute.enabled');
       final options = value['options'];
-      if (options is! List || options.length > 3) {
+      if (options is! List || options.isEmpty || options.length > 3) {
         _invalid('returnRoute.options');
       }
       final labels = <String, String>{};

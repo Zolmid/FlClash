@@ -1,6 +1,7 @@
 package core
 
 import (
+	"core/clientbundle"
 	"encoding/json"
 	"errors"
 	"os"
@@ -139,9 +140,29 @@ func withPlatformLimits(cfg *config.Config) *config.Config {
 func loadSetupConfig(params *SetupParams) (*config.Config, error) {
 	path := filepath.Join(constant.Path.HomeDir(), "config.yaml")
 	if params.Base != nil {
-		return loadConfigWithBase(params.Base, path)
+		return loadConfigWithReturnRouteBase(params.Base, path, params.RoutingLease)
 	}
-	return loadConfig(path)
+	if params.RoutingLease == nil || !params.RoutingLease.ReturnRoute.Valid() {
+		return loadConfig(path)
+	}
+	document, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := unmarshalRawConfig(document)
+	if err != nil {
+		return nil, err
+	}
+	return parsePlatformConfig(withReturnRouteReject(raw, params.RoutingLease))
+}
+
+func withReturnRouteReject(raw *config.RawConfig, lease *RoutingLeaseSpec) *config.RawConfig {
+	if lease == nil {
+		return raw
+	}
+	copied := *raw
+	copied.ProxyGroup = clientbundle.WithReturnRouteReject(raw.ProxyGroup, lease.ReturnRoute)
+	return &copied
 }
 
 func applyConfig(params *SetupParams) error {

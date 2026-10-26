@@ -35,9 +35,35 @@ final class NativeUiContractTests: XCTestCase {
         var badSelected = route; badSelected["selectedId"] = "DIRECT"
         var badType = route; badType["selectedId"] = 1
         var duplicate = route; duplicate["options"] = [["id": "direct", "label": "A"], ["id": "direct", "label": "B"]]
-        for value in [NSNull(), false, [:], badEnabled, badSelected, badType, duplicate] as [Any] {
+        var empty = route; empty["options"] = [] as [[String: String]]
+        for value in [NSNull(), false, [:], empty, badEnabled, badSelected, badType, duplicate] as [Any] {
             XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot(value)).returnRoute)
         }
+    }
+
+    func testReturnRouteDowngradeKeepsOnlySelectedLiteAndRejectsRemovedRoles() throws {
+        let store = NativeUiStore()
+        XCTAssertTrue(store.publish(json: try routeSnapshot(route)))
+        XCTAssertEqual(store.snapshot?.returnRoute?.options.map(\.id), ["direct", "hk_lite", "hk_optimized"])
+        var lite = route
+        lite["options"] = [["id": "hk_lite", "label": "Lite"]]
+        lite["selectedId"] = "hk_lite"
+        XCTAssertTrue(store.publish(json: try routeSnapshot(lite, revision: 2)))
+        XCTAssertEqual(store.snapshot?.returnRoute?.options.map(\.id), ["hk_lite"])
+        XCTAssertEqual(store.snapshot?.returnRoute?.selectedId, "hk_lite")
+        var sent: [NativeUiCommand] = []
+        let bridge = NativeUiBridge(store: store) { json, _ in
+            sent.append(try! JSONDecoder().decode(NativeUiCommand.self, from: Data(json.utf8)))
+        }
+        for id in ["direct", "hk_optimized"] {
+            bridge.send(.selectReturnRoute, payload: ["optionId": id])
+            var stale = lite; stale["selectedId"] = id
+            XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot(stale)).returnRoute)
+        }
+        XCTAssertTrue(sent.isEmpty)
+        bridge.send(.selectReturnRoute, payload: ["optionId": "hk_lite"])
+        XCTAssertEqual(sent.first?.payload, ["optionId": "hk_lite"])
+        XCTAssertEqual(sent.count, 1)
     }
 
     func testReturnRouteUsesExistingCommandAndBusyGenerationChannel() throws {

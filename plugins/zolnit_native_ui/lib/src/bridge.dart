@@ -134,6 +134,16 @@ class NativeUiBridge {
         )) {
       return NativeUiReceipt.rejected(command.id, 'invalid_command');
     }
+    if (command.action == 'selectReturnRoute') {
+      final route = current.returnRoute;
+      if (route == null ||
+          !route.options.containsKey(command.payload['optionId'])) {
+        return NativeUiReceipt.rejected(command.id, 'invalid_command');
+      }
+      if (!route.enabled) {
+        return NativeUiReceipt.rejected(command.id, 'unavailable');
+      }
+    }
     final previous = _commands[command.id];
     if (previous != null) {
       if (previous.fingerprint != command.encode()) {
@@ -141,16 +151,9 @@ class NativeUiBridge {
       }
       return previous.result.future;
     }
-    if (command.action == 'selectReturnRoute') {
-      final route = current.returnRoute;
-      if (route == null ||
-          !route.options.containsKey(command.payload['optionId'])) {
-        return NativeUiReceipt.rejected(command.id, 'invalid_command');
-      }
-      if (!route.enabled ||
-          _commands.values.any((flight) => !flight.complete)) {
-        return NativeUiReceipt.rejected(command.id, 'unavailable');
-      }
+    if (command.action == 'selectReturnRoute' &&
+        _commands.values.any((flight) => !flight.complete)) {
+      return NativeUiReceipt.rejected(command.id, 'unavailable');
     }
     while (_commands.length >= 128) {
       final completed = _commands.entries

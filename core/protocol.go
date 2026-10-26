@@ -1,6 +1,7 @@
 package core
 
 import (
+	"core/clientbundle"
 	"time"
 
 	"github.com/metacubex/http"
@@ -135,15 +136,16 @@ type RoutingLeaseServiceSpec struct {
 }
 
 type RoutingLeaseSpec struct {
-	ConnectionDigest    string                    `json:"connectionDigest,omitempty"`
-	MetadataDigest      string                    `json:"metadataDigest,omitempty"`
-	RenewalOverlay      string                    `json:"renewalOverlay,omitempty"`
-	AccountID           string                    `json:"accountId"`
-	AccountGeneration   int                       `json:"accountGeneration"`
-	BundleID            string                    `json:"bundleId"`
-	ConfigurationDigest string                    `json:"configurationDigest"`
-	ExpiresAt           int64                     `json:"expiresAt"`
-	Services            []RoutingLeaseServiceSpec `json:"services"`
+	ReturnRoute         *clientbundle.ReturnRouteSpec `json:"returnRoute,omitempty"`
+	ConnectionDigest    string                        `json:"connectionDigest,omitempty"`
+	MetadataDigest      string                        `json:"metadataDigest,omitempty"`
+	RenewalOverlay      string                        `json:"renewalOverlay,omitempty"`
+	AccountID           string                        `json:"accountId"`
+	AccountGeneration   int                           `json:"accountGeneration"`
+	BundleID            string                        `json:"bundleId"`
+	ConfigurationDigest string                        `json:"configurationDigest"`
+	ExpiresAt           int64                         `json:"expiresAt"`
+	Services            []RoutingLeaseServiceSpec     `json:"services"`
 }
 
 type RoutingLeaseGuard struct {

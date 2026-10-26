@@ -86,6 +86,7 @@ func readRuleSets() map[string]any {
 // A provider that swapped its list is a structural change: the names may
 // survive while the servers behind them do not. The caller holds selectMu.
 func refreshRouteLocked(structural bool) {
+	normalizeReturnRouteLocked(tunnel.AllProxies())
 	picks, versions := readPicks()
 	ruleSets := readRuleSets()
 

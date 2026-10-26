@@ -99,6 +99,10 @@ func isMatchRule(rule string) bool {
 }
 
 func loadConfigWithBase(base *SetupBase, configPath string) (*config.Config, error) {
+	return loadConfigWithReturnRouteBase(base, configPath, nil)
+}
+
+func loadConfigWithReturnRouteBase(base *SetupBase, configPath string, lease *RoutingLeaseSpec) (*config.Config, error) {
 	document, err := mergeProfileBase(base)
 	if err != nil {
 		return nil, err
@@ -110,7 +114,7 @@ func loadConfigWithBase(base *SetupBase, configPath string) (*config.Config, err
 	if err := writeConfigDocument(configPath, document); err != nil {
 		return nil, err
 	}
-	return parsePlatformConfig(raw)
+	return parsePlatformConfig(withReturnRouteReject(raw, lease))
 }
 
 func mergeProfileBase(base *SetupBase) (*yaml.Node, error) {

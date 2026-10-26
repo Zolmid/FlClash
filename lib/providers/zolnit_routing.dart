@@ -65,6 +65,7 @@ typedef _RoutingPlan = ({
   String? bundleId,
   String? renewalOverlay,
   String? connectionDigest,
+  Map<String, dynamic>? returnRoute,
 });
 
 typedef _LeaseIdentity = (int, int, DateTime, String?);
@@ -158,6 +159,7 @@ class ZolnitRouting with WidgetsBindingObserver {
     String? bundleId,
     String? renewalOverlay,
     String? connectionDigest,
+    Map<String, dynamic>? returnRoute,
   }) {
     if (!manages(profileId)) return;
     final session = ref.read(zolnitSessionProvider);
@@ -179,6 +181,7 @@ class ZolnitRouting with WidgetsBindingObserver {
       bundleId: bundleId,
       renewalOverlay: renewalOverlay,
       connectionDigest: connectionDigest,
+      returnRoute: returnRoute,
     );
     _preparedPlans[(profileId, digest)] = _staged!;
     while (_preparedPlans.length > 8) {
@@ -223,6 +226,7 @@ class ZolnitRouting with WidgetsBindingObserver {
       if (plan.metadataIdentity != null)
         'metadataDigest': plan.metadataIdentity,
       if (plan.renewalOverlay != null) 'renewalOverlay': plan.renewalOverlay,
+      if (plan.returnRoute != null) 'returnRoute': plan.returnRoute,
       'expiresAt': plan.expiresAt!.millisecondsSinceEpoch,
       'services': [
         for (final service

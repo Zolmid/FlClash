@@ -163,7 +163,7 @@ void main() {
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       const channel = String.fromEnvironment('ZOLNIT_DISTRIBUTION');
-      final website = channel == 'direct';
+      const website = channel == 'direct';
       final policy = ClientPaymentPolicy.fromEnvironment();
       expect(policy.platformHeader, 'macos');
       expect(policy.allowStripe, website);

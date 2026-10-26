@@ -15,6 +15,7 @@ type ServiceSpec struct {
 }
 
 type Prepared struct {
+	ReturnRoute    *ReturnRouteSpec
 	MetadataDigest string
 	Document       []byte
 	Bundle         *Bundle
@@ -30,6 +31,7 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 	var root struct {
 		Data struct {
 			Routing struct {
+				UIGroups json.RawMessage `json:"ui_groups"`
 				Services []struct {
 					ID        string   `json:"id"`
 					Kind      string   `json:"kind"`
@@ -126,6 +128,12 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 	for _, key := range []string{"x-zolnit-routing", "zolnit-routing"} {
 		delete(config, key)
 	}
+	returnRoute := prepareReturnRoute(root.Data.Routing.UIGroups, validated.Bundle, nextGroups)
+	groupsForApp := make([]map[string]any, 0, len(nextGroups))
+	for _, group := range nextGroups {
+		groupsForApp = append(groupsForApp, group.(map[string]any))
+	}
+	config["proxy-groups"] = WithReturnRouteReject(groupsForApp, returnRoute)
 	document, err := yaml.Marshal(config)
 	if err != nil {
 		return nil, "invalid_connection_yaml"
@@ -141,7 +149,8 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 	metadataHash := sha256.Sum256(metadata)
 	return &Prepared{Document: document, Bundle: validated.Bundle, Digest: hex.EncodeToString(hash[:]),
 		MetadataDigest: hex.EncodeToString(metadataHash[:]),
-		Services:       services}, ""
+		Services:       services,
+		ReturnRoute:    returnRoute}, ""
 }
 
 func contains(values []string, target string) bool {

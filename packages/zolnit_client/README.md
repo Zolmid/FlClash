@@ -552,10 +552,18 @@ iOS plist 仅声明构建变量；尚未配置共享 entitlements，也未执行
 ### 回国线路展示映射
 
 可选 `routing.ui_groups` 中的 `return_route` 只映射现有 Core Selector 和其真实成员；
-`direct`、`hk_lite`、`hk_optimized` 为角色 ID，直达不等于 `DIRECT`。映射缺失、重复、成员
-不存在或引用 `DIRECT`、`REJECT`、自有 service selector 时整组隐藏。八语言标签共享到
-Flutter、Compose、SwiftUI 和 WinUI；原生命令仅提交角色 ID，由当前账号/配置再次校验后
-通过既有代理选择队列调用 Core。回国选择不改写连接文档、规则或 AI/手动/DIRECT 策略。
+`direct`、`hk_lite`、`hk_optimized` 为角色 ID，直达不等于 `DIRECT`。结构缺失、重复或
+非法映射使整组隐藏。合法成员不保证可用：消费者遍历实际 Core 图，只计算本 bundle 已交付的
+物理网络 outbound，排除 DIRECT/REJECT、管理服务组和纯环；合法但不可达物理节点的角色单独隐藏。
+这是配置权限可达性，不是健康、延迟或业务解锁证明。
+
+首次安装与套餐降级由 Core 在发布当前选择前保留仍可用的手选，否则选择已映射的首个可用角色；
+无可用角色时只阻断，不回退 DIRECT。其他有效手选及 AI 策略保持独立。原生命令只提交角色 ID，
+Dart 再校验当前账号/配置与可用列表，并携带 Core 当前配置 guard；Core 在实际写入时重验图与身份。
+手动回国配置不因 AI 自动租约到期而失效，显式退出账号仍撤销旧选择权限。服务器 v1 wire 不增加字段。
+
+八语言标签共享到 Flutter、Compose、SwiftUI 和 WinUI；原生控件只显示过滤后的 1–3 项，
+没有可用角色时隐藏，不按套餐名、hostname 或 group hash 推断权限。回国选择不改写服务端连接文档或规则。
 
 ### AI / 产品 HTTP 健康判据与正式开放缺口
 

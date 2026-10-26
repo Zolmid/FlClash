@@ -58,11 +58,32 @@ Future<bool> selectZolnitReturnRoute(
   }
 
   if (!current()) return false;
+  Map<String, dynamic> guard;
+  try {
+    final context = await ref.read(coreHandlerProvider).getClientBundleOwner();
+    final raw = context?['returnRouteGuard'];
+    if (!current() ||
+        raw is! Map<String, dynamic> ||
+        raw['accountId'] != bundle?.accountId ||
+        raw['accountGeneration'] != generation ||
+        raw['bundleId'] != bundle?.bundleId ||
+        raw['instanceId'] is! String ||
+        (raw['instanceId'] as String).isEmpty ||
+        raw['token'] is! String ||
+        (raw['token'] as String).isEmpty ||
+        raw['configurationGeneration'] is! int) {
+      return false;
+    }
+    guard = raw;
+  } catch (_) {
+    return false;
+  }
   return ref
       .read(proxiesActionProvider.notifier)
       .changeProxyIfCurrent(
         groupName: route.group,
         proxyName: option.target,
         isCurrent: current,
+        routingLease: guard,
       );
 }

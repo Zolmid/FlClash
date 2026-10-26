@@ -1,4 +1,7 @@
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/core/controller.dart';
+import 'package:fl_clash/core/interface.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
@@ -15,6 +18,8 @@ import '../../helpers/test_app.dart';
 import '../../helpers/test_profiles.dart';
 import '../../helpers/zolnit_return_route_fixture.dart';
 
+class _ReturnCore extends Mock implements CoreHandlerInterface {}
+
 class _Recording extends ProxiesAction {
   final selections = <(String, String)>[];
   @override
@@ -27,6 +32,7 @@ class _Recording extends ProxiesAction {
     required String groupName,
     required String proxyName,
     required bool Function() isCurrent,
+    Map<String, dynamic>? routingLease,
   }) async {
     if (!isCurrent()) return false;
     selections.add((groupName, proxyName));
@@ -40,6 +46,7 @@ void main() {
   late ProviderContainer container;
   late DateTime now;
   late Profile profile;
+  late _ReturnCore core;
 
   setUp(() async {
     fixture = ClientBundleSessionFixture();
@@ -57,8 +64,22 @@ void main() {
       zolnitBundleId: fixture.session.clientBundle!.bundleId,
       zolnitOrigin: fixture.api.origin.origin,
     );
+    core = _ReturnCore();
+    when(core.getClientBundleOwner).thenAnswer(
+      (_) async => {
+        'returnRouteGuard': {
+          'instanceId': 'fixture-core',
+          'token': 'fixture-return',
+          'configurationGeneration': 1,
+          'accountId': fixture.session.clientBundle!.accountId,
+          'accountGeneration': fixture.api.generation,
+          'bundleId': fixture.session.clientBundle!.bundleId,
+        },
+      },
+    );
     container = ProviderContainer(
       overrides: [
+        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
         zolnitClientBundleTransportProvider.overrideWithValue(true),
         zolnitCoreLeaseReadyProvider.overrideWithBuild((_, _) => true),
         zolnitClientBundleAutomaticProvider.overrideWithValue(true),
@@ -185,6 +206,89 @@ void main() {
       );
     },
   );
+
+  for (final skin in ZolnitSkin.values) {
+    testWidgets(
+      'restricted graph offers only the authorized role on ${skin.name}',
+      (tester) async {
+        final raw = returnRouteAvailabilityFixture(
+          restricted: true,
+          bundleId: 'restricted',
+        );
+        fixture.onBundle = (_) async => clientBundleResponse(raw);
+        await tester.runAsync(
+          () => fixture.session.refreshClientBundle(
+            coreVersion: 'v1.19.32',
+            clock: () => now,
+          ),
+        );
+        profile = profile.copyWith(
+          zolnitBundleId: fixture.session.clientBundle!.bundleId,
+        );
+        container.read(profilesProvider.notifier).put(profile);
+        container.read(groupsProvider.notifier).value = returnRouteCoreGroups(
+          raw,
+        );
+        await mount(tester, skin: skin);
+        final dropdown = tester.widget<DropdownButton<String>>(
+          find.byKey(const ValueKey('bundle-return-route')),
+        );
+        expect(dropdown.items!.map((item) => item.value), ['hk_lite']);
+        dropdown.onChanged!('direct');
+        await tester.pump();
+        final owner =
+            container.read(proxiesActionProvider.notifier) as _Recording;
+        expect(owner.selections, isEmpty);
+        dropdown.onChanged!('hk_lite');
+        await tester.pumpAndSettle();
+        expect(
+          owner.selections.single.$2,
+          (raw['routing']['ui_groups'] as List).single['options'][1]['target'],
+        );
+      },
+    );
+  }
+
+  testWidgets('a stale Core bundle guard never dispatches a return choice', (
+    tester,
+  ) async {
+    final raw = returnRouteAvailabilityFixture();
+    fixture.onBundle = (_) async => clientBundleResponse(raw);
+    await tester.runAsync(
+      () => fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => now,
+      ),
+    );
+    profile = profile.copyWith(
+      zolnitBundleId: fixture.session.clientBundle!.bundleId,
+    );
+    container.read(profilesProvider.notifier).put(profile);
+    container.read(groupsProvider.notifier).value = returnRouteCoreGroups(raw);
+    when(core.getClientBundleOwner).thenAnswer(
+      (_) async => {
+        'returnRouteGuard': {
+          'instanceId': 'fixture-core',
+          'token': 'new-policy',
+          'configurationGeneration': 2,
+          'accountId': fixture.session.clientBundle!.accountId,
+          'accountGeneration': fixture.api.generation,
+          'bundleId': 'different-native-bundle',
+        },
+      },
+    );
+    await mount(tester);
+    tester
+        .widget<DropdownButton<String>>(
+          find.byKey(const ValueKey('bundle-return-route')),
+        )
+        .onChanged!('direct');
+    await tester.pumpAndSettle();
+    expect(
+      (container.read(proxiesActionProvider.notifier) as _Recording).selections,
+      isEmpty,
+    );
+  });
 
   testWidgets(
     'current display follows Core data rather than a display-name guess',

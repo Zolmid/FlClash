@@ -208,12 +208,14 @@ class ProxiesAction extends _$ProxiesAction {
     required String groupName,
     required String proxyName,
     required bool Function() isCurrent,
+    Map<String, dynamic>? routingLease,
   }) async {
     ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
     final applied = await _queueProxyChange(
       groupName: groupName,
       proxyName: proxyName,
       guard: isCurrent,
+      routingLease: routingLease,
     );
     if (applied && isCurrent()) await updateGroups();
     return applied && isCurrent();

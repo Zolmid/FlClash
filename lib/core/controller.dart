@@ -271,6 +271,9 @@ class CoreController {
   Future<Map<String, dynamic>?> getRoutingLease() =>
       _interface.getRoutingLease();
 
+  Future<Map<String, dynamic>?> getClientBundleOwner() =>
+      _interface.getClientBundleOwner();
+
   Future<bool> invalidateRoutingLease(Map<String, dynamic> guard) =>
       _interface.invalidateRoutingLease(guard);
 

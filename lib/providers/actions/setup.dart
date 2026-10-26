@@ -690,6 +690,9 @@ class SetupAction extends _$SetupAction {
         accountId: bundle?.accountId,
         bundleId: bundle?.bundleId,
         connectionDigest: bundle?.connectionSha256,
+        returnRoute: bundle == null
+            ? null
+            : ZolnitReturnRoute.corePolicy(bundle),
         renewalOverlay: bundle == null
             ? null
             : await compute(prepareBundleRenewalOverlay, (

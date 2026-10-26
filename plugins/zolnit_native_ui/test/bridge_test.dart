@@ -140,6 +140,7 @@ void main() {
         false,
         [],
         {},
+        returnRoute()..['options'] = [],
         returnRoute()..['enabled'] = 'true',
         returnRoute()..['title'] = 1,
         returnRoute()..['selectedId'] = 'DIRECT',
@@ -171,6 +172,116 @@ void main() {
         ).returnRoute!.selectedId,
         isNull,
       );
+    },
+  );
+
+  test(
+    'return route snapshot downgrades from all roles to selected lite',
+    () async {
+      final value = bridge();
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(snapshot()..['returnRoute'] = returnRoute()),
+      );
+      expect(value.snapshot!.returnRoute!.options.keys, [
+        'direct',
+        'hk_lite',
+        'hk_optimized',
+      ]);
+      final lite = returnRoute()
+        ..['selectedId'] = 'hk_lite'
+        ..['options'] = [
+          {'id': 'hk_lite', 'label': 'HK Lite localized'},
+        ];
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot(revision: 2)..['returnRoute'] = lite,
+        ),
+      );
+      final decoded = NativeUiSnapshot.decode(value.snapshot!.encode());
+      expect(decoded.returnRoute!.options.keys, ['hk_lite']);
+      expect(decoded.returnRoute!.selectedId, 'hk_lite');
+      for (final id in ['direct', 'hk_optimized']) {
+        expect(
+          (await sendCommand(
+            command(
+              id: id,
+              action: 'selectReturnRoute',
+              payload: {'optionId': id},
+            ),
+          ))['errorCode'],
+          'invalid_command',
+        );
+        expect(
+          NativeUiSnapshot.fromJson(
+            snapshot()
+              ..['returnRoute'] = (Map<String, dynamic>.of(lite)
+                ..['selectedId'] = id),
+          ).returnRoute,
+          isNull,
+        );
+      }
+      expect(calls, 0);
+    },
+  );
+
+  test(
+    'return route retries share pending result only while role stays valid',
+    () async {
+      for (final completed in [false, true]) {
+        for (final state in ['removed', 'disabled', 'absent', 'empty']) {
+          final pending = Completer<NativeUiReceipt>();
+          var executions = 0;
+          final value = bridge(
+            handler: (_) {
+              executions++;
+              return pending.future;
+            },
+          );
+          await value.publishSnapshot(
+            NativeUiSnapshot.fromJson(
+              snapshot()..['returnRoute'] = returnRoute(),
+            ),
+          );
+          final request = command(
+            action: 'selectReturnRoute',
+            payload: {'optionId': 'direct'},
+          );
+          final first = sendCommand(request);
+          await Future<void>.delayed(Duration.zero);
+          final duplicate = sendCommand(request);
+          await Future<void>.delayed(Duration.zero);
+          expect(executions, 1);
+          if (completed) {
+            pending.complete(const NativeUiReceipt.accepted('intent-1'));
+            expect((await first)['accepted'], true);
+            expect(await duplicate, await first);
+          }
+          final next = snapshot(revision: 2);
+          if (state != 'absent') {
+            final route = returnRoute(enabled: state != 'disabled');
+            if (state == 'removed') {
+              route['selectedId'] = 'hk_lite';
+              route['options'] = [
+                {'id': 'hk_lite', 'label': 'Lite'},
+              ];
+            } else if (state == 'empty') {
+              route['options'] = [];
+            }
+            next['returnRoute'] = route;
+          }
+          await value.publishSnapshot(NativeUiSnapshot.fromJson(next));
+          expect(
+            (await sendCommand(request))['errorCode'],
+            state == 'disabled' ? 'unavailable' : 'invalid_command',
+          );
+          expect(executions, 1);
+          if (!completed) {
+            pending.complete(const NativeUiReceipt.accepted('intent-1'));
+            expect((await first)['accepted'], true);
+            expect(await duplicate, await first);
+          }
+        }
+      }
     },
   );
 

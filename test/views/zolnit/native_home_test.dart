@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/core/controller.dart';
+import 'package:fl_clash/core/interface.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
@@ -21,6 +24,8 @@ import 'harness.dart';
 import '../../helpers/test_profiles.dart';
 import '../../helpers/zolnit_return_route_fixture.dart';
 
+class _ReturnCore extends Mock implements CoreHandlerInterface {}
+
 class _ReturnRouteAction extends ProxiesAction {
   final selections = <(String, String)>[];
   @override
@@ -30,6 +35,7 @@ class _ReturnRouteAction extends ProxiesAction {
     required String groupName,
     required String proxyName,
     required bool Function() isCurrent,
+    Map<String, dynamic>? routingLease,
   }) async {
     if (!isCurrent()) return false;
     selections.add((groupName, proxyName));
@@ -107,48 +113,69 @@ void main() {
     child: const Text('existing destination'),
   );
 
+  Future<(NativeUiSnapshot, Profile)> mountReturnFixture(
+    WidgetTester tester,
+    Map<String, dynamic> raw,
+  ) async {
+    harness.panel = (request) => request.url.path.endsWith('/client/bundle')
+        ? zolnitJson(raw)
+        : zolnitPanelFixture(request);
+    await tester.runAsync(
+      () => harness.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => DateTime.fromMillisecondsSinceEpoch(1001000, isUtc: true),
+      ),
+    );
+    final profile = Profile(
+      id: 1,
+      autoUpdateDuration: Duration.zero,
+      zolnitAccountId: 'account-1',
+      zolnitBundleId: harness.session.clientBundle!.bundleId,
+      zolnitOrigin: harness.session.api.origin.origin,
+    );
+    final core = _ReturnCore();
+    when(core.getClientBundleOwner).thenAnswer(
+      (_) async => {
+        'returnRouteGuard': {
+          'instanceId': 'fixture-core',
+          'token': 'fixture-return',
+          'configurationGeneration': 1,
+          'accountId': harness.session.clientBundle!.accountId,
+          'accountGeneration': harness.session.api.generation,
+          'bundleId': harness.session.clientBundle!.bundleId,
+        },
+      },
+    );
+    harness.container.dispose();
+    harness.container = ProviderContainer(
+      overrides: [
+        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        zolnitSessionProvider.overrideWithValue(harness.session),
+        zolnitSyncProfileProvider.overrideWithValue(() async => null),
+        safeModeProvider.overrideWithValue(false),
+        zolnitClientBundleTransportProvider.overrideWithValue(true),
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+        proxiesActionProvider.overrideWith(_ReturnRouteAction.new),
+      ],
+    );
+    globalState.container = harness.container;
+    harness.container.read(groupsProvider.notifier).value =
+        returnRouteCoreGroups(raw);
+    harness.container.read(coreStatusProvider.notifier).value =
+        CoreStatus.connected;
+    await harness.mount(tester, ZolnitSkin.macos, child: host());
+    final snapshot = NativeUiSnapshot.decode(
+      await _fromPlatform('getSnapshot') as String,
+    );
+    return (snapshot, profile);
+  }
+
   testWidgets(
     'native return roles dispatch exact Core aliases and hide aliases from snapshots',
     (tester) async {
       final raw = returnRouteFixture();
-      harness.panel = (request) => request.url.path.endsWith('/client/bundle')
-          ? zolnitJson(raw)
-          : zolnitPanelFixture(request);
-      await tester.runAsync(
-        () => harness.session.refreshClientBundle(
-          coreVersion: 'v1.19.32',
-          clock: () =>
-              DateTime.fromMillisecondsSinceEpoch(1001000, isUtc: true),
-        ),
-      );
-      final profile = Profile(
-        id: 1,
-        autoUpdateDuration: Duration.zero,
-        zolnitAccountId: 'account-1',
-        zolnitBundleId: harness.session.clientBundle!.bundleId,
-        zolnitOrigin: harness.session.api.origin.origin,
-      );
-      harness.container.dispose();
-      harness.container = ProviderContainer(
-        overrides: [
-          zolnitSessionProvider.overrideWithValue(harness.session),
-          zolnitSyncProfileProvider.overrideWithValue(() async => null),
-          safeModeProvider.overrideWithValue(false),
-          zolnitClientBundleTransportProvider.overrideWithValue(true),
-          profilesProvider.overrideWith(() => TestProfiles([profile])),
-          currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
-          proxiesActionProvider.overrideWith(_ReturnRouteAction.new),
-        ],
-      );
-      globalState.container = harness.container;
-      harness.container.read(groupsProvider.notifier).value =
-          returnRouteCoreGroups();
-      harness.container.read(coreStatusProvider.notifier).value =
-          CoreStatus.connected;
-      await harness.mount(tester, ZolnitSkin.macos, child: host());
-      final snapshot = NativeUiSnapshot.decode(
-        await _fromPlatform('getSnapshot') as String,
-      );
+      final (snapshot, _) = await mountReturnFixture(tester, raw);
       expect(
         jsonEncode(snapshot.toJson()['returnRoute']),
         isNot(contains('zn.group.')),
@@ -177,6 +204,86 @@ void main() {
                 as _ReturnRouteAction;
         expect(owner.selections.last, (mapping['group'], option['target']));
       }
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+    skip: !enabled,
+    variant: macos,
+  );
+
+  testWidgets(
+    'native restricted graph hides unusable roles and rejects a pre-downgrade command',
+    (tester) async {
+      final raw = returnRouteAvailabilityFixture();
+      final (snapshot, profile) = await mountReturnFixture(tester, raw);
+      expect(
+        jsonEncode(snapshot.toJson()['returnRoute']),
+        isNot(contains('zn.group.')),
+      );
+      expect(snapshot.toJson()['returnRoute']['options'], hasLength(3));
+      final restricted = returnRouteAvailabilityFixture(
+        restricted: true,
+        bundleId: 'downgraded',
+      );
+      harness.panel = (request) => request.url.path.endsWith('/client/bundle')
+          ? zolnitJson(restricted)
+          : zolnitPanelFixture(request);
+      await tester.runAsync(
+        () => harness.session.refreshClientBundle(
+          coreVersion: 'v1.19.32',
+          clock: () =>
+              DateTime.fromMillisecondsSinceEpoch(1001000, isUtc: true),
+        ),
+      );
+      harness.container
+          .read(profilesProvider.notifier)
+          .put(
+            profile.copyWith(
+              zolnitBundleId: harness.session.clientBundle!.bundleId,
+            ),
+          );
+      final mapping = (restricted['routing']['ui_groups'] as List).single;
+      final usableTarget = mapping['options'][1]['target'] as String;
+      harness.container.read(groupsProvider.notifier).value = [
+        for (final group in returnRouteCoreGroups(restricted))
+          group.name == mapping['group']
+              ? group.copyWith(now: usableTarget)
+              : group,
+      ];
+      final response =
+          jsonDecode(
+                await _fromPlatform(
+                      'performCommand',
+                      jsonEncode({
+                        'schemaVersion': 1,
+                        'id': 'old-return-menu',
+                        'accountGeneration': snapshot.accountGeneration,
+                        'action': 'selectReturnRoute',
+                        'payload': {'optionId': 'hk_optimized'},
+                      }),
+                    )
+                    as String,
+              )
+              as Map;
+      expect(response['accepted'], isFalse);
+      expect(
+        (harness.container.read(proxiesActionProvider.notifier)
+                as _ReturnRouteAction)
+            .selections,
+        isEmpty,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      final updated = NativeUiSnapshot.decode(
+        await _fromPlatform('getSnapshot') as String,
+      );
+      expect(updated.toJson()['returnRoute']['selectedId'], 'hk_lite');
+      expect(
+        (updated.toJson()['returnRoute']['options'] as List).map(
+          (item) => item['id'],
+        ),
+        ['hk_lite'],
+      );
       await tester.pumpWidget(const SizedBox.shrink());
     },
     skip: !enabled,
