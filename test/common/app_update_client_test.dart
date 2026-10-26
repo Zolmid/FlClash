@@ -7,20 +7,33 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/app_installer.dart';
 import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_client.dart';
-import 'package:fl_clash/common/constant.dart' show browserUa, repository;
+import 'package:fl_clash/common/constant.dart' show browserUa;
 import 'package:fl_clash/common/request.dart';
 import 'package:test/test.dart';
 
 const _hash =
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
-const _name = 'FlClash-0.9.4-android-arm64-v8a.apk';
-const _url = 'https://github.com/$repository/releases/download/v0.9.4/$_name';
+const _name = 'ZolNit-0.9.4-android-arm64-v8a.apk';
+const _url = 'https://link.zolmid.com/client/downloads/v0.9.4/$_name';
 const _metadataUrl = 'https://link.zolmid.com/client/releases.json';
 const _disabledMetadata = {
   'schema_version': 1,
   'app_id': 'com.zolmid.zolnit',
   'updates_enabled': false,
   'releases': <Object>[],
+};
+final _enabledMetadata = {
+  ..._disabledMetadata,
+  'updates_enabled': true,
+  'releases': [
+    {
+      'tag': 'v0.9.4',
+      'notes': '- fixed',
+      'assets': [
+        {'name': _name, 'url': _url, 'size': 3, 'sha256': _hash},
+      ],
+    },
+  ],
 };
 
 class _Adapter implements HttpClientAdapter {
@@ -72,6 +85,85 @@ AppUpdateClient _client(
 
 void main() {
   test(
+    'website JSON rejects duplicate keys, oversized input and nonstable tags',
+    () {
+      final body = jsonEncode(_enabledMetadata);
+      for (final duplicate in [
+        '"schema_version":1,"schema_version":1',
+        r'"schema_version":1,"\u0073chema_version":1',
+      ]) {
+        expect(
+          () => decodeWebsiteReleases(
+            body.replaceFirst('"schema_version":1', duplicate),
+          ),
+          throwsFormatException,
+        );
+      }
+      expect(
+        () => decodeWebsiteReleases(' ' * (maxWebsiteManifestBytes + 1)),
+        throwsFormatException,
+      );
+      for (final version in [
+        'v0.9.4-pre.1',
+        'v0.9.4+1',
+        'v2147483648.0.0',
+        'v01.2.3',
+      ]) {
+        expect(
+          () => decodeWebsiteReleases(body.replaceAll('v0.9.4', version)),
+          throwsFormatException,
+        );
+      }
+    },
+  );
+
+  test(
+    'selects the latest release containing this exact platform package',
+    () async {
+      final older = (_enabledMetadata['releases'] as List).single as Map;
+      final client = _client(
+        (_) => _json({
+          ..._enabledMetadata,
+          'releases': [
+            older,
+            {
+              'tag': 'v0.9.5',
+              'notes': '',
+              'assets': [
+                {
+                  'name': 'ZolNit-0.9.5-macos-arm64.dmg',
+                  'url':
+                      'https://link.zolmid.com/client/downloads/v0.9.5/ZolNit-0.9.5-macos-arm64.dmg',
+                  'size': 3,
+                  'sha256': _hash,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      addTearDown(client.close);
+      expect(
+        (await client.latestRelease(
+          target: const UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a'),
+        ))?.tag,
+        'v0.9.4',
+      );
+      expect(
+        (await client.latestRelease(
+          target: const UpdateTarget(UpdatePackage.macosDmg, 'arm64'),
+        ))?.tag,
+        'v0.9.5',
+      );
+      expect(
+        await client.latestRelease(
+          target: const UpdateTarget(UpdatePackage.windowsInstaller, 'x64'),
+        ),
+        isNull,
+      );
+    },
+  );
+  test(
     'rejects an untrusted TLS server even when the global app override accepts it',
     () async {
       final context = SecurityContext()
@@ -116,6 +208,162 @@ void main() {
   );
 
   group('website release metadata', () {
+    test('selects a complete enabled release and rejects downgrades', () async {
+      final client = _client((_) => _json(_enabledMetadata));
+      final release = await client.checkForUpdate(currentVersion: '0.9.3');
+      expect(release?.tag, 'v0.9.4');
+      expect(release?.notes, '- fixed');
+      expect(
+        planAppUpdate(
+          release!,
+          const UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a'),
+        )?.asset.url,
+        _url,
+      );
+      expect(await client.checkForUpdate(currentVersion: '0.9.4'), isNull);
+      expect(await client.checkForUpdate(currentVersion: '0.9.5'), isNull);
+    });
+
+    test('chooses the newest version regardless of array order', () async {
+      final newer = {
+        'tag': 'v0.9.5',
+        'notes': '',
+        'assets': [
+          {
+            'name': 'ZolNit-0.9.5-android-arm64-v8a.apk',
+            'url':
+                'https://link.zolmid.com/client/downloads/v0.9.5/ZolNit-0.9.5-android-arm64-v8a.apk',
+            'size': 3,
+            'sha256': _hash,
+          },
+        ],
+      };
+      final client = _client(
+        (_) => _json({
+          ..._enabledMetadata,
+          'releases': [newer, ..._enabledMetadata['releases'] as List],
+        }),
+      );
+      expect((await client.latestRelease())?.tag, 'v0.9.5');
+    });
+
+    test('empty enabled list stays disabled', () async {
+      final client = _client(
+        (_) => _json({..._enabledMetadata, 'releases': []}),
+      );
+      expect(await client.latestRelease(), isNull);
+    });
+
+    test('rejects unsafe and ambiguous enabled manifests', () async {
+      final base = (_enabledMetadata['releases'] as List).single as Map;
+      final asset = (base['assets'] as List).single as Map;
+      for (final invalid in <Object>[
+        {...base, 'tag': 'v0.9.3'},
+        {
+          ...base,
+          'assets': [asset, asset],
+        },
+        {
+          ...base,
+          'assets': [
+            {...asset, 'size': 0},
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {...asset, 'sha256': 'bad'},
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {...asset, 'name': 'FlClash-0.9.4-android-arm64-v8a.apk'},
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {...asset, 'url': 'https://github.com/x/y'},
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {...asset, 'url': 'https://cdn.zolmid.com/$_name'},
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {
+              ...asset,
+              'url': 'http://link.zolmid.com/client/downloads/v0.9.4/$_name',
+            },
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {...asset, 'url': '$_url?download=1'},
+          ],
+        },
+        {
+          ...base,
+          'assets': [
+            {
+              ...asset,
+              'url':
+                  'https://link.zolmid.com/client/downloads/v0.9.4/../$_name',
+            },
+          ],
+        },
+        {...base, 'channel': 'stable'},
+        {
+          ...base,
+          'assets': [
+            {...asset, 'platform': 'android'},
+          ],
+        },
+      ]) {
+        final client = _client(
+          (_) => _json({
+            ..._enabledMetadata,
+            'releases': [invalid],
+          }),
+        );
+        expect(await client.latestRelease(), isNull, reason: '$invalid');
+      }
+      final duplicate = _client(
+        (_) => _json({
+          ..._enabledMetadata,
+          'releases': [base, base],
+        }),
+      );
+      expect(await duplicate.latestRelease(), isNull);
+      final semanticDuplicate = _client(
+        (_) => _json({
+          ..._enabledMetadata,
+          'releases': [
+            base,
+            {
+              ...base,
+              'tag': 'v0.9.4+abc',
+              'assets': [
+                {
+                  ...asset,
+                  'name': 'ZolNit-0.9.4+abc-android-arm64-v8a.apk',
+                  'url':
+                      'https://link.zolmid.com/client/downloads/v0.9.4+abc/ZolNit-0.9.4+abc-android-arm64-v8a.apk',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      expect(await semanticDuplicate.latestRelease(), isNull);
+    });
+
     test('uses one fixed GET without credentials or redirects', () async {
       final requests = <RequestOptions>[];
       final client = _client((options) {
@@ -207,7 +455,7 @@ void main() {
             headers: {
               if (status == 302)
                 HttpHeaders.locationHeader: [
-                  'https://github.com/$repository/releases/latest',
+                  'https://link.zolmid.com/client/releases.json',
                 ],
             },
           );
@@ -229,6 +477,32 @@ void main() {
       expect(await client.latestRelease(), isNull);
       expect(requests, [Uri.parse(_metadataUrl)]);
     });
+
+    test('package redirects are refused without a second request', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'zolnit-redirect-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final requests = <RequestOptions>[];
+      final client = _client((options) {
+        requests.add(options);
+        return ResponseBody.fromString(
+          '',
+          302,
+          headers: {
+            HttpHeaders.locationHeader: ['https://github.com/other/package'],
+          },
+        );
+      });
+      final file = '${directory.path}/package';
+      await expectLater(
+        client.downloadFile(_url, file, retries: 0),
+        throwsA(isA<DioException>()),
+      );
+      expect(requests, hasLength(1));
+      expect(requests.single.followRedirects, isFalse);
+      expect(File(file).existsSync(), isFalse);
+    });
   });
 
   group('verified staging', () {
@@ -244,6 +518,34 @@ void main() {
       target: const UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a'),
       asset: ReleaseAsset(name: _name, url: _url, size: size, sha256: hash),
     );
+
+    test('refuses a mismatched package name before downloading', () async {
+      var requests = 0;
+      final client = _client((_) {
+        requests++;
+        return ResponseBody.fromBytes([], 200);
+      });
+      final installer = AppInstaller(
+        client: client,
+        tempDirectory: () async => directory,
+      );
+      await expectLater(
+        installer.download(
+          const AppUpdatePlan(
+            target: UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a'),
+            asset: ReleaseAsset(
+              name: 'ZolNit-0.9.4-extra-android-arm64-v8a.apk',
+              url:
+                  'https://link.zolmid.com/client/downloads/v0.9.4/ZolNit-0.9.4-extra-android-arm64-v8a.apk',
+              size: 3,
+              sha256: _hash,
+            ),
+          ),
+        ),
+        throwsA(isA<UpdaterException>()),
+      );
+      expect(requests, 0);
+    });
 
     test(
       'publishes only the matching size and hash in release-specific staging',

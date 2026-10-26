@@ -87,9 +87,11 @@ class Request {
     }
   }
 
-  Future<ReleaseManifest?> checkForUpdate() => _updateClient.checkForUpdate(
-    currentVersion: globalState.packageInfo.version,
-  );
+  Future<ReleaseManifest?> checkForUpdate() async =>
+      _updateClient.checkForUpdate(
+        currentVersion: globalState.packageInfo.version,
+        target: await detectUpdateTarget(),
+      );
 
   @visibleForTesting
   Future<ReleaseManifest?> latestRelease() => _updateClient.latestRelease();

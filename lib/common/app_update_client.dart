@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting, compute;
 
 import 'app_update.dart';
-import 'constant.dart';
+import 'constant.dart' show browserUa;
 import 'http.dart';
 import 'package.dart';
 import 'provider_reader.dart';
@@ -51,17 +50,35 @@ class AppUpdateClient {
 
   Future<ReleaseManifest?> checkForUpdate({
     required String currentVersion,
+    UpdateTarget? target,
   }) async {
-    final release = await latestRelease(currentVersion: currentVersion);
-    return release != null && compareVersions(release.tag, currentVersion) > 0
-        ? release
-        : null;
+    final release = await latestRelease(
+      currentVersion: currentVersion,
+      target: target,
+    );
+    if (release == null) return null;
+    try {
+      return compareVersions(release.tag, currentVersion) > 0 ? release : null;
+    } on FormatException {
+      return null;
+    }
   }
 
-  Future<ReleaseManifest?> latestRelease({String? currentVersion}) async {
+  Future<ReleaseManifest?> latestRelease({
+    String? currentVersion,
+    UpdateTarget? target,
+  }) async {
     try {
+      final cancel = CancelToken();
       final response = await _dio.get<String>(
-        'https://link.zolmid.com/client/releases.json',
+        websiteReleaseManifestUrl,
+        cancelToken: cancel,
+        onReceiveProgress: (received, total) {
+          if (received > maxWebsiteManifestBytes ||
+              total > maxWebsiteManifestBytes) {
+            cancel.cancel('Website metadata is too large');
+          }
+        },
         options: Options(
           responseType: ResponseType.plain,
           followRedirects: false,
@@ -69,13 +86,28 @@ class AppUpdateClient {
           validateStatus: (status) => status == HttpStatus.ok,
         ),
       );
-      _validateDisabledWebsiteMetadata(jsonDecode(response.data ?? ''));
+      final releases = await compute(
+        decodeWebsiteReleases,
+        response.data ?? '',
+      );
+      if (releases == null) return null;
+      releases.sort((a, b) => compareVersions(b.tag, a.tag));
+      for (var index = 1; index < releases.length; index++) {
+        if (compareVersions(releases[index - 1].tag, releases[index].tag) ==
+            0) {
+          return null;
+        }
+      }
+      return target == null
+          ? releases.first
+          : releases
+                .where((release) => planAppUpdate(release, target) != null)
+                .firstOrNull;
     } on DioException {
       return null;
     } on FormatException {
       return null;
     }
-    return null;
   }
 
   Future<void> downloadFile(
@@ -167,6 +199,7 @@ class AppUpdateClient {
       cancelToken: cancelToken,
       options: Options(
         responseType: ResponseType.stream,
+        followRedirects: false,
         receiveTimeout: const Duration(seconds: 30),
         headers: {
           HttpHeaders.acceptEncodingHeader: 'identity',
@@ -286,18 +319,6 @@ Future<void> _waitRetry(Duration duration, CancelToken? token) async {
 }
 
 final appUpdateClient = AppUpdateClient();
-
-void _validateDisabledWebsiteMetadata(Object? value) {
-  if (value is Map &&
-      value['schema_version'] == 1 &&
-      value['app_id'] == packageName &&
-      value['updates_enabled'] == false &&
-      value['releases'] is List &&
-      (value['releases'] as List).isEmpty) {
-    return;
-  }
-  throw const FormatException('Unsupported website update metadata');
-}
 
 class _StrictHttpOverrides extends HttpOverrides {
   @override

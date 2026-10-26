@@ -197,9 +197,15 @@ Root CI 的 Plugins job 单独验证本模块和微信桥接；开发分支 push
 客户端分支另产出 macOS arm64 安全调试包，显式 SAFE_MODE=true、ZOLNIT_DISTRIBUTION=direct，
 并保留原来的全部 release 编译。只运行该安全调试产物；CI 产物属于开发验收，不是正式网站安装发布。
 
-安装与更新由 ZolNit 网站统一提供。公开清单约定为 https://link.zolmid.com/client/releases.json，
-schema_version=1、app_id=com.zolmid.zolnit；当前未发布正式产物，updates_enabled=false、releases=[]。
-禁用、空或尚未支持的清单保持不可安装，不回退上游/GitHub旧身份包。后续真实签名产物和条目校验需另行验收。
+安装与更新只使用 https://link.zolmid.com/client/releases.json：顶层严格为
+schema_version=1、app_id=com.zolmid.zolnit、updates_enabled、releases。关闭时 releases 必须为空；
+启用条目严格为 tag / notes / assets，asset 严格为 name / url / size / sha256。tag 仅接受稳定
+vMAJOR.MINOR.PATCH，各分量不超过 2147483647；客户端选择当前平台、架构及包类型的最新兼容版本。
+文件名为 ZolNit-VERSION-PLATFORM-ARCH.EXT，URL 必须精确匹配
+https://link.zolmid.com/client/downloads/TAG/NAME，不接受重定向、其他域名、查询参数或编码路径变体。
+清单最多 1 MiB、30 个版本，每版 64 个包；包最多 2 GiB，下载后校验精确大小及小写 SHA256。
+重复 JSON 字段、重复版本/包、非法架构和版本均拒绝。下载续传、取消及安装恢复保留现有校验。
+禁用或空清单保持不可安装，不回退上游/GitHub身份包。启用解析已实现，正式签名、真实安装升级和官网发布仍待验收。
 
 Web 原型仍独立并使用模拟数据，不连接真实账户或创建真实付款；宿主页面消费真实业务接口，不提供模拟付款成功按钮。
 

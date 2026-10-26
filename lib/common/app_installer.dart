@@ -128,16 +128,22 @@ class AppInstaller {
     CancelToken? cancelToken,
   }) async {
     final suffix = plan.target.assetSuffix;
+    final uri = Uri.tryParse(plan.asset.url);
+    final tag = uri != null && uri.pathSegments.length == 4
+        ? uri.pathSegments[2]
+        : null;
     if (!plan.asset.isValid ||
         suffix == null ||
-        !plan.asset.name.endsWith(suffix)) {
+        tag == null ||
+        plan.asset.name !=
+            'ZolNit-${tag.replaceFirst(RegExp(r'^[vV]'), '')}$suffix') {
       throw const UpdaterException(UpdaterFailureReason.installFailed);
     }
     final root = await _downloadDirectory(plan.target);
     final directory = Directory(
       path.join(
         root,
-        '${Uri.parse(plan.asset.url).pathSegments[4]}-${plan.asset.sha256}',
+        '${Uri.parse(plan.asset.url).pathSegments[2]}-${plan.asset.sha256}',
       ),
     );
     await directory.create(recursive: true);

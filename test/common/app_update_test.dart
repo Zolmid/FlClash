@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:fl_clash/common/app_installer.dart';
 import 'package:fl_clash/common/app_update.dart';
-import 'package:fl_clash/common/constant.dart' show repository;
 import 'package:fl_clash/common/system.dart' show ProcessRunner;
 import 'package:test/test.dart';
 
@@ -12,7 +11,7 @@ const _hashA =
 
 Map<String, dynamic> _asset(String name, {Object? sha256 = _hashA}) => {
   'name': name,
-  'url': 'https://github.com/$repository/releases/download/v0.9.4/$name',
+  'url': 'https://link.zolmid.com/client/downloads/v0.9.4/$name',
   'size': 42,
   'sha256': sha256,
 };
@@ -21,16 +20,16 @@ final _release = ReleaseManifest.fromJson({
   'tag': 'v0.9.4',
   'notes': '- notes',
   'assets': [
-    _asset('FlClash-0.9.4-windows-x64-setup.exe'),
-    _asset('FlClash-0.9.4-windows-x64-v3-setup.exe'),
-    _asset('FlClash-0.9.4-windows-x64.zip'),
-    _asset('FlClash-0.9.4-android-arm64-v8a.apk'),
-    _asset('FlClash-0.9.4-android-armeabi-v7a.apk'),
-    _asset('FlClash-0.9.4-macos-arm64.dmg'),
-    _asset('FlClash-0.9.4-linux-x64.AppImage'),
-    _asset('FlClash-0.9.4-linux-x64-v3.AppImage'),
-    _asset('FlClash-0.9.4-linux-x64.deb'),
-    _asset('FlClash-0.9.4-linux-x64.tar.zst'),
+    _asset('ZolNit-0.9.4-windows-x64-setup.exe'),
+    _asset('ZolNit-0.9.4-windows-x64-v3-setup.exe'),
+    _asset('ZolNit-0.9.4-windows-x64.zip'),
+    _asset('ZolNit-0.9.4-android-arm64-v8a.apk'),
+    _asset('ZolNit-0.9.4-android-armeabi-v7a.apk'),
+    _asset('ZolNit-0.9.4-macos-arm64.dmg'),
+    _asset('ZolNit-0.9.4-linux-x64.AppImage'),
+    _asset('ZolNit-0.9.4-linux-x64-v3.AppImage'),
+    _asset('ZolNit-0.9.4-linux-x64.deb'),
+    _asset('ZolNit-0.9.4-linux-x64.tar.zst'),
   ],
 });
 
@@ -79,63 +78,66 @@ void main() {
     },
   );
 
-  test('refuses duplicate targets, mismatched releases and unsafe asset metadata', () {
-    final asset = _asset('FlClash-0.9.4-android-arm64-v8a.apk');
-    const target = UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a');
-    final duplicate = ReleaseManifest.fromJson({
-      'tag': 'v0.9.4',
-      'assets': [asset, asset],
-    });
-    expect(planAppUpdate(duplicate, target), isNull);
-    final wrongRelease = ReleaseManifest.fromJson({
-      'tag': 'v0.9.3',
-      'assets': [asset],
-    });
-    expect(planAppUpdate(wrongRelease, target), isNull);
-    for (final invalid in [
-      {...asset, 'name': '../FlClash-0.9.4-android-arm64-v8a.apk'},
-      {...asset, 'size': -1},
-      {...asset, 'size': 0},
-      {...asset, 'size': maxUpdatePackageBytes + 1},
-      {
-        ...asset,
-        'url':
-            'http://github.com/$repository/releases/download/v0.9.4/${asset['name']}',
-      },
-      {
-        ...asset,
-        'url':
-            'https://github.com/another/repo/releases/download/v0.9.4/${asset['name']}',
-      },
-      {
-        ...asset,
-        'url':
-            'https://secret@github.com/$repository/releases/download/v0.9.4/${asset['name']}',
-      },
-      {
-        ...asset,
-        'url':
-            'https://github.com/$repository/releases/download/v0.9.3/${asset['name']}',
-      },
-    ]) {
+  test(
+    'refuses duplicate targets, mismatched releases and unsafe asset metadata',
+    () {
+      final asset = _asset('ZolNit-0.9.4-android-arm64-v8a.apk');
+      const target = UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a');
+      final duplicate = ReleaseManifest.fromJson({
+        'tag': 'v0.9.4',
+        'assets': [asset, asset],
+      });
+      expect(planAppUpdate(duplicate, target), isNull);
+      final wrongRelease = ReleaseManifest.fromJson({
+        'tag': 'v0.9.3',
+        'assets': [asset],
+      });
+      expect(planAppUpdate(wrongRelease, target), isNull);
+      for (final invalid in [
+        {...asset, 'name': '../ZolNit-0.9.4-android-arm64-v8a.apk'},
+        {...asset, 'size': -1},
+        {...asset, 'size': 0},
+        {...asset, 'size': maxUpdatePackageBytes + 1},
+        {
+          ...asset,
+          'url':
+              'http://link.zolmid.com/client/downloads/v0.9.4/${asset['name']}',
+        },
+        {
+          ...asset,
+          'url':
+              'https://github.com/another/repo/releases/download/v0.9.4/${asset['name']}',
+        },
+        {
+          ...asset,
+          'url':
+              'https://secret@link.zolmid.com/client/downloads/v0.9.4/${asset['name']}',
+        },
+        {
+          ...asset,
+          'url':
+              'https://link.zolmid.com/client/downloads/v0.9.3/${asset['name']}',
+        },
+      ]) {
+        expect(
+          ReleaseManifest.fromJson({
+            'tag': 'v0.9.4',
+            'assets': [invalid],
+          }).assets,
+          isEmpty,
+        );
+      }
       expect(
-        ReleaseManifest.fromJson({
-          'tag': 'v0.9.4',
-          'assets': [invalid],
-        }).assets,
-        isEmpty,
+        ReleaseAsset(
+          name: asset['name'] as String,
+          url: asset['url'] as String,
+          size: maxUpdatePackageBytes,
+          sha256: _hashA,
+        ).isValid,
+        isTrue,
       );
-    }
-    expect(
-      ReleaseAsset(
-        name: asset['name'] as String,
-        url: asset['url'] as String,
-        size: maxUpdatePackageBytes,
-        sha256: _hashA,
-      ).isValid,
-      isTrue,
-    );
-  });
+    },
+  );
 
   group('detectUpdateTarget', () {
     test('maps the Android process ABI to the split APK name', () async {
@@ -268,8 +270,8 @@ void main() {
         _release,
         const UpdateTarget(UpdatePackage.windowsInstaller, 'x64-v3'),
       );
-      expect(v1?.asset.name, 'FlClash-0.9.4-windows-x64-setup.exe');
-      expect(v3?.asset.name, 'FlClash-0.9.4-windows-x64-v3-setup.exe');
+      expect(v1?.asset.name, 'ZolNit-0.9.4-windows-x64-setup.exe');
+      expect(v3, isNull);
     });
 
     test('selects the package format for each target', () {
@@ -278,15 +280,15 @@ void main() {
 
       expect(
         nameFor(UpdatePackage.androidApk, 'armeabi-v7a'),
-        'FlClash-0.9.4-android-armeabi-v7a.apk',
+        'ZolNit-0.9.4-android-armeabi-v7a.apk',
       );
       expect(
         nameFor(UpdatePackage.linuxAppImage, 'x64-v3'),
-        'FlClash-0.9.4-linux-x64-v3.AppImage',
+        'ZolNit-0.9.4-linux-x64-v3.AppImage',
       );
       expect(
         nameFor(UpdatePackage.linuxPacman, 'x64'),
-        'FlClash-0.9.4-linux-x64.tar.zst',
+        'ZolNit-0.9.4-linux-x64.tar.zst',
       );
       expect(nameFor(UpdatePackage.macosDmg, 'x64'), isNull);
       expect(nameFor(UpdatePackage.unsupported, ''), isNull);
@@ -295,7 +297,7 @@ void main() {
     test('tolerates a release without assets', () {
       expect(
         planAppUpdate(
-          const ReleaseManifest(tag: 'v1', notes: ''),
+          const ReleaseManifest(tag: 'v1.0.0', notes: ''),
           const UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a'),
         ),
         isNull,
@@ -307,11 +309,11 @@ void main() {
     test('reads the manifest the release script writes', () {
       expect(_release.tag, 'v0.9.4');
       expect(_release.notes, '- notes');
-      expect(_release.assets, hasLength(10));
+      expect(_release.assets, hasLength(9));
       final asset = _release.assets.first;
       expect(
         asset.url,
-        'https://github.com/$repository/releases/download/v0.9.4/${asset.name}',
+        'https://link.zolmid.com/client/downloads/v0.9.4/${asset.name}',
       );
       expect(asset.size, 42);
       expect(asset.sha256, _hashA);
@@ -321,15 +323,18 @@ void main() {
       final release = ReleaseManifest.fromJson({
         'tag': 'v0.9.4',
         'assets': [
-          _asset('FlClash-0.9.4-ok.apk'),
-          _asset('FlClash-0.9.4-upper.apk', sha256: _hashA.toUpperCase()),
-          _asset('FlClash-0.9.4-short.apk', sha256: 'abc'),
-          _asset('FlClash-0.9.4-none.apk', sha256: null),
+          _asset('ZolNit-0.9.4-android-arm64-v8a.apk'),
+          _asset(
+            'ZolNit-0.9.4-android-armeabi-v7a.apk',
+            sha256: _hashA.toUpperCase(),
+          ),
+          _asset('ZolNit-0.9.4-android-x86_64.apk', sha256: 'abc'),
+          _asset('ZolNit-0.9.4-macos-x64.dmg', sha256: null),
           'not an asset',
         ],
       });
       expect(release.assets.map((asset) => asset.name), [
-        'FlClash-0.9.4-ok.apk',
+        'ZolNit-0.9.4-android-arm64-v8a.apk',
       ]);
       expect(release.notes, isEmpty);
     });
@@ -340,13 +345,17 @@ void main() {
         throwsFormatException,
       );
       expect(() => ReleaseManifest.fromJson('v1'), throwsFormatException);
+      expect(
+        () => ReleaseManifest.fromJson({'tag': 'release/1.0.0'}),
+        throwsFormatException,
+      );
     });
 
-    test('reads a GitHub API release and its sha256 digests', () {
+    test('does not accept GitHub API assets as website packages', () {
       Map<String, dynamic> apiAsset(String name, Object? digest) => {
         'name': name,
         'browser_download_url':
-            'https://github.com/$repository/releases/download/v0.9.4/$name',
+            'https://github.com/chen08209/FlClash/releases/download/v0.9.4/$name',
         'size': 42,
         'digest': digest,
       };
@@ -354,21 +363,14 @@ void main() {
         'tag_name': 'v0.9.4',
         'body': '- notes',
         'assets': [
-          apiAsset('FlClash-0.9.4-ok.apk', 'sha256:$_hashA'),
-          apiAsset('FlClash-0.9.4-sha512.apk', 'sha512:$_hashA'),
-          apiAsset('FlClash-0.9.4-none.apk', null),
+          apiAsset('ZolNit-0.9.4-android-arm64-v8a.apk', 'sha256:$_hashA'),
+          apiAsset('ZolNit-0.9.4-sha512.apk', 'sha512:$_hashA'),
+          apiAsset('ZolNit-0.9.4-macos-x64.dmg', null),
         ],
       });
       expect(release.tag, 'v0.9.4');
       expect(release.notes, '- notes');
-      expect(release.assets.map((asset) => asset.name), [
-        'FlClash-0.9.4-ok.apk',
-      ]);
-      expect(release.assets.single.sha256, _hashA);
-      expect(
-        release.assets.single.url,
-        'https://github.com/$repository/releases/download/v0.9.4/FlClash-0.9.4-ok.apk',
-      );
+      expect(release.assets, isEmpty);
       expect(
         () => ReleaseManifest.fromGitHubRelease({'body': ''}),
         throwsFormatException,
@@ -393,12 +395,9 @@ void main() {
     );
     expect(
       browserDownloadUri(plan).toString(),
-      'https://github.com/$repository/releases/download/v0.9.4/FlClash-0.9.4-windows-x64.zip',
+      'https://link.zolmid.com/client/downloads/v0.9.4/ZolNit-0.9.4-windows-x64.zip',
     );
-    expect(
-      browserDownloadUri(null).toString(),
-      'https://github.com/$repository/releases/latest',
-    );
+    expect(browserDownloadUri(null).toString(), 'https://link.zolmid.com');
   });
 
   group('package manager update', () {
@@ -467,9 +466,9 @@ void main() {
     const plan = AppUpdatePlan(
       target: UpdateTarget(UpdatePackage.linuxDeb, 'x64'),
       asset: ReleaseAsset(
-        name: 'FlClash-0.9.4-linux-x64.deb',
+        name: 'ZolNit-0.9.4-linux-x64.deb',
         url:
-            'https://github.com/$repository/releases/download/v0.9.4/FlClash-0.9.4-linux-x64.deb',
+            'https://link.zolmid.com/client/downloads/v0.9.4/ZolNit-0.9.4-linux-x64.deb',
         size: 3,
         sha256: _hashA,
       ),
@@ -477,7 +476,7 @@ void main() {
 
     setUp(() async {
       dir = await Directory.systemTemp.createTemp('flclash_pkg');
-      package = File('${dir.path}/FlClash-0.9.4-linux-x64.deb')
+      package = File('${dir.path}/ZolNit-0.9.4-linux-x64.deb')
         ..writeAsStringSync('abc');
     });
 

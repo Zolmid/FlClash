@@ -1,11 +1,17 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 
-import 'constant.dart' show repository;
 import 'system.dart' show ProcessRunner;
+
+const websiteReleaseManifestUrl =
+    'https://link.zolmid.com/client/releases.json';
+const _websiteDownloadRoot = 'https://link.zolmid.com/client/downloads';
+const websiteReleasePageUrl = 'https://link.zolmid.com';
+const maxWebsiteManifestBytes = 1024 * 1024;
 
 const _buildArch = String.fromEnvironment('APP_ARCH');
 
@@ -200,36 +206,47 @@ ReleaseAsset? _verifiedAsset(Object? asset, {required String tag}) =>
         'sha256': final String sha256,
       }
           when _validAsset(name, url, size, sha256) &&
-              Uri.parse(url).pathSegments[4] == tag =>
+              Uri.parse(url).pathSegments[2] == tag =>
         ReleaseAsset(name: name, url: url, size: size, sha256: sha256),
       _ => null,
     };
 
 bool _validAsset(String name, String url, int size, String digest) {
   final uri = Uri.tryParse(url);
-  return RegExp(r'^FlClash-[A-Za-z0-9._+\-]+$').hasMatch(name) &&
+  return RegExp(r'^ZolNit-[A-Za-z0-9._+\-]+$').hasMatch(name) &&
       name.length <= 255 &&
       size > 0 &&
       size <= maxUpdatePackageBytes &&
       _sha256Pattern.hasMatch(digest) &&
       uri != null &&
       uri.scheme == 'https' &&
-      uri.host == 'github.com' &&
+      uri.host == 'link.zolmid.com' &&
       uri.port == 443 &&
-      uri.pathSegments.length == 6 &&
-      [
-        ...repository.split('/'),
-        'releases',
-        'download',
-      ].indexed.every((part) => uri.pathSegments[part.$1] == part.$2) &&
+      uri.pathSegments.length == 4 &&
+      uri.pathSegments[0] == 'client' &&
+      uri.pathSegments[1] == 'downloads' &&
       uri.pathSegments.last == name &&
-      RegExp(r'^[vV]?\d[0-9A-Za-z._+\-]*$').hasMatch(uri.pathSegments[4]) &&
-      uri.pathSegments[4].length <= 128 &&
+      _validVersion(uri.pathSegments[2]) &&
+      _validPackageName(name, uri.pathSegments[2]) &&
       name.startsWith(
-        'FlClash-${uri.pathSegments[4].replaceFirst(RegExp(r'^[vV]'), '')}-',
+        'ZolNit-${uri.pathSegments[2].replaceFirst(RegExp(r'^[vV]'), '')}-',
       ) &&
       uri.userInfo.isEmpty &&
-      !uri.hasFragment;
+      !uri.hasFragment &&
+      !uri.hasQuery &&
+      uri.toString() == '$_websiteDownloadRoot/${uri.pathSegments[2]}/$name';
+}
+
+bool _validVersion(String tag) {
+  if (!RegExp(
+    r'^v(?:0|[1-9]\d{0,9})\.(?:0|[1-9]\d{0,9})\.(?:0|[1-9]\d{0,9})$',
+  ).hasMatch(tag)) {
+    return false;
+  }
+  return tag
+      .substring(1)
+      .split('.')
+      .every((part) => int.parse(part) <= 2147483647);
 }
 
 class ReleaseManifest {
@@ -243,12 +260,10 @@ class ReleaseManifest {
     this.assets = const [],
   });
 
-  Uri get releaseUri => Uri.parse(
-    'https://github.com/$repository/releases/tag/${Uri.encodeComponent(tag)}',
-  );
+  Uri get releaseUri => Uri.parse(websiteReleasePageUrl);
 
   factory ReleaseManifest.fromJson(Object? json) {
-    if (json case {'tag': final String tag}) {
+    if (json case {'tag': final String tag} when _validVersion(tag)) {
       final assets = json['assets'];
       return ReleaseManifest(
         tag: tag,
@@ -263,7 +278,7 @@ class ReleaseManifest {
   }
 
   factory ReleaseManifest.fromGitHubRelease(Object? json) {
-    if (json case {'tag_name': final String tag}) {
+    if (json case {'tag_name': final String tag} when _validVersion(tag)) {
       final assets = json['assets'];
       return ReleaseManifest(
         tag: tag,
@@ -288,6 +303,191 @@ class ReleaseManifest {
     }
     throw const FormatException('Unsupported GitHub release');
   }
+}
+
+List<ReleaseManifest>? parseWebsiteReleases(Object? value) {
+  if (value is! Map ||
+      value['schema_version'] is! int ||
+      value['schema_version'] != 1 ||
+      value['app_id'] != 'com.zolmid.zolnit' ||
+      value['updates_enabled'] is! bool ||
+      value['releases'] is! List ||
+      value.keys.any(
+        (key) => !const {
+          'schema_version',
+          'app_id',
+          'updates_enabled',
+          'releases',
+        }.contains(key),
+      )) {
+    throw const FormatException('Unsupported website update metadata');
+  }
+  final entries = value['releases'] as List;
+  if (entries.length > 30) {
+    throw const FormatException('Too many website releases');
+  }
+  if (value['updates_enabled'] == false || entries.isEmpty) {
+    if (entries.isNotEmpty && value['updates_enabled'] == false) {
+      throw const FormatException('Disabled updates must have no releases');
+    }
+    return null;
+  }
+  final releases = <ReleaseManifest>[];
+  for (final entry in entries) {
+    if (entry is! Map ||
+        entry['tag'] is! String ||
+        entry['assets'] is! List ||
+        (entry['assets'] as List).isEmpty ||
+        (entry['assets'] as List).length > 64 ||
+        entry['notes'] is! String ||
+        (entry['notes'] as String).runes.length > 32768 ||
+        entry.keys.any(
+          (key) => !const {'tag', 'notes', 'assets'}.contains(key),
+        )) {
+      throw const FormatException('Invalid website release');
+    }
+    final rawAssets = entry['assets'] as List;
+    if (rawAssets.any(
+      (asset) =>
+          asset is! Map ||
+          asset.keys.any(
+            (key) => !const {'name', 'url', 'size', 'sha256'}.contains(key),
+          ),
+    )) {
+      throw const FormatException('Invalid website release assets');
+    }
+    final release = ReleaseManifest.fromJson(entry);
+    if (release.assets.length != rawAssets.length ||
+        release.assets.map((asset) => asset.name).toSet().length !=
+            release.assets.length ||
+        release.assets.any(
+          (asset) => !_validPackageName(asset.name, release.tag),
+        )) {
+      throw const FormatException('Invalid website release assets');
+    }
+    if (releases.any((existing) => existing.tag == release.tag)) {
+      throw const FormatException('Duplicate website release');
+    }
+    releases.add(release);
+  }
+  return releases;
+}
+
+List<ReleaseManifest>? decodeWebsiteReleases(String source) {
+  if (utf8.encode(source).length > maxWebsiteManifestBytes) {
+    throw const FormatException('Website metadata is too large');
+  }
+  _WebsiteJSON(source).validate();
+  return parseWebsiteReleases(jsonDecode(source));
+}
+
+class _WebsiteJSON {
+  _WebsiteJSON(this.source);
+  final String source;
+  var position = 0;
+
+  void validate() {
+    _value(0);
+    _space();
+    if (position != source.length) _invalid();
+  }
+
+  Never _invalid() => throw const FormatException('Invalid website JSON');
+
+  void _space() {
+    while (position < source.length &&
+        const {9, 10, 13, 32}.contains(source.codeUnitAt(position))) {
+      position++;
+    }
+  }
+
+  bool _take(int character) {
+    _space();
+    if (position >= source.length || source.codeUnitAt(position) != character) {
+      return false;
+    }
+    position++;
+    return true;
+  }
+
+  String _string() {
+    _space();
+    final start = position;
+    if (!_take(34)) _invalid();
+    while (position < source.length) {
+      final character = source.codeUnitAt(position++);
+      if (character == 92) {
+        position++;
+      } else if (character == 34) {
+        return jsonDecode(source.substring(start, position)) as String;
+      }
+    }
+    return _invalid();
+  }
+
+  void _value(int depth) {
+    if (depth > 32) _invalid();
+    _space();
+    if (position >= source.length) _invalid();
+    final character = source.codeUnitAt(position);
+    if (character == 123) {
+      position++;
+      final keys = <String>{};
+      if (_take(125)) return;
+      do {
+        if (!keys.add(_string()) || !_take(58)) _invalid();
+        _value(depth + 1);
+        if (_take(125)) return;
+      } while (_take(44));
+      _invalid();
+    } else if (character == 91) {
+      position++;
+      if (_take(93)) return;
+      do {
+        _value(depth + 1);
+        if (_take(93)) return;
+      } while (_take(44));
+      _invalid();
+    } else if (character == 34) {
+      _string();
+    } else {
+      final start = position;
+      while (position < source.length &&
+          !const {
+            9,
+            10,
+            13,
+            32,
+            44,
+            93,
+            125,
+          }.contains(source.codeUnitAt(position))) {
+        position++;
+      }
+      if (position == start) _invalid();
+    }
+  }
+}
+
+bool _validPackageName(String name, String tag) {
+  final version = tag.replaceFirst(RegExp(r'^[vV]'), '');
+  for (final package in UpdatePackage.values) {
+    if (package == UpdatePackage.unsupported) continue;
+    final arches = package == UpdatePackage.androidApk
+        ? const ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+        : package == UpdatePackage.macosDmg
+        ? const ['arm64', 'x64']
+        : package == UpdatePackage.windowsInstaller ||
+              package == UpdatePackage.windowsPortable
+        ? const ['arm64', 'x64']
+        : const ['arm64', 'x64', 'x64-v1', 'x64-v2', 'x64-v3'];
+    for (final arch in arches) {
+      if (name == 'ZolNit-$version${UpdateTarget(package, arch).assetSuffix}') {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 class ReleaseAsset {
@@ -323,8 +523,8 @@ AppUpdatePlan? planAppUpdate(ReleaseManifest release, UpdateTarget target) {
       .where(
         (asset) =>
             asset.isValid &&
-            asset.name == 'FlClash-$version$suffix' &&
-            Uri.parse(asset.url).pathSegments[4] == release.tag,
+            asset.name == 'ZolNit-$version$suffix' &&
+            Uri.parse(asset.url).pathSegments[2] == release.tag,
       )
       .toList();
   return assets.length == 1
@@ -334,8 +534,7 @@ AppUpdatePlan? planAppUpdate(ReleaseManifest release, UpdateTarget target) {
 
 Uri browserDownloadUri(AppUpdatePlan? plan, {ReleaseManifest? release}) =>
     plan == null
-    ? release?.releaseUri ??
-          Uri.parse('https://github.com/$repository/releases/latest')
+    ? release?.releaseUri ?? Uri.parse(websiteReleasePageUrl)
     : Uri.parse(plan.asset.url);
 
 Future<String> sha256OfFile(File file) async {

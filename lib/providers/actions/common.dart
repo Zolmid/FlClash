@@ -83,6 +83,7 @@ class CommonAction extends _$CommonAction {
     try {
       res = await appUpdateClient.checkForUpdate(
         currentVersion: globalState.packageInfo.version,
+        target: await detectAppUpdateTarget(),
       );
     } catch (error) {
       commonPrint.log(
@@ -161,10 +162,10 @@ class CommonAction extends _$CommonAction {
         message: message,
         leadingAction: TextButton(
           onPressed: () => launchUrl(
-            Uri.https('github.com', '/$repository/releases/tag/${release.tag}'),
+            release.releaseUri,
             mode: LaunchMode.externalApplication,
           ),
-          child: Text(currentAppLocalizations.openInGitHub),
+          child: Text(currentAppLocalizations.zolnitWebsite),
         ),
         confirmText: updatesInApp
             ? currentAppLocalizations.updateNow
