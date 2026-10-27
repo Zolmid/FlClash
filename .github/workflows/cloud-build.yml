@@ -209,21 +209,6 @@ jobs:
             dart run bin/compile_installer.dart
           fi
 
-      - name: Reject Android release without dedicated signing
-        if: matrix.platform == 'android' && env.ANDROID_RELEASE != 'true'
-        working-directory: android
-        run: |
-          log=$(mktemp "$RUNNER_TEMP/zolnit-signing-check-XXXXXX")
-          trap 'rm -f "$log"' EXIT
-          if env -u ZOLNIT_ANDROID_KEYSTORE_PATH -u ZOLNIT_ANDROID_KEYSTORE_PASSWORD -u ZOLNIT_ANDROID_KEY_ALIAS -u ZOLNIT_ANDROID_KEY_PASSWORD ./gradlew :app:releaseGuard -Ptarget-platform=android-arm64 > "$log" 2>&1; then
-            echo '::error::Missing release signing was unexpectedly accepted'
-            exit 1
-          fi
-          if ! grep -Fq 'Release signing requires ZOLNIT_ANDROID_KEYSTORE_PATH' "$log"; then
-            cat "$log"
-            exit 1
-          fi
-
       - name: Provision Android release signing
         if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'
         env:
@@ -252,6 +237,21 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
         run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+
+      - name: Reject Android release without dedicated signing
+        if: matrix.platform == 'android' && env.ANDROID_RELEASE != 'true'
+        working-directory: android
+        run: |
+          log=$(mktemp "$RUNNER_TEMP/zolnit-signing-check-XXXXXX")
+          trap 'rm -f "$log"' EXIT
+          if env -u ZOLNIT_ANDROID_KEYSTORE_PATH -u ZOLNIT_ANDROID_KEYSTORE_PASSWORD -u ZOLNIT_ANDROID_KEY_ALIAS -u ZOLNIT_ANDROID_KEY_PASSWORD ./gradlew :app:releaseGuard -Ptarget-platform=android-arm64 > "$log" 2>&1; then
+            echo '::error::Missing release signing was unexpectedly accepted'
+            exit 1
+          fi
+          if ! grep -Fq 'Release signing requires ZOLNIT_ANDROID_KEYSTORE_PATH' "$log"; then
+            cat "$log"
+            exit 1
+          fi
 
       - name: Compile Android release
         if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'
