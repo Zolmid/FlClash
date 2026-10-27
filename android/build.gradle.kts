@@ -20,6 +20,15 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Optional Issuing provisioning pulls the restricted TapAndPay runtime into this plugin's release lint.
+subprojects {
+    if (name == "stripe_android") {
+        configurations.configureEach {
+            exclude(group = "com.google.android.gms", module = "play-services-tapandpay")
+        }
+    }
+}
+
 gradle.projectsEvaluated {
     allprojects {
         tasks.withType<JavaCompile>().configureEach {

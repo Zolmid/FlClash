@@ -8,10 +8,159 @@ import 'package:zolnit_client/zolnit_client.dart';
 
 import 'client_bundle_fixture.dart';
 
+class _MemoryVault implements ZolnitSessionVault {
+  String? authorization = 'Bearer restored-fixture';
+
+  @override
+  Future<String?> readAuthorization() async => authorization;
+
+  @override
+  Future<void> writeAuthorization(String value) async => authorization = value;
+
+  @override
+  Future<void> deleteAuthorization() async => authorization = null;
+}
+
 void main() {
   late ClientBundleSessionFixture fixture;
   setUp(() => fixture = ClientBundleSessionFixture());
   tearDown(() => fixture.dispose());
+
+  for (final restore in [false, true]) {
+    test(
+      'canonical account 2 bootstrap after ${restore ? 'restore' : 'login'}',
+      () async {
+        final client = ClientBundleSessionFixture(vault: _MemoryVault());
+        addTearDown(client.dispose);
+        client.onBundle = (_) async =>
+            clientBundleResponse(clientBundleFixture(accountId: '2'));
+        if (restore) {
+          await client.session.restore();
+        } else {
+          await client.login();
+        }
+        expect(client.session.authenticated, isTrue);
+        expect(client.session.failure, isNull);
+        expect(client.session.account!.containsKey('id'), isFalse);
+        expect(client.session.clientBundleAccountId, isNull);
+        final before = client.requests.length;
+        for (var receipt = 0; receipt < 2; receipt++) {
+          final bundle = await client.session.refreshClientBundle(
+            coreVersion: 'v1.19.32',
+            clock: () => bundleTime(1001),
+          );
+          expect(bundle!.accountId, '2');
+          expect(client.session.clientBundleAccountId, '2');
+        }
+        final accepted = client.session.clientBundle;
+        client.onBundle = (_) async =>
+            clientBundleResponse(clientBundleFixture(accountId: '3'));
+        expect(
+          await client.session.refreshClientBundle(
+            coreVersion: 'v1.19.32',
+            clock: () => bundleTime(1001),
+          ),
+          isNull,
+        );
+        expect(
+          client.session.clientBundleFailure,
+          'client_bundle_binding_mismatch',
+        );
+        expect(client.session.clientBundle, same(accepted));
+        expect(client.session.clientBundleAccountId, '2');
+        expect(
+          client.requests.skip(before).map((r) => r.url.path),
+          everyElement('/api/v1/zolnit/client/bundle'),
+        );
+        for (final request in client.requests) {
+          expect(request.url.origin, 'https://panel.example.invalid');
+          expect(request.followRedirects, isFalse);
+          if (request.url.path.endsWith('/login')) {
+            expect(request.method, 'POST');
+            expect(request.headers['Authorization'], isNull);
+          } else {
+            expect(
+              request.headers['Authorization'],
+              restore ? 'Bearer restored-fixture' : 'Bearer fixture',
+            );
+          }
+        }
+      },
+    );
+  }
+
+  test('invalid bootstrap cannot seed the canonical account binding', () async {
+    await fixture.login();
+    final invalid = clientBundleFixture(accountId: '3');
+    (invalid['connection'] as Json)['document'] = 'tampered';
+    fixture.onBundle = (_) async => clientBundleResponse(invalid);
+    expect(
+      await fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => bundleTime(1001),
+      ),
+      isNull,
+    );
+    expect(fixture.session.clientBundleAccountId, isNull);
+    fixture.onBundle = (_) async =>
+        clientBundleResponse(clientBundleFixture(accountId: '2'));
+    expect(
+      (await fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => bundleTime(1001),
+      ))!.accountId,
+      '2',
+    );
+  });
+
+  for (final transition in ['logout', 'rotate', 'switch']) {
+    test('pending canonical bootstrap is fenced by $transition', () async {
+      await fixture.login();
+      final started = Completer<void>();
+      final response = Completer<http.Response>();
+      fixture.onBundle = (_) {
+        started.complete();
+        return response.future;
+      };
+      final old = fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => bundleTime(1001),
+      );
+      await started.future;
+      if (transition == 'rotate') {
+        fixture.api.setAuthorization('Bearer rotated-fixture');
+      } else if (transition == 'switch') {
+        await fixture.session.login(
+          'other@example.invalid',
+          'synthetic-password',
+        );
+      } else {
+        await fixture.session.logout();
+      }
+      expect(fixture.session.clientBundleAccountId, isNull);
+      if (transition != 'logout') {
+        fixture.onBundle = (_) async =>
+            clientBundleResponse(clientBundleFixture(accountId: '3'));
+        expect(
+          (await fixture.session.refreshClientBundle(
+            coreVersion: 'v1.19.32',
+            clock: () => bundleTime(1001),
+          ))!.accountId,
+          '3',
+        );
+      }
+      response.complete(
+        clientBundleResponse(clientBundleFixture(accountId: '2')),
+      );
+      expect(await old, isNull);
+      expect(
+        fixture.session.clientBundleAccountId,
+        transition == 'logout' ? isNull : '3',
+      );
+      expect(fixture.session.clientBundleFailure, isNull);
+      expect(fixture.session.authenticated, transition != 'logout');
+    });
+  }
 
   test(
     'actual server synthetic serialization works without a numeric user-info id',

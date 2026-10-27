@@ -50,7 +50,7 @@ class _BundlePlatform implements CheckoutPlatform {
 }
 
 class ClientBundleSessionFixture {
-  ClientBundleSessionFixture() {
+  ClientBundleSessionFixture({ZolnitSessionVault? vault}) {
     api = XboardClient(
       origin: Uri.parse('https://panel.example.invalid'),
       clientPlatform: 'macos',
@@ -67,7 +67,11 @@ class ClientBundleSessionFixture {
         if (route.endsWith('/login')) {
           value = {'auth_data': 'Bearer fixture'};
         } else if (route.endsWith('/user/info')) {
-          value = {'email': 'fixture@example.invalid'};
+          value = {
+            'email': 'fixture@example.invalid',
+            'plan_id': 1,
+            'uuid': '00000000-0000-4000-8000-000000000001',
+          };
         } else if (route.endsWith('/getSubscribe')) {
           value = {
             'email': 'fixture@example.invalid',
@@ -82,6 +86,7 @@ class ClientBundleSessionFixture {
     );
     session = ZolnitSessionController(
       api: api,
+      vault: vault,
       billing: ZolnitBillingClient(api),
       checkout: CheckoutController(
         allowStripe: false,
