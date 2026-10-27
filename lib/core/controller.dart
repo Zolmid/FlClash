@@ -274,6 +274,10 @@ class CoreController {
   Future<Map<String, dynamic>?> getClientBundleOwner() =>
       _interface.getClientBundleOwner();
 
+  Future<Map<String, dynamic>?> setClientReturnRoute(
+    Map<String, dynamic> parameters,
+  ) => _interface.setClientReturnRoute(parameters);
+
   Future<bool> invalidateRoutingLease(Map<String, dynamic> guard) =>
       _interface.invalidateRoutingLease(guard);
 

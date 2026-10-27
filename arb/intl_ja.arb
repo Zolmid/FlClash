@@ -1521,5 +1521,7 @@
   "zolnitReturnRoute": "中国への経路",
   "zolnitReturnDirect": "中国へ直接",
   "zolnitReturnHkLite": "香港優先",
-  "zolnitReturnHkOptimized": "香港最適化"
+  "zolnitReturnHkOptimized": "香港最適化",
+  "zolnitReturnEnabled": "中国向け経路を有効にする",
+  "zolnitReturnLocal": "ローカル直接接続"
 }

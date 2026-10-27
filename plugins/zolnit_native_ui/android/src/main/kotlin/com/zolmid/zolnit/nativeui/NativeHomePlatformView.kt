@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -130,9 +131,14 @@ internal class NativeHomePlatformView(
 
     private fun issueCommand(action: String, payload: JSONObject) {
         if (pendingAction != null) return
+        if (action == "setReturnRouting") {
+            val route = snapshot?.returnRoute ?: return
+            if (!route.activationAvailable || !route.enabled) return
+            if (payload.opt("enabled") == true && route.options.isEmpty()) return
+        }
         if (action == "selectReturnRoute") {
             val route = snapshot?.returnRoute ?: return
-            if (!route.enabled || route.options.none { it.id == payload.opt("optionId") }) return
+            if (!route.enabled || !route.activationAvailable || !route.active || route.options.none { it.id == payload.opt("optionId") }) return
         }
         val generation = snapshot?.accountGeneration ?: return
         val serial = ++commandSerial
@@ -144,7 +150,7 @@ internal class NativeHomePlatformView(
                 if (serial != commandSerial || snapshot?.accountGeneration != generation) return@runOnMain
                 commandInFlight = false
                 if (receipt?.accepted == true) {
-                    if (action == "selectReturnRoute") pendingAction = null
+                    if (action == "selectReturnRoute" || action == "setReturnRouting") pendingAction = null
                     return@runOnMain
                 }
                 pendingAction = null
@@ -291,6 +297,7 @@ private fun ConnectScreen(
             TrafficSummary(snapshot)
             Surface(shape = panelShape, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ReturnRouteToggle(snapshot, pendingAction == null, onCommand)
                     ReturnRoutePicker(snapshot, pendingAction == null, onCommand)
                     ModeSelector(snapshot, pendingAction == null && snapshot.canManageSubscription(), onCommand)
                     key(snapshot.accountGeneration) {
@@ -444,13 +451,38 @@ private fun ModeSelector(
 }
 
 @Composable
+private fun ReturnRouteToggle(
+    snapshot: NativeUiSnapshot,
+    idle: Boolean,
+    onCommand: (String, JSONObject) -> Unit,
+) {
+    val route = snapshot.returnRoute ?: return
+    if (!route.activationAvailable) return
+    val enabled = idle && route.enabled && (route.active || route.options.isNotEmpty())
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(route.activationLabel, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Switch(
+            checked = route.active,
+            onCheckedChange = { checked ->
+                onCommand("setReturnRouting", JSONObject().put("enabled", checked))
+            },
+            enabled = enabled,
+        )
+    }
+}
+
+@Composable
 private fun ReturnRoutePicker(
     snapshot: NativeUiSnapshot,
     idle: Boolean,
     onCommand: (String, JSONObject) -> Unit,
 ) {
     val route = snapshot.returnRoute ?: return
-    val enabled = idle && route.enabled
+    val enabled = idle && route.enabled && route.activationAvailable && route.active && route.options.isNotEmpty()
     var expanded by remember(snapshot.accountGeneration, route) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(route.title, style = MaterialTheme.typography.titleMedium)

@@ -3286,11 +3286,17 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage(
       "Acceso directo a China",
     ),
+    "zolnitReturnEnabled": MessageLookupByLibrary.simpleMessage(
+      "Activar ruta a China",
+    ),
     "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage(
       "Hong Kong preferido",
     ),
     "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage(
       "Hong Kong optimizado",
+    ),
+    "zolnitReturnLocal": MessageLookupByLibrary.simpleMessage(
+      "Conexión local directa",
     ),
     "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("Ruta a China"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(

@@ -28,6 +28,9 @@ internal data class NativeUiSnapshot(
 
 internal data class NativeUiReturnRoute(
     val title: String,
+    val activationAvailable: Boolean = false,
+    val active: Boolean = false,
+    val activationLabel: String = title,
     val selectedId: String?,
     val enabled: Boolean,
     val options: List<NativeUiReturnRouteOption>,
@@ -117,11 +120,11 @@ internal object NativeUiProtocol {
 
     private fun parseReturnRoute(raw: Any?): NativeUiReturnRoute? {
         val value = raw as? JSONObject ?: return null
-        if (value.keys().asSequence().any { it !in setOf("title", "selectedId", "enabled", "options") }) return null
+        if (value.keys().asSequence().any { it !in setOf("title", "selectedId", "enabled", "options", "activationAvailable", "active", "activationLabel") }) return null
         val title = value.opt("title") as? String ?: return null
         val enabled = value.opt("enabled") as? Boolean ?: return null
         val options = value.opt("options") as? JSONArray ?: return null
-        if (title.isEmpty() || title.length > 4096 || options.length() !in 1..3) return null
+        if (title.isEmpty() || title.length > 4096 || options.length() > 3 || (options.length() == 0 && value.opt("activationAvailable") != true)) return null
         val parsed = mutableListOf<NativeUiReturnRouteOption>()
         for (index in 0 until options.length()) {
             val option = options.opt(index) as? JSONObject ?: return null
@@ -134,7 +137,23 @@ internal object NativeUiProtocol {
         val selected = if (!value.has("selectedId") || value.isNull("selectedId")) null
             else value.opt("selectedId") as? String ?: return null
         if (selected != null && parsed.none { it.id == selected }) return null
-        return NativeUiReturnRoute(title, selected, enabled, parsed)
+        // Parse optional activation fields - fail closed on bad types
+        val activationAvailable = when (val raw = value.opt("activationAvailable")) {
+            null -> false
+            is Boolean -> raw
+            else -> return null
+        }
+        val active = when (val raw = value.opt("active")) {
+            null -> false
+            is Boolean -> raw
+            else -> return null
+        }
+        val activationLabel = when (val raw = value.opt("activationLabel")) {
+            null -> title
+            is String -> if (raw.isEmpty() || raw.length > 4096) return null else raw
+            else -> return null
+        }
+        return NativeUiReturnRoute(title, activationAvailable, active, activationLabel, selected, enabled, parsed)
     }
 
     fun command(

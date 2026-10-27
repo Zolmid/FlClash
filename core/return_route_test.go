@@ -317,7 +317,7 @@ func TestReturnRouteFallbackUsesInputOrderAndPreservesQualifiedAI(t *testing.T) 
 	tunnel.UpdateProxies(f.proxies, nil)
 	f.spec.ReturnRoute.Options[1], f.spec.ReturnRoute.Options[2] = f.spec.ReturnRoute.Options[2], f.spec.ReturnRoute.Options[1]
 	selectMu.Lock()
-	installReturnRouteLocked(activeRoutingLease, f.spec.ReturnRoute, tunnel.AllProxies())
+	installReturnRouteLocked(activeRoutingLease, f.spec.ReturnRoute, tunnel.AllProxies(), false, "")
 	selectMu.Unlock()
 	if returnPick(t) != "role-optimized" {
 		t.Fatal("fallback reordered mapped options")

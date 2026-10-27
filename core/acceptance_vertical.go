@@ -50,6 +50,7 @@ type acceptanceCommand struct {
 	URL        string          `json:"url,omitempty"`
 	Outbound   string          `json:"outbound_id,omitempty"`
 	CNProvider string          `json:"cn_provider,omitempty"`
+	Enabled    *bool           `json:"enabled,omitempty"`
 }
 
 type acceptanceReport struct {
@@ -89,10 +90,15 @@ func acceptanceDecode(line []byte) (*acceptanceCommand, bool) {
 		allowed["frame"] = true
 	case "select_return", "assert_stale_return", "assert_unavailable_return":
 		allowed["role"] = true
+	case "set_return_routing":
+		allowed["enabled"] = true
+		allowed["role"] = true
 	case "probe":
 		for _, key := range []string{"url", "outbound_id", "role", "cn_provider"} {
 			allowed[key] = true
 		}
+	case "probe_local_return":
+		allowed["url"], allowed["cn_provider"] = true, true
 	case "inspect", "finish":
 	default:
 		return nil, false
@@ -102,8 +108,19 @@ func acceptanceDecode(line []byte) (*acceptanceCommand, bool) {
 			return nil, false
 		}
 	}
-	if strings.Contains(c.Action, "return") && !acceptanceRole(c.Role) {
-		return nil, false
+	switch c.Action {
+	case "select_return", "assert_stale_return", "assert_unavailable_return":
+		if !acceptanceRole(c.Role) {
+			return nil, false
+		}
+	case "set_return_routing":
+		if c.Enabled == nil || (*c.Enabled && !acceptanceRole(c.Role)) || (!*c.Enabled && c.Role != "") {
+			return nil, false
+		}
+	case "probe_local_return":
+		if c.CNProvider == "" {
+			return nil, false
+		}
 	}
 	if c.Action == "probe" && (c.Role != "" && !acceptanceRole(c.Role) || c.Role != "" && c.Outbound != "" || c.Role != "" && c.CNProvider == "" || c.Role == "" && c.CNProvider != "" || c.Role == "" && c.Outbound == "") {
 		return nil, false
@@ -407,6 +424,9 @@ func (s *acceptanceSession) ready(timeout time.Duration) bool {
 
 // The pinned apply helper has no interception before hub starts provider Initial.
 func (s *acceptanceSession) apply(prepared *clientbundle.Prepared, previous *SetupParams) (bool, error) {
+	if err := guardReturnDispatchReplacement(prepared, previous); err != nil {
+		return false, err
+	}
 	lease := &RoutingLeaseSpec{AccountID: "2", AccountGeneration: previous.RoutingLease.AccountGeneration,
 		BundleID: prepared.Bundle.ID, ConfigurationDigest: prepared.Digest, ExpiresAt: time.Unix(prepared.Bundle.Expires, 0).UnixMilli(),
 		ConnectionDigest: prepared.Bundle.Connection.SHA, MetadataDigest: prepared.MetadataDigest, RenewalOverlay: previous.RoutingLease.RenewalOverlay, ReturnRoute: prepared.ReturnRoute}
@@ -636,9 +656,42 @@ func (s *acceptanceSession) returnWrite(c *acceptanceCommand) string {
 	return "ok"
 }
 
+func (s *acceptanceSession) setReturnRouting(c *acceptanceCommand) string {
+	context := handleGetClientBundleOwner()
+	if context == nil || context.ReturnRouteGuard == nil {
+		return "return_unavailable"
+	}
+	if s.prepared == nil || s.prepared.ReturnRoute == nil {
+		return "return_unavailable"
+	}
+	enabled := c.Enabled != nil && *c.Enabled
+	result, err := handleSetClientReturnRoute(&SetClientReturnRouteParams{
+		RoutingLease: context.ReturnRouteGuard,
+		Enabled:      &enabled,
+		OptionID:     c.Role,
+	})
+	if err != nil {
+		return "dispatch_failed"
+	}
+	if result.Enabled != enabled {
+		return "dispatch_state_mismatch"
+	}
+	if enabled && (result.SelectedID == nil || *result.SelectedID != c.Role) {
+		return "dispatch_selection_mismatch"
+	}
+	if enabled && len(result.Selections) < 3 {
+		return "dispatch_selection_incomplete"
+	}
+	if !enabled && len(result.Selections) < 2 {
+		return "dispatch_selection_incomplete"
+	}
+	return "ok"
+}
+
 func (s *acceptanceSession) probe(c *acceptanceCommand, timeout time.Duration) (string, int) {
 	u, safe := acceptanceURL(c.URL)
-	if !safe || c.Outbound == "" && c.Role == "" {
+	local := c.Action == "probe_local_return"
+	if !safe || c.Outbound == "" && c.Role == "" && !local {
 		return "invalid_probe", 0
 	}
 	proxy := ""
@@ -653,7 +706,7 @@ func (s *acceptanceSession) probe(c *acceptanceCommand, timeout time.Duration) (
 		}
 	}
 	var guard *RoutingLeaseGuard
-	if c.Role != "" {
+	if c.Role != "" || local {
 		context := handleGetClientBundleOwner()
 		if context == nil || context.ReturnRouteGuard == nil || s.prepared.ReturnRoute == nil {
 			return "return_unavailable", 0
@@ -678,8 +731,11 @@ func (s *acceptanceSession) probe(c *acceptanceCommand, timeout time.Duration) (
 		if metadata.SetRemoteAddress(net.JoinHostPort(u.Hostname(), port)) != nil || !provider.Match(metadata, C.RuleMatchHelper{ResolveIP: resolve, FindProcess: func() {}, CheckPassRule: func(string) bool { return false }}) {
 			return "cn_rule_mismatch", 0
 		}
+		if !s.dispatchProbeState(c.Role, nil, local) {
+			return "return_dispatch_mismatch", 0
+		}
 		selector, ok := returnRouteSelector(s.prepared.ReturnRoute, tunnel.AllProxies())
-		if !ok || selector.Now() != s.targets[c.Role] {
+		if !local && (!ok || selector.Now() != s.targets[c.Role]) {
 			return "return_selection_mismatch", 0
 		}
 	}
@@ -691,17 +747,57 @@ func (s *acceptanceSession) probe(c *acceptanceCommand, timeout time.Duration) (
 	if result.StatusCode < 200 || result.StatusCode >= 300 {
 		return "probe_status", result.StatusCode
 	}
-	if c.Role != "" {
+	if c.Role != "" || local {
 		context := handleGetClientBundleOwner()
 		selector, selected := returnRouteSelector(s.prepared.ReturnRoute, tunnel.AllProxies())
-		if !selected || selector.Now() != s.targets[c.Role] || context == nil || context.ReturnRouteGuard == nil || *context.ReturnRouteGuard != *guard || !nativeContains(result.Chains, s.prepared.ReturnRoute.GroupName) || !nativeContains(result.Chains, s.targets[c.Role]) {
+		if context == nil || context.ReturnRouteGuard == nil || *context.ReturnRouteGuard != *guard ||
+			!s.dispatchProbeState(c.Role, result.Chains, local) ||
+			(!local && (!selected || selector.Now() != s.targets[c.Role] || !nativeContains(result.Chains, s.prepared.ReturnRoute.GroupName) || !nativeContains(result.Chains, s.targets[c.Role]))) {
 			return "return_route_mismatch", result.StatusCode
 		}
+	}
+	if local {
+		if len(result.Chains) == 0 || result.Chains[0] != directProxyName || nativeContains(result.Chains, s.prepared.ReturnRoute.GroupName) {
+			return "return_route_mismatch", result.StatusCode
+		}
+		return "ok", result.StatusCode
 	}
 	if !s.physicalChain(result.Chains) || proxy != "" && !nativeContains(result.Chains, proxy) {
 		return "probe_leaf_mismatch", result.StatusCode
 	}
 	return "ok", result.StatusCode
+}
+
+func (s *acceptanceSession) dispatchProbeState(role string, chain []string, local bool) bool {
+	if s.prepared == nil || s.prepared.ReturnRoute == nil {
+		return false
+	}
+	if len(s.prepared.ReturnRoute.Dispatches) == 0 {
+		return !local
+	}
+	selectMu.Lock()
+	defer selectMu.Unlock()
+	state := activeRoutingLease
+	if state == nil || state.returnRoute == nil || state.returnRoute.retired || state.returnRoute.blocked {
+		return false
+	}
+	rr := state.returnRoute
+	if len(rr.dispatches) != 2 || rr.enabled == local || (!local && rr.selectedID != role) {
+		return false
+	}
+	matched := chain == nil
+	proxies := tunnel.AllProxies()
+	for _, d := range rr.dispatches {
+		target := d.spec.ReturnTarget
+		if local {
+			target = d.spec.LocalTarget
+		}
+		if proxies[d.spec.GroupName] != d.proxy || d.selector.Now() != target {
+			return false
+		}
+		matched = matched || nativeContains(chain, d.spec.GroupName) && nativeContains(chain, target)
+	}
+	return matched
 }
 
 func (s *acceptanceSession) physicalChain(chain []string) bool {
@@ -836,7 +932,9 @@ func RunClientBundleAcceptance(input io.Reader, output io.Writer, sourceCommit s
 			switch c.Action {
 			case "select_return", "assert_stale_return", "assert_unavailable_return":
 				code = s.returnWrite(c)
-			case "probe":
+			case "set_return_routing":
+				code = s.setReturnRouting(c)
+			case "probe", "probe_local_return":
 				code, report.Status = s.probe(c, timeout)
 			case "inspect":
 				if !s.ready(timeout) {

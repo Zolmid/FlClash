@@ -23,6 +23,23 @@ const (
 )
 
 const (
+	setClientReturnRouteMethod CoreMethod = "setClientReturnRoute"
+)
+
+type SetClientReturnRouteParams struct {
+	RoutingLease *RoutingLeaseGuard `json:"routingLease"`
+	Enabled      *bool              `json:"enabled"`
+	OptionID     string             `json:"optionId,omitempty"`
+}
+
+type SetClientReturnRouteResult struct {
+	Changed    bool              `json:"changed"`
+	Enabled    bool              `json:"enabled"`
+	SelectedID *string           `json:"selectedId"`
+	Selections map[string]string `json:"selections"`
+}
+
+const (
 	messageMethod                        CoreMethod = "message"
 	initClashMethod                      CoreMethod = "initClash"
 	getIsInitMethod                      CoreMethod = "getIsInit"

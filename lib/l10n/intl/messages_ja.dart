@@ -2552,8 +2552,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "承認済みプランに基づく自動請求を再開します。",
     ),
     "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("中国へ直接"),
+    "zolnitReturnEnabled": MessageLookupByLibrary.simpleMessage("中国向け経路を有効にする"),
     "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage("香港優先"),
     "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage("香港最適化"),
+    "zolnitReturnLocal": MessageLookupByLibrary.simpleMessage("ローカル直接接続"),
     "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("中国への経路"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage(
       "このセッションからログアウト",

@@ -256,7 +256,19 @@ func parseRoutingLeaseServices(specs []RoutingLeaseServiceSpec, proxies map[stri
 	return services, policyGroups, manualGroups, order, valid
 }
 
-func installRoutingLeaseLocked(spec *RoutingLeaseSpec) {
+func installRoutingLeaseLocked(spec *RoutingLeaseSpec, savedPicks ...map[string]string) {
+	var prevDispatchEnabled bool
+	var prevDispatchSelectedID string
+	haveIntent := false
+	if spec != nil && activeRoutingLease != nil && activeRoutingLease.returnRoute != nil &&
+		activeRoutingLease.accountID == spec.AccountID && activeRoutingLease.accountGeneration == spec.AccountGeneration {
+		prevDispatchEnabled = activeRoutingLease.returnRoute.enabled
+		prevDispatchSelectedID = activeRoutingLease.returnRoute.selectedID
+		haveIntent = len(activeRoutingLease.returnRoute.dispatches) == 2
+	}
+	if !haveIntent && spec != nil && len(savedPicks) == 1 {
+		prevDispatchEnabled, prevDispatchSelectedID = persistedReturnDispatchChoice(spec.ReturnRoute, savedPicks[0])
+	}
 	stopRoutingLeaseTimerLocked(activeRoutingLease)
 	activeRoutingLease = nil
 	routingConfigurationGeneration++
@@ -300,7 +312,7 @@ func installRoutingLeaseLocked(spec *RoutingLeaseSpec) {
 		serviceOrder:            order,
 	}
 	activeRoutingLease = state
-	installReturnRouteLocked(state, spec.ReturnRoute, proxies)
+	installReturnRouteLocked(state, spec.ReturnRoute, proxies, prevDispatchEnabled, prevDispatchSelectedID)
 
 	if !valid {
 		revokeRoutingLeaseObservedLocked(state, false, "installed")
@@ -357,7 +369,13 @@ func renewRoutingLeaseLocked(spec *RoutingLeaseSpec) bool {
 	state.deadline = now.Add(remaining)
 	state.services, state.policyGroups, state.manualGroups, state.serviceOrder = services, policy, manual, order
 	state.rotateToken()
-	installReturnRouteLocked(state, spec.ReturnRoute, tunnel.AllProxies())
+	prevEnabled := false
+	prevSelected := ""
+	if state.returnRoute != nil {
+		prevEnabled = state.returnRoute.enabled
+		prevSelected = state.returnRoute.selectedID
+	}
+	installReturnRouteLocked(state, spec.ReturnRoute, tunnel.AllProxies(), prevEnabled, prevSelected)
 	instance, generation := state.instanceID, state.configurationGeneration
 	state.timer = routingLeaseAfterFunc(remaining, func() { expireRoutingLease(instance, generation) })
 	recordLeaseObservationLocked("installed", "valid")
@@ -514,6 +532,10 @@ func authorizeAndResolveSelectorLocked(params *ChangeProxyParams) (selector pick
 	proxies := tunnel.AllProxies()
 	if state.returnRoute != nil && params.GroupName == state.returnRoute.spec.GroupName {
 		return authorizeReturnRouteLocked(state, params, proxies)
+	}
+	// Dispatch parent selectors are managed exclusively through setClientReturnRoute.
+	if dispatchForGroupLocked(state, params.GroupName) != nil {
+		return nil, errRoutingLeaseProxyNotAllowed
 	}
 	if svc, isAuto := state.services[params.GroupName]; isAuto {
 		if !serviceTopologyIntact(svc, proxies) {

@@ -43,6 +43,7 @@ const _actions = {
   'connect',
   'disconnect',
   'selectServer',
+  'setReturnRouting',
   'selectReturnRoute',
   'setMode',
   'navigate',
@@ -106,6 +107,9 @@ Map<String, dynamic> _decode(String source, {int maxLength = 2097152}) {
 class NativeUiReturnRoute {
   NativeUiReturnRoute._(
     this.title,
+    this.activationAvailable,
+    this.active,
+    this.activationLabel,
     this.selectedId,
     this.enabled,
     this.options,
@@ -120,11 +124,16 @@ class NativeUiReturnRoute {
         'selectedId',
         'enabled',
         'options',
+        'activationAvailable',
+        'active',
+        'activationLabel',
       }, 'returnRoute');
       final title = _string(value['title'], 'returnRoute.title');
       if (value['enabled'] is! bool) _invalid('returnRoute.enabled');
       final options = value['options'];
-      if (options is! List || options.isEmpty || options.length > 3) {
+      if (options is! List ||
+          options.length > 3 ||
+          options.isEmpty && value['activationAvailable'] != true) {
         _invalid('returnRoute.options');
       }
       final labels = <String, String>{};
@@ -141,8 +150,28 @@ class NativeUiReturnRoute {
           (selected is! String || !labels.containsKey(selected))) {
         _invalid('returnRoute.selectedId');
       }
+      bool activationAvailable = false;
+      if (value.containsKey('activationAvailable')) {
+        if (value['activationAvailable'] is! bool) return null;
+        activationAvailable = value['activationAvailable'] as bool;
+      }
+      bool active = false;
+      if (value.containsKey('active')) {
+        if (value['active'] is! bool) return null;
+        active = value['active'] as bool;
+      }
+      String activationLabel = title;
+      if (value.containsKey('activationLabel')) {
+        activationLabel = _string(
+          value['activationLabel'],
+          'returnRoute.activationLabel',
+        );
+      }
       return NativeUiReturnRoute._(
         title,
+        activationAvailable,
+        active,
+        activationLabel,
         selected as String?,
         value['enabled'] as bool,
         Map.unmodifiable(labels),
@@ -153,12 +182,18 @@ class NativeUiReturnRoute {
   }
 
   final String title;
+  final bool activationAvailable;
+  final bool active;
+  final String activationLabel;
   final String? selectedId;
   final bool enabled;
   final Map<String, String> options;
 
   Map<String, dynamic> toJson() => {
     'title': title,
+    'activationAvailable': activationAvailable,
+    'active': active,
+    'activationLabel': activationLabel,
     'selectedId': selectedId,
     'enabled': enabled,
     'options': [
@@ -332,6 +367,9 @@ class NativeUiCommand {
       case 'selectServer':
         _keys(payload, {'serverId'}, 'payload');
         _string(payload['serverId'], 'serverId', maxLength: 512);
+      case 'setReturnRouting':
+        _keys(payload, {'enabled'}, 'payload');
+        if (payload['enabled'] is! bool) _invalid('payload.enabled');
       case 'selectReturnRoute':
         _keys(payload, {'optionId'}, 'payload');
         _choice(payload['optionId'], _returnRouteIds, 'optionId');

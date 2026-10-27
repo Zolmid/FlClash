@@ -17,7 +17,7 @@ final class NativeUiContractTests: XCTestCase {
     }
 
     private var route: [String: Any] {
-        ["title": "RETURN ROUTE", "enabled": true, "options": [
+        ["title": "RETURN ROUTE", "enabled": true, "activationAvailable": true, "active": true, "options": [
             ["id": "direct", "label": "Direct"], ["id": "hk_lite", "label": "Lite"],
             ["id": "hk_optimized", "label": "Optimized"],
         ]]
@@ -35,7 +35,7 @@ final class NativeUiContractTests: XCTestCase {
         var badSelected = route; badSelected["selectedId"] = "DIRECT"
         var badType = route; badType["selectedId"] = 1
         var duplicate = route; duplicate["options"] = [["id": "direct", "label": "A"], ["id": "direct", "label": "B"]]
-        var empty = route; empty["options"] = [] as [[String: String]]
+        var empty = route; empty["options"] = [] as [[String: String]]; empty["activationAvailable"] = false
         for value in [NSNull(), false, [:], empty, badEnabled, badSelected, badType, duplicate] as [Any] {
             XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot(value)).returnRoute)
         }
@@ -135,5 +135,63 @@ final class NativeUiContractTests: XCTestCase {
         XCTAssertTrue(acceptedFirst)
         XCTAssertFalse(acceptedDuplicate)
         XCTAssertFalse(acceptedOldAccount)
+    }
+
+
+    func testActivationFieldsDefaultWhenAbsent() throws {
+        var legacy = route
+        legacy.removeValue(forKey: "activationAvailable")
+        legacy.removeValue(forKey: "active")
+        let snapshot = try NativeUiSnapshot.decode(json: routeSnapshot(legacy))
+        XCTAssertEqual(snapshot.returnRoute?.activationAvailable, false)
+        XCTAssertEqual(snapshot.returnRoute?.active, false)
+        XCTAssertEqual(snapshot.returnRoute?.activationLabel, "RETURN ROUTE")
+    }
+
+    @MainActor func testActivationUsesBooleanAndWaitsForAuthoritativeSnapshot() throws {
+        for requested in [true, false] {
+            let store = NativeUiStore()
+            var value = route
+            value["active"] = !requested
+            if !requested { value["options"] = [] as [[String: String]] }
+            XCTAssertTrue(store.publish(json: try routeSnapshot(value)))
+            var commands = [String]()
+            let bridge = NativeUiBridge(store: store) { command, _ in commands.append(command) }
+            bridge.sendReturnRouting(enabled: requested)
+            XCTAssertEqual(commands.count, 1)
+            let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(commands[0].utf8)) as? [String: Any])
+            XCTAssertEqual(json["action"] as? String, "setReturnRouting")
+            let payload = try XCTUnwrap(json["payload"] as? [String: Any])
+            XCTAssertEqual(payload["enabled"] as? Bool, requested)
+            XCTAssertEqual(store.snapshot?.returnRoute?.active, !requested)
+        }
+    }
+
+    func testActivationFieldsParsedWhenPresent() throws {
+        var value = route
+        value["activationAvailable"] = true
+        value["active"] = true
+        value["activationLabel"] = "Enable China Routing"
+        let snapshot = try NativeUiSnapshot.decode(json: routeSnapshot(value))
+        XCTAssertEqual(snapshot.returnRoute?.activationAvailable, true)
+        XCTAssertEqual(snapshot.returnRoute?.active, true)
+        XCTAssertEqual(snapshot.returnRoute?.activationLabel, "Enable China Routing")
+    }
+
+    func testMalformedActivationFieldsFailClosed() throws {
+        var badAvailable = route; badAvailable["activationAvailable"] = "true"
+        var badActive = route; badActive["active"] = 1
+        var badLabelType = route; badLabelType["activationLabel"] = 42
+        var badLabelEmpty = route; badLabelEmpty["activationLabel"] = ""
+        for value in [badAvailable, badActive, badLabelType, badLabelEmpty] {
+            XCTAssertNil(try NativeUiSnapshot.decode(json: routeSnapshot(value)).returnRoute)
+        }
+    }
+
+    func testSetReturnRoutingActionRoundTrips() throws {
+        let command = NativeUiCommand(accountGeneration: 1, action: .setReturnRouting, payload: [:])
+        let data = try JSONEncoder().encode(command)
+        let decoded = try JSONDecoder().decode(NativeUiCommand.self, from: data)
+        XCTAssertEqual(decoded.action, .setReturnRouting)
     }
 }

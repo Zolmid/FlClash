@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/common/zolnit_return_route.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:mocktail/mocktail.dart';
@@ -30,6 +31,8 @@ class _ReturnRouteAction extends ProxiesAction {
   final selections = <(String, String)>[];
   @override
   void build() {}
+  @override
+  Future<void> updateGroups() async {}
   @override
   Future<bool> changeProxyIfCurrent({
     required String groupName,
@@ -61,6 +64,7 @@ Future<Object?> _fromPlatform(String method, [Object? arguments]) {
 }
 
 void main() {
+  registerFallbackValue(<String, dynamic>{});
   const enabled = bool.fromEnvironment('ZOLNIT_NATIVE_UI');
   final harness = ZolnitHarness.register(
     clientPlatform: 'macos',
@@ -117,8 +121,9 @@ void main() {
     WidgetTester tester,
     Map<String, dynamic> raw,
   ) async {
+    final effective = returnDispatchFixture(source: raw);
     harness.panel = (request) => request.url.path.endsWith('/client/bundle')
-        ? zolnitJson(raw)
+        ? zolnitJson(effective)
         : zolnitPanelFixture(request);
     await tester.runAsync(
       () => harness.session.refreshClientBundle(
@@ -154,6 +159,9 @@ void main() {
         zolnitSyncProfileProvider.overrideWithValue(() async => null),
         safeModeProvider.overrideWithValue(false),
         zolnitClientBundleTransportProvider.overrideWithValue(true),
+        zolnitBundleClockProvider.overrideWithValue(
+          () => DateTime.fromMillisecondsSinceEpoch(1001000, isUtc: true),
+        ),
         profilesProvider.overrideWith(() => TestProfiles([profile])),
         currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
         proxiesActionProvider.overrideWith(_ReturnRouteAction.new),
@@ -161,7 +169,37 @@ void main() {
     );
     globalState.container = harness.container;
     harness.container.read(groupsProvider.notifier).value =
-        returnRouteCoreGroups(raw);
+        returnDispatchCoreGroups(effective, active: true);
+    when(() => core.setClientReturnRoute(any())).thenAnswer((invocation) async {
+      final args =
+          invocation.positionalArguments.single as Map<String, dynamic>;
+      final route = ZolnitReturnRoute.resolve(
+        harness.session.clientBundle!,
+        harness.container.read(groupsProvider),
+      )!;
+      final enabled = args['enabled'] as bool;
+      final option = route.options
+          .where((o) => o.id == args['optionId'])
+          .firstOrNull;
+      final selections = <String, String>{
+        for (final d in route.dispatches)
+          d.groupName: enabled ? d.returnTarget : d.localTarget,
+        if (enabled) route.group: option!.target,
+      };
+      final action =
+          harness.container.read(proxiesActionProvider.notifier)
+              as _ReturnRouteAction;
+      action.selections.addAll(selections.entries.map((e) => (e.key, e.value)));
+      harness.container.read(groupsProvider.notifier).value = [
+        for (final group in harness.container.read(groupsProvider))
+          group.copyWith(now: selections[group.name] ?? group.now),
+      ];
+      return {
+        'enabled': enabled,
+        'selectedId': option?.id,
+        'selections': selections,
+      };
+    });
     harness.container.read(coreStatusProvider.notifier).value =
         CoreStatus.connected;
     await harness.mount(tester, ZolnitSkin.macos, child: host());

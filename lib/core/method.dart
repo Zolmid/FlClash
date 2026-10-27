@@ -26,6 +26,7 @@ enum CoreMethod {
   changeProxy,
   getRoutingLease,
   getClientBundleOwner,
+  setClientReturnRoute,
   beginClientBundleOwner,
   installClientBundle,
   endClientBundleOwner,

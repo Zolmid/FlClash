@@ -1521,5 +1521,7 @@
   "zolnitReturnRoute": "Itinéraire vers la Chine",
   "zolnitReturnDirect": "Accès direct à la Chine",
   "zolnitReturnHkLite": "Hong Kong préféré",
-  "zolnitReturnHkOptimized": "Hong Kong optimisé"
+  "zolnitReturnHkOptimized": "Hong Kong optimisé",
+  "zolnitReturnEnabled": "Activer le routage vers la Chine",
+  "zolnitReturnLocal": "Connexion locale directe"
 }

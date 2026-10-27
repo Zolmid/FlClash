@@ -172,4 +172,49 @@ class NativeUiProtocolTest {
             ).forEach { put(it, it) }
         })
         .toString()
+
+    @Test
+    fun activationFieldsDefaultToFalseWhenAbsent() {
+        val route = JSONObject()
+            .put("title", "RETURN ROUTE")
+            .put("enabled", true)
+            .put("options", org.json.JSONArray("""[{"id":"direct","label":"Direct"},{"id":"hk_lite","label":"Lite"},{"id":"hk_optimized","label":"Optimized"}]"""))
+        val snapshot = requireNotNull(NativeUiProtocol.parseSnapshot(JSONObject(snapshotJson()).put("returnRoute", route).toString()))
+        assertEquals(false, snapshot.returnRoute?.activationAvailable)
+        assertEquals(false, snapshot.returnRoute?.active)
+        assertEquals("RETURN ROUTE", snapshot.returnRoute?.activationLabel)
+    }
+
+    @Test
+    fun activationFieldsParsedWhenPresent() {
+        val route = JSONObject()
+            .put("title", "RETURN ROUTE")
+            .put("activationAvailable", true)
+            .put("active", true)
+            .put("activationLabel", "Enable China Routing")
+            .put("enabled", true)
+            .put("options", org.json.JSONArray("""[{"id":"direct","label":"Direct"}]"""))
+        val snapshot = requireNotNull(NativeUiProtocol.parseSnapshot(JSONObject(snapshotJson()).put("returnRoute", route).toString()))
+        assertEquals(true, snapshot.returnRoute?.activationAvailable)
+        assertEquals(true, snapshot.returnRoute?.active)
+        assertEquals("Enable China Routing", snapshot.returnRoute?.activationLabel)
+    }
+
+    @Test
+    fun malformedActivationFieldsFailClosed() {
+        val base = JSONObject()
+            .put("title", "RETURN ROUTE")
+            .put("enabled", true)
+            .put("options", org.json.JSONArray("""[{"id":"direct","label":"Direct"}]"""))
+        for (raw in listOf(
+            JSONObject(base.toString()).put("activationAvailable", "true"),
+            JSONObject(base.toString()).put("active", 1),
+            JSONObject(base.toString()).put("activationLabel", 42),
+            JSONObject(base.toString()).put("activationLabel", ""),
+        )) {
+            assertNull(
+                NativeUiProtocol.parseSnapshot(JSONObject(snapshotJson()).put("returnRoute", raw).toString())?.returnRoute,
+            )
+        }
+    }
 }

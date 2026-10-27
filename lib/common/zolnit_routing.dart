@@ -52,6 +52,7 @@ Future<Map<String, dynamic>> readZolnitRoutingProfile(String path) async {
 PreparedZolnitRouting prepareZolnitRouting(
   Map<String, dynamic> source, {
   Object? routingMetadata,
+  Map<String, String> outboundFingerprints = const {},
 }) {
   final config = Map<String, dynamic>.of(source);
   final rawProxies = source['proxies'];
@@ -87,6 +88,7 @@ PreparedZolnitRouting prepareZolnitRouting(
           routingMetadata ?? source[routingManifestKey],
           proxyNames: proxies,
           groupNames: groups.keys.toSet(),
+          outboundFingerprints: outboundFingerprints,
         );
   final manifest = parsedManifest == null
       ? null

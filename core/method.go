@@ -216,6 +216,7 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	beginClientBundleOwnerMethod:         withFallible(handleBeginClientBundleOwner),
 	installClientBundleMethod:            withFallible(handleInstallClientBundle),
 	endClientBundleOwnerMethod:           withArguments(handleEndClientBundleOwner),
+	setClientReturnRouteMethod:           withFallible(handleSetClientReturnRoute),
 	getRoutingLeaseObservationMethod:     withoutArguments(handleGetRoutingLeaseObservation),
 	invalidateRoutingLeaseMethod:         withArguments(handleInvalidateRoutingLease),
 	asyncTestDelayMethod:                 withArguments(handleTestDelay),

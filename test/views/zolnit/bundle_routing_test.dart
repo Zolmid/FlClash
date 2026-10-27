@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/common/zolnit_return_route.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:mocktail/mocktail.dart';
@@ -25,6 +28,8 @@ class _Recording extends ProxiesAction {
   @override
   void build() {}
   @override
+  Future<void> updateGroups() async {}
+  @override
   void changeProxyDebounce(String groupName, String proxyName) =>
       selections.add((groupName, proxyName));
   @override
@@ -42,6 +47,7 @@ class _Recording extends ProxiesAction {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  registerFallbackValue(<String, dynamic>{});
   late ClientBundleSessionFixture fixture;
   late ProviderContainer container;
   late DateTime now;
@@ -91,6 +97,35 @@ void main() {
       ],
     );
     container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    when(() => core.setClientReturnRoute(any())).thenAnswer((invocation) async {
+      final parameters =
+          invocation.positionalArguments.single as Map<String, dynamic>;
+      final route = ZolnitReturnRoute.resolve(
+        fixture.session.clientBundle!,
+        container.read(groupsProvider),
+      )!;
+      final enabled = parameters['enabled'] as bool;
+      final option = route.options
+          .where((o) => o.id == parameters['optionId'])
+          .firstOrNull;
+      final selections = <String, String>{
+        for (final d in route.dispatches)
+          d.groupName: enabled ? d.returnTarget : d.localTarget,
+        if (enabled) route.group: option!.target,
+      };
+      final action =
+          container.read(proxiesActionProvider.notifier) as _Recording;
+      action.selections.addAll(selections.entries.map((e) => (e.key, e.value)));
+      container.read(groupsProvider.notifier).value = [
+        for (final group in container.read(groupsProvider))
+          group.copyWith(now: selections[group.name] ?? group.now),
+      ];
+      return {
+        'enabled': enabled,
+        'selectedId': option?.id,
+        'selections': selections,
+      };
+    });
     container
         .read(zolnitBundleStatusProvider.notifier)
         .set(ZolnitBundleStatus.ready);
@@ -157,10 +192,171 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<Map<String, dynamic>> mountDispatch(
+    WidgetTester tester, {
+    Map<String, dynamic>? source,
+  }) async {
+    final raw = source ?? returnDispatchFixture();
+    fixture.onBundle = (_) async => clientBundleResponse(raw);
+    await tester.runAsync(
+      () => fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => now,
+      ),
+    );
+    profile = profile.copyWith(
+      zolnitBundleId: fixture.session.clientBundle!.bundleId,
+    );
+    container.read(profilesProvider.notifier).put(profile);
+    container.read(groupsProvider.notifier).value = returnDispatchCoreGroups(
+      raw,
+    );
+    await mount(tester);
+    return raw;
+  }
+
+  testWidgets(
+    'explicit activation switches both parents and disabling restores local',
+    (tester) async {
+      await mountDispatch(tester);
+      final toggle = find.byKey(const ValueKey('bundle-return-enabled'));
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      expect(find.text('Local direct connection'), findsOneWidget);
+      expect(
+        tester
+            .widget<DropdownButton<String>>(
+              find.byKey(const ValueKey('bundle-return-route')),
+            )
+            .onChanged,
+        isNull,
+      );
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+      final route = ZolnitReturnRoute.resolve(
+        fixture.session.clientBundle!,
+        container.read(groupsProvider),
+      )!;
+      final activeMap = container.read(currentProfileProvider)!.selectedMap;
+      for (final d in route.dispatches) {
+        expect(activeMap[d.groupName], route.group);
+      }
+      expect(activeMap[route.group], route.options.first.target);
+      expect(activeMap[route.group], isNot('DIRECT'));
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      for (final d in route.dispatches) {
+        expect(
+          container.read(currentProfileProvider)!.selectedMap[d.groupName],
+          d.localTarget,
+        );
+      }
+    },
+  );
+
+  testWidgets('loss of every return role still allows explicit local disable', (
+    tester,
+  ) async {
+    final raw = returnDispatchFixture(
+      source: returnRouteAvailabilityFixture(restricted: true),
+    );
+    await mountDispatch(tester, source: raw);
+    final targets =
+        ((raw['routing']['ui_groups'] as List).first['options'] as List)
+            .map((o) => o['target'])
+            .toSet();
+    container.read(groupsProvider.notifier).value = [
+      for (final group in returnDispatchCoreGroups(raw, active: true))
+        targets.contains(group.name)
+            ? group.copyWith(
+                all: const [Proxy(name: 'REJECT', type: 'Reject')],
+              )
+            : group,
+    ];
+    await tester.pumpAndSettle();
+    final toggle = find.byKey(const ValueKey('bundle-return-enabled'));
+    expect(tester.widget<Switch>(toggle).value, isTrue);
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.byKey(const ValueKey('bundle-return-route')),
+          )
+          .items,
+      isEmpty,
+    );
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+    expect(tester.widget<Switch>(toggle).onChanged, isNull);
+    expect(find.byKey(const ValueKey('bundle-return-error')), findsNothing);
+  });
+
+  testWidgets('a failed activation preserves local state and reports failure', (
+    tester,
+  ) async {
+    await mountDispatch(tester);
+    when(
+      () => core.setClientReturnRoute(any()),
+    ).thenThrow(StateError('synthetic failure'));
+    final toggle = find.byKey(const ValueKey('bundle-return-enabled'));
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+    expect(container.read(currentProfileProvider)!.selectedMap, isEmpty);
+    expect(find.byKey(const ValueKey('bundle-return-error')), findsOneWidget);
+    expect(tester.widget<Switch>(toggle).onChanged, isNotNull);
+  });
+
+  testWidgets('an incomplete parent ACK is not persisted as enabled', (
+    tester,
+  ) async {
+    await mountDispatch(tester);
+    when(() => core.setClientReturnRoute(any())).thenAnswer(
+      (_) async => {
+        'enabled': true,
+        'selectedId': 'direct',
+        'selections': <String, dynamic>{'fixture.return_dispatch': 'missing'},
+      },
+    );
+    await tester.tap(find.byKey(const ValueKey('bundle-return-enabled')));
+    await tester.pumpAndSettle();
+    expect(container.read(currentProfileProvider)!.selectedMap, isEmpty);
+    expect(find.byKey(const ValueKey('bundle-return-error')), findsOneWidget);
+  });
+
+  testWidgets(
+    'logout fences a late activation ACK without writing the profile',
+    (tester) async {
+      await mountDispatch(tester);
+      final pending = Completer<Map<String, dynamic>?>();
+      when(
+        () => core.setClientReturnRoute(any()),
+      ).thenAnswer((_) => pending.future);
+      await tester.tap(find.byKey(const ValueKey('bundle-return-enabled')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<Switch>(find.byKey(const ValueKey('bundle-return-enabled')))
+            .onChanged,
+        isNull,
+      );
+      await fixture.session.logout();
+      pending.complete({
+        'enabled': true,
+        'selectedId': 'direct',
+        'selections': <String, dynamic>{},
+      });
+      await tester.pumpAndSettle();
+      expect(container.read(currentProfileProvider)!.selectedMap, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'all return roles select the exact producer target without aliases in labels',
     (tester) async {
-      final raw = returnRouteFixture();
+      final raw = returnDispatchFixture();
       fixture.onBundle = (_) async => clientBundleResponse(raw);
       await tester.runAsync(
         () => fixture.session.refreshClientBundle(
@@ -172,9 +368,12 @@ void main() {
         zolnitBundleId: fixture.session.clientBundle!.bundleId,
       );
       container.read(profilesProvider.notifier).put(profile);
-      container.read(groupsProvider.notifier).value = returnRouteCoreGroups();
+      container.read(groupsProvider.notifier).value = returnDispatchCoreGroups(
+        raw,
+        active: true,
+      );
       await mount(tester);
-      final mapping = (raw['routing']['ui_groups'] as List).single;
+      final mapping = (raw['routing']['ui_groups'] as List).first;
       for (final (id, label) in [
         ('direct', 'Direct to China'),
         ('hk_lite', 'Hong Kong preferred'),
@@ -211,9 +410,11 @@ void main() {
     testWidgets(
       'restricted graph offers only the authorized role on ${skin.name}',
       (tester) async {
-        final raw = returnRouteAvailabilityFixture(
-          restricted: true,
-          bundleId: 'restricted',
+        final raw = returnDispatchFixture(
+          source: returnRouteAvailabilityFixture(
+            restricted: true,
+            bundleId: 'restricted',
+          ),
         );
         fixture.onBundle = (_) async => clientBundleResponse(raw);
         await tester.runAsync(
@@ -226,9 +427,8 @@ void main() {
           zolnitBundleId: fixture.session.clientBundle!.bundleId,
         );
         container.read(profilesProvider.notifier).put(profile);
-        container.read(groupsProvider.notifier).value = returnRouteCoreGroups(
-          raw,
-        );
+        container.read(groupsProvider.notifier).value =
+            returnDispatchCoreGroups(raw, active: true);
         await mount(tester, skin: skin);
         final dropdown = tester.widget<DropdownButton<String>>(
           find.byKey(const ValueKey('bundle-return-route')),
@@ -242,8 +442,8 @@ void main() {
         dropdown.onChanged!('hk_lite');
         await tester.pumpAndSettle();
         expect(
-          owner.selections.single.$2,
-          (raw['routing']['ui_groups'] as List).single['options'][1]['target'],
+          owner.selections.last.$2,
+          (raw['routing']['ui_groups'] as List).first['options'][1]['target'],
         );
       },
     );
@@ -252,7 +452,7 @@ void main() {
   testWidgets('a stale Core bundle guard never dispatches a return choice', (
     tester,
   ) async {
-    final raw = returnRouteAvailabilityFixture();
+    final raw = returnDispatchFixture(source: returnRouteAvailabilityFixture());
     fixture.onBundle = (_) async => clientBundleResponse(raw);
     await tester.runAsync(
       () => fixture.session.refreshClientBundle(
@@ -264,7 +464,10 @@ void main() {
       zolnitBundleId: fixture.session.clientBundle!.bundleId,
     );
     container.read(profilesProvider.notifier).put(profile);
-    container.read(groupsProvider.notifier).value = returnRouteCoreGroups(raw);
+    container.read(groupsProvider.notifier).value = returnDispatchCoreGroups(
+      raw,
+      active: true,
+    );
     when(core.getClientBundleOwner).thenAnswer(
       (_) async => {
         'returnRouteGuard': {

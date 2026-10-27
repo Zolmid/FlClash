@@ -44,9 +44,10 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 					Services []string `json:"services"`
 					Revision string   `json:"revision"`
 					Egress   struct {
-						Country  string `json:"country"`
-						Source   string `json:"source"`
-						Verified bool   `json:"verified"`
+						Country                  string `json:"country"`
+						Source                   string `json:"source"`
+						Verified                 bool   `json:"verified"`
+						ConfigurationFingerprint any    `json:"configuration_fingerprint"`
 					} `json:"final_egress"`
 				} `json:"nodes"`
 			} `json:"routing"`
@@ -60,9 +61,13 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 		(overlay != "" && yaml.Unmarshal([]byte(overlay), &preferences) != nil) {
 		return nil, "invalid_connection_yaml"
 	}
+	fingerprints := map[string]string{}
 	allNames := make([]string, 0, len(validated.Bundle.Outbounds)+1)
 	for _, outbound := range validated.Bundle.Outbounds {
 		allNames = append(allNames, outbound.Name)
+		if fingerprint, ok := outbound.ConfigurationFingerprint.(string); ok && validConfigurationFingerprint(fingerprint) {
+			fingerprints[outbound.ID] = fingerprint
+		}
 	}
 	allNames = append(allNames, "DIRECT")
 	groups := config["proxy-groups"].([]any)
@@ -77,9 +82,10 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 		candidates := []string{}
 		for _, node := range root.Data.Routing.Nodes {
 			if !node.Enabled || !node.Egress.Verified ||
-				!contains([]string{"operator_verified", "egress_probe"}, node.Egress.Source) ||
+				!qualifiedEgress(node.Egress.Source, node.Egress.ConfigurationFingerprint, fingerprints[node.ID]) ||
 				!contains(node.Services, service.ID) || !contains(service.Countries, node.Egress.Country) ||
 				len(node.Egress.Country) != 2 || node.Revision == "" ||
+				(node.Egress.Source == "operator_allowlist" && !SafeText(node.Revision)) ||
 				(service.Kind == "ai" && node.Egress.Country == "HK") {
 				continue
 			}
@@ -145,7 +151,11 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 		} `json:"data"`
 	}
 	_ = json.Unmarshal(body, &raw)
-	metadata, _ := json.Marshal(raw.Data.Routing)
+	var metadataValue any = raw.Data.Routing
+	if len(fingerprints) > 0 {
+		metadataValue = map[string]any{"outbound_fingerprints": fingerprints, "routing": raw.Data.Routing}
+	}
+	metadata, _ := json.Marshal(metadataValue)
 	metadataHash := sha256.Sum256(metadata)
 	return &Prepared{Document: document, Bundle: validated.Bundle, Digest: hex.EncodeToString(hash[:]),
 		MetadataDigest: hex.EncodeToString(metadataHash[:]),
@@ -158,6 +168,29 @@ func contains(values []string, target string) bool {
 		if value == target {
 			return true
 		}
+	}
+	return false
+}
+
+func validConfigurationFingerprint(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, c := range value {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func qualifiedEgress(source string, proof any, authorized string) bool {
+	switch source {
+	case "operator_verified", "egress_probe":
+		return true
+	case "operator_allowlist":
+		fingerprint, ok := proof.(string)
+		return ok && validConfigurationFingerprint(fingerprint) && fingerprint == authorized
 	}
 	return false
 }

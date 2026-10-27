@@ -111,3 +111,51 @@ List<Group> returnRouteCoreGroups([Map<String, dynamic>? fixture]) {
       ),
   ];
 }
+
+Map<String, dynamic> returnDispatchFixture({Map<String, dynamic>? source}) {
+  final raw =
+      jsonDecode(jsonEncode(source ?? returnRouteFixture()))
+          as Map<String, dynamic>;
+  final document =
+      jsonDecode(jsonEncode(loadYaml(raw['connection']['document'] as String)))
+          as Map<String, dynamic>;
+  final route = (raw['routing']['ui_groups'] as List).first['group'];
+  (document['proxy-groups'] as List).add({
+    'name': 'fixture.local',
+    'type': 'select',
+    'proxies': ['DIRECT'],
+  });
+  for (final id in ['return_dispatch', 'return_media_dispatch']) {
+    final name = 'fixture.$id';
+    (document['proxy-groups'] as List).add({
+      'name': name,
+      'type': 'select',
+      'proxies': ['fixture.local', route],
+    });
+    (raw['routing']['ui_groups'] as List).add({
+      'id': id,
+      'group': name,
+      'options': [
+        {'id': 'local', 'target': 'fixture.local'},
+        {'id': 'return', 'target': route},
+      ],
+    });
+  }
+  final encoded = jsonEncode(document);
+  raw['connection']['document'] = encoded;
+  raw['connection']['sha256'] = sha256.convert(utf8.encode(encoded)).toString();
+  return raw;
+}
+
+List<Group> returnDispatchCoreGroups(
+  Map<String, dynamic> raw, {
+  bool active = false,
+}) {
+  final route = (raw['routing']['ui_groups'] as List).first['group'] as String;
+  return [
+    for (final group in returnRouteCoreGroups(raw))
+      group.name.startsWith('fixture.return_')
+          ? group.copyWith(now: active ? route : 'fixture.local')
+          : group,
+  ];
+}

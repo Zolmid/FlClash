@@ -84,6 +84,10 @@ mixin CoreInterface {
 
   Future<Map<String, dynamic>?> getClientBundleOwner();
 
+  Future<Map<String, dynamic>?> setClientReturnRoute(
+    Map<String, dynamic> parameters,
+  );
+
   Future<Map<String, dynamic>?> getRoutingLeaseObservation();
 
   Future<bool> invalidateRoutingLease(Map<String, dynamic> guard);
@@ -451,6 +455,14 @@ abstract class CoreHandlerInterface with CoreInterface {
       _invokeMethod<Map<String, dynamic>>(
         method: CoreMethod.getClientBundleOwner,
       );
+
+  @override
+  Future<Map<String, dynamic>?> setClientReturnRoute(
+    Map<String, dynamic> parameters,
+  ) => invokeMethod<Map<String, dynamic>>(
+    method: CoreMethod.setClientReturnRoute,
+    arguments: parameters,
+  );
 
   @override
   Future<bool> invalidateRoutingLease(Map<String, dynamic> guard) async =>

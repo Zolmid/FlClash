@@ -1519,7 +1519,9 @@
   "zolnitAppleUnavailable": "此套餐暂不支持 App Store 购买。",
   "zolnitApplePending": "正在等待 App Store 或服务端验证。",
   "zolnitReturnRoute": "回国线路",
-  "zolnitReturnDirect": "直达",
+  "zolnitReturnDirect": "直达回国",
   "zolnitReturnHkLite": "香港优选",
-  "zolnitReturnHkOptimized": "香港优化"
+  "zolnitReturnHkOptimized": "香港优化",
+  "zolnitReturnEnabled": "启用回国",
+  "zolnitReturnLocal": "本地直连"
 }

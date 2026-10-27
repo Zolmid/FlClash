@@ -110,8 +110,16 @@ void main() {
     messenger.setMockMethodCallHandler(channel, null);
   });
 
-  Map<String, dynamic> returnRoute({bool enabled = true}) => {
+  Map<String, dynamic> returnRoute({
+    bool enabled = true,
+    bool activationAvailable = true,
+    bool active = true,
+    String? activationLabel,
+  }) => {
     'title': 'RETURN ROUTE',
+    'activationAvailable': activationAvailable,
+    'active': active,
+    if (activationLabel != null) 'activationLabel': activationLabel,
     'selectedId': null,
     'enabled': enabled,
     'options': [
@@ -140,7 +148,7 @@ void main() {
         false,
         [],
         {},
-        returnRoute()..['options'] = [],
+        returnRoute(activationAvailable: false)..['options'] = [],
         returnRoute()..['enabled'] = 'true',
         returnRoute()..['title'] = 1,
         returnRoute()..['selectedId'] = 'DIRECT',
@@ -643,4 +651,177 @@ void main() {
     await current.publishSnapshot(NativeUiSnapshot.fromJson(snapshot()));
     expect((await sendCommand(command()))['accepted'], true);
   });
+
+  test('activation fields default to false and title when absent', () {
+    final route = NativeUiSnapshot.fromJson(
+      snapshot()
+        ..['returnRoute'] = (returnRoute()
+          ..remove('activationAvailable')
+          ..remove('active')),
+    ).returnRoute!;
+    expect(route.activationAvailable, false);
+    expect(route.active, false);
+    expect(route.activationLabel, 'RETURN ROUTE');
+  });
+
+  test('activation fields are parsed when present', () {
+    final route = NativeUiSnapshot.fromJson(
+      snapshot()
+        ..['returnRoute'] = returnRoute(
+          activationAvailable: true,
+          active: true,
+          activationLabel: 'Enable China Routing',
+        ),
+    ).returnRoute!;
+    expect(route.activationAvailable, true);
+    expect(route.active, true);
+    expect(route.activationLabel, 'Enable China Routing');
+  });
+
+  test('malformed activation fields cause returnRoute to fail closed', () {
+    for (final raw in [
+      returnRoute()..['activationAvailable'] = 'true',
+      returnRoute()..['active'] = 1,
+      returnRoute()..['activationLabel'] = 42,
+      returnRoute()..['activationLabel'] = '',
+    ]) {
+      final decoded = NativeUiSnapshot.fromJson(
+        snapshot()..['returnRoute'] = raw,
+      );
+      expect(decoded.returnRoute, isNull);
+    }
+  });
+
+  test('setReturnRouting command validates strict payload', () {
+    expect(
+      () => NativeUiCommand.decode(
+        '{"schemaVersion":1,"id":"a","accountGeneration":1,"action":"setReturnRouting","payload":{"enabled":true}}',
+      ),
+      returnsNormally,
+    );
+    for (final bad in [
+      '{"schemaVersion":1,"id":"a","accountGeneration":1,"action":"setReturnRouting","payload":{"enabled":"true"}}',
+      '{"schemaVersion":1,"id":"a","accountGeneration":1,"action":"setReturnRouting","payload":{}}',
+      '{"schemaVersion":1,"id":"a","accountGeneration":1,"action":"setReturnRouting","payload":{"enabled":true,"extra":1}}',
+    ]) {
+      expect(
+        () => NativeUiCommand.decode(bad),
+        throwsFormatException,
+        reason: bad,
+      );
+    }
+  });
+
+  test('setReturnRouting rejected when activationAvailable is false', () async {
+    final value = bridge();
+    await value.publishSnapshot(
+      NativeUiSnapshot.fromJson(
+        snapshot()..['returnRoute'] = returnRoute(activationAvailable: false),
+      ),
+    );
+    final receipt = await sendCommand(
+      '{"schemaVersion":1,"id":"cmd-1","accountGeneration":1,"action":"setReturnRouting","payload":{"enabled":true}}',
+    );
+    expect(receipt['errorCode'], 'unavailable');
+  });
+
+  test(
+    'setReturnRouting accepted when activationAvailable and enabled',
+    () async {
+      final value = bridge();
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot()..['returnRoute'] = returnRoute(activationAvailable: true),
+        ),
+      );
+      final receipt = await sendCommand(
+        '{"schemaVersion":1,"id":"cmd-2","accountGeneration":1,"action":"setReturnRouting","payload":{"enabled":true}}',
+      );
+      expect(receipt['accepted'], true);
+    },
+  );
+
+  test('return choice requires both bindings and active routing', () async {
+    for (final route in [
+      returnRoute(active: false),
+      returnRoute(activationAvailable: false),
+    ]) {
+      final value = bridge();
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(snapshot()..['returnRoute'] = route),
+      );
+      expect(
+        (await sendCommand(
+          command(action: 'selectReturnRoute', payload: {'optionId': 'direct'}),
+        ))['accepted'],
+        false,
+      );
+    }
+    expect(calls, 0);
+  });
+
+  test(
+    'zero usable roles permits disable but cannot grant activation',
+    () async {
+      final value = bridge();
+      final empty = returnRoute()..['options'] = [];
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(snapshot()..['returnRoute'] = empty),
+      );
+      expect(value.snapshot!.returnRoute!.options, isEmpty);
+      expect(
+        (await sendCommand(
+          command(action: 'setReturnRouting', payload: {'enabled': false}),
+        ))['accepted'],
+        true,
+      );
+      expect(
+        (await sendCommand(
+          command(
+            id: 'on',
+            action: 'setReturnRouting',
+            payload: {'enabled': true},
+          ),
+        ))['accepted'],
+        false,
+      );
+      expect(calls, 1);
+    },
+  );
+
+  test(
+    'setReturnRouting and selectReturnRoute share inflight serialization',
+    () async {
+      final pending = Completer<NativeUiReceipt>();
+      var calls = 0;
+      final value = bridge(
+        handler: (command) {
+          calls++;
+          return pending.future;
+        },
+      );
+      await value.publishSnapshot(
+        NativeUiSnapshot.fromJson(
+          snapshot()
+            ..['returnRoute'] = returnRoute(
+              activationAvailable: true,
+              active: true,
+            ),
+        ),
+      );
+      final toggle = sendCommand(
+        '{"schemaVersion":1,"id":"cmd-3","accountGeneration":1,"action":"setReturnRouting","payload":{"enabled":false}}',
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, 1);
+      final select = sendCommand(
+        '{"schemaVersion":1,"id":"cmd-4","accountGeneration":1,"action":"selectReturnRoute","payload":{"optionId":"hk_lite"}}',
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, 1);
+      expect((await select)['errorCode'], 'unavailable');
+      pending.complete(const NativeUiReceipt.accepted('cmd-3'));
+      expect((await toggle)['accepted'], true);
+    },
+  );
 }

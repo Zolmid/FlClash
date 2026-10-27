@@ -95,6 +95,9 @@ public struct NativeUiSnapshot: Codable, Equatable {
 
     public struct ReturnRoute: Codable, Equatable {
         public let title: String
+        public let activationAvailable: Bool
+        public let active: Bool
+        public let activationLabel: String
         public let selectedId: String?
         public let enabled: Bool
         public let options: [Option]
@@ -104,15 +107,20 @@ public struct NativeUiSnapshot: Codable, Equatable {
             public let label: String
         }
 
-        private enum CodingKeys: String, CodingKey { case title, selectedId, enabled, options }
+        private enum CodingKeys: String, CodingKey { case title, activationAvailable, active, activationLabel, selectedId, enabled, options }
 
         public init(from decoder: Decoder) throws {
             let values = try decoder.container(keyedBy: CodingKeys.self)
             title = try values.decode(String.self, forKey: .title)
+            activationAvailable = try values.decodeIfPresent(Bool.self, forKey: .activationAvailable) ?? false
+            active = try values.decodeIfPresent(Bool.self, forKey: .active) ?? false
+            activationLabel = try values.decodeIfPresent(String.self, forKey: .activationLabel) ?? title
             selectedId = try values.decodeIfPresent(String.self, forKey: .selectedId)
             enabled = try values.decode(Bool.self, forKey: .enabled)
             options = try values.decode([Option].self, forKey: .options)
-            guard !title.isEmpty, title.count <= 4096, (1...3).contains(options.count),
+            guard !title.isEmpty, title.count <= 4096, options.count <= 3,
+                  !options.isEmpty || activationAvailable,
+                  !activationLabel.isEmpty, activationLabel.count <= 4096,
                   Set(options.map(\.id)).count == options.count,
                   options.allSatisfy({ ["direct", "hk_lite", "hk_optimized"].contains($0.id) && !$0.label.isEmpty && $0.label.count <= 4096 }),
                   selectedId.map({ selected in options.contains { $0.id == selected } }) ?? true else {
@@ -211,7 +219,7 @@ public struct NativeUiCommand: Codable, Equatable {
     public let action: Action
     public let payload: [String: String]
 
-    public enum Action: String, Codable, Hashable { case connect, disconnect, selectServer, selectReturnRoute, setMode, navigate, refresh, preferences, help }
+    public enum Action: String, Codable, Hashable { case connect, disconnect, selectServer, setReturnRouting, selectReturnRoute, setMode, navigate, refresh, preferences, help }
 
     public init(id: String = UUID().uuidString, accountGeneration: Int, action: Action, payload: [String: String] = [:]) {
         self.schemaVersion = NativeUiContract.schemaVersion
@@ -285,6 +293,7 @@ public final class NativeUiBridge: ObservableObject {
         guard let snapshot = store.snapshot, !pendingActions.contains(action) else { return }
         if action == .selectReturnRoute {
             guard pendingActions.isEmpty, let route = snapshot.returnRoute, route.enabled,
+                  route.activationAvailable, route.active,
                   let optionId = payload["optionId"], route.options.contains(where: { $0.id == optionId }) else { return }
         }
         let command = NativeUiCommand(accountGeneration: snapshot.accountGeneration, action: action, payload: payload)
@@ -296,6 +305,32 @@ public final class NativeUiBridge: ObservableObject {
                 guard self.store.snapshot?.accountGeneration == command.accountGeneration else { return }
                 guard let response,
                       let receipt = NativeUiReceipt.decode(json: response, commandId: command.id) else {
+                    self.feedback = .retry
+                    return
+                }
+                guard receipt.accepted else {
+                    self.feedback = Self.feedback(for: receipt.errorCode)
+                    return
+                }
+                self.feedback = nil
+            }
+        }
+    }
+
+    public func sendReturnRouting(enabled: Bool) {
+        guard let snapshot = store.snapshot, !pendingActions.contains(.setReturnRouting) else { return }
+        guard pendingActions.isEmpty, let route = snapshot.returnRoute,
+              route.activationAvailable, route.enabled,
+              !enabled || !route.options.isEmpty else { return }
+        let id = UUID().uuidString
+        let json = "{\"schemaVersion\":\(NativeUiContract.schemaVersion),\"id\":\"\(id)\",\"accountGeneration\":\(snapshot.accountGeneration),\"action\":\"setReturnRouting\",\"payload\":{\"enabled\":\(enabled)}}"
+        pendingActions.insert(.setReturnRouting)
+        perform(json) { response in
+            DispatchQueue.main.async {
+                self.pendingActions.remove(.setReturnRouting)
+                guard self.store.snapshot?.accountGeneration == snapshot.accountGeneration else { return }
+                guard let response,
+                      let receipt = NativeUiReceipt.decode(json: response, commandId: id) else {
                     self.feedback = .retry
                     return
                 }
@@ -437,6 +472,7 @@ public struct NativeHomeView: View {
             } else {
                 HStack(spacing: 24) { iosPower(snapshot); iosConnectionCopy(snapshot) }
             }
+            returnRouteToggle(snapshot)
             returnRoutePicker(snapshot)
             Divider().overlay(iosAccent.opacity(0.1))
             Button { bridge.send(.navigate, payload: ["destination": "servers"]) } label: {
@@ -684,6 +720,7 @@ public struct NativeHomeView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 20)
             }
+            returnRouteToggle(snapshot)
             returnRoutePicker(snapshot)
             Rectangle().fill(accent.opacity(0.15)).frame(height: 1)
             HStack(spacing: 12) {
@@ -873,6 +910,7 @@ public struct NativeHomeView: View {
             }
             .pickerStyle(.segmented)
             .disabled(!canManageConnectionSettings(snapshot) || bridge.isPending(.setMode))
+            returnRouteToggle(snapshot)
             returnRoutePicker(snapshot)
             traffic(snapshot)
             if let feedback = bridge.feedback {
@@ -898,7 +936,19 @@ public struct NativeHomeView: View {
                     Text(option.label).tag(Optional(option.id))
                 }
             }
-            .disabled(!route.enabled || bridge.hasPendingCommand)
+            .disabled(!route.enabled || !route.activationAvailable || !route.active || route.options.isEmpty || bridge.hasPendingCommand)
+        }
+    }
+
+    @ViewBuilder private func returnRouteToggle(_ snapshot: NativeUiSnapshot) -> some View {
+        if let route = snapshot.returnRoute, route.activationAvailable {
+            Toggle(route.activationLabel, isOn: Binding<Bool>(
+                get: { route.active },
+                set: { enabled in
+                    bridge.sendReturnRouting(enabled: enabled)
+                }
+            ))
+            .disabled(!route.enabled || (!route.active && route.options.isEmpty) || bridge.hasPendingCommand)
         }
     }
 

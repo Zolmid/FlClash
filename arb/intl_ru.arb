@@ -1521,5 +1521,7 @@
   "zolnitReturnRoute": "Маршрут в Китай",
   "zolnitReturnDirect": "Напрямую в Китай",
   "zolnitReturnHkLite": "Гонконг: приоритет",
-  "zolnitReturnHkOptimized": "Гонконг: оптимизация"
+  "zolnitReturnHkOptimized": "Гонконг: оптимизация",
+  "zolnitReturnEnabled": "Включить маршрутизацию в Китай",
+  "zolnitReturnLocal": "Прямое локальное соединение"
 }

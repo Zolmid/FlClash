@@ -2512,8 +2512,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "승인한 요금제에 따라 자동 결제를 재개합니다.",
     ),
     "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("중국 직접 연결"),
+    "zolnitReturnEnabled": MessageLookupByLibrary.simpleMessage("중국 경로 사용"),
     "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage("홍콩 우선"),
     "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage("홍콩 최적화"),
+    "zolnitReturnLocal": MessageLookupByLibrary.simpleMessage("로컬 직접 연결"),
     "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("중국 연결 경로"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage("이 세션 로그아웃"),
     "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(

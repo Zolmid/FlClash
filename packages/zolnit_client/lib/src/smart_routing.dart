@@ -13,6 +13,8 @@ class SmartRouteNode {
     this.enabled = true,
     this.verified = false,
     this.revision = '',
+    this.qualificationSource,
+    this.configurationFingerprint,
   });
 
   final String id;
@@ -23,12 +25,16 @@ class SmartRouteNode {
   final bool enabled;
   final bool verified;
   final String revision;
+  final String? qualificationSource;
+  final String? configurationFingerprint;
 
   Object get identity => (
     proxyName,
     countryCode,
     failureDomain,
     revision,
+    qualificationSource,
+    configurationFingerprint,
     enabled,
     verified,
     (services.toList()..sort()).join(','),

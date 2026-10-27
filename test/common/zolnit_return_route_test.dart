@@ -15,6 +15,85 @@ void main() {
       );
 
   test(
+    'explicit dispatch bindings start local and observe both Core parents',
+    () {
+      final raw = returnDispatchFixture();
+      final bundle = parse(raw);
+      final local = ZolnitReturnRoute.resolve(
+        bundle,
+        returnDispatchCoreGroups(raw),
+      )!;
+      expect(local.activationAvailable, isTrue);
+      expect(local.active, isFalse);
+      final enabled = returnDispatchCoreGroups(raw, active: true);
+      expect(ZolnitReturnRoute.resolve(bundle, enabled)!.active, isTrue);
+      expect(
+        ZolnitReturnRoute.resolve(bundle, [
+          for (final group in enabled)
+            group.name == 'fixture.return_dispatch'
+                ? group.copyWith(now: 'fixture.local')
+                : group,
+        ])!.active,
+        isFalse,
+      );
+      expect(
+        ZolnitReturnRoute.resolve(
+          parse(returnRouteFixture()),
+          returnRouteCoreGroups(),
+        )!.activationAvailable,
+        isFalse,
+      );
+    },
+  );
+
+  for (final mutation in <String, void Function(Map<String, dynamic>)>{
+    'partial dispatch': (raw) =>
+        (raw['routing']['ui_groups'] as List).removeLast(),
+    'duplicate dispatch': (raw) =>
+        raw['routing']['ui_groups'][2]['id'] = 'return_dispatch',
+    'same parent': (raw) =>
+        raw['routing']['ui_groups'][2]['group'] = 'fixture.return_dispatch',
+    'literal local': (raw) =>
+        raw['routing']['ui_groups'][1]['options'][0]['target'] = 'DIRECT',
+    'wrong return parent': (raw) =>
+        raw['routing']['ui_groups'][1]['options'][1]['target'] =
+            'fixture.local',
+    'managed service': (raw) =>
+        raw['routing']['ui_groups'][1]['group'] = 'zn.service.ai',
+  }.entries) {
+    test(
+      '${mutation.key} cannot enable dispatch but preserves return choices',
+      () {
+        final raw = returnDispatchFixture();
+        mutation.value(raw);
+        final route = ZolnitReturnRoute.resolve(
+          parse(raw),
+          returnDispatchCoreGroups(raw),
+        )!;
+        expect(route.activationAvailable, isFalse);
+        expect(route.active, isFalse);
+        expect(route.options, hasLength(3));
+      },
+    );
+  }
+
+  test('a network alias in the local wrapper cannot masquerade as local', () {
+    final raw = returnDispatchFixture();
+    final groups = [
+      for (final group in returnDispatchCoreGroups(raw))
+        group.name == 'fixture.local'
+            ? group.copyWith(
+                all: const [Proxy(name: 'zn.node.vless.7', type: 'Vless')],
+              )
+            : group,
+    ];
+    expect(
+      ZolnitReturnRoute.resolve(parse(raw), groups)!.activationAvailable,
+      isFalse,
+    );
+  });
+
+  test(
     'PHP producer maps all return roles to actual Core selector members',
     () {
       final raw = returnRouteFixture();

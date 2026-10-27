@@ -190,10 +190,16 @@ PreparedZolnitRouting prepareClientBundleConfiguration(
         throw const ClientFailure('client_bundle_binding_mismatch');
       }
     }
+    final outboundFingerprints = <String, String>{
+      for (final outbound in input.bundle.outbounds)
+        if (outbound.configurationFingerprint != null)
+          outbound.id: outbound.configurationFingerprint!,
+    };
     final checked = SmartRoutingManifest.parse(
       input.bundle.routingJson,
       proxyNames: names,
       groupNames: groups,
+      outboundFingerprints: outboundFingerprints,
     );
     if (checked == null ||
         checked.nodes.length != input.bundle.routingManifest.nodes.length) {
@@ -204,7 +210,11 @@ PreparedZolnitRouting prepareClientBundleConfiguration(
       routing['nodes'] = <Json>[];
     }
     config.remove(routingManifestKey);
-    return prepareZolnitRouting(config, routingMetadata: routing);
+    return prepareZolnitRouting(
+      config,
+      routingMetadata: routing,
+      outboundFingerprints: outboundFingerprints,
+    );
   } catch (error) {
     if (error is ClientFailure) rethrow;
     throw const ClientFailure('invalid_client_bundle');

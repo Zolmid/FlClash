@@ -360,6 +360,8 @@ ZOLNIT_CORE_VERSION=$(sed -n 's/^core_version: *//p' build_config.yaml)
 | `renew` | 同结构 `frame` | 新响应经真实 install ACK 续租，并保存旧 guard 作负控 |
 | `inspect` | 无 | 只读当前配置哈希、provider 和 outbound 计数 |
 | `select_return` | `role` 为三个已映射角色之一 | 使用当前配置 guard 切换可达角色 |
+| `set_return_routing` | `enabled` 必填布尔值；启用另需 `role` | 校验显式分发绑定后联动启用，关闭恢复声明的本地目标 |
+| `probe_local_return` | `url/cn_provider`，不传 `role/outbound_id` | 关闭状态的实际规则请求，核对声明父组、本地包装和 DIRECT 完整链 |
 | `assert_stale_return` | `role` | 使用续租前 guard，只有实际拒绝才通过 |
 | `assert_unavailable_return` | `role` | 使用新 guard，只有不可达角色的实际写入被拒绝才通过 |
 | `probe` | `url`，必须附 `outbound_id`，或成对的 `role/cn_provider` | 显式物理 outbound 请求，或经实际规则和回国组的请求 |
@@ -389,7 +391,7 @@ stdout 只保留固定结果码、版本、哈希和计数/状态，错误不回
 HTTP 规则源仅接受代码中列出的 MetaCubeX/SagerNet 公开仓库及受限 canonical jsDelivr 路径；
 文件规则源、外部 proxy-provider、非空顶层 TLS 配置、HTTP classical 规则源和隐式 geodata
 初始化均明确拒绝，不静默改写为其他源。`unsafe_configuration` 表示当前驱动不接受该配置。
-`rules_not_ready`、`probe_leaf_mismatch`、`return_route_mismatch`、`cleanup_failed`、
+`rules_not_ready`、`probe_leaf_mismatch`、`return_route_mismatch`、`return_dispatch_mismatch`、`cleanup_failed`、
 `acceptance_panic` 均为失败；只有完成所有命令、最后 `finish` 成功且退出码 0 才整轮通过。
 Apple/Windows 的系统 TUN、平台签名、后台及真机路径继续单独验收。
 
@@ -447,7 +449,7 @@ SHA256/映射均有效。按面板香港/新加坡标签选取的 REALITY/HY2 �
 ### iOS Extension / Windows Helper 实机验收准备（未执行）
 
 macOS stdin 驱动创建独立的 Core adapter，不连接应用 IPC；它不能验收 Extension、Helper 或后台租约。
-当前真实 `routing.nodes=[]` 只允许包校验与显式手动连接，不得为设备测试填入虚构的运营资格。
+历史真实输入 `routing.nodes=[]` 只允许包校验与显式手动连接，不得为设备测试填入虚构的运营资格。
 自动租约的设备验证须另用明确标为 synthetic 的保留地址夹具，在隔离测试设备上完成。
 
 | 平台 | 所需设备与用户操作 | 必须记录的实际证据 |
@@ -626,7 +628,7 @@ Windows 现有 vault 的 AES key 由当前用户 Credential Manager 保护；SYS
 本地验证未创建真实凭据、Keychain item、外部 App ID/App Group、签名或后台服务。
 iOS plist 仅声明构建变量；尚未配置共享 entitlements，也未执行旧 Keychain 迁移。
 
-### 回国线路展示映射
+### 回国线路展示与分发绑定
 
 可选 `routing.ui_groups` 中的 `return_route` 只映射现有 Core Selector 和其真实成员；
 `direct`、`hk_lite`、`hk_optimized` 为角色 ID，直达不等于 `DIRECT`。结构缺失、重复或
@@ -639,8 +641,72 @@ iOS plist 仅声明构建变量；尚未配置共享 entitlements，也未执行
 Dart 再校验当前账号/配置与可用列表，并携带 Core 当前配置 guard；Core 在实际写入时重验图与身份。
 手动回国配置不因 AI 自动租约到期而失效，显式退出账号仍撤销旧选择权限。服务器 v1 wire 不增加字段。
 
-八语言标签共享到 Flutter、Compose、SwiftUI 和 WinUI；原生控件只显示过滤后的 1–3 项，
-没有可用角色时隐藏，不按套餐名、hostname 或 group hash 推断权限。回国选择不改写服务端连接文档或规则。
+八语言标签共享到 Flutter、Compose、SwiftUI 和 WinUI；原生控件只显示过滤后的 1–3 条路线，
+显式分发绑定有效但所有路线不可用时仍保留关闭入口，禁止启用和选路；旧帧没有绑定时保持可选组件隐藏。
+不按套餐名、hostname 或 group hash 推断权限。回国选择不改写服务端连接文档或规则。
+
+回国子 Selector 的选择不代表国内业务已经使用该线路。显式启用需要同一 `ui_groups`
+额外提供完整的两个分发绑定；下面的别名为示意，消费时只使用响应中的映射：
+
+```json
+[
+  {"id":"return_dispatch","group":"domestic-parent","options":[
+    {"id":"local","target":"existing-local-select"},
+    {"id":"return","target":"existing-return-select"}
+  ]},
+  {"id":"return_media_dispatch","group":"domestic-media-parent","options":[
+    {"id":"local","target":"existing-local-select"},
+    {"id":"return","target":"existing-return-select"}
+  ]}
+]
+```
+
+两个父组必须为不同的已有 select，且包含对应目标；`return` 必须严格等于 `return_route.group`。
+`local` 必须是已有 select 包装，所有叶都为本地 `DIRECT`，不得混入网络节点、阻断或环。
+回国三个角色仍不能映射到 literal `DIRECT`。缺失、重复、部分或非法绑定只禁用启用动作，
+不按规则文本猜测组、不改写任意规则，也不扩大 AI/影音资格或节点权限。
+
+初始保持本地直连。用户启用后，`setClientReturnRoute` 携带当前 `routingLease` guard、
+`enabled:true` 和三选一 `optionId`；Core 校验后联动路线子 Selector 与两个父组。
+关闭使用 `enabled:false`，两个父组恢复声明的本地目标；“直达回国”与“本地直连”分别展示。
+响应含 `enabled`、`selectedId` 与 `selections`，Flutter 只在当前账号/配置且完整 ACK 后保存
+当前 profile 的选组映射；原生快照的 `active` 表示实际分发状态，既有 `enabled` 仅表示控件可交互。
+续租、降级、过期、退出和旧 guard 继续由 Core 验证，不以本地开关值替代实际配置状态。
+
+验收驱动新增 `set_return_routing`，字段为必填布尔 `enabled`，启用时另给 `role`：
+
+```json
+{"schema_version":1,"action":"set_return_routing","enabled":true,"role":"direct"}
+```
+
+关闭后使用 `probe_local_return` 验证本地路径；它必须经过声明的分发父组与本地包装，
+最终叶为 `DIRECT`，且不得经过回国 Selector。它不接受回国角色 ID，也不把普通外部直连请求当作关闭验收。
+
+`select_return` 仍只选择子路线。国内 `probe` 必须核对实际分发父组、回国 Selector、角色目标和
+已交付物理节点的完整链；HTTP 200 不足以通过。新的驱动需绑定包含此动作的提交和摘要，
+不能将旧 9e 二进制记作支持启用。真实配置与后台元数据变更仍由根聊天执行。
+
+### 长期运营资格与配置指纹
+
+`final_egress.source` 新增 `operator_allowlist`，与旧 `operator_verified` / `egress_probe`
+区分。新来源表示配置绑定的长期运营资格，不表示实时解锁、健康或 GET 时重新验证地理位置。
+本轮运营范围仅含原已确认日本、新加坡、美国；生产者继续限制已确认节点与服务，消费者保留
+`allowed_countries`、AI 排 HK、授权 ID/物理节点绑定及非空 `revision` 的既有约束。
+
+新来源要求 `outbounds[].configuration_fingerprint` 与同 ID 节点
+`final_egress.configuration_fingerprint` 一致，均为 64 位小写十六进制；`verified:true`
+是运营资格确认标志。生产者指纹覆盖非用户专属的连接/出口配置和显式运维出口版本，排除
+每用户 UUID、密码与限速。客户端不以节点名、hostname 或延迟猜资格，也不自行重算服务端私有配置。
+配置变化或指纹缺失、畸形、不匹配时，新来源不进入自动候选；授权手动节点和 DIRECT 仍保留。
+
+节点 `revision` 保留为运营确认版本。旧证据的 `observed_at` / expiry 等历史字段不续签、不改写；
+旧来源的生产者时效规则继续适用。长期白名单依赖明确的运营撤销或配置指纹失效，实际出口旁路变更
+须由运维出口版本输入体现，不承诺 API GET 可发现此类变化。所有 API bundle 的租约仍不超过 300 秒。
+
+存在有效 outbound 指纹时，Dart/Go 均摘要化排序后的
+`{"outbound_fingerprints": {"id": "hash"}, "routing": {...}}`；否则沿用旧 routing 摘要。
+仅 outbound 指纹变化也必须使旧资格与配置复用失效。新来源仍需要独立实时健康样本；
+不注入成功测量、不重置 origin 429 冷却、不改变既有粘性与回退策略。
 
 ### AI / 产品 HTTP 健康判据与正式开放缺口
 

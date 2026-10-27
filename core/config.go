@@ -169,6 +169,9 @@ func applyConfig(params *SetupParams) error {
 	runtime.GC()
 	configMu.Lock()
 	defer configMu.Unlock()
+	if err := guardReturnDispatchSpecReplacement(params.RoutingLease); err != nil {
+		return err
+	}
 	stopClientBundleRoutingLocked()
 	clientBundleOwner = nil
 	if reuseClientBundleConfigurationLocked(params) {
@@ -220,7 +223,7 @@ func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError
 		replaceRulesGenerationLocked(tunnel.Rules())
 		patchSelectGroupLocked(params.SelectedMap)
 		if applyError == nil {
-			installRoutingLeaseLocked(params.RoutingLease)
+			installRoutingLeaseLocked(params.RoutingLease, params.SelectedMap)
 		} else {
 			installRoutingLeaseLocked(nil)
 		}

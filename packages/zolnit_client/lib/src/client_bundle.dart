@@ -10,16 +10,20 @@ class ZolnitBundleOutbound {
     required this.id,
     required this.proxyName,
     required this.displayName,
+    this.configurationFingerprint,
   });
 
   final String id;
   final String proxyName;
   final String displayName;
+  final String? configurationFingerprint;
 
   Json toJson() => Map<String, dynamic>.unmodifiable({
     'id': id,
     'proxy_name': proxyName,
     'display_name': displayName,
+    if (configurationFingerprint != null)
+      'configuration_fingerprint': configurationFingerprint,
   });
 }
 
@@ -112,13 +116,23 @@ class ZolnitClientBundle {
         throw const ClientFailure('invalid_client_bundle');
       }
       outboundNames[id] = proxyName;
+      final rawFingerprint = outbound['configuration_fingerprint'];
+      final fingerprint = rawFingerprint is String ? rawFingerprint : null;
       outbounds.add(
         ZolnitBundleOutbound(
           id: id,
           proxyName: proxyName,
           displayName: outbound['display_name'] as String,
+          configurationFingerprint: fingerprint,
         ),
       );
+    }
+    final outboundFingerprints = <String, String>{};
+    for (final outbound in outbounds) {
+      if (outbound.configurationFingerprint != null &&
+          _matches(_digest, outbound.configurationFingerprint!)) {
+        outboundFingerprints[outbound.id] = outbound.configurationFingerprint!;
+      }
     }
     final routing = raw['routing'];
     if (routing is! Map ||
@@ -148,8 +162,11 @@ class ZolnitClientBundle {
     for (final node in nodes) {
       if (node is! Map ||
           node['id'] is! String ||
+          !_matches(_exitId, node['id'] as String) ||
           !outboundNames.containsKey(node['id']) ||
           node['proxy_name'] != outboundNames[node['id']] ||
+          node['failure_domain'] is! String ||
+          !_matches(_exitId, node['failure_domain'] as String) ||
           node['exit_id'] is! String ||
           !_matches(_exitId, node['exit_id'] as String) ||
           exitIds.containsKey(node['id'])) {
@@ -161,9 +178,15 @@ class ZolnitClientBundle {
       routing,
       proxyNames: proxyNames,
       groupNames: groupNames,
+      outboundFingerprints: outboundFingerprints,
     );
-    // The shared parser filters invalid nodes; a client bundle must lose none.
-    if (manifest == null || manifest.nodes.length != nodes.length) {
+    final acceptedIds = manifest?.nodes.map((node) => node.id).toSet();
+    if (manifest == null ||
+        nodes.any((node) {
+          final egress = node['final_egress'];
+          return !(egress is Map && egress['source'] == 'operator_allowlist') &&
+              !acceptedIds!.contains(node['id']);
+        })) {
       throw const ClientFailure('invalid_client_bundle');
     }
     final routingJson = _freeze(routing) as Json;
@@ -180,7 +203,20 @@ class ZolnitClientBundle {
       expiresAt: expiresAt,
       connectionSha256: digest,
       routingSha256: sha256
-          .convert(utf8.encode(jsonEncode(routingJson)))
+          .convert(
+            utf8.encode(
+              jsonEncode(
+                _freeze(
+                  outboundFingerprints.isEmpty
+                      ? routingJson
+                      : {
+                          'outbound_fingerprints': outboundFingerprints,
+                          'routing': routingJson,
+                        },
+                ),
+              ),
+            ),
+          )
           .toString(),
       document: document,
       outbounds: List.unmodifiable(outbounds),

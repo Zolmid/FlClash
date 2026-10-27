@@ -91,6 +91,9 @@ struct ReturnRouteOption {
 
 struct ReturnRoute {
   winrt::hstring title;
+  bool activation_available;
+  bool active;
+  winrt::hstring activation_label;
   winrt::hstring selected_id;
   bool enabled;
   std::vector<ReturnRouteOption> options;
@@ -105,8 +108,32 @@ std::optional<ReturnRoute> ParseReturnRoute(const wdj::JsonObject& snapshot) {
     if (title.empty() || title.size() > 4096 || !value.HasKey(L"enabled") ||
         value.GetNamedValue(L"enabled").ValueType() != wdj::JsonValueType::Boolean) return std::nullopt;
     const auto options = value.GetNamedArray(L"options");
-    if (options.Size() < 1 || options.Size() > 3) return std::nullopt;
-    ReturnRoute route{title, L"", value.GetNamedBoolean(L"enabled"), {}};
+    if (options.Size() > 3) return std::nullopt;
+    // Parse optional activation fields
+    bool activation_available = false;
+    if (value.HasKey(L"activationAvailable") &&
+        value.GetNamedValue(L"activationAvailable").ValueType() == wdj::JsonValueType::Boolean) {
+      activation_available = value.GetNamedBoolean(L"activationAvailable");
+    } else if (value.HasKey(L"activationAvailable")) {
+      return std::nullopt;
+    }
+    if (options.Size() == 0 && !activation_available) return std::nullopt;
+    bool route_active = false;
+    if (value.HasKey(L"active") &&
+        value.GetNamedValue(L"active").ValueType() == wdj::JsonValueType::Boolean) {
+      route_active = value.GetNamedBoolean(L"active");
+    } else if (value.HasKey(L"active")) {
+      return std::nullopt;
+    }
+    winrt::hstring activation_label = title;
+    if (value.HasKey(L"activationLabel") &&
+        value.GetNamedValue(L"activationLabel").ValueType() == wdj::JsonValueType::String) {
+      activation_label = value.GetNamedString(L"activationLabel");
+      if (activation_label.empty() || activation_label.size() > 4096) return std::nullopt;
+    } else if (value.HasKey(L"activationLabel")) {
+      return std::nullopt;
+    }
+    ReturnRoute route{title, activation_available, route_active, activation_label, L"", value.GetNamedBoolean(L"enabled"), {}};
     std::set<std::wstring> ids;
     for (const auto& raw : options) {
       if (raw.ValueType() != wdj::JsonValueType::Object) return std::nullopt;
@@ -237,6 +264,7 @@ struct WinUiSurface::State {
   muxc::TextBlock download_text{nullptr};
   muxc::Button connect_button{nullptr};
   muxc::ComboBox mode_box{nullptr};
+  muxc::ToggleSwitch return_route_toggle{nullptr};
   muxc::ComboBox return_route_box{nullptr};
   muxc::ListView server_list{nullptr};
   muxc::NavigationView navigation{nullptr};
@@ -514,6 +542,20 @@ void WinUiSurface::BuildView() {
     if (index >= 0) EmitCommand("setMode", index == 0 ? "{\"mode\":\"rule\"}" : "{\"mode\":\"global\"}");
   });
   route_content.Children().Append(state_->mode_box);
+  state_->return_route_toggle = muxc::ToggleSwitch();
+  state_->return_route_toggle.Visibility(mux::Visibility::Collapsed);
+  state_->return_route_toggle.Toggled([this](auto&&, auto&&) {
+    if (state_->rendering || !state_->pending_commands.empty()) return;
+    const auto route = ParseReturnRoute(state_->snapshot);
+    if (!route || !route->activation_available || !route->enabled) return;
+    const bool enabled = state_->return_route_toggle.IsOn();
+    state_->rendering = true;
+    state_->return_route_toggle.IsOn(route->active);
+    state_->rendering = false;
+    if (enabled && route->options.empty()) return;
+    EmitCommand("setReturnRouting", "{\"enabled\":" + std::string(enabled ? "true" : "false") + "}");
+  });
+  route_content.Children().Append(state_->return_route_toggle);
   state_->return_route_box = muxc::ComboBox();
   state_->return_route_box.HorizontalAlignment(mux::HorizontalAlignment::Stretch);
   state_->return_route_box.Visibility(mux::Visibility::Collapsed);
@@ -521,7 +563,7 @@ void WinUiSurface::BuildView() {
     if (state_->rendering || !state_->pending_commands.empty()) return;
     const auto route = ParseReturnRoute(state_->snapshot);
     const auto index = state_->return_route_box.SelectedIndex();
-    if (!route || !route->enabled || index < 0 || static_cast<size_t>(index) >= route->options.size()) return;
+    if (!route || !route->enabled || !route->activation_available || !route->active || index < 0 || static_cast<size_t>(index) >= route->options.size()) return;
     EmitCommand("selectReturnRoute", "{\"optionId\":\"" + Utf8(route->options[static_cast<size_t>(index)].id) + "\"}");
   });
   route_content.Children().Append(state_->return_route_box);
@@ -676,6 +718,13 @@ void WinUiSurface::Render() {
   }
   state_->mode_box.SelectedIndex(Text(state_->snapshot, L"mode") == L"global" ? 1 : 0);
   const auto return_route = ParseReturnRoute(state_->snapshot);
+  state_->return_route_toggle.Visibility(
+      return_route && return_route->activation_available ? mux::Visibility::Visible : mux::Visibility::Collapsed);
+  if (return_route && return_route->activation_available) {
+    state_->return_route_toggle.Header(winrt::box_value(return_route->activation_label));
+    state_->return_route_toggle.IsOn(return_route->active);
+    state_->return_route_toggle.IsEnabled(return_route->enabled && (return_route->active || !return_route->options.empty()) && state_->pending_commands.empty());
+  }
   state_->return_route_box.Visibility(return_route ? mux::Visibility::Visible : mux::Visibility::Collapsed);
   state_->return_route_box.Items().Clear();
   state_->return_route_box.SelectedIndex(-1);
@@ -689,7 +738,7 @@ void WinUiSurface::Render() {
       if (option.id == return_route->selected_id) selected_index = static_cast<int32_t>(index);
     }
     state_->return_route_box.SelectedIndex(selected_index);
-    state_->return_route_box.IsEnabled(return_route->enabled && state_->pending_commands.empty());
+    state_->return_route_box.IsEnabled(return_route->enabled && return_route->activation_available && return_route->active && !return_route->options.empty() && state_->pending_commands.empty());
   }
   state_->mode_box.IsEnabled(session == L"signedIn" && !safe_mode);
   state_->server_list.IsEnabled(session == L"signedIn" && !safe_mode);
@@ -773,6 +822,7 @@ void WinUiSurface::EmitCommand(const std::string& action, const std::string& pay
   }
   state_->pending_commands.insert(Utf8(id));
   state_->return_route_box.IsEnabled(false);
+  state_->return_route_toggle.IsEnabled(false);
   on_command_("{\"schemaVersion\":1,\"id\":\"" + EscapeJson(Utf8(id)) +
               "\",\"accountGeneration\":" + std::to_string(state_->account_generation) +
               ",\"action\":\"" + action + "\",\"payload\":" + payload + "}");
@@ -784,7 +834,8 @@ void WinUiSurface::CompleteCommand(const std::string& command_json) {
     if (Integer(command, L"accountGeneration", -1) != state_->account_generation) return;
     state_->pending_commands.erase(Utf8(Text(command, L"id")));
     const auto route = ParseReturnRoute(state_->snapshot);
-    state_->return_route_box.IsEnabled(route && route->enabled && state_->pending_commands.empty());
+    state_->return_route_box.IsEnabled(route && route->enabled && route->activation_available && route->active && !route->options.empty() && state_->pending_commands.empty());
+    state_->return_route_toggle.IsEnabled(route && route->activation_available && route->enabled && (route->active || !route->options.empty()) && state_->pending_commands.empty());
   } catch (const winrt::hresult_error&) {
     return;
   }

@@ -3,15 +3,61 @@ import 'dart:convert';
 
 import 'package:fl_clash/common/yaml.dart';
 import 'package:fl_clash/common/zolnit_routing.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import '../../packages/zolnit_client/test/routing_fixture.dart';
+import '../../packages/zolnit_client/test/client_bundle_fixture.dart';
 
 void main() {
   Map group(Map config, String name) => (config['proxy-groups'] as List)
       .cast<Map>()
       .singleWhere((g) => g['name'] == name);
+
+  test(
+    'bundle application binds long qualification and preserves manual nodes on config change',
+    () {
+      final raw = clientBundleFixture();
+      final nodes = raw['routing']['nodes'] as List;
+      raw['routing']['nodes'] = [nodes.last];
+      final egress = nodes.last['final_egress'] as Map;
+      final outbound = (raw['outbounds'] as List).last as Map;
+      final fingerprint = List.filled(64, 'a').join();
+      egress['source'] = 'operator_allowlist';
+      egress['configuration_fingerprint'] = fingerprint;
+      outbound['configuration_fingerprint'] = fingerprint;
+      PreparedZolnitRouting compile() {
+        final bundle = ZolnitClientBundle.parse(raw, now: bundleTime(1001));
+        return prepareClientBundleConfiguration((
+          bundle: bundle,
+          now: bundleTime(1001),
+          automaticAllowed: true,
+        ));
+      }
+
+      final qualified = compile();
+      expect(qualified.manifest!.nodes.single.id, outbound['id']);
+      expect(
+        group(qualified.config, 'zn.service.ai.auto')['proxies'],
+        contains(outbound['proxy_name']),
+      );
+      outbound['configuration_fingerprint'] = List.filled(64, 'b').join();
+      final unknown = compile();
+      expect(unknown.manifest!.nodes, isEmpty);
+      expect(group(unknown.config, 'zn.service.ai.auto')['proxies'], [
+        'REJECT',
+      ]);
+      expect(
+        group(unknown.config, 'zn.service.ai.manual')['proxies'],
+        contains(outbound['proxy_name']),
+      );
+      expect(
+        group(unknown.config, 'zn.service.ai.manual')['proxies'],
+        contains('DIRECT'),
+      );
+    },
+  );
 
   test(
     'managed groups preserve rule targets and separate automatic from manual candidates',

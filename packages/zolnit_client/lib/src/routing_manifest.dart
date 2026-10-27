@@ -45,6 +45,7 @@ class SmartRoutingManifest {
     Object? value, {
     required Set<String> proxyNames,
     required Set<String> groupNames,
+    Map<String, String> outboundFingerprints = const {},
   }) {
     if (value is! Map ||
         value['version'] is! int ||
@@ -137,13 +138,22 @@ class SmartRoutingManifest {
           _builtins.contains(name.toUpperCase()) ||
           egress is! Map ||
           !routingCountryCodes.contains(egress['country']) ||
-          !{'operator_verified', 'egress_probe'}.contains(egress['source']) ||
+          !_allowedSources.contains(egress['source']) ||
           egress['verified'] != true ||
           !_identity(raw['failure_domain']) ||
           raw['enabled'] is! bool ||
           !_text(raw['revision']) ||
           allow == null ||
           allow.any((s) => !serviceIds.contains(s))) {
+        continue;
+      }
+      final source = egress['source'] as String;
+      final fingerprint = egress['configuration_fingerprint'];
+      if (source == 'operator_allowlist' &&
+          (fingerprint is! String ||
+              _fingerprintPattern.firstMatch(fingerprint)?.group(0) !=
+                  fingerprint ||
+              outboundFingerprints[id] != fingerprint)) {
         continue;
       }
       nodes.add(
@@ -156,6 +166,10 @@ class SmartRoutingManifest {
           enabled: raw['enabled'] as bool,
           verified: true,
           revision: raw['revision'] as String,
+          qualificationSource: source,
+          configurationFingerprint: source == 'operator_allowlist'
+              ? fingerprint as String
+              : null,
         ),
       );
     }
@@ -165,6 +179,14 @@ class SmartRoutingManifest {
       nodes: List.unmodifiable(nodes),
     );
   }
+
+  static final _fingerprintPattern = RegExp(r'^[0-9a-f]{64}$');
+
+  static const _allowedSources = {
+    'operator_verified',
+    'egress_probe',
+    'operator_allowlist',
+  };
 
   static const _builtins = {
     'DIRECT',

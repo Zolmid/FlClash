@@ -32,9 +32,10 @@ type Bundle struct {
 		Document string `json:"document"`
 	} `json:"connection"`
 	Outbounds []struct {
-		ID      string `json:"id"`
-		Name    string `json:"proxy_name"`
-		Display string `json:"display_name"`
+		ID                       string `json:"id"`
+		Name                     string `json:"proxy_name"`
+		Display                  string `json:"display_name"`
+		ConfigurationFingerprint any    `json:"configuration_fingerprint,omitempty"`
 	} `json:"outbounds"`
 	Routing struct {
 		Version   int    `json:"version"`

@@ -178,7 +178,15 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
           'title': text.zolnitReturnRoute,
           'selectedId': returnRoute.selectedId,
           'enabled':
-              !safe && ref.watch(coreStatusProvider) == CoreStatus.connected,
+              !safe &&
+              ref.watch(coreStatusProvider) == CoreStatus.connected &&
+              session.clientBundle?.isFresh(
+                    ref.read(zolnitBundleClockProvider)(),
+                  ) ==
+                  true,
+          'activationAvailable': returnRoute.activationAvailable,
+          'active': returnRoute.active,
+          'activationLabel': text.zolnitReturnEnabled,
           'options': [
             for (final option in returnRoute.options)
               {'id': option.id, 'label': option.label(text)},
@@ -270,6 +278,7 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
           'disconnect',
           'selectServer',
           'selectReturnRoute',
+          'setReturnRouting',
           'setMode',
         }.contains(command.action) &&
         ref.read(safeModeProvider)) {
@@ -279,12 +288,22 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
           'connect',
           'selectServer',
           'selectReturnRoute',
+          'setReturnRouting',
           'setMode',
         }.contains(command.action) &&
         !session.authenticated) {
       return NativeUiReceipt.rejected(command.id, 'unauthenticated');
     }
     switch (command.action) {
+      case 'setReturnRouting':
+        final applied = await setZolnitReturnRouting(
+          ref,
+          session,
+          command.payload['enabled'] as bool,
+        );
+        if (!applied) {
+          return NativeUiReceipt.rejected(command.id, 'unavailable');
+        }
       case 'selectReturnRoute':
         final applied = await selectZolnitReturnRoute(
           ref,

@@ -3195,11 +3195,17 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage(
       "Напрямую в Китай",
     ),
+    "zolnitReturnEnabled": MessageLookupByLibrary.simpleMessage(
+      "Включить маршрутизацию в Китай",
+    ),
     "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage(
       "Гонконг: приоритет",
     ),
     "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage(
       "Гонконг: оптимизация",
+    ),
+    "zolnitReturnLocal": MessageLookupByLibrary.simpleMessage(
+      "Прямое локальное соединение",
     ),
     "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage(
       "Маршрут в Китай",

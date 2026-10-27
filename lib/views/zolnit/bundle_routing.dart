@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/common/zolnit_return_route.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -47,7 +48,10 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         profile != null && isCurrentZolnitBundleProfile(profile, session);
     final connected = ref.watch(coreStatusProvider) == CoreStatus.connected;
     final returnRoute = currentZolnitReturnRoute(session, profile, groups);
-    final returnEnabled = connected && !ref.watch(safeModeProvider);
+    final returnEnabled =
+        connected &&
+        !ref.watch(safeModeProvider) &&
+        bundle?.isFresh(ref.read(zolnitBundleClockProvider)()) == true;
     final available =
         managed &&
         !ref.watch(safeModeProvider) &&
@@ -135,30 +139,10 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (returnRoute != null) ...[
-              Text(l10n.zolnitReturnRoute, style: zolnitText(context, 13)),
-              DropdownButton<String>(
-                key: const ValueKey('bundle-return-route'),
-                isExpanded: true,
-                value: returnRoute.selectedId,
-                hint: Text(l10n.unknown),
-                icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
-                underline: const SizedBox.shrink(),
-                items: [
-                  for (final option in returnRoute.options)
-                    DropdownMenuItem(
-                      value: option.id,
-                      child: Text(option.label(l10n)),
-                    ),
-                ],
-                onChanged: !returnEnabled
-                    ? null
-                    : (value) {
-                        if (value != null) {
-                          unawaited(
-                            selectZolnitReturnRoute(ref, session, value),
-                          );
-                        }
-                      },
+              _ReturnControls(
+                session: session,
+                route: returnRoute,
+                enabled: returnEnabled,
               ),
               const SizedBox(height: 12),
             ],
@@ -241,6 +225,104 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReturnControls extends ConsumerStatefulWidget {
+  const _ReturnControls({
+    required this.session,
+    required this.route,
+    required this.enabled,
+  });
+
+  final ZolnitSessionController session;
+  final ZolnitReturnRoute route;
+  final bool enabled;
+
+  @override
+  ConsumerState<_ReturnControls> createState() => _ReturnControlsState();
+}
+
+class _ReturnControlsState extends ConsumerState<_ReturnControls> {
+  bool _busy = false;
+  bool _failed = false;
+
+  Future<void> _change(bool enabled, {String? optionId}) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _failed = false;
+    });
+    try {
+      final applied = await setZolnitReturnRouting(
+        ref,
+        widget.session,
+        enabled,
+        optionId: optionId,
+      );
+      if (mounted && !applied) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.appLocalizations;
+    final route = widget.route;
+    final available = widget.enabled && route.activationAvailable && !_busy;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(text.zolnitReturnRoute, style: zolnitText(context, 13)),
+        if (route.activationAvailable)
+          Row(
+            children: [
+              Expanded(child: Text(text.zolnitReturnEnabled)),
+              Switch(
+                key: const ValueKey('bundle-return-enabled'),
+                value: route.active,
+                onChanged:
+                    available && (route.active || route.options.isNotEmpty)
+                    ? (value) => unawaited(_change(value))
+                    : null,
+              ),
+            ],
+          ),
+        if (!route.active)
+          Text(text.zolnitReturnLocal, style: zolnitText(context, 12)),
+        DropdownButton<String>(
+          key: const ValueKey('bundle-return-route'),
+          isExpanded: true,
+          value: route.selectedId,
+          hint: Text(
+            route.options.isEmpty ? text.zolnitRouteUnavailable : text.unknown,
+          ),
+          icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
+          underline: const SizedBox.shrink(),
+          items: [
+            for (final option in route.options)
+              DropdownMenuItem(
+                value: option.id,
+                child: Text(option.label(text)),
+              ),
+          ],
+          onChanged: available && route.active && route.options.isNotEmpty
+              ? (value) {
+                  if (value != null) {
+                    unawaited(_change(true, optionId: value));
+                  }
+                }
+              : null,
+        ),
+        if (_failed)
+          Text(
+            text.zolnitRouteUnavailable,
+            key: const ValueKey('bundle-return-error'),
+            style: zolnitText(context, 12),
+          ),
+      ],
     );
   }
 }

@@ -270,6 +270,9 @@ func handleEndClientBundleOwner(params *EndClientBundleOwnerParams) bool {
 }
 
 func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *SetupParams) (bool, error) {
+	if err := guardReturnDispatchReplacement(prepared, previous); err != nil {
+		return false, err
+	}
 	lease := &RoutingLeaseSpec{AccountID: prepared.Bundle.Account, AccountGeneration: previous.RoutingLease.AccountGeneration,
 		BundleID: prepared.Bundle.ID, ConfigurationDigest: prepared.Digest,
 		ExpiresAt:        time.Unix(prepared.Bundle.Expires, 0).UnixMilli(),

@@ -13073,6 +13073,26 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Enable China routing`
+  String get zolnitReturnEnabled {
+    return Intl.message(
+      'Enable China routing',
+      name: 'zolnitReturnEnabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Local direct connection`
+  String get zolnitReturnLocal {
+    return Intl.message(
+      'Local direct connection',
+      name: 'zolnitReturnLocal',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

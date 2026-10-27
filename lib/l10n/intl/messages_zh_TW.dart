@@ -2286,9 +2286,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitResumeRenewalTip": MessageLookupByLibrary.simpleMessage(
       "恢復後將按已授權的方案安排自動扣款。",
     ),
-    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("直達"),
+    "zolnitReturnDirect": MessageLookupByLibrary.simpleMessage("直達回國"),
+    "zolnitReturnEnabled": MessageLookupByLibrary.simpleMessage("啟用回國"),
     "zolnitReturnHkLite": MessageLookupByLibrary.simpleMessage("香港優選"),
     "zolnitReturnHkOptimized": MessageLookupByLibrary.simpleMessage("香港最佳化"),
+    "zolnitReturnLocal": MessageLookupByLibrary.simpleMessage("本機直連"),
     "zolnitReturnRoute": MessageLookupByLibrary.simpleMessage("回國線路"),
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage("登出此工作階段"),
     "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage(
