@@ -370,7 +370,8 @@ ZOLNIT_CORE_VERSION=$(sed -n 's/^core_version: *//p' build_config.yaml)
 `Accept: application/json`、当前客户端 User-Agent，以及 `X-ZolNit-Platform: macos`、
 `X-ZolNit-Distribution: direct`、`X-ZolNit-Core-Version: v1.19.32`；Bearer 只留在根线程请求程序内存。
 保留原 HTTP 状态与 `body.data` 外层，不把 `source_path` 文本当作 HTTPS 来源证明。
-只允许账号 2，凭据轮转须先获用户批准，不能用普通客户绕过白名单。它可由本机
+只允许账号 2。用户当前决定暂不轮转任何现有凭据；无凭据开发和本地验收不以轮转为前提。
+真实测试由根线程通过受限 stdin 掌握，不使用普通客户绕过白名单，远程驱动上传仍须精确授权。它可由本机
 IPv4 网络运行；某个实际 outbound 若仅能经 IPv6 连接，失败不能改写为另一协议/节点的成功。
 
 回国 `probe` 的 `url` 必须是已维护 CN 规则中的国内服务；`cn_provider` 为当前配置实际加载
@@ -391,6 +392,13 @@ HTTP 规则源仅接受代码中列出的 MetaCubeX/SagerNet 公开仓库及受�
 `rules_not_ready`、`probe_leaf_mismatch`、`return_route_mismatch`、`cleanup_failed`、
 `acceptance_panic` 均为失败；只有完成所有命令、最后 `finish` 成功且退出码 0 才整轮通过。
 Apple/Windows 的系统 TUN、平台签名、后台及真机路径继续单独验收。
+
+`core/acceptance_protocol_test.go` 补充实际 VLESS TLS/TCP 与 Hysteria2 QUIC 的本机协议闭环：
+固定 Core 的入站服务只监听 IPv4 loopback 临时端口，转发器只允许自建 HTTPS 目标。
+正向用例覆盖安装、两次实际 HTTP 204、续租 ACK、降级和旧 guard 拒绝，并核对转发/目标计数；
+错误合成 UUID/密码必须在协议 probe 阶段失败，不能由配置或目标证书错误代替，也不能到达目标。
+全部使用独立测试凭据和进程内测试证书，当前节点令牌、桥接身份和账号 UUID 均不读取或修改。
+这不覆盖线上节点互通、VLESS Vision、HY2 UDP 数据报、真实账号资格或 Linux 现场运行。
 
 ### 出口国家观测 v1（本地运维交付）
 
