@@ -513,7 +513,8 @@ Windows 隔离入口为 `pwsh -NoProfile -File .\tool\acceptance\windows_helper.
 新 guard 可用；清理仅限自建目录、Job 和保留的进程句柄。该程序验证专用前端进程暂停，
 不等同 Flutter 前台或 SCM 服务重启验收。需 Windows x64 和已有 Go/Cargo；本机已完成可移植
 Rust 测试、Windows Rust 编译检查、Go 交叉构建、PowerShell 语法和非 Windows 拒绝分支；
-真实 Windows 的暂停、Job 清零和目录清理尚未执行，不能记为通过。清理失败返回非零状态。
+`4f6f9b0e` 的 Windows CI VM 已成功执行上述隔离暂停、Job 清零和目录清理；这仍不覆盖
+真实 Flutter 前台或已安装的 SCM 服务。清理失败返回非零状态。
 
 Windows 架构验收分开记录，不从进程位数推断物理设备：
 
@@ -561,18 +562,21 @@ iOS 步骤校验 arm64、源码 SHA、bundle/App Group、IPA/可执行文件摘�
 `acceptance-pair.json`；不以预期构建参数代替实际产物，也不把占位签名判为可安装设备签名。
 Windows 的失败和目录清理错误继续返回非零；两端均将包含源码 SHA
 和证据范围的日志上传为独立 14 天开发 artifact，执行失败时也保留已有日志。
-本地只验证配置、脚本与失败传播；新增工作流尚未推送或触发，不能记为已产出 IPA 或 Windows
-VM 验收成功。后续 VM 结果仍不等于签名 iOS 设备、真实 Flutter 前台或 SCM 服务验收。
+上述接线已随 `4f6f9b0e` 推送；该 SHA 的 [Windows 隔离验收](https://github.com/Zolmid/FlClash/actions/runs/40336863976/job/121620662379)
+与 [unsigned iOS observer 构建和校验](https://github.com/Zolmid/FlClash/actions/runs/40336864251/job/121620703866)
+步骤均成功。该轮标准 CI 整体仍因 Dart 更新界面测试失败，后续源码须单独运行 CI；不能把旧 SHA
+的结果用于新候选。受控 VM 与 unsigned 构建结果仍不等于签名 iOS 设备、真实 Flutter 前台或 SCM 服务验收。
 
 桌面提权 Core 写出的目录及每次替换快照交还发起客户端的用户，Unix 保留 0700/0600；
-Windows 沿用账户目录 ACL，仍待真实 Helper 环境验收。物理 iPhone/iPad 还需要同一开发团队、
+Windows 沿用账户目录 ACL，已安装 Helper/SCM 的提权路径仍待验收。物理 iPhone/iPad 还需要同一开发团队、
 匹配现有 App Group 的 observer provisioning、设备许可和首次解锁/锁屏数据保护验证；本轮不申请
 或生成这些凭据，也不唤醒现有客户端来替代独立观察。
 
 本地已验证隔离的实际 Core 可执行进程、独立观察器、真实定时器、手动选择保留、重启后拒绝旧
 进程 guard；纯 Foundation 读入口仅在 macOS 合成容器验证。iOS 仍需签名实机、独立读取进程的
-App Group provisioning，并核对首次解锁/锁屏数据保护允许记录；Windows 仍需受控 x64 设备、
-匹配 Helper/Core、管理员服务重启与前台挂起窗口。这些权限和物理行为均未由 CI/Go 测试验收。
+App Group provisioning，并核对首次解锁/锁屏数据保护允许记录；Windows 隔离 harness 已有受控
+x64 CI VM 执行证据，真实 Flutter 前台挂起、匹配已安装 Helper/Core 的管理员 SCM 重启及系统 TUN
+仍需独立窗口。这些权限和真实产品行为没有由隔离 CI/Go 测试替代。
 
 ### 后台续租接线与验证边界
 
