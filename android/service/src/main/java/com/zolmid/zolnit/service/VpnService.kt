@@ -7,9 +7,12 @@ import android.net.ProxyInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.zolmid.zolnit.common.AccessControlMode
 import com.zolmid.zolnit.common.GlobalState
+import com.zolmid.zolnit.common.ensureNotificationChannel
+import com.zolmid.zolnit.common.startForeground
 import com.zolmid.zolnit.common.R as CommonR
 import com.zolmid.zolnit.core.Core
 import com.zolmid.zolnit.service.models.CIDR
@@ -111,10 +114,29 @@ class VpnService : SystemVpnService(), ManagedService {
         }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Android starts always-on VPN through this callback instead of ZolNit's bound-service
-        // path. Notify the app layer so it can restore Core and fully initialize the VPN service.
+        // Promote to foreground before the broadcast→bind round-trip.
+        try {
+            ensureForeground()
+        } catch (e: RuntimeException) {
+            GlobalState.log("FGS promotion failed: ${e.javaClass.simpleName}")
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         notifyVpnStartRequested()
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun ensureForeground() {
+        ensureNotificationChannel()
+        startForeground(
+            NotificationCompat.Builder(this, GlobalState.NOTIFICATION_CHANNEL)
+                .setSmallIcon(R.drawable.ic_service)
+                .setContentTitle(getString(CommonR.string.app_name))
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .setShowWhen(false)
+                .build(),
+        )
     }
 
     override fun onRevoke() {

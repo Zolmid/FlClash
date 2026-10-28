@@ -446,6 +446,32 @@ SHA256/映射均有效。按面板香港/新加坡标签选取的 REALITY/HY2 �
 原到期时间已由根聊天恢复，会话已撤销；客户端侧未接收真实配置或凭据。这是该驱动 4 个样本
 的真实 Core/网络证据，不覆盖国家归属、AI/影音资格、Extension、Helper 或其他设备。
 
+### Android 16 整 App 验收
+
+目标设备为 Android 16 / API 36；当前工程 compile/target SDK 37、min SDK 24、NDK r28c。
+不能把 target SDK 当作实际运行系统。`dde23c94` 已签 arm64 APK 的 14 个 arm64 原生库
+均满足 ELF 16KB LOAD 段对齐，manifest 为 `extractNativeLibs=true` 且这些库压缩打包；
+该静态结果不代替 `getconf PAGE_SIZE` 为 16384 的实际环境运行。
+
+当前仅做合成账户测试和已签 APK 检查；真机型号、ABI、厂商电源策略及连接入口由操作者确认。
+所有设备操作必须限定已选择的 serial，不使用默认设备，不接入个人凭据或导出安全存储/原始订阅。
+需要真实账号、VPN 授权、付款或切换设备网络的部分，由根聊天安排明确验收窗口。
+
+| 场景 | 验收要求 |
+| --- | --- |
+| VPN 前台服务 | 拒绝/允许通知权限分别检查；明确连接请求、快捷开关、always-on、系统撤销、停止请求遵循同一 ServiceState；核对前台通知及真实服务状态，不能把 IPC ACK 当作隧道已就绪。 |
+| 会话与进程 | 首次登录后结束并重开进程，检查安全恢复、订阅同步和账号绑定；离线恢复保留重试，401 撤销；退出后重开不得恢复旧账号，迟到请求不能写入新账号。 |
+| 订阅与套餐 | 检查 300 秒租约、指纹匹配的长期资格与独立健康；未知资格手动节点及本地 DIRECT 保留；套餐期间/零价、报价失效和账号切换只影响对应意图。 |
+| 付款回跳 | `zolnit://safepay` 冷/热启动、后台返回及进程重建后读取后台权威订单状态；重复回跳不得再建单或授权益，退出/切换账号后旧返回不得完成新账号付款。真实支付与 SDK 回跳单独验收。 |
+| 网络与 IPv6 | 在选定设备上检查 Wi-Fi/蜂窝切换、断网恢复、IPv4-only/双栈、IPv6-only 入口；本机没有 IPv6 时的该入口失败单独记录，不据此判协议缺陷或自动换节点冒充通过。 |
+| Doze 与后台 | 锁屏、后台、Doze 后检查原生续租所有权和实际截止行为；过期自动组阻断、手动/本地策略符合既有约定；不能用前台 Dart timer 或伪造延期证明后台通过。 |
+| 回国联动 | 初始本地直连；显式启用三条映射路线分别验证国内服务与国内影音路径，续租保持；无可用路线时仍能显式关闭回本地，UI 只反映 Core 确认结果。 |
+
+设备读数、仅本地/JVM、CI、隔离 Core 和整 App/TUN 结果须分别记录。当前磁盘预算下
+不下载大型 AVD 镜像、不新增大体积 SDK 缓存、不清理既有文件；优先复用现有 CI 与用户选择的真机。
+静态对齐与系统行为依据 [Android 16 变化](https://developer.android.com/about/versions/16/behavior-changes-all)
+及 [16KB 官方说明](https://developer.android.com/guide/practices/page-sizes)。
+
 ### iOS Extension / Windows Helper 实机验收准备（未执行）
 
 macOS stdin 驱动创建独立的 Core adapter，不连接应用 IPC；它不能验收 Extension、Helper 或后台租约。
