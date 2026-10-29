@@ -27,9 +27,9 @@
 | Linux x64 | Ubuntu 22.04 | 所选 FlClash 分支 | 包含完整运行目录的 tar.gz |
 | Windows x64 | Windows 2022 | 所选 FlClash 分支 | 包含 exe、DLL 和资源的 zip |
 | Android arm64 | Ubuntu 24.04 | 所选 FlClash 分支 | Debug 开发签名 APK |
-| macOS arm64 | macOS 26 | 所选 FlClash 分支 | 保留权限与符号链接的 app zip |
-| macOS x64 | macOS 15 Intel | 所选 FlClash 分支 | app zip |
-| iOS arm64 | macOS 26 / Xcode | 显式选择的 iOS 源码 | 无 provisioning 的 IPA |
+| macOS arm64 | Xcode 27 (macOS 27) | 所选 FlClash 分支 | 保留权限与符号链接的 app zip |
+| macOS x64 | Xcode 27 (macOS 27) | 所选 FlClash 分支 | app zip |
+| iOS arm64 | Xcode 27 (macOS 27) | 显式选择的 iOS 源码 | 无 provisioning 的 IPA |
 
 在 `codex/zolnit-client` 和 `codex/native-client-shared` 分支上，桌面平台还会生成网站更新器
 可识别的标准命名包。这些产物与旧格式并列输出，内容相同，仅文件名不同：
@@ -141,7 +141,7 @@ Simulator 和非 arm64 slice 会明确失败。
 - FlClash：Flutter 3.47.6、Go 1.27.1、Rust 1.99.0。
 - Android：Temurin Java 17、NDK r28c（28.2.13676358），SDK 版本由项目 Gradle 配置决定。
 - Patched iOS 参考：Flutter 3.47.7、Go 1.26.8、Rust 1.99.0。
-- Apple 构建：Xcode 26.3，执行器缺少该版本时使用 26.2。
+- Apple 构建：Xcode 27.1（固定，不回退 26.x）。
 
 工具链独立固定。更新参考提交时，应重新核对其 workflow、子模块、锁文件和 iOS 打包逻辑，
 同时更新相应版本，不能只移动 SHA。`project` 模式当前使用 FlClash 主线工具链。

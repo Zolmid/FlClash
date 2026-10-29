@@ -119,7 +119,7 @@ jobs:
           - platform: windows
             os: windows-2022
           - platform: macos
-            os: macos-latest
+            os: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -159,8 +159,13 @@ jobs:
       - name: Setup Xcode
         if: matrix.platform == 'macos'
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
+          sdk_ver=$(xcrun --sdk macosx --show-sdk-version)
+          if [[ "$sdk_ver" != 27.* ]]; then
+            echo "::error::Expected macOS SDK 27.x but got $sdk_ver"
+            exit 1
+          fi
 
       - name: Enable git long paths (Windows)
         if: matrix.platform == 'windows'
@@ -461,10 +466,11 @@ jobs:
             os: ubuntu-22.04
             arch: amd64
           - platform: macos
-            os: macos-15-intel
+            os: xcode-27
             arch: amd64
+            flutter-arch: x64
           - platform: macos
-            os: macos-latest
+            os: xcode-27
             arch: arm64
           - platform: windows
             os: windows-11-arm
@@ -522,13 +528,31 @@ jobs:
         with:
           channel: ${{ matrix.flutter-channel || 'stable' }}
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          architecture: ${{ matrix.flutter-arch || '' }}
           cache: ${{ env.BRANCH_CACHE }}
 
       - name: Setup Xcode
         if: startsWith(matrix.platform,'macos')
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
+          sdk_ver=$(xcrun --sdk macosx --show-sdk-version)
+          if [[ "$sdk_ver" != 27.* ]]; then
+            echo "::error::Expected macOS SDK 27.x but got $sdk_ver"
+            exit 1
+          fi
+
+      - name: Install Rosetta for Intel cross-build
+        if: matrix.platform == 'macos' && matrix.arch == 'amd64'
+        run: |
+          if ! arch -x86_64 true 2>/dev/null; then
+            sudo softwareupdate --install-rosetta --agree-to-license
+          fi
+          arch -x86_64 true
+          echo "FLUTTER_XCODE_ARCHS=x86_64" >> "$GITHUB_ENV"
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup target add --toolchain 1.99.0 x86_64-apple-darwin
+          echo "RUSTUP_TOOLCHAIN=1.99.0" >> "$GITHUB_ENV"
 
       - name: Setup NDK
         if: startsWith(matrix.platform,'android')
@@ -564,6 +588,13 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.build-ndk.outputs.ndk-path }}
         run: dart setup.dart ${{ matrix.platform }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} -v
+
+      - name: Verify macOS binary architecture
+        if: startsWith(matrix.platform,'macos')
+        run: |
+          config=Release
+          if [[ "${{ env.IS_STABLE }}" != true ]]; then config=Release; fi
+          bash tool/ci/verify_macos_arch.sh "$config" "${{ matrix.arch }}"
 
       - name: Upload
         uses: actions/upload-artifact@v4

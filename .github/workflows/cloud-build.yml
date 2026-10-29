@@ -66,12 +66,12 @@ jobs:
             {platform: 'linux', os: 'ubuntu-22.04', arch: 'x64'},
             {platform: 'windows', os: 'windows-2022', arch: 'x64'},
             {platform: 'android', os: 'ubuntu-24.04', arch: 'arm64'},
-            {platform: 'macos', os: 'macos-26', arch: 'arm64'},
-            {platform: 'macos', os: 'macos-15-intel', arch: 'x64'},
+            {platform: 'macos', os: 'xcode-27', arch: 'arm64'},
+            {platform: 'macos', os: 'xcode-27', arch: 'x64', flutter_arch: 'x64'},
           ].map(t => ({...t, safe_preview: false}))
             .filter(t => process.env.PLATFORM === 'all' || t.platform === process.env.PLATFORM);
           if (process.env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(process.env.PLATFORM)) {
-            targets.push({platform: 'macos', os: 'macos-26', arch: 'arm64', safe_preview: true});
+            targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
             `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nandroid_release=${process.env.ANDROID_RELEASE === 'true'}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
@@ -135,6 +135,7 @@ jobs:
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          architecture: ${{ matrix.flutter_arch || '' }}
           cache: true
 
       - name: Install Linux libraries
@@ -146,8 +147,23 @@ jobs:
       - name: Select Xcode
         if: matrix.platform == 'macos'
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
+          sdk_ver=$(xcrun --sdk macosx --show-sdk-version)
+          if [[ "$sdk_ver" != 27.* ]]; then
+            echo "::error::Expected macOS SDK 27.x but got $sdk_ver"
+            exit 1
+          fi
+
+      - name: Install Rosetta for Intel cross-build
+        if: matrix.platform == 'macos' && matrix.arch == 'x64'
+        run: |
+          if ! arch -x86_64 true 2>/dev/null; then
+            sudo softwareupdate --install-rosetta --agree-to-license
+          fi
+          arch -x86_64 true
+          echo "FLUTTER_XCODE_ARCHS=x86_64" >> "$GITHUB_ENV"
+          rustup target add --toolchain "$RUSTUP_TOOLCHAIN" x86_64-apple-darwin
 
       - name: Preserve Intel macOS rendering workaround
         if: matrix.platform == 'macos' && matrix.arch == 'x64'
@@ -423,6 +439,12 @@ jobs:
           ).join('\n') + '\n');
           JS
 
+      - name: Verify macOS binary architecture
+        if: matrix.platform == 'macos'
+        run: |
+          config=${{ matrix.safe_preview && 'Debug' || 'Release' }}
+          bash tool/ci/verify_macos_arch.sh "$config" "${{ matrix.arch }}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: flclash-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.safe_preview && '-safe-debug' || '' }}-${{ github.run_number }}
@@ -434,7 +456,7 @@ jobs:
     name: iOS · ${{ needs.select.outputs.ios_source }} · unsigned arm64
     needs: select
     if: needs.select.outputs.platform == 'all' || needs.select.outputs.platform == 'ios'
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 90
     defaults:
       run:
@@ -485,8 +507,18 @@ jobs:
 
       - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.3.app || sudo xcode-select -s /Applications/Xcode_26.2.app
+          sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
+          sdk_ver=$(xcrun --sdk macosx --show-sdk-version)
+          if [[ "$sdk_ver" != 27.* ]]; then
+            echo "::error::Expected macOS SDK 27.x but got $sdk_ver"
+            exit 1
+          fi
+          ios_sdk_ver=$(xcrun --sdk iphoneos --show-sdk-version)
+          if [[ "$ios_sdk_ver" != 27.* ]]; then
+            echo "::error::Expected iOS SDK 27.x but got $ios_sdk_ver"
+            exit 1
+          fi
 
       - name: Build and validate unsigned iOS lease observer
         timeout-minutes: 15
