@@ -15,7 +15,7 @@ repos:
         stages: [pre-commit]
       - id: flutter-analyze
         name: flutter analyze (pre-push)
-        entry: flutter analyze --no-fatal-infos
+        entry: flutter analyze --no-fatal-infos --no-pub
         language: system
         pass_filenames: false
         stages: [pre-push]
