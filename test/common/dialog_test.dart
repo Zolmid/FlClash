@@ -408,12 +408,13 @@ void main() {
     expect(_restateConfirmButton(tester).onPressed, isNull);
 
     final field = find.byType(TextField);
-    await tester.enterText(field, 'The Software itself');
+    final prefix = _noServiceStatement(tester).substring(0, 12);
+    await tester.enterText(field, prefix);
     await tester.pump();
     expect(find.text('Does not match the statement'), findsNothing);
     expect(_restateConfirmButton(tester).onPressed, isNull);
 
-    await tester.enterText(field, 'The Software itself provides');
+    await tester.enterText(field, '${prefix}xy');
     await tester.pump();
     expect(find.text('Does not match the statement'), findsOneWidget);
 
@@ -446,7 +447,12 @@ void main() {
     expect(find.byType(TextField), findsNothing);
     expect(_restateConfirmButton(tester).onPressed, isNull);
 
-    await tester.tap(find.text('I have read and understand this statement'));
+    final acknowledgement = find.text(
+      'I have read and understand this statement',
+    );
+    await tester.ensureVisible(acknowledgement);
+    await tester.pumpAndSettle();
+    await tester.tap(acknowledgement);
     await tester.pump();
     expect(_restateConfirmButton(tester).onPressed, isNotNull);
     await tester.tap(find.text('Confirm'));
@@ -481,18 +487,19 @@ void main() {
     final field = find.byType(TextField);
     expect(tester.widget<TextField>(field).controller!.text, isEmpty);
 
+    final prefix = statement.substring(0, 12);
     await tester.showKeyboard(field);
     tester.testTextInput.updateEditingValue(
-      const TextEditingValue(
-        text: 'The Softwarexy',
-        composing: TextRange(start: 12, end: 14),
+      TextEditingValue(
+        text: '${prefix}xy',
+        composing: TextRange(start: prefix.length, end: prefix.length + 2),
       ),
     );
     await tester.pump();
     expect(find.text('Does not match the statement'), findsNothing);
 
     tester.testTextInput.updateEditingValue(
-      const TextEditingValue(text: 'The Softwarexy'),
+      TextEditingValue(text: '${prefix}xy'),
     );
     await tester.pump();
     expect(find.text('Does not match the statement'), findsOneWidget);
