@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.0.0 (2026-10-29)
+
+**Features**
+
+- **client** Renewals and payment returns come back to the right page in the app, and purchases are verified before they take effect (4f6f9b0)
+- **updater** Downloaded updates are checked against the published release before they install (e23394e)
+- **client** Smart routing picks exits per service using verified exit information from your subscription (0d7a4a5)
+- **client** Native connection page on supported platforms, and sign-in that persists across restarts (22263d1)
+- **client** Account details, orders and invitations in separate tabs (4fd24ab)
+- **client** New Nodes, Account and Preferences pages (49b9ad8)
+- **client** Account, support and invitation information in the ZolNit design (24f74c1)
+- **client** Redesigned Connect and Plans pages with a style for each platform (86269f9)
+- **client** ZolNit sign-in page with the official logo, and monthly auto-renewal enrollment (423fa25)
+- **client** Monthly auto-renewal from a server-provided quote, with clearer payment error messages (2a80939)
+- **client** ZolNit account and subscription pages with their own app identity (dcd2f52)
+- Add runtime DNS and rules, mobile widgets, verified updates and desktop tools (88476f4)
+- Proxy fixes and unified builds (0713ff7)
+- **ios** Experimental iOS arm64 support; unsigned builds only, not released (2c8c9f8)
+
+**Bug Fixes**
+
+- **client** ZolNit icons on every platform, and the app opens directly without the old consent screen (7651531)
+
 ## v0.9.1 (2026-10-17)
 
 **Breaking Changes**

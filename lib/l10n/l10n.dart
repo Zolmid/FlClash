@@ -2370,10 +2370,10 @@ class AppLocalizations {
     return Intl.message('Disclaimer', name: 'disclaimer', desc: '', args: []);
   }
 
-  /// `Before using FlClash ("the Software"), please read this statement carefully and make sure you understand all of it. Tapping "Agree" means you have read, understood, and accept every term below. If you do not agree, tap "Exit" and stop using the Software.`
+  /// `This statement applies to ZolNit ("the Software"). Please read it together with the ZolNit Terms of Service and Privacy Policy, which govern the ZolNit service.`
   String get disclaimerDesc {
     return Intl.message(
-      'Before using FlClash ("the Software"), please read this statement carefully and make sure you understand all of it. Tapping "Agree" means you have read, understood, and accept every term below. If you do not agree, tap "Exit" and stop using the Software.',
+      'This statement applies to ZolNit ("the Software"). Please read it together with the ZolNit Terms of Service and Privacy Policy, which govern the ZolNit service.',
       name: 'disclaimerDesc',
       desc: '',
       args: [],
@@ -2400,10 +2400,10 @@ class AppLocalizations {
     );
   }
 
-  /// `The Software itself does not provide any proxy server, node, subscription, or network access service, and has no partnership, agency, or guarantee relationship with any provider of such services.`
+  /// `ZolNit accounts, subscriptions, and connection services are provided by the ZolNit service operator under the ZolNit Terms of Service and Privacy Policy. The Software itself, as an open-source client, does not provide any proxy server, node, or subscription, and has no partnership, agency, or guarantee relationship with the provider of any other such service you import.`
   String get disclaimerNoServiceStatement {
     return Intl.message(
-      'The Software itself does not provide any proxy server, node, subscription, or network access service, and has no partnership, agency, or guarantee relationship with any provider of such services.',
+      'ZolNit accounts, subscriptions, and connection services are provided by the ZolNit service operator under the ZolNit Terms of Service and Privacy Policy. The Software itself, as an open-source client, does not provide any proxy server, node, or subscription, and has no partnership, agency, or guarantee relationship with the provider of any other such service you import.',
       name: 'disclaimerNoServiceStatement',
       desc: '',
       args: [],
@@ -2420,10 +2420,10 @@ class AppLocalizations {
     );
   }
 
-  /// `The Software is intended only for non-commercial uses such as learning, exchange, and technical research. Using it for any commercial purpose is strictly prohibited, including but not limited to paid distribution, bundled sales, use as part of a commercial service, or doing business in the name of the Software. Any commercial activity is unrelated to the Software and its developers.\n\nUsing the Software for anything that violates the laws and regulations of your country or region is strictly prohibited, including but not limited to bypassing lawfully imposed network access restrictions, spreading illegal content, launching network attacks, or infringing the lawful rights of others.`
+  /// `Use of the ZolNit service is governed by the ZolNit Terms of Service, including its rules on account and subscription sharing, resale, and abuse.\n\nUsing the Software for anything that violates the laws and regulations of your country or region is strictly prohibited, including but not limited to bypassing lawfully imposed network access restrictions, spreading illegal content, launching network attacks, or infringing the lawful rights of others.`
   String get disclaimerUsageContent {
     return Intl.message(
-      'The Software is intended only for non-commercial uses such as learning, exchange, and technical research. Using it for any commercial purpose is strictly prohibited, including but not limited to paid distribution, bundled sales, use as part of a commercial service, or doing business in the name of the Software. Any commercial activity is unrelated to the Software and its developers.\n\nUsing the Software for anything that violates the laws and regulations of your country or region is strictly prohibited, including but not limited to bypassing lawfully imposed network access restrictions, spreading illegal content, launching network attacks, or infringing the lawful rights of others.',
+      'Use of the ZolNit service is governed by the ZolNit Terms of Service, including its rules on account and subscription sharing, resale, and abuse.\n\nUsing the Software for anything that violates the laws and regulations of your country or region is strictly prohibited, including but not limited to bypassing lawfully imposed network access restrictions, spreading illegal content, launching network attacks, or infringing the lawful rights of others.',
       name: 'disclaimerUsageContent',
       desc: '',
       args: [],
@@ -2520,10 +2520,10 @@ class AppLocalizations {
     );
   }
 
-  /// `The Software does not collect or upload your subscription URLs, node details, configuration content, visited websites, connection records, traffic content, or logs. This data stays on your device and the developers have no access to it.\n\nThe Software only reaches the network when you use a feature that needs it, such as fetching the subscription URL you provided when updating a profile, or contacting GitHub when checking for updates.\n\nThe Software includes no analytics or crash reporting service on any platform.`
+  /// `The Software keeps your configuration content and local logs on your device. When you use a ZolNit account or the ZolNit service, ZolNit processes account, order, usage, and connection information as described in the ZolNit Privacy Policy; it does not promise zero logs or complete anonymity.\n\nThe Software only reaches the network when you use a feature that needs it, such as fetching the subscription URL you provided when updating a profile, or contacting GitHub when checking for updates.\n\nThe Software includes no analytics or crash reporting service on any platform.`
   String get disclaimerPrivacyContent {
     return Intl.message(
-      'The Software does not collect or upload your subscription URLs, node details, configuration content, visited websites, connection records, traffic content, or logs. This data stays on your device and the developers have no access to it.\n\nThe Software only reaches the network when you use a feature that needs it, such as fetching the subscription URL you provided when updating a profile, or contacting GitHub when checking for updates.\n\nThe Software includes no analytics or crash reporting service on any platform.',
+      'The Software keeps your configuration content and local logs on your device. When you use a ZolNit account or the ZolNit service, ZolNit processes account, order, usage, and connection information as described in the ZolNit Privacy Policy; it does not promise zero logs or complete anonymity.\n\nThe Software only reaches the network when you use a feature that needs it, such as fetching the subscription URL you provided when updating a profile, or contacting GitHub when checking for updates.\n\nThe Software includes no analytics or crash reporting service on any platform.',
       name: 'disclaimerPrivacyContent',
       desc: '',
       args: [],
@@ -4760,10 +4760,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Helper service unavailable; TUN mode cannot be enabled. Reinstall FlClash to restore it.`
+  /// `Helper service unavailable; TUN mode cannot be enabled. Reinstall ZolNit to restore it.`
   String get helperCorruptTip {
     return Intl.message(
-      'Helper service unavailable; TUN mode cannot be enabled. Reinstall FlClash to restore it.',
+      'Helper service unavailable; TUN mode cannot be enabled. Reinstall ZolNit to restore it.',
       name: 'helperCorruptTip',
       desc: '',
       args: [],
@@ -4790,20 +4790,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Windows refused to run FlClashCore.exe (error {code}). An app control policy such as Smart App Control or AppLocker blocks unsigned programs; allow FlClash in that policy or turn it off, then try again.`
+  /// `Windows refused to run FlClashCore.exe (error {code}). An app control policy such as Smart App Control or AppLocker only allows programs signed by a trusted publisher or approved by the policy. Contact ZolNit support or your administrator about an approved, signed build.`
   String coreBlockedByPolicyTip(Object code) {
     return Intl.message(
-      'Windows refused to run FlClashCore.exe (error $code). An app control policy such as Smart App Control or AppLocker blocks unsigned programs; allow FlClash in that policy or turn it off, then try again.',
+      'Windows refused to run FlClashCore.exe (error $code). An app control policy such as Smart App Control or AppLocker only allows programs signed by a trusted publisher or approved by the policy. Contact ZolNit support or your administrator about an approved, signed build.',
       name: 'coreBlockedByPolicyTip',
       desc: '',
       args: [code],
     );
   }
 
-  /// `Windows Smart App Control blocked FlClashCore.exe because it is not signed. Open Windows Security → App & browser control → Smart App Control settings, choose Off, then start FlClash again. Smart App Control cannot be turned back on without reinstalling Windows.`
+  /// `Windows Smart App Control blocked FlClashCore.exe because it is not signed by a trusted publisher. Contact ZolNit support about an approved, signed build.`
   String get coreBlockedBySmartAppControlTip {
     return Intl.message(
-      'Windows Smart App Control blocked FlClashCore.exe because it is not signed. Open Windows Security → App & browser control → Smart App Control settings, choose Off, then start FlClash again. Smart App Control cannot be turned back on without reinstalling Windows.',
+      'Windows Smart App Control blocked FlClashCore.exe because it is not signed by a trusted publisher. Contact ZolNit support about an approved, signed build.',
       name: 'coreBlockedBySmartAppControlTip',
       desc: '',
       args: [],
@@ -6838,10 +6838,10 @@ class AppLocalizations {
     );
   }
 
-  /// `FlClash ran into an error while starting and can't continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.`
+  /// `ZolNit ran into an error while starting and can't continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.`
   String get initFailedTip {
     return Intl.message(
-      'FlClash ran into an error while starting and can\'t continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.',
+      'ZolNit ran into an error while starting and can\'t continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.',
       name: 'initFailedTip',
       desc: '',
       args: [],
@@ -8307,20 +8307,20 @@ class AppLocalizations {
     );
   }
 
-  /// `FlClash cannot write to the folder it is installed in. Download the update manually.`
+  /// `ZolNit cannot write to the folder it is installed in. Download the update manually.`
   String get updateNotWritable {
     return Intl.message(
-      'FlClash cannot write to the folder it is installed in. Download the update manually.',
+      'ZolNit cannot write to the folder it is installed in. Download the update manually.',
       name: 'updateNotWritable',
       desc: '',
       args: [],
     );
   }
 
-  /// `FlClash was not allowed to install apps, so the update was not installed.`
+  /// `ZolNit was not allowed to install apps, so the update was not installed.`
   String get updateInstallPermission {
     return Intl.message(
-      'FlClash was not allowed to install apps, so the update was not installed.',
+      'ZolNit was not allowed to install apps, so the update was not installed.',
       name: 'updateInstallPermission',
       desc: '',
       args: [],

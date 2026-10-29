@@ -25,7 +25,7 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m1(detail) => "清除資料失敗：${detail}";
 
   static String m2(code) =>
-      "Windows 拒絕執行 FlClashCore.exe（錯誤 ${code}）。智慧型應用程式控制、AppLocker 等應用程式控制原則會封鎖未簽署的程式，請在原則中允許 FlClash，或關閉原則後重試。";
+      "Windows 拒絕執行 FlClashCore.exe（錯誤 ${code}）。智慧型應用程式控制、AppLocker 等應用程式控制原則只允許受信任發行者簽署或原則核准的程式執行。請聯絡 ZolNit 支援或你的系統管理員，了解經核准的已簽署版本。";
 
   static String m3(name) =>
       "應用連續兩次未能完成啟動。為打斷崩潰迴圈，已取消選中配置 ${name}，並跳過本次自動配置，你可以隨時重新選中它。";
@@ -516,7 +516,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "core": MessageLookupByLibrary.simpleMessage("核心"),
     "coreBlockedByPolicyTip": m2,
     "coreBlockedBySmartAppControlTip": MessageLookupByLibrary.simpleMessage(
-      "Windows 智慧型應用程式控制封鎖了未簽署的 FlClashCore.exe。請開啟 Windows 安全性 → 應用程式與瀏覽器控制 → 智慧型應用程式控制設定，選擇「關閉」後重新啟動 FlClash。關閉後，必須重新安裝 Windows 才能再次啟用智慧型應用程式控制。",
+      "Windows 智慧型應用程式控制封鎖了 FlClashCore.exe，因為它未由信任的發行者簽署。請聯絡 ZolNit 支援，了解經核准的已簽署版本。",
     ),
     "coreStatus": MessageLookupByLibrary.simpleMessage("核心狀態"),
     "country": MessageLookupByLibrary.simpleMessage("地區"),
@@ -622,7 +622,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerChangesTitle": MessageLookupByLibrary.simpleMessage("宣告變更"),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "本軟體僅供學習交流、科學研究等非商業用途，嚴禁用於商業目的。任何商業行為均與本軟體無關。",
+      "本聲明適用於 ZolNit（以下簡稱「本軟體」）。請連同規範 ZolNit 服務的《服務條款》和《隱私權政策》一併閱讀。",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "在適用法律允許的最大範圍內，開發者及所有貢獻者均不對因使用或無法使用本軟體而產生的任何直接、間接、偶然、特殊、懲罰性或後果性損害承擔責任，包括但不限於資料丟失、裝置損壞、網路異常、業務中斷、利潤損失或因此引起的任何法律糾紛，即使已被告知發生此類損害的可能性。",
@@ -633,10 +633,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerLicenseTitle": MessageLookupByLibrary.simpleMessage("開源協議"),
     "disclaimerNoServiceStatement": MessageLookupByLibrary.simpleMessage(
-      "本軟體自身不提供任何代理伺服器、節點、訂閱、機場或網路接入服務，也不與任何此類服務的提供者存在合作、代理或擔保關係。",
+      "ZolNit 帳號、訂閱和連線服務由 ZolNit 服務營運者依據《ZolNit 服務條款》和《隱私權政策》提供。本軟體本身作為開源用戶端，不提供任何代理伺服器、節點或訂閱，也不與你匯入的任何其他此類服務的提供者存在合作、代理或擔保關係。",
     ),
     "disclaimerPrivacyContent": MessageLookupByLibrary.simpleMessage(
-      "本軟體不會收集或上傳你的訂閱位址、節點資訊、設定內容、造訪的網站、連線記錄、流量內容和記錄，這些資料僅儲存在你的裝置本機，開發者無法取得。\n\n本軟體只會在你使用相應功能時存取外部網路，例如更新訂閱時存取你提供的訂閱位址、檢查更新時存取 GitHub。\n\n本軟體在所有平台上均未整合任何資料統計或當機回報服務。",
+      "本軟體將你的設定內容和本機記錄儲存在你的裝置上。使用 ZolNit 帳號或 ZolNit 服務時，ZolNit 會依《隱私權政策》所述處理帳號、訂單、用量和連線相關資訊，且不承諾零記錄或完全匿名。\n\n本軟體只會在你使用相應功能時存取外部網路，例如更新訂閱時存取你提供的訂閱位址、檢查更新時存取 GitHub。\n\n本軟體在所有平台上均未整合任何資料統計或當機回報服務。",
     ),
     "disclaimerPrivacyTitle": MessageLookupByLibrary.simpleMessage("資料收集與隱私"),
     "disclaimerResponsibilityContent": MessageLookupByLibrary.simpleMessage(
@@ -662,7 +662,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerThirdPartyTitle": MessageLookupByLibrary.simpleMessage("第三方內容"),
     "disclaimerUsageContent": MessageLookupByLibrary.simpleMessage(
-      "本軟體僅供學習交流、技術研究等非商業用途。嚴禁將本軟體用於任何商業目的，包括但不限於付費分發、捆綁銷售、作為商業服務的組成部分或以本軟體名義開展經營活動；任何商業行為均與本軟體及其開發者無關。\n\n嚴禁將本軟體用於違反你所在國家或地區法律法規的活動，包括但不限於繞過依法設定的網路訪問限制、傳播違法資訊、實施網路攻擊或侵犯他人合法權益。",
+      "ZolNit 服務的使用以《ZolNit 服務條款》為準，包括其中關於帳號與訂閱共享、轉售和濫用的規則。\n\n嚴禁將本軟體用於違反你所在國家或地區法律法規的活動，包括但不限於繞過依法設定的網路訪問限制、傳播違法資訊、實施網路攻擊或侵犯他人合法權益。",
     ),
     "disclaimerUsageTitle": MessageLookupByLibrary.simpleMessage("使用限制"),
     "disclaimerWarrantyContent": MessageLookupByLibrary.simpleMessage(
@@ -900,7 +900,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "header": MessageLookupByLibrary.simpleMessage("標題"),
     "healthCheck": MessageLookupByLibrary.simpleMessage("健康檢查"),
     "helperCorruptTip": MessageLookupByLibrary.simpleMessage(
-      "Helper 服務無法使用，無法啟用 TUN 模式，請重新安裝 FlClash。",
+      "Helper 服務無法使用，無法啟用 TUN 模式，請重新安裝 ZolNit。",
     ),
     "hex": MessageLookupByLibrary.simpleMessage("十六進位"),
     "hide": MessageLookupByLibrary.simpleMessage("隱藏"),
@@ -993,7 +993,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("初始化"),
     "initFailed": MessageLookupByLibrary.simpleMessage("啟動失敗"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FlClash 啟動時出錯，無法繼續執行。可以複製錯誤詳情用於反饋；如果問題反覆出現，清除資料後通常可以重新啟動。",
+      "ZolNit 啟動時出錯，無法繼續執行。可以複製錯誤詳情用於反饋；如果問題反覆出現，清除資料後通常可以重新啟動。",
     ),
     "initialize": MessageLookupByLibrary.simpleMessage("初始化"),
     "initiator": MessageLookupByLibrary.simpleMessage("發起端"),
@@ -1939,10 +1939,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateDownloading": MessageLookupByLibrary.simpleMessage("正在下載更新"),
     "updateInstallFailed": MessageLookupByLibrary.simpleMessage("無法啟動安裝程式。"),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
-      "FlClash 未獲得安裝應用程式的權限，因此未安裝更新。",
+      "ZolNit 未獲得安裝應用程式的權限，因此未安裝更新。",
     ),
     "updateNotWritable": MessageLookupByLibrary.simpleMessage(
-      "FlClash 無法寫入其安裝目錄，請手動下載更新。",
+      "ZolNit 無法寫入其安裝目錄，請手動下載更新。",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage("立即更新"),
     "upload": MessageLookupByLibrary.simpleMessage("上傳"),

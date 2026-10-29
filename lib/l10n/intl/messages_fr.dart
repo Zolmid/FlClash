@@ -26,7 +26,7 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m1(detail) => "Impossible d’effacer les données : ${detail}";
 
   static String m2(code) =>
-      "Windows a refusé d’exécuter FlClashCore.exe (erreur ${code}). Une stratégie de contrôle des applications, telle que Smart App Control ou AppLocker, bloque les programmes non signés ; autorisez FlClash dans cette stratégie ou désactivez-la, puis réessayez.";
+      "Windows a refusé d’exécuter FlClashCore.exe (erreur ${code}). Une stratégie de contrôle des applications, telle que Smart App Control ou AppLocker, n’autorise que les programmes signés par un éditeur de confiance ou approuvés par la stratégie. Contactez le support ZolNit ou votre administrateur au sujet d’une version signée approuvée.";
 
   static String m3(name) =>
       "L’app n’a pas réussi à finir de démarrer deux fois de suite. Pour sortir de cette boucle, le profil ${name} a été désélectionné et la configuration automatique a été ignorée. Vous pouvez le sélectionner de nouveau à tout moment.";
@@ -710,7 +710,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "core": MessageLookupByLibrary.simpleMessage("Cœur"),
     "coreBlockedByPolicyTip": m2,
     "coreBlockedBySmartAppControlTip": MessageLookupByLibrary.simpleMessage(
-      "Windows Smart App Control a bloqué FlClashCore.exe car il n’est pas signé. Ouvrez Sécurité Windows → Contrôle des applications et du navigateur → Paramètres de Smart App Control, choisissez Désactivé, puis relancez FlClash. Smart App Control ne peut pas être réactivé sans réinstaller Windows.",
+      "Windows Smart App Control a bloqué FlClashCore.exe car il n’est pas signé par un éditeur de confiance. Contactez le support ZolNit au sujet d’une version signée approuvée.",
     ),
     "coreStatus": MessageLookupByLibrary.simpleMessage("État du cœur"),
     "country": MessageLookupByLibrary.simpleMessage("Région"),
@@ -852,7 +852,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Modifications de cette déclaration",
     ),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "Avant d’utiliser FlClash (« le Logiciel »), veuillez lire attentivement cette déclaration et vous assurer de l’avoir comprise dans son intégralité. Appuyer sur « Accepter » signifie que vous avez lu, compris et accepté chacune des conditions ci-dessous. Si vous n’êtes pas d’accord, appuyez sur « Quitter » et cessez d’utiliser le Logiciel.",
+      "Cette déclaration s’applique à ZolNit (« le Logiciel »). Lisez-la avec les Conditions d’utilisation et la Politique de confidentialité de ZolNit, qui régissent le service ZolNit.",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "Dans toute la mesure permise par la loi applicable, ni les développeurs ni aucun contributeur ne sauraient être tenus responsables de dommages directs, indirects, accessoires, spéciaux, punitifs ou consécutifs résultant de l’utilisation ou de l’impossibilité d’utiliser le Logiciel, y compris, sans s’y limiter, la perte de données, les dommages matériels, les pannes réseau, l’interruption d’activité, le manque à gagner ou tout litige qui en découlerait, même s’ils ont été avertis de la possibilité de tels dommages.",
@@ -867,10 +867,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Licence open source",
     ),
     "disclaimerNoServiceStatement": MessageLookupByLibrary.simpleMessage(
-      "Le Logiciel ne fournit lui-même aucun serveur proxy, nœud, abonnement ni service d’accès au réseau, et n’a aucun partenariat, mandat ni lien de garantie avec un quelconque fournisseur de tels services.",
+      "Les comptes, abonnements et services de connexion ZolNit sont fournis par l’exploitant du service ZolNit conformément aux Conditions d’utilisation et à la Politique de confidentialité de ZolNit. Le Logiciel lui-même, en tant que client open source, ne fournit aucun serveur proxy, nœud ni abonnement, et n’a aucun partenariat, mandat ni lien de garantie avec le fournisseur de tout autre service de ce type que vous importez.",
     ),
     "disclaimerPrivacyContent": MessageLookupByLibrary.simpleMessage(
-      "Le Logiciel ne collecte ni ne transmet vos URL d’abonnement, détails de nœuds, contenus de configuration, sites visités, historiques de connexion, contenus de trafic ou journaux. Ces données restent sur votre appareil et les développeurs n’y ont pas accès.\n\nLe Logiciel n’accède au réseau que lorsque vous utilisez une fonction qui en a besoin, par exemple pour récupérer l’URL d’abonnement que vous avez fournie lors de la mise à jour d’un profil, ou pour contacter GitHub lors de la recherche de mises à jour.\n\nLe Logiciel n’inclut aucun service d’analyse ni de rapport de plantage, sur aucune plateforme.",
+      "Le Logiciel conserve le contenu de vos configurations et les journaux locaux sur votre appareil. Lorsque vous utilisez un compte ou le service ZolNit, ZolNit traite les informations de compte, de commande, d’utilisation et de connexion décrites dans la Politique de confidentialité de ZolNit ; il ne promet ni l’absence de journaux ni un anonymat complet.\n\nLe Logiciel n’accède au réseau que lorsque vous utilisez une fonction qui en a besoin, par exemple pour récupérer l’URL d’abonnement que vous avez fournie lors de la mise à jour d’un profil, ou pour contacter GitHub lors de la recherche de mises à jour.\n\nLe Logiciel n’inclut aucun service d’analyse ni de rapport de plantage, sur aucune plateforme.",
     ),
     "disclaimerPrivacyTitle": MessageLookupByLibrary.simpleMessage(
       "Collecte de données et confidentialité",
@@ -906,7 +906,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Contenus tiers",
     ),
     "disclaimerUsageContent": MessageLookupByLibrary.simpleMessage(
-      "Le Logiciel est destiné uniquement à des usages non commerciaux tels que l’apprentissage, les échanges et la recherche technique. Toute utilisation à des fins commerciales est strictement interdite, y compris, sans s’y limiter, la distribution payante, la vente groupée, l’intégration à un service commercial ou l’exercice d’une activité au nom du Logiciel. Toute activité commerciale est étrangère au Logiciel et à ses développeurs.\n\nIl est strictement interdit d’utiliser le Logiciel à des fins contraires aux lois et règlements de votre pays ou de votre région, y compris, sans s’y limiter, le contournement de restrictions d’accès au réseau légalement imposées, la diffusion de contenus illicites, le lancement d’attaques réseau ou l’atteinte aux droits légitimes d’autrui.",
+      "L’utilisation du service ZolNit est régie par les Conditions d’utilisation de ZolNit, y compris leurs règles sur le partage de compte et d’abonnement, la revente et les abus.\n\nIl est strictement interdit d’utiliser le Logiciel à des fins contraires aux lois et règlements de votre pays ou de votre région, y compris, sans s’y limiter, le contournement de restrictions d’accès au réseau légalement imposées, la diffusion de contenus illicites, le lancement d’attaques réseau ou l’atteinte aux droits légitimes d’autrui.",
     ),
     "disclaimerUsageTitle": MessageLookupByLibrary.simpleMessage(
       "Restrictions d’utilisation",
@@ -1258,7 +1258,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "header": MessageLookupByLibrary.simpleMessage("En-tête"),
     "healthCheck": MessageLookupByLibrary.simpleMessage("Contrôle d’état"),
     "helperCorruptTip": MessageLookupByLibrary.simpleMessage(
-      "Service Helper indisponible ; le mode TUN ne peut pas être activé. Réinstallez FlClash pour le rétablir.",
+      "Service Helper indisponible ; le mode TUN ne peut pas être activé. Réinstallez ZolNit pour le rétablir.",
     ),
     "hex": MessageLookupByLibrary.simpleMessage("Hex"),
     "hide": MessageLookupByLibrary.simpleMessage("Masquer"),
@@ -1389,7 +1389,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("Initialisation"),
     "initFailed": MessageLookupByLibrary.simpleMessage("Échec du démarrage"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FlClash a rencontré une erreur au démarrage et ne peut pas continuer. Copiez les détails pour signaler le problème. Si cela se reproduit, effacer les données permet généralement de relancer l’app.",
+      "ZolNit a rencontré une erreur au démarrage et ne peut pas continuer. Copiez les détails pour signaler le problème. Si cela se reproduit, effacer les données permet généralement de relancer l’app.",
     ),
     "initialize": MessageLookupByLibrary.simpleMessage("Initialiser"),
     "initiator": MessageLookupByLibrary.simpleMessage("Initiateur"),
@@ -2786,10 +2786,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Impossible de démarrer le programme d’installation.",
     ),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
-      "FlClash n’a pas été autorisé à installer des applications. La mise à jour n’a pas été installée.",
+      "ZolNit n’a pas été autorisé à installer des applications. La mise à jour n’a pas été installée.",
     ),
     "updateNotWritable": MessageLookupByLibrary.simpleMessage(
-      "FlClash ne peut pas écrire dans son dossier d’installation. Téléchargez la mise à jour manuellement.",
+      "ZolNit ne peut pas écrire dans son dossier d’installation. Téléchargez la mise à jour manuellement.",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage(
       "Mettre à jour maintenant",

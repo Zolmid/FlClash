@@ -1,8 +1,8 @@
 display_name: ZolNit
 package_name: ZolNit
 maintainer:
-  name: chen08209
-  email: chen08209@gmail.com
+  name: Zolmid
+  email: zolmid@icloud.com
 
 priority: optional
 section: x11
@@ -11,8 +11,13 @@ essential: false
 icon: ./assets/images/icon.png
 
 dependencies:
+  - libgtk-3-0
   - libayatana-appindicator3-1
   - libsecret-1-0
+
+# pkexec installs the Helper service on demand; the app runs without it.
+recommended_dependencies:
+  - pkexec | policykit-1
 
 # The Helper unit is written on demand by the app, not at install time, so only
 # its teardown belongs here; the binary is already gone when postrm runs.

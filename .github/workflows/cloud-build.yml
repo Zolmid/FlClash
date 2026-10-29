@@ -321,6 +321,32 @@ jobs:
           pkg="${{ steps.version.outputs.package }}"
           (cd build/linux/x64/release/bundle && zip -ryq "$GITHUB_WORKSPACE/dist/ZolNit-${pkg}-linux-x64.zip" .)
 
+      - name: Create and validate canonical Linux package
+        if: matrix.platform == 'linux' && env.CLIENT_BRANCH == 'true'
+        run: |
+          pkg="${{ steps.version.outputs.package }}"
+          deb="$GITHUB_WORKSPACE/dist/ZolNit-${pkg}-linux-x64.deb"
+          dart tool/ci/package_linux_deb.dart --bundle build/linux/x64/release/bundle --out "$deb"
+          dpkg-deb --field "$deb" Package Version Architecture Maintainer Depends
+          contents=$(dpkg-deb --contents "$deb")
+          for path in ZolNit FlClashCore ZolNitHelperService manifest.json; do
+            grep -Eq " \./opt/ZolNit/$path$" <<<"$contents" || { echo "::error::Package lacks /opt/ZolNit/$path"; exit 1; }
+          done
+          grep -Eq ' \./usr/share/applications/ZolNit\.desktop$' <<<"$contents" || { echo '::error::Package lacks its desktop entry'; exit 1; }
+          sudo apt-get install -y "$deb"
+          for path in /opt/ZolNit /opt/ZolNit/ZolNit /opt/ZolNit/ZolNitHelperService; do
+            [[ "$(stat -c '%U:%G' "$path")" == root:root ]] || { echo "::error::$path is not owned by root"; exit 1; }
+            (( (8#$(stat -c '%a' "$path") & 8#022) == 0 )) || { echo "::error::$path is writable by group or others"; exit 1; }
+          done
+          [[ "$(dpkg -S /opt/ZolNit/ZolNit)" == 'zolnit: /opt/ZolNit/ZolNit' ]]
+          [[ -x /usr/bin/ZolNit ]]
+          if ldd /opt/ZolNit/ZolNit | grep -F 'not found'; then
+            echo '::error::Installed binary has unresolved libraries'
+            exit 1
+          fi
+          sudo apt-get remove -y zolnit
+          [[ ! -e /usr/bin/ZolNit && ! -e /opt/ZolNit/ZolNit ]]
+
       - name: Archive macOS app
         if: matrix.platform == 'macos'
         run: |
@@ -354,6 +380,28 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item dist/FlClash-windows-x64-release.zip "dist/ZolNit-${{ steps.version.outputs.package }}-windows-x64.zip"
+
+      - name: Inventory Windows signatures
+        if: matrix.platform == 'windows' && env.CLIENT_BRANCH == 'true'
+        shell: pwsh
+        run: |
+          $installer = "dist/ZolNit-${{ steps.version.outputs.package }}-windows-x64-setup.exe"
+          $bundle = 'build/windows/x64/runner/Release'
+          pwsh -NoProfile -File tool/ci/windows_signature_report.ps1 -Bundle $bundle -Installer $installer -Report dist/windows-signing-report.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($name in 'ZolNit.exe', 'FlClashCore.exe', 'ZolNitHelperService.exe', (Split-Path $installer -Leaf)) {
+            if (-not (Select-String -Path dist/windows-signing-report.txt -Pattern "^first-party \| $([regex]::Escape($name)) \|" -Quiet)) {
+              Write-Host "::error::$name is missing from the signing inventory"
+              exit 1
+            }
+          }
+          # This candidate is unsigned, so the strict publisher gate has to reject it.
+          pwsh -NoProfile -File tool/ci/windows_signature_report.ps1 -Bundle $bundle -Installer $installer -Strict -PublisherSubject 'CN=ZolNit approved publisher' | Out-Null
+          if ($LASTEXITCODE -ne 3) {
+            Write-Host "::error::The strict signing gate exited $LASTEXITCODE; expected 3 for an unsigned candidate"
+            exit 1
+          }
+          exit 0
 
       - name: Collect Android APK
         if: matrix.platform == 'android'
@@ -425,6 +473,10 @@ jobs:
               echo 'distribution=Android signed release candidate; not published'
             else
               echo 'distribution=development artifact; no production signing or notarization'
+            fi
+            if [[ "$TARGET_PLATFORM" == windows && -f dist/windows-signing-report.txt ]]; then
+              echo "windows_$(grep -m1 '^release_ready=' dist/windows-signing-report.txt)"
+              echo 'windows_signing_report=windows-signing-report.txt'
             fi
             git submodule status --recursive
             flutter --version

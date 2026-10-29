@@ -2,6 +2,97 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.0.0",
+      "tag": "v1.0.0",
+      "date": "2026-10-29",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "4f6f9b0",
+              "scope": "client",
+              "text": "Renewals and payment returns come back to the right page in the app, and purchases are verified before they take effect"
+            },
+            {
+              "id": "e23394e",
+              "scope": "updater",
+              "text": "Downloaded updates are checked against the published release before they install"
+            },
+            {
+              "id": "0d7a4a5",
+              "scope": "client",
+              "text": "Smart routing picks exits per service using verified exit information from your subscription"
+            },
+            {
+              "id": "22263d1",
+              "scope": "client",
+              "text": "Native connection page on supported platforms, and sign-in that persists across restarts"
+            },
+            {
+              "id": "4fd24ab",
+              "scope": "client",
+              "text": "Account details, orders and invitations in separate tabs"
+            },
+            {
+              "id": "49b9ad8",
+              "scope": "client",
+              "text": "New Nodes, Account and Preferences pages"
+            },
+            {
+              "id": "24f74c1",
+              "scope": "client",
+              "text": "Account, support and invitation information in the ZolNit design"
+            },
+            {
+              "id": "86269f9",
+              "scope": "client",
+              "text": "Redesigned Connect and Plans pages with a style for each platform"
+            },
+            {
+              "id": "423fa25",
+              "scope": "client",
+              "text": "ZolNit sign-in page with the official logo, and monthly auto-renewal enrollment"
+            },
+            {
+              "id": "2a80939",
+              "scope": "client",
+              "text": "Monthly auto-renewal from a server-provided quote, with clearer payment error messages"
+            },
+            {
+              "id": "dcd2f52",
+              "scope": "client",
+              "text": "ZolNit account and subscription pages with their own app identity"
+            },
+            {
+              "id": "88476f4",
+              "text": "Add runtime DNS and rules, mobile widgets, verified updates and desktop tools"
+            },
+            {
+              "id": "0713ff7",
+              "text": "Proxy fixes and unified builds"
+            },
+            {
+              "id": "2c8c9f8",
+              "scope": "ios",
+              "text": "Experimental iOS arm64 support; unsigned builds only, not released"
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "7651531",
+              "scope": "client",
+              "text": "ZolNit icons on every platform, and the app opens directly without the old consent screen"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.9.1",
       "tag": "v0.9.1",
       "date": "2026-10-17",

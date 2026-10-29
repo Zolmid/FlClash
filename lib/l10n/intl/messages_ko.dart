@@ -25,7 +25,7 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m1(detail) => "데이터를 지우지 못했습니다: ${detail}";
 
   static String m2(code) =>
-      "Windows에서 FlClashCore.exe 실행을 거부했습니다(오류 ${code}). Smart App Control이나 AppLocker와 같은 앱 제어 정책이 서명되지 않은 프로그램을 차단합니다. 해당 정책에서 FlClash를 허용하거나 정책을 끈 후 다시 시도하세요.";
+      "Windows에서 FlClashCore.exe 실행을 거부했습니다(오류 ${code}). Smart App Control이나 AppLocker와 같은 앱 제어 정책은 신뢰할 수 있는 게시자가 서명했거나 정책에서 승인한 프로그램만 실행하도록 허용합니다. 승인된 서명 빌드에 대해서는 ZolNit 지원팀 또는 관리자에게 문의하세요.";
 
   static String m3(name) =>
       "앱이 두 번 연속 시작을 완료하지 못했습니다. 반복을 끊기 위해 프로필 ${name}의 선택을 해제하고 자동 설정을 건너뛰었습니다. 언제든지 다시 선택할 수 있습니다.";
@@ -547,7 +547,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "core": MessageLookupByLibrary.simpleMessage("코어"),
     "coreBlockedByPolicyTip": m2,
     "coreBlockedBySmartAppControlTip": MessageLookupByLibrary.simpleMessage(
-      "서명되지 않아 Windows Smart App Control이 FlClashCore.exe를 차단했습니다. Windows 보안 → 앱 및 브라우저 컨트롤 → Smart App Control 설정에서 끔을 선택한 후 FlClash를 다시 시작하세요. Smart App Control은 Windows를 다시 설치하지 않으면 다시 켤 수 없습니다.",
+      "신뢰할 수 있는 게시자가 서명하지 않아 Windows Smart App Control이 FlClashCore.exe를 차단했습니다. 승인된 서명 빌드에 대해서는 ZolNit 지원팀에 문의하세요.",
     ),
     "coreStatus": MessageLookupByLibrary.simpleMessage("코어 상태"),
     "country": MessageLookupByLibrary.simpleMessage("지역"),
@@ -667,7 +667,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerChangesTitle": MessageLookupByLibrary.simpleMessage("본 문서의 변경"),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "FlClash(이하 “본 소프트웨어”)를 사용하기 전에 이 문서를 주의 깊게 읽고 모든 내용을 이해했는지 확인하세요. “동의”를 누르면 아래 모든 조항을 읽고 이해했으며 수락한 것으로 간주합니다. 동의하지 않으면 “종료”를 누르고 본 소프트웨어의 사용을 중단하세요.",
+      "이 고지는 ZolNit(이하 \"본 소프트웨어\")에 적용됩니다. ZolNit 서비스에 적용되는 서비스 약관 및 개인정보 처리방침과 함께 읽어 주세요.",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "관련 법률이 허용하는 최대 범위에서, 개발자와 기여자는 본 소프트웨어의 사용 또는 사용 불능으로 발생하는 직접, 간접, 부수적, 특별, 징벌적 또는 결과적 손해에 대해 책임을 지지 않습니다. 여기에는 데이터 손실, 기기 손상, 네트워크 장애, 사업 중단, 이익 손실 및 그로 인한 법적 분쟁이 포함되며 이에 국한되지 않고, 그러한 손해의 가능성을 사전에 통지받은 경우에도 마찬가지입니다.",
@@ -680,10 +680,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "오픈 소스 라이선스",
     ),
     "disclaimerNoServiceStatement": MessageLookupByLibrary.simpleMessage(
-      "본 소프트웨어 자체는 프록시 서버, 노드, 구독, 네트워크 접속 서비스를 일절 제공하지 않으며, 이러한 서비스의 어떤 제공자와도 제휴, 대리 또는 보증 관계가 없습니다.",
+      "ZolNit 계정, 구독, 연결 서비스는 ZolNit 서비스 운영자가 ZolNit 서비스 약관 및 개인정보 처리방침에 따라 제공합니다. 본 소프트웨어 자체는 오픈 소스 클라이언트로서 프록시 서버, 노드, 구독을 제공하지 않으며, 사용자가 가져오는 그 밖의 서비스 제공자와 제휴, 대리 또는 보증 관계가 없습니다.",
     ),
     "disclaimerPrivacyContent": MessageLookupByLibrary.simpleMessage(
-      "본 소프트웨어는 구독 URL, 노드 정보, 구성 내용, 방문한 웹사이트, 연결 기록, 트래픽 내용, 로그를 수집하거나 업로드하지 않습니다. 이 데이터는 사용자의 기기에만 저장되며 개발자는 접근할 수 없습니다.\n\n본 소프트웨어는 프로필을 업데이트할 때 사용자가 입력한 구독 URL을 가져오거나 업데이트를 확인할 때 GitHub에 접속하는 등 기능이 필요할 때만 네트워크에 접속합니다.\n\n본 소프트웨어에는 어떤 플랫폼에서도 분석 또는 비정상 종료 보고 서비스가 포함되어 있지 않습니다.",
+      "본 소프트웨어는 구성 내용과 로컬 로그를 사용자의 기기에 보관합니다. ZolNit 계정 또는 ZolNit 서비스를 사용하면 ZolNit은 개인정보 처리방침에 설명된 대로 계정, 주문, 사용량, 연결 관련 정보를 처리하며, 로그가 전혀 남지 않거나 완전히 익명이라고 보장하지 않습니다.\n\n본 소프트웨어는 프로필을 업데이트할 때 사용자가 입력한 구독 URL을 가져오거나 업데이트를 확인할 때 GitHub에 접속하는 등 기능이 필요할 때만 네트워크에 접속합니다.\n\n본 소프트웨어에는 어떤 플랫폼에서도 분석 또는 비정상 종료 보고 서비스가 포함되어 있지 않습니다.",
     ),
     "disclaimerPrivacyTitle": MessageLookupByLibrary.simpleMessage(
       "데이터 수집 및 개인정보 보호",
@@ -717,7 +717,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "제3자 콘텐츠",
     ),
     "disclaimerUsageContent": MessageLookupByLibrary.simpleMessage(
-      "본 소프트웨어는 학습, 교류, 기술 연구와 같은 비상업적 용도로만 제공됩니다. 유료 배포, 끼워 팔기, 상업 서비스의 일부로 사용, 본 소프트웨어의 이름을 내세운 영업 등 어떠한 상업적 목적의 사용도 엄격히 금지되며, 이에 국한되지 않습니다. 모든 상업 활동은 본 소프트웨어 및 개발자와 무관합니다.\n\n거주 국가 또는 지역의 법령을 위반하는 용도로 본 소프트웨어를 사용하는 것은 엄격히 금지됩니다. 여기에는 합법적으로 부과된 네트워크 접속 제한 우회, 불법 콘텐츠 유포, 네트워크 공격, 타인의 합법적 권리 침해가 포함되며 이에 국한되지 않습니다.",
+      "ZolNit 서비스의 이용에는 계정 및 구독 공유, 재판매, 남용에 관한 규정을 포함한 ZolNit 서비스 약관이 적용됩니다.\n\n거주 국가 또는 지역의 법령을 위반하는 용도로 본 소프트웨어를 사용하는 것은 엄격히 금지됩니다. 여기에는 합법적으로 부과된 네트워크 접속 제한 우회, 불법 콘텐츠 유포, 네트워크 공격, 타인의 합법적 권리 침해가 포함되며 이에 국한되지 않습니다.",
     ),
     "disclaimerUsageTitle": MessageLookupByLibrary.simpleMessage("사용 제한"),
     "disclaimerWarrantyContent": MessageLookupByLibrary.simpleMessage(
@@ -971,7 +971,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "header": MessageLookupByLibrary.simpleMessage("헤더"),
     "healthCheck": MessageLookupByLibrary.simpleMessage("상태 확인"),
     "helperCorruptTip": MessageLookupByLibrary.simpleMessage(
-      "헬퍼 서비스를 사용할 수 없어 TUN 모드를 켤 수 없습니다. FlClash를 다시 설치하여 복구하세요.",
+      "헬퍼 서비스를 사용할 수 없어 TUN 모드를 켤 수 없습니다. ZolNit를 다시 설치하여 복구하세요.",
     ),
     "hex": MessageLookupByLibrary.simpleMessage("16진수"),
     "hide": MessageLookupByLibrary.simpleMessage("숨기기"),
@@ -1072,7 +1072,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("초기화"),
     "initFailed": MessageLookupByLibrary.simpleMessage("시작 실패"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FlClash를 시작하는 중 오류가 발생하여 계속할 수 없습니다. 세부 정보를 복사하여 문제를 보고하세요. 문제가 계속되면 데이터를 지우면 대개 앱이 다시 시작됩니다.",
+      "ZolNit를 시작하는 중 오류가 발생하여 계속할 수 없습니다. 세부 정보를 복사하여 문제를 보고하세요. 문제가 계속되면 데이터를 지우면 대개 앱이 다시 시작됩니다.",
     ),
     "initialize": MessageLookupByLibrary.simpleMessage("초기화"),
     "initiator": MessageLookupByLibrary.simpleMessage("요청자"),
@@ -2120,10 +2120,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "설치 프로그램을 시작할 수 없습니다.",
     ),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
-      "FlClash에 앱 설치 권한이 없어 업데이트를 설치하지 못했습니다.",
+      "ZolNit에 앱 설치 권한이 없어 업데이트를 설치하지 못했습니다.",
     ),
     "updateNotWritable": MessageLookupByLibrary.simpleMessage(
-      "FlClash가 설치 폴더에 쓸 수 없습니다. 업데이트를 직접 다운로드하세요.",
+      "ZolNit가 설치 폴더에 쓸 수 없습니다. 업데이트를 직접 다운로드하세요.",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage("지금 업데이트"),
     "upload": MessageLookupByLibrary.simpleMessage("업로드"),

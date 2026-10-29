@@ -37,6 +37,7 @@
 | 平台 | 标准命名 | 说明 |
 | --- | --- | --- |
 | Linux x64 | `ZolNit-<版本>-linux-x64.zip` | 与 tar.gz 同源的 ZIP，保留可执行权限和符号链接 |
+| Linux x64 | `ZolNit-<版本>-linux-x64.deb` | 由同一 Release bundle 打包（`tool/ci/package_linux_deb.dart`），安装到 `/opt/ZolNit`，Helper 要求该 root 所有路径；CI 在 Ubuntu 22.04 runner 上安装、核对属主与依赖并卸载。仅验证 Ubuntu 22.04+ / x64，不代表其他发行版；未构建 rpm 与 AppImage |
 | Windows x64 | `ZolNit-<版本>-windows-x64.zip` | 便携 ZIP，与旧 zip 内容一致 |
 | Windows x64 | `ZolNit-<版本>-windows-x64-setup.exe` | Inno Setup 编译的安装器（仅编译验证，未签名） |
 | macOS arm64/x64 | `ZolNit-<版本>-macos-<架构>.dmg` | 含 Applications 快捷方式的 DMG，使用 hdiutil 创建 |
@@ -79,6 +80,23 @@ Gradle 层面同样实行 fail-closed：`release` 构建类型在缺少签名配
 在缺少 `ZOLNIT_ANDROID_*` 环境变量时直接以缺配置消息终止构建。
 旧的 debug 签名回退和 `local.properties`/`keystore.jks` 通用入口均已移除。
 Push 自动构建和默认的手动构建仍使用 `--debug`，不触及发布签名路径。
+
+### Windows 签名准备
+
+尚无代码签名证书，也未选定签名服务。默认候选保持未签名；云端在客户端分支上运行
+`tool/ci/windows_signature_report.ps1`，用原生 `Get-AuthenticodeSignature` 盘点实际 bundle 的全部 exe/dll 与安装器，
+写出 `dist/windows-signing-report.txt`（首行 `release_ready=false`，列出必须由发布者签名的 `ZolNit.exe`、
+`FlClashCore.exe`、`ZolNitHelperService.exe` 与安装器），并在 `source-provenance.txt` 记录同一结论。同一步骤还运行
+严格门禁并要求它拒绝这份未签名候选。
+
+取得并集成签名后，对候选运行：
+
+```powershell
+pwsh tool/ci/windows_signature_report.ps1 -Bundle build/windows/x64/runner/Release -Installer dist/ZolNit-<版本>-windows-x64-setup.exe -Strict -PublisherSubject '<已批准的证书主题>'
+```
+
+缺少 `ZolNit.exe`、`FlClashCore.exe`、`ZolNitHelperService.exe` 或安装器，任一文件签名状态不是 Valid，第一方文件主题不符或缺少时间戳，都会以退出码 3 失败；其他退出码表示脚本自身出错。签名所需的证书与签名方式由所有者提供，
+通过后才可把候选记为可发布；在此之前不得视为发布就绪。
 
 这些产物仍用于开发与发布前验收：默认 Android 为 Debug，客户端分支额外保留桌面规范安装候选。
 网站渠道 Release 内容使用 `APP_ENV=stable`，安全调试包与普通 Android Debug 保持 `dev`；
