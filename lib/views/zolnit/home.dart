@@ -245,11 +245,6 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage> {
                               connect: _connect,
                               openNodes: () => _select(1),
                               openPlans: () => _select(2),
-                              openNotice: (notice) =>
-                                  unawaited(showZolnitNotice(context, notice)),
-                              openNotices: () => unawaited(
-                                showZolnitNotices(context, session.noticeList),
-                              ),
                             ),
                             1 => ZolnitNodesPage(
                               session: session,

@@ -7,11 +7,13 @@ import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/zolnit/nodes.dart';
+import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
+import 'package:zolnit_client/zolnit_client.dart';
 
 import 'harness.dart';
 import '../../helpers/test_profiles.dart';
@@ -184,7 +186,7 @@ void main() {
         CoreStatus.connected;
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(find.text('已选择'), findsOneWidget);
+    expect(find.text('已选择'), findsNothing);
     expect(find.text('42 ms'), findsOneWidget);
     final action =
         harness.container.read(proxiesActionProvider.notifier)
@@ -376,7 +378,7 @@ void main() {
     await harness.mount(tester, ZolnitSkin.macos);
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(find.text('1\u00d7 \u8ba1\u91cf'), findsWidgets);
+    expect(find.text('1\u00d7 \u8ba1\u91cf'), findsNothing);
     expect(find.text('1.5\u00d7 \u8ba1\u91cf'), findsOneWidget);
   });
 
@@ -385,5 +387,35 @@ void main() {
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('可用线路会随套餐自动更新。'), findsOneWidget);
+  });
+
+  test('display title strips protocol suffix from real node names', () {
+    expect(zolnitDisplayTitle('香港 Lite A · HY2 · 1×'), '香港 Lite A');
+    expect(zolnitDisplayTitle('美国 · HY2 · 1×'), '美国');
+    expect(zolnitDisplayTitle('香港 · 轻风 01'), '香港 · 轻风 01');
+  });
+
+  test('display title strips leading flag when badge renders it', () {
+    expect(zolnitDisplayTitle('🇭🇰 香港 Lite A · HY2 · 1×'), '香港 Lite A');
+    expect(zolnitDisplayTitle('🇺🇸 美国 · HY2 · 1×'), '美国');
+  });
+
+  test('ZolnitNode resolves HK flag and region from explicit emoji', () {
+    final node = ZolnitNode.fromJson({
+      'id': 1,
+      'name': '🇭🇰 香港 Lite A · HY2 · 1×',
+    });
+    expect(node.countryCode, 'HK');
+    expect(node.region, '香港');
+    expect(node.flag, isNotNull);
+    expect(zolnitDisplayTitle(node.title), '香港 Lite A');
+  });
+
+  test('ZolnitNode resolves US flag and region from explicit emoji', () {
+    final node = ZolnitNode.fromJson({'id': 2, 'name': '🇺🇸 美国 · HY2 · 1×'});
+    expect(node.countryCode, 'US');
+    expect(node.region, '美国');
+    expect(node.flag, isNotNull);
+    expect(zolnitDisplayTitle(node.title), '美国');
   });
 }

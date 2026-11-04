@@ -20,7 +20,7 @@ bool safeMode(Ref ref) => safeModeBuild;
 
 @Riverpod(keepAlive: true)
 TunnelState? tunnelState(Ref ref) {
-  if (!system.isIOS) {
+  if (!system.isMobile) {
     return null;
   }
   final source = Service().tunnelState;

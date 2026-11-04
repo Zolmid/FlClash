@@ -19,6 +19,12 @@ class Profiles extends Table {
 
   DateTimeColumn get lastUpdateDate => dateTime().nullable()();
 
+  TextColumn get zolnitAccountId => text().nullable()();
+
+  TextColumn get zolnitBundleId => text().nullable()();
+
+  TextColumn get zolnitOrigin => text().nullable()();
+
   TextColumn get extendType => textEnum<ExtendType>()();
 
   IntColumn get scriptId => integer().nullable()();
@@ -162,6 +168,9 @@ extension RawProfilExt on RawProfile {
       url: url,
       ageSecretKey: ageSecretKey ?? '',
       lastUpdateDate: lastUpdateDate,
+      zolnitAccountId: zolnitAccountId,
+      zolnitBundleId: zolnitBundleId,
+      zolnitOrigin: zolnitOrigin,
       autoUpdateDuration: Duration(milliseconds: autoUpdateDurationMillis),
       subscriptionInfo: subscriptionInfo,
       autoUpdate: autoUpdate,
@@ -186,6 +195,9 @@ extension ProfilesCompanionExt on Profile {
       url: url,
       ageSecretKey: Value(ageSecretKey.isEmpty ? null : ageSecretKey),
       lastUpdateDate: Value(lastUpdateDate),
+      zolnitAccountId: Value(zolnitAccountId),
+      zolnitBundleId: Value(zolnitBundleId),
+      zolnitOrigin: Value(zolnitOrigin),
       autoUpdateDurationMillis: autoUpdateDuration.inMilliseconds,
       subscriptionInfo: Value(subscriptionInfo),
       autoUpdate: autoUpdate,

@@ -354,6 +354,10 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
         throw const ClientFailure('invalid_client_bundle');
       }
       await _saveClientBundle(profile, bundle, clock());
+      if (!current()) throw const ClientFailure('superseded');
+      ref
+          .read(profilesActionProvider.notifier)
+          .putProfile(profile.copyWith(lastUpdateDate: clock()));
       final keep = <String>{await zolnitBundlePath(profile)};
       if (existing?.zolnitBundleId != null) {
         keep.add(await zolnitBundlePath(existing!));
@@ -367,10 +371,6 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
           await entry.delete();
         }
       }
-      if (!current()) throw const ClientFailure('superseded');
-      ref
-          .read(profilesActionProvider.notifier)
-          .putProfile(profile.copyWith(lastUpdateDate: clock()));
       status.set(
         bundle.isFresh(clock())
             ? ZolnitBundleStatus.ready

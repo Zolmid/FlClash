@@ -2965,6 +2965,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "Conéctate con los servidores incluidos en tu plan.",
     ),
+    "zolnitConnectionIssue": MessageLookupByLibrary.simpleMessage(
+      "Problema de conexión",
+    ),
     "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
       "La página de conexión no está disponible. Inténtalo de nuevo.",
     ),
@@ -3373,6 +3376,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage(
       "Tráfico restante",
     ),
+    "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("restante"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage(
       "Usado en este ciclo",
     ),

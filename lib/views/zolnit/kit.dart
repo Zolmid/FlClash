@@ -1,6 +1,7 @@
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:zolnit_client/zolnit_client.dart';
 
 import 'skin.dart';
 
@@ -238,7 +239,6 @@ class ZolnitFlagBadge extends StatelessWidget {
       ZolnitSkin.linux => colors.paper,
       _ => colors.soft,
     };
-    final initial = label.isEmpty ? '' : label.characters.first.toUpperCase();
     return DecoratedBox(
       decoration: ShapeDecoration(
         color: fill,
@@ -248,14 +248,10 @@ class ZolnitFlagBadge extends StatelessWidget {
         dimension: size,
         child: Center(
           child: flag == null
-              ? Text(
-                  initial,
-                  style: zolnitText(
-                    context,
-                    size * 0.42,
-                    weight: FontWeight.w600,
-                    color: colors.muted,
-                  ),
+              ? GlyphIcon(
+                  AppGlyphs.proxies,
+                  size: size * 0.55,
+                  color: colors.muted,
                 )
               : Text(
                   flag!,
@@ -278,12 +274,14 @@ class ZolnitSegmented<T> extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.underlined = false,
+    this.expanded = false,
   });
 
   final List<(T, String)> options;
   final T? value;
   final ValueChanged<T>? onChanged;
   final bool underlined;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -331,12 +329,12 @@ class ZolnitSegmented<T> extends StatelessWidget {
         9.0,
       ),
       ZolnitSkin.android => (
-        Colors.transparent,
-        BorderSide(color: colors.accent.withValues(alpha: 0.333)),
+        colors.soft,
+        BorderSide.none,
         26.0,
-        0.0,
-        colors.solid,
-        0.0,
+        3.0,
+        colors.blue,
+        23.0,
       ),
     };
     final onAccent = skin == ZolnitSkin.linux;
@@ -351,10 +349,11 @@ class ZolnitSegmented<T> extends StatelessWidget {
         ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
         children: [
           for (final (option, label) in options)
             Flexible(
+              fit: expanded ? FlexFit.tight : FlexFit.loose,
               child: Semantics(
                 button: true,
                 selected: option == value,
@@ -701,4 +700,38 @@ class ZolnitStatTile extends StatelessWidget {
       ),
     );
   }
+}
+
+final _protocolSuffix = RegExp(
+  r'[\s·|_/-]+'
+  r'(?:HY2|Hysteria2?|SS|Shadowsocks|VMess|VLESS|Trojan|WireGuard|TUIC|Reality)'
+  r'(?:[\s·|_/-]+\d+(?:\.\d+)?[x×])?'
+  r'\s*$',
+  caseSensitive: false,
+);
+
+final _trailingRate = RegExp(r'[\s·|_/-]+\d+(?:\.\d+)?[x×]\s*$');
+
+String zolnitDisplayTitle(String title) {
+  final named = ZolnitNode.fromJson({'name': title});
+  final clean = named.title
+      .replaceFirst(_protocolSuffix, '')
+      .replaceFirst(_trailingRate, '')
+      .trim();
+  return clean.isEmpty ? named.title : clean;
+}
+
+({String title, String region, String? flag}) zolnitNodePresentation(
+  ZolnitNode node,
+) {
+  final named = ZolnitNode.fromJson({'name': node.name});
+  return (
+    title: zolnitDisplayTitle(node.title),
+    region: node.region.isNotEmpty
+        ? node.region
+        : named.countryCode != null
+        ? named.region
+        : '',
+    flag: node.flag ?? named.flag,
+  );
 }

@@ -1527,5 +1527,7 @@
   "zolnitReturnHkLite": "Hong Kong preferred",
   "zolnitReturnHkOptimized": "Hong Kong optimized",
   "zolnitReturnEnabled": "Enable China routing",
-  "zolnitReturnLocal": "Local direct connection"
+  "zolnitReturnLocal": "Local direct connection",
+  "zolnitTrafficLeftShort": "remaining",
+  "zolnitConnectionIssue": "Connection problem"
 }

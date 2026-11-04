@@ -2271,6 +2271,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "요금제에 포함된 서버에 연결합니다.",
     ),
+    "zolnitConnectionIssue": MessageLookupByLibrary.simpleMessage(
+      "연결에 문제가 있습니다",
+    ),
     "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
       "연결 페이지를 표시할 수 없습니다. 다시 시도하세요.",
     ),
@@ -2567,6 +2570,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("연결을 더 간편하게."),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3년마다"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("남은 트래픽"),
+    "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("남음"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage("이번 주기 사용량"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("2년마다"),
     "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage("로그인 세션"),

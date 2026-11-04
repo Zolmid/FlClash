@@ -2317,6 +2317,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage(
       "プランに含まれるサーバーに接続します。",
     ),
+    "zolnitConnectionIssue": MessageLookupByLibrary.simpleMessage("接続に問題があります"),
     "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
       "接続ページを表示できません。もう一度お試しください。",
     ),
@@ -2611,6 +2612,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("接続を、もっとシンプルに。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3年ごと"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("残りの通信量"),
+    "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("残り"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage("今期の使用量"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("2年ごと"),
     "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage("ログインセッション"),

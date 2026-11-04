@@ -13133,6 +13133,26 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `remaining`
+  String get zolnitTrafficLeftShort {
+    return Intl.message(
+      'remaining',
+      name: 'zolnitTrafficLeftShort',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connection problem`
+  String get zolnitConnectionIssue {
+    return Intl.message(
+      'Connection problem',
+      name: 'zolnitConnectionIssue',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

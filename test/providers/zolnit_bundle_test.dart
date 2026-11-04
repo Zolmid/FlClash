@@ -9,9 +9,11 @@ import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_connection.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/widgets.dart';
@@ -31,6 +33,8 @@ class _Core extends Mock implements CoreHandlerInterface {}
 
 class _Downloader extends Mock implements Dio {}
 
+class _UpdateParams extends Fake implements UpdateParams {}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory directory;
@@ -41,6 +45,7 @@ void main() {
   void Function(ChangeProxyParams)? changed;
   late DateTime now;
   late bool safe;
+  TunnelState? tunnelState;
   Future<void> Function()? validation;
   Map<String, dynamic>? compiled;
   String? compiledDigest;
@@ -48,6 +53,7 @@ void main() {
 
   setUpAll(() async {
     registerFallbackValue(<String, dynamic>{});
+    registerFallbackValue(_UpdateParams());
     registerFallbackValue(
       const ProbeParams(url: 'https://example.invalid/', timeout: 1000),
     );
@@ -68,6 +74,7 @@ void main() {
     );
     now = bundleTime(1001);
     safe = true;
+    tunnelState = null;
     validation = null;
     compiled = null;
     compiledDigest = null;
@@ -107,6 +114,7 @@ void main() {
       () => core.invalidateRoutingLease(any()),
     ).thenAnswer((_) async => true);
     when(core.resetConnections).thenAnswer((_) async => true);
+    when(() => core.updateConfig(any())).thenAnswer((_) async => '');
     when(() => core.probe(any())).thenAnswer((call) async {
       final params = call.positionalArguments.single as ProbeParams;
       return ProbeResult(statusCode: 200, delay: 20, url: params.url);
@@ -166,6 +174,7 @@ void main() {
         currentProfileIdProvider.overrideWithBuild((_, _) => null),
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
         safeModeProvider.overrideWith((_) => safe),
+        tunnelStateProvider.overrideWith((_) => tunnelState),
       ],
     );
   });
@@ -458,6 +467,178 @@ void main() {
   );
 
   test(
+    'private global mode selects a permitted outbound before Core switches',
+    () async {
+      final profile = await sync();
+      await activate(profile);
+      safe = false;
+      container.invalidate(safeModeProvider);
+
+      final applied = await container
+          .read(setupActionProvider.notifier)
+          .changeModeIfCurrent(Mode.global, isCurrent: () => true);
+
+      expect(applied, isTrue);
+      final calls = verify(
+        () => core.changeProxy(captureAny()),
+      ).captured.cast<ChangeProxyParams>();
+      final global = calls.lastWhere(
+        (params) => params.groupName == GroupName.GLOBAL.name,
+      );
+      expect(global.proxyName, isNot(anyOf('DIRECT', 'REJECT')));
+      expect(
+        global.proxyName,
+        anyOf('zn.node.vless.7', 'zn.node.hysteria.8', 'zn.node.trojan.9'),
+      );
+      verify(() => core.updateConfig(any())).called(1);
+      expect(container.read(patchClashConfigProvider).mode, Mode.global);
+    },
+  );
+
+  test(
+    'private global mode rejects a Core selection failure without switching',
+    () async {
+      final profile = await sync();
+      await activate(profile);
+      safe = false;
+      container.invalidate(safeModeProvider);
+      when(() => core.changeProxy(any())).thenAnswer(
+        (_) async => const ChangeProxyResult(message: 'selection denied'),
+      );
+
+      final applied = await container
+          .read(setupActionProvider.notifier)
+          .changeModeIfCurrent(Mode.global, isCurrent: () => true);
+
+      expect(applied, isFalse);
+      verify(() => core.changeProxy(any())).called(1);
+      verifyNever(() => core.updateConfig(any()));
+      expect(container.read(patchClashConfigProvider).mode, isNot(Mode.global));
+    },
+  );
+
+  test(
+    'a reconstructed private Global profile seeds a permitted outbound',
+    () async {
+      final profile = await sync();
+      final built = await build(profile);
+
+      final selections = container
+          .read(zolnitRoutingProvider)
+          .preparedModeSelections(profile.id, built.md5, const {}, Mode.global);
+
+      expect(selections, isNotNull);
+      expect(
+        selections![GroupName.GLOBAL.name],
+        isNot(anyOf('DIRECT', 'REJECT')),
+      );
+      expect(
+        selections[GroupName.GLOBAL.name],
+        anyOf('zn.node.vless.7', 'zn.node.hysteria.8', 'zn.node.trojan.9'),
+      );
+    },
+  );
+
+  test('manual-only bundles seed Global from entitled outbounds', () async {
+    fixture.onBundle = (_) async {
+      final raw = clientBundleFixture();
+      (raw['routing'] as Map)['nodes'] = <Object?>[];
+      return clientBundleResponse(raw);
+    };
+    final profile = await sync();
+    final built = await build(profile);
+
+    final selections = container
+        .read(zolnitRoutingProvider)
+        .preparedModeSelections(profile.id, built.md5, const {}, Mode.global);
+
+    expect(
+      selections?[GroupName.GLOBAL.name],
+      anyOf('zn.node.vless.7', 'zn.node.hysteria.8', 'zn.node.trojan.9'),
+    );
+  });
+
+  test(
+    'manual-only Global falls back to the current bundle without a plan',
+    () async {
+      fixture.onBundle = (_) async {
+        final raw = clientBundleFixture();
+        (raw['routing'] as Map)['nodes'] = <Object?>[];
+        return clientBundleResponse(raw);
+      };
+      final profile = await sync();
+      final routing = container.read(zolnitRoutingProvider)..clear();
+
+      expect(
+        routing.globalProxy(profile.id),
+        anyOf('zn.node.vless.7', 'zn.node.hysteria.8', 'zn.node.trojan.9'),
+      );
+    },
+  );
+
+  test('a staged renewal overrides an older active plan for Global', () async {
+    final profile = await sync();
+    final before = await build(profile);
+    await activate(profile);
+    fixture.onBundle = (_) async => clientBundleResponse(
+      clientBundleFixture(issuedAt: 1001, bundleId: 'renewed-global-bundle'),
+    );
+    now = bundleTime(1002);
+    final renewed = await sync();
+    final after = await build(renewed);
+
+    expect(after.md5, isNot(before.md5));
+    expect(
+      container
+          .read(zolnitRoutingProvider)
+          .preparedModeSelections(
+            renewed.id,
+            after.md5,
+            const {},
+            Mode.global,
+          )?[GroupName.GLOBAL.name],
+      isNot(anyOf('DIRECT', 'REJECT')),
+    );
+  });
+
+  test(
+    'Global ignores DIRECT and retains an allowed existing selection',
+    () async {
+      final profile = await sync();
+      final built = await build(profile);
+      container.read(groupsProvider.notifier).value = const [
+        Group(type: GroupType.Selector, name: 'GLOBAL', now: 'DIRECT'),
+      ];
+      var selection = container
+          .read(zolnitRoutingProvider)
+          .preparedModeSelections(
+            profile.id,
+            built.md5,
+            const {},
+            Mode.global,
+          )![GroupName.GLOBAL.name];
+      expect(selection, isNot('DIRECT'));
+
+      container.read(groupsProvider.notifier).value = const [
+        Group(
+          type: GroupType.Selector,
+          name: 'GLOBAL',
+          now: 'zn.node.trojan.9',
+        ),
+      ];
+      selection = container
+          .read(zolnitRoutingProvider)
+          .preparedModeSelections(
+            profile.id,
+            built.md5,
+            const {},
+            Mode.global,
+          )![GroupName.GLOBAL.name];
+      expect(selection, 'zn.node.trojan.9');
+    },
+  );
+
+  test(
     'bundle dispatch uses no subscription URL and commits one bound source record',
     () async {
       expect(fixture.session.subscription!['subscribe_url'], isNull);
@@ -472,6 +653,12 @@ void main() {
       );
       final record = File(await zolnitBundlePath(profile));
       expect(await record.exists(), isTrue);
+      expect(
+        await File(
+          await appPath.getProfilePath(profile.id.toString()),
+        ).exists(),
+        isFalse,
+      );
       if (!Platform.isWindows) {
         expect((await record.stat()).mode & 0x1ff, 0x180);
       }
@@ -491,6 +678,146 @@ void main() {
       );
       verifyNever(() => core.getConfig(any()));
       verifyNever(() => core.getProfileBase(any()));
+    },
+  );
+
+  test('a private bundle builds without a legacy profile YAML', () async {
+    final profile = await sync();
+    final source = File(await appPath.getProfilePath(profile.id.toString()));
+    expect(await source.exists(), isFalse);
+    await build(profile);
+  });
+
+  test('validation rejection leaves no private bundle record behind', () async {
+    when(
+      () => core.validateConfig(any()),
+    ).thenAnswer((_) async => 'configuration rejected');
+    when(() => core.convertProxies(any())).thenAnswer((_) async => const []);
+
+    await expectLater(
+      container.read(zolnitSyncProfileProvider)(),
+      throwsA(
+        isA<ClientFailure>().having(
+          (error) => error.code,
+          'code',
+          'invalid_client_bundle',
+        ),
+      ),
+    );
+
+    expect(container.read(profilesProvider), isEmpty);
+    final profiles = Directory(await appPath.profilesPath);
+    if (!await profiles.exists()) {
+      return;
+    }
+    expect(
+      await profiles
+          .list(recursive: true, followLinks: false)
+          .where((entry) => entry is File && entry.path.endsWith('.json'))
+          .isEmpty,
+      isTrue,
+    );
+  });
+
+  test(
+    'connection phase waits for a current bundle across restart and logout races',
+    () async {
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.disconnected,
+      );
+      await pumpEventQueue();
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.disconnected,
+      );
+
+      container.read(runTimeProvider.notifier).value = 1;
+      expect(await container.read(zolnitStoredBundleProvider.future), isTrue);
+      await pumpEventQueue();
+      await pumpEventQueue();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connected,
+      );
+
+      container
+          .read(profilesProvider.notifier)
+          .put(profile.copyWith(selectedMap: {'zn.service.ai': 'DIRECT'}));
+      expect(
+        container.read(zolnitStoredBundleProvider),
+        isA<AsyncData<bool>>().having((value) => value.value, 'value', true),
+      );
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connected,
+      );
+
+      tunnelState = TunnelState.pending;
+      container.invalidate(tunnelStateProvider);
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connecting,
+      );
+      tunnelState = TunnelState.disconnected;
+      container.invalidate(tunnelStateProvider);
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.unavailable,
+      );
+      tunnelState = TunnelState.connected;
+      container.invalidate(tunnelStateProvider);
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connected,
+      );
+
+      container.read(coreStatusProvider.notifier).value =
+          CoreStatus.disconnected;
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.disconnected,
+      );
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+
+      final entered = Completer<void>();
+      final pending = Completer<void>();
+      validation = () {
+        entered.complete();
+        return pending.future;
+      };
+      final operation = container.read(zolnitSyncProfileProvider)();
+      await entered.future;
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connecting,
+      );
+
+      await fixture.session.logout();
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.unavailable,
+      );
+      pending.complete();
+      await expectLater(
+        operation,
+        throwsA(
+          isA<ClientFailure>().having(
+            (error) => error.code,
+            'code',
+            'superseded',
+          ),
+        ),
+      );
+      expect(container.read(currentProfileProvider)?.id, profile.id);
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.unavailable,
+      );
     },
   );
 

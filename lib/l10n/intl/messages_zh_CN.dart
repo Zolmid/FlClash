@@ -2060,6 +2060,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "启动时自动连接到上次使用的线路。",
     ),
     "zolnitConnectSub": MessageLookupByLibrary.simpleMessage("连接到套餐包含的线路。"),
+    "zolnitConnectionIssue": MessageLookupByLibrary.simpleMessage("连接异常"),
     "zolnitConnectionPageUnavailable": MessageLookupByLibrary.simpleMessage(
       "连接页面暂时无法显示，请重试。",
     ),
@@ -2320,6 +2321,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("让连接回归简单。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("三年付"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("剩余流量"),
+    "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("剩余"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage("本期已用流量"),
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("两年付"),
     "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage("登录会话"),

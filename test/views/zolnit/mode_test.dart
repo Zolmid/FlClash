@@ -8,8 +8,10 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_connection.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/zolnit/connect.dart';
+import 'package:fl_clash/views/zolnit/connect_art.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +31,8 @@ void main() {
   late ProviderContainer container;
   final calls = <UpdateParams>[];
   var openedNodes = 0;
+  var connectionRequests = 0;
+  var phase = ZolnitConnectionPhase.disconnected;
 
   setUpAll(() {
     registerFallbackValue(
@@ -43,6 +47,8 @@ void main() {
     core = _ModeCore();
     calls.clear();
     openedNodes = 0;
+    connectionRequests = 0;
+    phase = ZolnitConnectionPhase.disconnected;
     when(core.startLog).thenAnswer((_) {});
     when(core.stopLog).thenAnswer((_) {});
     when(() => core.updateConfig(any())).thenAnswer((invocation) {
@@ -56,6 +62,7 @@ void main() {
         zolnitSessionProvider.overrideWithValue(harness.session),
         zolnitSyncProfileProvider.overrideWithValue(() async => null),
         zolnitClientBundleTransportProvider.overrideWithValue(false),
+        zolnitConnectionPhaseProvider.overrideWith((ref) => phase),
         safeModeProvider.overrideWithValue(false),
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
         profilesProvider.overrideWith(() => TestProfiles([profile])),
@@ -88,11 +95,11 @@ void main() {
           compact: false,
           syncing: syncing,
           syncFailed: false,
-          connect: () async {},
+          connect: () async {
+            connectionRequests++;
+          },
           openNodes: () => openedNodes++,
           openPlans: () {},
-          openNotice: (_) {},
-          openNotices: () {},
         ),
       ),
     );
@@ -101,6 +108,43 @@ void main() {
   Mode? displayed(WidgetTester tester) => tester
       .widget<ZolnitSegmented<Mode>>(find.byType(ZolnitSegmented<Mode>))
       .value;
+
+  for (final state in [
+    ZolnitConnectionPhase.unavailable,
+    ZolnitConnectionPhase.connecting,
+  ]) {
+    testWidgets(
+      'active VPN can disconnect during $state without a connected claim',
+      (tester) async {
+        phase = state;
+        container.read(runTimeProvider.notifier).value = 1;
+        await mount(tester, syncing: state == ZolnitConnectionPhase.connecting);
+        expect(find.text('已连接'), findsNothing);
+        final power = tester.widget<ZolnitPowerButton>(
+          find.byType(ZolnitPowerButton),
+        );
+        expect(power.onPressed, isNotNull);
+        expect(power.label, '断开连接');
+        await tester.tap(find.byType(ZolnitPowerButton));
+        await tester.pump();
+        expect(connectionRequests, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('confirmed connection has one status and a disconnect action', (
+    tester,
+  ) async {
+    phase = ZolnitConnectionPhase.connected;
+    container.read(runTimeProvider.notifier).value = 1;
+    await mount(tester);
+    expect(find.text('已连接'), findsOneWidget);
+    expect(
+      tester.widget<ZolnitPowerButton>(find.byType(ZolnitPowerButton)).label,
+      '断开连接',
+    );
+  });
 
   for (final throwsError in [false, true]) {
     testWidgets(

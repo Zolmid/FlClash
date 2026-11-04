@@ -87,8 +87,9 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final seen = <String>{};
     final result = <String>[];
     for (final node in nodes) {
-      if (node.region.isNotEmpty && seen.add(node.region)) {
-        result.add(node.region);
+      final region = zolnitNodePresentation(node).region;
+      if (region.isNotEmpty && seen.add(region)) {
+        result.add(region);
       }
     }
     return result;
@@ -97,11 +98,12 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
   List<ZolnitNode> _filtered(List<ZolnitNode> nodes) {
     final lower = _query.trim().toLowerCase();
     return nodes.where((node) {
-      if (_region.isNotEmpty && node.region != _region) return false;
+      final region = zolnitNodePresentation(node).region;
+      if (_region.isNotEmpty && region != _region) return false;
       if (lower.isEmpty) return true;
       return node.name.toLowerCase().contains(lower) ||
           node.title.toLowerCase().contains(lower) ||
-          node.region.toLowerCase().contains(lower) ||
+          region.toLowerCase().contains(lower) ||
           node.tags.any((tag) => tag.toLowerCase().contains(lower));
     }).toList();
   }
@@ -662,41 +664,28 @@ class _NodeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = skin.desktop && !compact
-            ? ((constraints.maxWidth + 14) / 340).floor().clamp(1, 2)
-            : 1;
-        final width = (constraints.maxWidth - 14 * (columns - 1)) / columns;
-        return Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          children: [
-            for (final node in nodes)
-              SizedBox(
-                width: width,
-                child: _NodeCard(
-                  node: node,
-                  skin: skin,
-                  coreSelection: coreSelection,
-                  selectorGroup: members.contains(node.proxyName)
-                      ? selectorGroup
-                      : null,
-                  testUrl: testUrl,
-                  onSelect: onSelect != null && members.contains(node.proxyName)
-                      ? () => onSelect!(node.proxyName)
-                      : null,
-                ),
-              ),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        for (final node in nodes)
+          _NodeListTile(
+            node: node,
+            skin: skin,
+            coreSelection: coreSelection,
+            selectorGroup: members.contains(node.proxyName)
+                ? selectorGroup
+                : null,
+            testUrl: testUrl,
+            onSelect: onSelect != null && members.contains(node.proxyName)
+                ? () => onSelect!(node.proxyName)
+                : null,
+          ),
+      ],
     );
   }
 }
 
-class _NodeCard extends ConsumerWidget {
-  const _NodeCard({
+class _NodeListTile extends ConsumerWidget {
+  const _NodeListTile({
     required this.node,
     required this.skin,
     required this.selectorGroup,
@@ -739,7 +728,7 @@ class _NodeCard extends ConsumerWidget {
         : null;
 
     final delayLabel = delay == null || delay == 0
-        ? '\u2014'
+        ? '—'
         : delay > 0
         ? '$delay ms'
         : delayFailureText(delay, l10n);
@@ -748,80 +737,72 @@ class _NodeCard extends ConsumerWidget {
         ? colors.muted
         : context.colorScheme.delayColor(delay) ?? colors.muted;
 
-    final cardColor = selected
-        ? colors.accent.withValues(alpha: dark ? 0.18 : 0.08)
-        : colors.solid;
+    final presentation = zolnitNodePresentation(node);
+    final regionLabel = presentation.region.isEmpty
+        ? l10n.unknown
+        : presentation.region;
 
-    return ZolnitCard(
-      color: cardColor,
-      corner: skin.tileCorner,
-      side: selected
-          ? BorderSide(color: colors.accent.withValues(alpha: 0.4))
-          : null,
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        customBorder: AppShape.all(skin.tileCorner),
-        onTap: onSelect,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: skin.desktop ? 20 : 18,
-            vertical: 18,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  ZolnitFlagBadge(
-                    flag: node.flag,
-                    label: node.region.isEmpty ? l10n.unknown : node.region,
-                    size: 36,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          node.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: zolnitText(
-                            context,
-                            13,
-                            weight: FontWeight.w600,
-                          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.line(0.06))),
+      ),
+      child: Material(
+        color: selected
+            ? colors.accent.withValues(alpha: dark ? 0.12 : 0.06)
+            : Colors.transparent,
+        child: InkWell(
+          onTap: onSelect,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: skin.desktop ? 4 : 2,
+              vertical: skin.desktop ? 10 : 12,
+            ),
+            child: Row(
+              children: [
+                ZolnitFlagBadge(
+                  flag: presentation.flag,
+                  label: regionLabel,
+                  size: 30,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        presentation.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: zolnitText(
+                          context,
+                          skin.desktop ? 12 : 13,
+                          weight: FontWeight.w500,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          node.region.isEmpty ? l10n.unknown : node.region,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: zolnitText(context, 11, color: colors.muted),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        regionLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: zolnitText(
+                          context,
+                          skin.desktop ? 10 : 11,
+                          color: colors.muted,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+                if (node.rateKnown && node.rate != 1) ...[
+                  ZolnitPill(label: l10n.zolnitNodeMultiplier(node.rateText)),
+                  const SizedBox(width: 8),
                 ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final tag in node.tags) ZolnitPill(label: tag),
-                  if (node.rateKnown)
-                    ZolnitPill(label: l10n.zolnitNodeMultiplier(node.rateText)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  GlyphIcon(AppGlyphs.bolt, size: 14, color: delayColor),
-                  const SizedBox(width: 5),
-                  Text(
+                SizedBox(
+                  width: 56,
+                  child: Text(
                     delayLabel,
+                    textAlign: TextAlign.end,
                     style: zolnitText(
                       context,
                       11,
@@ -829,43 +810,13 @@ class _NodeCard extends ConsumerWidget {
                       color: delayColor,
                     ),
                   ),
-                  const Spacer(),
-                  if (selected)
-                    DecoratedBox(
-                      decoration: ShapeDecoration(
-                        color: colors.accent,
-                        shape: AppShape.full,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GlyphIcon(
-                              AppGlyphs.check,
-                              size: 12,
-                              color: dark ? colors.paper : Colors.white,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              l10n.selected,
-                              style: zolnitText(
-                                context,
-                                11,
-                                weight: FontWeight.w600,
-                                color: dark ? colors.paper : Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                ),
+                if (selected) ...[
+                  const SizedBox(width: 8),
+                  GlyphIcon(AppGlyphs.check, size: 16, color: colors.accent),
                 ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

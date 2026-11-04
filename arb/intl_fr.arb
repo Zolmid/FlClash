@@ -1527,5 +1527,7 @@
   "zolnitReturnHkLite": "Hong Kong préféré",
   "zolnitReturnHkOptimized": "Hong Kong optimisé",
   "zolnitReturnEnabled": "Activer le routage vers la Chine",
-  "zolnitReturnLocal": "Connexion locale directe"
+  "zolnitReturnLocal": "Connexion locale directe",
+  "zolnitTrafficLeftShort": "restant",
+  "zolnitConnectionIssue": "Problème de connexion"
 }

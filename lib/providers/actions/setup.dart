@@ -497,6 +497,28 @@ class SetupAction extends _$SetupAction {
     return _updateScheduler.run(() async {
       if (!current()) return false;
       try {
+        final currentProfile = profile;
+        if (mode == Mode.global &&
+            currentProfile != null &&
+            isZolnitBundleProfile(currentProfile)) {
+          final proxy = ref
+              .read(zolnitRoutingProvider)
+              .globalProxy(currentProfile.id);
+          if (proxy == null ||
+              !await ref
+                  .read(proxiesActionProvider.notifier)
+                  .changeProxyIfCurrent(
+                    groupName: GroupName.GLOBAL.name,
+                    proxyName: proxy,
+                    isCurrent: current,
+                  )) {
+            dialogs.showNotifier(
+              currentAppLocalizations.changeProxyFailedTip,
+              level: MessageLevel.error,
+            );
+            return false;
+          }
+        }
         await _sendConfigUpdate(
           ref.read(patchClashConfigProvider).copyWith(mode: mode),
         );
@@ -980,18 +1002,25 @@ class SetupAction extends _$SetupAction {
           profile != null &&
               isZolnitBundleProfile(profile) &&
               realProfile != null
-          ? rawSetupParams.copyWith(
-              routingLease: ref
-                  .read(zolnitRoutingProvider)
-                  .preparedLease(profile.id, realProfile.md5),
-              selectedMap: ref
-                  .read(zolnitRoutingProvider)
-                  .preparedSelections(
-                    profile.id,
-                    realProfile.md5,
-                    rawSetupParams.selectedMap,
-                  ),
-            )
+          ? () {
+              final routing = ref.read(zolnitRoutingProvider);
+              final selected = routing.preparedModeSelections(
+                profile!.id,
+                realProfile.md5,
+                rawSetupParams.selectedMap,
+                realPatchConfig.mode,
+              );
+              if (selected == null) {
+                throw const ClientFailure('client_bundle_binding_mismatch');
+              }
+              return rawSetupParams.copyWith(
+                routingLease: routing.preparedLease(
+                  profile.id,
+                  realProfile.md5,
+                ),
+                selectedMap: selected,
+              );
+            }()
           : rawSetupParams;
       final inputs = switch (setupState) {
         final state? when !profileFailed => (

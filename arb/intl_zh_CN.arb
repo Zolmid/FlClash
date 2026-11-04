@@ -1527,5 +1527,7 @@
   "zolnitReturnHkLite": "香港优选",
   "zolnitReturnHkOptimized": "香港优化",
   "zolnitReturnEnabled": "启用回国",
-  "zolnitReturnLocal": "本地直连"
+  "zolnitReturnLocal": "本地直连",
+  "zolnitTrafficLeftShort": "剩余",
+  "zolnitConnectionIssue": "连接异常"
 }

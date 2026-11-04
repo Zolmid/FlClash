@@ -39,6 +39,9 @@ void main() {
         extendType: ExtendType.script,
         scriptId: 7,
         order: 1,
+        zolnitAccountId: 'account-1',
+        zolnitBundleId: 'bundle-1',
+        zolnitOrigin: 'https://panel.example.invalid',
       );
       const second = Profile(
         id: 2,
@@ -55,6 +58,9 @@ void main() {
       final profiles = await database.profilesDao.query().get();
       expect(profiles.map((profile) => profile.id), [2, 1]);
       expect(profiles.last, first);
+      expect(profiles.last.zolnitAccountId, 'account-1');
+      expect(profiles.last.zolnitBundleId, 'bundle-1');
+      expect(profiles.last.zolnitOrigin, 'https://panel.example.invalid');
       expect(await database.profilesDao.fileNames().get(), [
         '1.yaml',
         '2.yaml',

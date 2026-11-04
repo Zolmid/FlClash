@@ -206,6 +206,18 @@ class ZolnitRouting with WidgetsBindingObserver {
     };
   }
 
+  Map<String, String>? preparedModeSelections(
+    int profileId,
+    String digest,
+    Map<String, String> selected,
+    Mode mode,
+  ) {
+    final prepared = preparedSelections(profileId, digest, selected);
+    if (mode != Mode.global) return prepared;
+    final proxy = globalProxy(profileId, digest: digest);
+    return proxy == null ? null : {...prepared, GroupName.GLOBAL.name: proxy};
+  }
+
   Map<String, dynamic>? preparedLease(int profileId, String digest) {
     final plan = _preparedPlans[(profileId, digest)];
     if (plan == null ||
@@ -244,6 +256,54 @@ class ZolnitRouting with WidgetsBindingObserver {
           },
       ],
     };
+  }
+
+  String? globalProxy(int profileId, {String? digest}) {
+    final profile = ref.read(profilesProvider).getProfile(profileId);
+    final session = ref.read(zolnitSessionProvider);
+    final bundle = session.clientBundle;
+    if (profile == null ||
+        !isCurrentZolnitBundleProfile(profile, session) ||
+        bundle == null) {
+      return null;
+    }
+    final candidatePlan = digest == null
+        ? _active
+        : _preparedPlans[(profileId, digest)];
+    final plan =
+        candidatePlan != null &&
+            candidatePlan.profileId == profileId &&
+            (digest == null || candidatePlan.digest == digest) &&
+            candidatePlan.accountGeneration == session.api.generation &&
+            candidatePlan.accountId == bundle.accountId &&
+            candidatePlan.bundleId == bundle.bundleId
+        ? candidatePlan
+        : null;
+    final groups = ref.read(groupsProvider);
+    final allowed = {
+      for (final outbound in bundle.outbounds)
+        if (!const {'DIRECT', 'REJECT'}.contains(outbound.proxyName))
+          outbound.proxyName,
+    };
+    String? leaf(String? name, [Set<String>? seen]) {
+      final visited = seen ?? <String>{};
+      if (name == null || name.isEmpty || !visited.add(name)) return null;
+      final next = groups.getGroup(name)?.realNow;
+      return next == null || next.isEmpty ? name : leaf(next, visited);
+    }
+
+    for (final service
+        in plan?.manifest?.services ?? const <ManagedRouteService>[]) {
+      final current = leaf(groups.getGroup(service.groupName)?.realNow);
+      if (current != null && allowed.contains(current)) return current;
+      for (final groupName in [service.route.groupName, service.manualGroup]) {
+        final selected = leaf(groups.getGroup(groupName)?.realNow);
+        if (selected != null && allowed.contains(selected)) return selected;
+      }
+    }
+    final global = leaf(groups.getGroup(GroupName.GLOBAL.name)?.realNow);
+    if (global != null && allowed.contains(global)) return global;
+    return allowed.firstOrNull;
   }
 
   bool _matchesCoreLease(Map<String, dynamic>? guard, _RoutingPlan plan) =>

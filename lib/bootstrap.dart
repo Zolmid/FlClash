@@ -22,6 +22,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_color_utilities/palettes/tonal_palette.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:riverpod/misc.dart' as rp;
 
 class Bootstrap {
   static Bootstrap? _instance;
@@ -35,7 +36,10 @@ class Bootstrap {
 
   BootDecision _bootDecision = const BootDecision();
 
-  Future<ProviderContainer> init(int version) async {
+  Future<ProviderContainer> init(
+    int version, {
+    List<rp.Override> overrides = const [],
+  }) async {
     globalState.appEnv = const String.fromEnvironment(
       'APP_ENV',
       defaultValue: 'pre',
@@ -44,7 +48,7 @@ class Bootstrap {
     trayPort = appTray;
     navigationPort = navigation;
     final dynamicColor = await _initDynamicColor();
-    return _initData(version, dynamicColor);
+    return _initData(version, dynamicColor, overrides);
   }
 
   Future<DynamicColorSeeds> _initDynamicColor() async {
@@ -98,6 +102,7 @@ class Bootstrap {
   Future<ProviderContainer> _initData(
     int version,
     DynamicColorSeeds dynamicColor,
+    List<rp.Override> overrides,
   ) async {
     await _claimDataDirectory();
     globalState.packageInfo = await PackageInfo.fromPlatform();
@@ -127,7 +132,7 @@ class Bootstrap {
     final appStateOverrides = buildAppStateOverrides(appState);
     final configOverrides = buildConfigOverrides(config);
     final container = ProviderContainer(
-      overrides: [...appStateOverrides, ...configOverrides],
+      overrides: [...appStateOverrides, ...configOverrides, ...overrides],
     );
     globalState.container = container;
     container

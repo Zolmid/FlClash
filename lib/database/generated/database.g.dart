@@ -79,6 +79,39 @@ class $ProfilesTable extends Profiles
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _zolnitAccountIdMeta = const VerificationMeta(
+    'zolnitAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> zolnitAccountId = GeneratedColumn<String>(
+    'zolnit_account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _zolnitBundleIdMeta = const VerificationMeta(
+    'zolnitBundleId',
+  );
+  @override
+  late final GeneratedColumn<String> zolnitBundleId = GeneratedColumn<String>(
+    'zolnit_bundle_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _zolnitOriginMeta = const VerificationMeta(
+    'zolnitOrigin',
+  );
+  @override
+  late final GeneratedColumn<String> zolnitOrigin = GeneratedColumn<String>(
+    'zolnit_origin',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   late final GeneratedColumnWithTypeConverter<ExtendType, String> extendType =
       GeneratedColumn<String>(
@@ -189,6 +222,9 @@ class $ProfilesTable extends Profiles
     url,
     ageSecretKey,
     lastUpdateDate,
+    zolnitAccountId,
+    zolnitBundleId,
+    zolnitOrigin,
     extendType,
     scriptId,
     matchTarget,
@@ -255,6 +291,33 @@ class $ProfilesTable extends Profiles
         lastUpdateDate.isAcceptableOrUnknown(
           data['last_update_date']!,
           _lastUpdateDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('zolnit_account_id')) {
+      context.handle(
+        _zolnitAccountIdMeta,
+        zolnitAccountId.isAcceptableOrUnknown(
+          data['zolnit_account_id']!,
+          _zolnitAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('zolnit_bundle_id')) {
+      context.handle(
+        _zolnitBundleIdMeta,
+        zolnitBundleId.isAcceptableOrUnknown(
+          data['zolnit_bundle_id']!,
+          _zolnitBundleIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('zolnit_origin')) {
+      context.handle(
+        _zolnitOriginMeta,
+        zolnitOrigin.isAcceptableOrUnknown(
+          data['zolnit_origin']!,
+          _zolnitOriginMeta,
         ),
       );
     }
@@ -337,6 +400,18 @@ class $ProfilesTable extends Profiles
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_update_date'],
       ),
+      zolnitAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}zolnit_account_id'],
+      ),
+      zolnitBundleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}zolnit_bundle_id'],
+      ),
+      zolnitOrigin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}zolnit_origin'],
+      ),
       extendType: $ProfilesTable.$converterextendType.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -417,6 +492,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
   final String url;
   final String? ageSecretKey;
   final DateTime? lastUpdateDate;
+  final String? zolnitAccountId;
+  final String? zolnitBundleId;
+  final String? zolnitOrigin;
   final ExtendType extendType;
   final int? scriptId;
   final String? matchTarget;
@@ -435,6 +513,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     required this.url,
     this.ageSecretKey,
     this.lastUpdateDate,
+    this.zolnitAccountId,
+    this.zolnitBundleId,
+    this.zolnitOrigin,
     required this.extendType,
     this.scriptId,
     this.matchTarget,
@@ -463,6 +544,15 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     }
     if (!nullToAbsent || lastUpdateDate != null) {
       map['last_update_date'] = Variable<DateTime>(lastUpdateDate);
+    }
+    if (!nullToAbsent || zolnitAccountId != null) {
+      map['zolnit_account_id'] = Variable<String>(zolnitAccountId);
+    }
+    if (!nullToAbsent || zolnitBundleId != null) {
+      map['zolnit_bundle_id'] = Variable<String>(zolnitBundleId);
+    }
+    if (!nullToAbsent || zolnitOrigin != null) {
+      map['zolnit_origin'] = Variable<String>(zolnitOrigin);
     }
     {
       map['extend_type'] = Variable<String>(
@@ -520,6 +610,15 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       lastUpdateDate: lastUpdateDate == null && nullToAbsent
           ? const Value.absent()
           : Value(lastUpdateDate),
+      zolnitAccountId: zolnitAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zolnitAccountId),
+      zolnitBundleId: zolnitBundleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zolnitBundleId),
+      zolnitOrigin: zolnitOrigin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zolnitOrigin),
       extendType: Value(extendType),
       scriptId: scriptId == null && nullToAbsent
           ? const Value.absent()
@@ -558,6 +657,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       url: serializer.fromJson<String>(json['url']),
       ageSecretKey: serializer.fromJson<String?>(json['ageSecretKey']),
       lastUpdateDate: serializer.fromJson<DateTime?>(json['lastUpdateDate']),
+      zolnitAccountId: serializer.fromJson<String?>(json['zolnitAccountId']),
+      zolnitBundleId: serializer.fromJson<String?>(json['zolnitBundleId']),
+      zolnitOrigin: serializer.fromJson<String?>(json['zolnitOrigin']),
       extendType: $ProfilesTable.$converterextendType.fromJson(
         serializer.fromJson<String>(json['extendType']),
       ),
@@ -591,6 +693,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       'url': serializer.toJson<String>(url),
       'ageSecretKey': serializer.toJson<String?>(ageSecretKey),
       'lastUpdateDate': serializer.toJson<DateTime?>(lastUpdateDate),
+      'zolnitAccountId': serializer.toJson<String?>(zolnitAccountId),
+      'zolnitBundleId': serializer.toJson<String?>(zolnitBundleId),
+      'zolnitOrigin': serializer.toJson<String?>(zolnitOrigin),
       'extendType': serializer.toJson<String>(
         $ProfilesTable.$converterextendType.toJson(extendType),
       ),
@@ -618,6 +723,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     String? url,
     Value<String?> ageSecretKey = const Value.absent(),
     Value<DateTime?> lastUpdateDate = const Value.absent(),
+    Value<String?> zolnitAccountId = const Value.absent(),
+    Value<String?> zolnitBundleId = const Value.absent(),
+    Value<String?> zolnitOrigin = const Value.absent(),
     ExtendType? extendType,
     Value<int?> scriptId = const Value.absent(),
     Value<String?> matchTarget = const Value.absent(),
@@ -640,6 +748,13 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     lastUpdateDate: lastUpdateDate.present
         ? lastUpdateDate.value
         : this.lastUpdateDate,
+    zolnitAccountId: zolnitAccountId.present
+        ? zolnitAccountId.value
+        : this.zolnitAccountId,
+    zolnitBundleId: zolnitBundleId.present
+        ? zolnitBundleId.value
+        : this.zolnitBundleId,
+    zolnitOrigin: zolnitOrigin.present ? zolnitOrigin.value : this.zolnitOrigin,
     extendType: extendType ?? this.extendType,
     scriptId: scriptId.present ? scriptId.value : this.scriptId,
     matchTarget: matchTarget.present ? matchTarget.value : this.matchTarget,
@@ -669,6 +784,15 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       lastUpdateDate: data.lastUpdateDate.present
           ? data.lastUpdateDate.value
           : this.lastUpdateDate,
+      zolnitAccountId: data.zolnitAccountId.present
+          ? data.zolnitAccountId.value
+          : this.zolnitAccountId,
+      zolnitBundleId: data.zolnitBundleId.present
+          ? data.zolnitBundleId.value
+          : this.zolnitBundleId,
+      zolnitOrigin: data.zolnitOrigin.present
+          ? data.zolnitOrigin.value
+          : this.zolnitOrigin,
       extendType: data.extendType.present
           ? data.extendType.value
           : this.extendType,
@@ -704,6 +828,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           ..write('url: $url, ')
           ..write('ageSecretKey: $ageSecretKey, ')
           ..write('lastUpdateDate: $lastUpdateDate, ')
+          ..write('zolnitAccountId: $zolnitAccountId, ')
+          ..write('zolnitBundleId: $zolnitBundleId, ')
+          ..write('zolnitOrigin: $zolnitOrigin, ')
           ..write('extendType: $extendType, ')
           ..write('scriptId: $scriptId, ')
           ..write('matchTarget: $matchTarget, ')
@@ -727,6 +854,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     url,
     ageSecretKey,
     lastUpdateDate,
+    zolnitAccountId,
+    zolnitBundleId,
+    zolnitOrigin,
     extendType,
     scriptId,
     matchTarget,
@@ -749,6 +879,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           other.url == this.url &&
           other.ageSecretKey == this.ageSecretKey &&
           other.lastUpdateDate == this.lastUpdateDate &&
+          other.zolnitAccountId == this.zolnitAccountId &&
+          other.zolnitBundleId == this.zolnitBundleId &&
+          other.zolnitOrigin == this.zolnitOrigin &&
           other.extendType == this.extendType &&
           other.scriptId == this.scriptId &&
           other.matchTarget == this.matchTarget &&
@@ -769,6 +902,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
   final Value<String> url;
   final Value<String?> ageSecretKey;
   final Value<DateTime?> lastUpdateDate;
+  final Value<String?> zolnitAccountId;
+  final Value<String?> zolnitBundleId;
+  final Value<String?> zolnitOrigin;
   final Value<ExtendType> extendType;
   final Value<int?> scriptId;
   final Value<String?> matchTarget;
@@ -787,6 +923,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     this.url = const Value.absent(),
     this.ageSecretKey = const Value.absent(),
     this.lastUpdateDate = const Value.absent(),
+    this.zolnitAccountId = const Value.absent(),
+    this.zolnitBundleId = const Value.absent(),
+    this.zolnitOrigin = const Value.absent(),
     this.extendType = const Value.absent(),
     this.scriptId = const Value.absent(),
     this.matchTarget = const Value.absent(),
@@ -806,6 +945,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     required String url,
     this.ageSecretKey = const Value.absent(),
     this.lastUpdateDate = const Value.absent(),
+    this.zolnitAccountId = const Value.absent(),
+    this.zolnitBundleId = const Value.absent(),
+    this.zolnitOrigin = const Value.absent(),
     required ExtendType extendType,
     this.scriptId = const Value.absent(),
     this.matchTarget = const Value.absent(),
@@ -832,6 +974,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Expression<String>? url,
     Expression<String>? ageSecretKey,
     Expression<DateTime>? lastUpdateDate,
+    Expression<String>? zolnitAccountId,
+    Expression<String>? zolnitBundleId,
+    Expression<String>? zolnitOrigin,
     Expression<String>? extendType,
     Expression<int>? scriptId,
     Expression<String>? matchTarget,
@@ -851,6 +996,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
       if (url != null) 'url': url,
       if (ageSecretKey != null) 'age_secret_key': ageSecretKey,
       if (lastUpdateDate != null) 'last_update_date': lastUpdateDate,
+      if (zolnitAccountId != null) 'zolnit_account_id': zolnitAccountId,
+      if (zolnitBundleId != null) 'zolnit_bundle_id': zolnitBundleId,
+      if (zolnitOrigin != null) 'zolnit_origin': zolnitOrigin,
       if (extendType != null) 'extend_type': extendType,
       if (scriptId != null) 'script_id': scriptId,
       if (matchTarget != null) 'match_target': matchTarget,
@@ -873,6 +1021,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Value<String>? url,
     Value<String?>? ageSecretKey,
     Value<DateTime?>? lastUpdateDate,
+    Value<String?>? zolnitAccountId,
+    Value<String?>? zolnitBundleId,
+    Value<String?>? zolnitOrigin,
     Value<ExtendType>? extendType,
     Value<int?>? scriptId,
     Value<String?>? matchTarget,
@@ -892,6 +1043,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
       url: url ?? this.url,
       ageSecretKey: ageSecretKey ?? this.ageSecretKey,
       lastUpdateDate: lastUpdateDate ?? this.lastUpdateDate,
+      zolnitAccountId: zolnitAccountId ?? this.zolnitAccountId,
+      zolnitBundleId: zolnitBundleId ?? this.zolnitBundleId,
+      zolnitOrigin: zolnitOrigin ?? this.zolnitOrigin,
       extendType: extendType ?? this.extendType,
       scriptId: scriptId ?? this.scriptId,
       matchTarget: matchTarget ?? this.matchTarget,
@@ -931,6 +1085,15 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     }
     if (lastUpdateDate.present) {
       map['last_update_date'] = Variable<DateTime>(lastUpdateDate.value);
+    }
+    if (zolnitAccountId.present) {
+      map['zolnit_account_id'] = Variable<String>(zolnitAccountId.value);
+    }
+    if (zolnitBundleId.present) {
+      map['zolnit_bundle_id'] = Variable<String>(zolnitBundleId.value);
+    }
+    if (zolnitOrigin.present) {
+      map['zolnit_origin'] = Variable<String>(zolnitOrigin.value);
     }
     if (extendType.present) {
       map['extend_type'] = Variable<String>(
@@ -987,6 +1150,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
           ..write('url: $url, ')
           ..write('ageSecretKey: $ageSecretKey, ')
           ..write('lastUpdateDate: $lastUpdateDate, ')
+          ..write('zolnitAccountId: $zolnitAccountId, ')
+          ..write('zolnitBundleId: $zolnitBundleId, ')
+          ..write('zolnitOrigin: $zolnitOrigin, ')
           ..write('extendType: $extendType, ')
           ..write('scriptId: $scriptId, ')
           ..write('matchTarget: $matchTarget, ')
@@ -4452,6 +4618,9 @@ typedef $$ProfilesTableCreateCompanionBuilder =
       required String url,
       Value<String?> ageSecretKey,
       Value<DateTime?> lastUpdateDate,
+      Value<String?> zolnitAccountId,
+      Value<String?> zolnitBundleId,
+      Value<String?> zolnitOrigin,
       required ExtendType extendType,
       Value<int?> scriptId,
       Value<String?> matchTarget,
@@ -4472,6 +4641,9 @@ typedef $$ProfilesTableUpdateCompanionBuilder =
       Value<String> url,
       Value<String?> ageSecretKey,
       Value<DateTime?> lastUpdateDate,
+      Value<String?> zolnitAccountId,
+      Value<String?> zolnitBundleId,
+      Value<String?> zolnitOrigin,
       Value<ExtendType> extendType,
       Value<int?> scriptId,
       Value<String?> matchTarget,
@@ -4604,6 +4776,21 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<DateTime> get lastUpdateDate => $composableBuilder(
     column: $table.lastUpdateDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get zolnitAccountId => $composableBuilder(
+    column: $table.zolnitAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get zolnitBundleId => $composableBuilder(
+    column: $table.zolnitBundleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get zolnitOrigin => $composableBuilder(
+    column: $table.zolnitOrigin,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4811,6 +4998,21 @@ class $$ProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get zolnitAccountId => $composableBuilder(
+    column: $table.zolnitAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get zolnitBundleId => $composableBuilder(
+    column: $table.zolnitBundleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get zolnitOrigin => $composableBuilder(
+    column: $table.zolnitOrigin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get extendType => $composableBuilder(
     column: $table.extendType,
     builder: (column) => ColumnOrderings(column),
@@ -4895,6 +5097,21 @@ class $$ProfilesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get lastUpdateDate => $composableBuilder(
     column: $table.lastUpdateDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get zolnitAccountId => $composableBuilder(
+    column: $table.zolnitAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get zolnitBundleId => $composableBuilder(
+    column: $table.zolnitBundleId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get zolnitOrigin => $composableBuilder(
+    column: $table.zolnitOrigin,
     builder: (column) => column,
   );
 
@@ -5084,6 +5301,9 @@ class $$ProfilesTableTableManager
                 Value<String> url = const Value.absent(),
                 Value<String?> ageSecretKey = const Value.absent(),
                 Value<DateTime?> lastUpdateDate = const Value.absent(),
+                Value<String?> zolnitAccountId = const Value.absent(),
+                Value<String?> zolnitBundleId = const Value.absent(),
+                Value<String?> zolnitOrigin = const Value.absent(),
                 Value<ExtendType> extendType = const Value.absent(),
                 Value<int?> scriptId = const Value.absent(),
                 Value<String?> matchTarget = const Value.absent(),
@@ -5103,6 +5323,9 @@ class $$ProfilesTableTableManager
                 url: url,
                 ageSecretKey: ageSecretKey,
                 lastUpdateDate: lastUpdateDate,
+                zolnitAccountId: zolnitAccountId,
+                zolnitBundleId: zolnitBundleId,
+                zolnitOrigin: zolnitOrigin,
                 extendType: extendType,
                 scriptId: scriptId,
                 matchTarget: matchTarget,
@@ -5123,6 +5346,9 @@ class $$ProfilesTableTableManager
                 required String url,
                 Value<String?> ageSecretKey = const Value.absent(),
                 Value<DateTime?> lastUpdateDate = const Value.absent(),
+                Value<String?> zolnitAccountId = const Value.absent(),
+                Value<String?> zolnitBundleId = const Value.absent(),
+                Value<String?> zolnitOrigin = const Value.absent(),
                 required ExtendType extendType,
                 Value<int?> scriptId = const Value.absent(),
                 Value<String?> matchTarget = const Value.absent(),
@@ -5142,6 +5368,9 @@ class $$ProfilesTableTableManager
                 url: url,
                 ageSecretKey: ageSecretKey,
                 lastUpdateDate: lastUpdateDate,
+                zolnitAccountId: zolnitAccountId,
+                zolnitBundleId: zolnitBundleId,
+                zolnitOrigin: zolnitOrigin,
                 extendType: extendType,
                 scriptId: scriptId,
                 matchTarget: matchTarget,

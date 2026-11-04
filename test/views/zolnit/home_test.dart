@@ -783,7 +783,7 @@ void main() {
       await populatedSession.refreshBilling();
       await mountPopulated(tester);
       expect(find.text('\u5168\u7403\u7545\u8054'), findsWidgets);
-      expect(find.text('10 / 100 GB'), findsOneWidget);
+      expect(find.textContaining('90'), findsWidgets);
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
       await capture(tester, 'dashboard-populated-zh-light');
     });

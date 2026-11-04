@@ -88,7 +88,7 @@ final class TunnelStateProvider
   }
 }
 
-String _$tunnelStateHash() => r'ee8cebd111275876956af3eb7e7906496949e6f2';
+String _$tunnelStateHash() => r'729c69373cf4b86158f4096bb44f9b51ecb0899a';
 
 @ProviderFor(AuthorizedTunEnable)
 final authorizedTunEnableProvider = AuthorizedTunEnableProvider._();

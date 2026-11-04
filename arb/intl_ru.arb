@@ -1527,5 +1527,7 @@
   "zolnitReturnHkLite": "Гонконг: приоритет",
   "zolnitReturnHkOptimized": "Гонконг: оптимизация",
   "zolnitReturnEnabled": "Включить маршрутизацию в Китай",
-  "zolnitReturnLocal": "Прямое локальное соединение"
+  "zolnitReturnLocal": "Прямое локальное соединение",
+  "zolnitTrafficLeftShort": "осталось",
+  "zolnitConnectionIssue": "Проблема с подключением"
 }
