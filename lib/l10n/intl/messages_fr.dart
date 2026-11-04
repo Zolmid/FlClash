@@ -269,17 +269,19 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "Bonjour, ${name}.";
 
-  static String m97(rate) => "Mesure ${rate}×";
+  static String m97(id) => "Session de connexion #${id}";
 
-  static String m98(count) => "Serveurs : ${count}";
+  static String m98(rate) => "Mesure ${rate}×";
 
-  static String m99(count) => "/ ${count}";
+  static String m99(count) => "Serveurs : ${count}";
 
-  static String m100(days) => "Réinitialisation dans ${days} jours";
+  static String m100(count) => "/ ${count}";
 
-  static String m101(node) => "Trajet actuel : ${node}";
+  static String m101(days) => "Réinitialisation dans ${days} jours";
 
-  static String m102(percent) => "Économisez ${percent} %";
+  static String m102(node) => "Trajet actuel : ${node}";
+
+  static String m103(percent) => "Économisez ${percent} %";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2995,7 +2997,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("jours"),
     "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
-      "Ce sont les sessions de connexion du compte, distinctes du nombre d\'IP en ligne d\'un nœud.",
+      "Consultez votre historique de connexion et fermez les sessions que vous n’utilisez plus.",
     ),
     "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage(
       "Sessions de connexion",
@@ -3108,6 +3110,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
       "Un peu plus près de votre monde",
     ),
+    "zolnitLoginSession": m97,
     "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
       "Connectez-vous pour gérer votre forfait et vos connexions.",
     ),
@@ -3118,6 +3121,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Gérer le renouvellement automatique",
     ),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Streaming"),
+    "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible d’appliquer le mode de connexion. Actualisez la configuration et réessayez.",
+    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
       "Routage intelligent",
@@ -3161,12 +3167,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
       "La latence reflète le dernier test réel ; affiche — si aucun test n\'a été fait.",
     ),
-    "zolnitNodeMultiplier": m97,
+    "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Serveur"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "Les serveurs disponibles se mettent automatiquement à jour avec votre forfait.",
     ),
-    "zolnitNodesCount": m98,
+    "zolnitNodesCount": m99,
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Serveurs"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "Les serveurs disponibles se mettent à jour depuis votre compte.",
@@ -3183,7 +3189,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Appareils en ligne",
     ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Commandes"),
-    "zolnitOutOfDevices": m99,
+    "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Accès payé"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage(
       "Accès payé jusqu’au",
@@ -3278,7 +3284,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
       "Renouvellement automatique",
     ),
-    "zolnitResetInDays": m100,
+    "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage(
       "Réinitialiser le trafic",
     ),
@@ -3316,9 +3322,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Session de connexion terminée.",
     ),
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
-      "Terminer cette session de connexion ? Cet appareil devra se reconnecter pour gérer le compte.",
+      "Fermer cette session ? Il peut s’agir de votre session actuelle. Vous devrez vous reconnecter pour l’utiliser.",
     ),
-    "zolnitRouteCurrent": m101,
+    "zolnitRouteCurrent": m102,
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Indisponible",
     ),
@@ -3326,7 +3332,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Le mode sécurisé ne modifie jamais le réseau du système.",
     ),
-    "zolnitSavePercent": m102,
+    "zolnitSavePercent": m103,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Rechercher un serveur ou une région",
     ),
@@ -3334,8 +3340,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage(
       "Choisir un serveur",
     ),
+    "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("Créée le"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "Votre session a expiré. Reconnectez-vous.",
+    ),
+    "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage(
+      "Dernière activité",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Se connecter"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(

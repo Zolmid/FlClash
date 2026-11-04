@@ -40,16 +40,25 @@ class SetupAction extends _$SetupAction {
   Timer? _runtimeTimer;
   final _setupScheduler = SerialTaskScheduler();
   final _listenerScheduler = SerialTaskScheduler();
+  final _updateScheduler = SerialTaskScheduler();
   _RunRequest? _latestRunRequest;
   DateTime? _startTime;
   _SetupInputs? _appliedInputs;
   var _pendingForceApply = false;
+  var _modeRevision = 0;
+  var _coreRevision = 0;
+  (UpdateParams, Object, int)? _acceptedUpdate;
 
   bool get _isRunning => _startTime != null && _startTime!.isBeforeNow;
 
   @override
   void build() {
     ref.onDispose(_stopRuntimeTicker);
+    ref.listen(coreStatusProvider, (_, _) {
+      _coreRevision++;
+      _acceptedUpdate = null;
+    });
+    ref.listen(currentProfileIdProvider, (_, _) => _modeRevision++);
     ref.listen(appVisibleProvider, (_, _) => _syncRuntimeTicker());
     ref.listen(
       appSettingProvider.select((state) => state.showTrayTitle),
@@ -419,22 +428,38 @@ class SetupAction extends _$SetupAction {
 
   @visibleForTesting
   Future<void> updateConfig() async {
-    await globalState.safeRun(() async {
-      final patchConfig = ref.read(patchClashConfigProvider);
-      final shouldContinueSetup = await requestAdmin(patchConfig.tun.enable);
-      if (!shouldContinueSetup) {
-        await _restartCoreAfterAuthorization();
-        return;
-      }
-      final networkSetting = ref.read(networkSettingProvider);
-      final message = await _core.updateConfig(
-        _effectivePatchConfig(patchConfig).toUpdateParams(
-          authentication: networkSetting.authentication.credentials,
-          skipCertVerify: !ref.read(appSettingProvider).checkCertificate,
-        ),
-      );
-      if (message.isNotEmpty) throw MessageException(message);
+    await _updateScheduler.run(() async {
+      if (!ref.mounted) return;
+      await globalState.safeRun(() async {
+        final patchConfig = ref.read(patchClashConfigProvider);
+        final shouldContinueSetup = await requestAdmin(patchConfig.tun.enable);
+        if (!shouldContinueSetup) {
+          await _restartCoreAfterAuthorization();
+          return;
+        }
+        if (ref.mounted) await _sendConfigUpdate(patchConfig);
+      });
     });
+  }
+
+  Future<void> _sendConfigUpdate(PatchClashConfig patchConfig) async {
+    final core = _core;
+    final params = _effectivePatchConfig(patchConfig).toUpdateParams(
+      authentication: ref
+          .read(networkSettingProvider)
+          .authentication
+          .credentials,
+      skipCertVerify: !ref.read(appSettingProvider).checkCertificate,
+    );
+    final identity = (params, core.configurationChanges.value, _coreRevision);
+    if (_acceptedUpdate == identity) return;
+    final message = await core.updateConfig(params);
+    if (message.isNotEmpty) throw MessageException(message);
+    if (ref.mounted &&
+        identical(core.configurationChanges.value, identity.$2) &&
+        _coreRevision == identity.$3) {
+      _acceptedUpdate = identity;
+    }
   }
 
   void applyProfileDebounce({bool silence = false, bool force = false}) {
@@ -444,6 +469,44 @@ class SetupAction extends _$SetupAction {
       _pendingForceApply = false;
       applyProfile(silence: silence, force: force);
     }, args: [silence]);
+  }
+
+  Future<bool> changeModeIfCurrent(
+    Mode mode, {
+    required bool Function() isCurrent,
+  }) async {
+    final revision = ++_modeRevision;
+    final core = _core;
+    final coreRevision = _coreRevision;
+    final configuration = core.configurationChanges.value;
+    final profile = ref.read(currentProfileProvider);
+    final previousMode = ref.read(patchClashConfigProvider).mode;
+    bool current() =>
+        ref.mounted &&
+        revision == _modeRevision &&
+        coreRevision == _coreRevision &&
+        !ref.read(safeModeProvider) &&
+        ref.read(coreStatusProvider) == CoreStatus.connected &&
+        profile != null &&
+        ref.read(currentProfileProvider)?.id == profile.id &&
+        ref.read(patchClashConfigProvider).mode == previousMode &&
+        identical(core, _core) &&
+        identical(configuration, core.configurationChanges.value) &&
+        !core.isApplyingConfiguration &&
+        isCurrent();
+    return _updateScheduler.run(() async {
+      if (!current()) return false;
+      try {
+        await _sendConfigUpdate(
+          ref.read(patchClashConfigProvider).copyWith(mode: mode),
+        );
+        if (!current()) return false;
+        changeMode(mode);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    });
   }
 
   void changeMode(Mode mode) {

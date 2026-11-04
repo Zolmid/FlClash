@@ -155,15 +155,23 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
   Future<void> _loadDevices() async {
     if (_loading) return;
     final generation = _generation;
+    final session = widget.session;
+    bool current() =>
+        _current(generation) && identical(widget.session, session);
     setState(() {
       _loading = true;
       _deviceFailure = null;
     });
     try {
-      final devices = await ZolnitAccountClient(widget.session.api).devices();
-      if (_current(generation)) setState(() => _devices = devices);
+      final devices = await ZolnitAccountClient(session.api).devices();
+      if (current()) setState(() => _devices = devices);
     } catch (error) {
-      if (_current(generation)) {
+      if (current() &&
+          error is ClientFailure &&
+          error.code == 'unauthenticated') {
+        await session.refresh();
+      }
+      if (current()) {
         setState(() {
           _deviceFailure = error is ClientFailure
               ? error
@@ -171,13 +179,16 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
         });
       }
     } finally {
-      if (_current(generation)) setState(() => _loading = false);
+      if (current()) setState(() => _loading = false);
     }
   }
 
   Future<void> _revoke(ZolnitDevice device) async {
     if (_revoking != null) return;
     final generation = _generation;
+    final session = widget.session;
+    bool current() =>
+        _current(generation) && identical(widget.session, session);
     final text = context.appLocalizations;
     final approved = await showDialog<bool>(
       context: context,
@@ -196,16 +207,19 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
         ],
       ),
     );
-    if (approved != true || !_current(generation) || _revoking != null) return;
+    if (approved != true || !current() || _revoking != null) return;
     setState(() {
       _revoking = device.id;
       _deviceFailure = null;
     });
     try {
-      await ZolnitAccountClient(widget.session.api).removeDevice(device.id);
-      if (_current(generation)) await _loadDevices();
+      await ZolnitAccountClient(session.api).removeDevice(device.id);
+      if (current()) {
+        await session.refresh();
+        if (current()) await _loadDevices();
+      }
     } catch (error) {
-      if (_current(generation)) {
+      if (current()) {
         setState(() {
           _deviceFailure = error is ClientFailure
               ? error
@@ -213,7 +227,7 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
         });
       }
     } finally {
-      if (_current(generation)) setState(() => _revoking = null);
+      if (current()) setState(() => _revoking = null);
     }
   }
 
@@ -379,7 +393,7 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          device.label ?? text.zolnitUnknownDevice,
+                          text.zolnitLoginSession(device.id),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: zolnitText(
@@ -388,9 +402,14 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
                             weight: FontWeight.w500,
                           ),
                         ),
+                        if (device.createdAt case final date?)
+                          Text(
+                            '${text.zolnitSessionCreated}: ${DateFormat.yMMMd().add_Hm().format(date.toLocal())}',
+                            style: zolnitText(context, 11, color: colors.muted),
+                          ),
                         if (device.lastUsedAt case final date?)
                           Text(
-                            DateFormat.yMMMd().add_Hm().format(date.toLocal()),
+                            '${text.zolnitSessionLastActive}: ${DateFormat.yMMMd().add_Hm().format(date.toLocal())}',
                             style: zolnitText(context, 11, color: colors.muted),
                           ),
                       ],

@@ -1,7 +1,41 @@
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:zolnit_client/zolnit_client.dart';
+
+String? zolnitConfigurationMessage(
+  BuildContext context,
+  ZolnitSessionController session,
+  ZolnitBundleStatus status, {
+  required bool privateTransport,
+}) {
+  final text = context.appLocalizations;
+  if (!privateTransport) {
+    return session.failure == null
+        ? null
+        : zolnitFailureText(context, session.failure, null);
+  }
+  if (status == ZolnitBundleStatus.loading) return text.loading;
+  final failure = session.clientBundleFailure;
+  if (failure != null) status = bundleFailureStatus(failure);
+  return switch (status) {
+    ZolnitBundleStatus.loading => text.loading,
+    ZolnitBundleStatus.forbidden => text.zolnitBundleForbidden,
+    ZolnitBundleStatus.invalid => text.zolnitBundleInvalid,
+    ZolnitBundleStatus.expired =>
+      session.clientBundle == null
+          ? text.zolnitBundleUnavailable
+          : text.zolnitBundleExpired,
+    ZolnitBundleStatus.refreshFailed =>
+      session.clientBundle == null
+          ? text.zolnitBundleUnavailable
+          : text.zolnitBundleRefreshFailed,
+    ZolnitBundleStatus.unavailable => text.zolnitBundleUnavailable,
+    _ => session.clientBundle == null ? text.zolnitBundleFetchHint : null,
+  };
+}
 
 String zolnitMoney(dynamic cents) => cents is num
     ? NumberFormat.currency(name: 'CNY', symbol: '¥').format(cents / 100)
@@ -56,6 +90,10 @@ String zolnitFailureText(
     'network' || 'timeout' => text.networkException,
     'invalid_credentials' => text.zolnitSignInRejected,
     'unauthenticated' => text.zolnitSessionExpired,
+    'entitlement_unavailable' => text.zolnitBundleForbidden,
+    'client_api_unavailable' ||
+    'bundle_unavailable' ||
+    'profile_sync_failed' => text.zolnitBundleUnavailable,
     _ => fallback ?? text.zolnitFailure,
   };
 }

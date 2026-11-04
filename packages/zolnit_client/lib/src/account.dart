@@ -75,17 +75,9 @@ class ZolnitAccountInfo {
 }
 
 class ZolnitDevice {
-  const ZolnitDevice({
-    required this.id,
-    this.label,
-    this.ip,
-    this.lastUsedAt,
-    this.createdAt,
-  });
+  const ZolnitDevice({required this.id, this.lastUsedAt, this.createdAt});
 
   final String id;
-  final String? label;
-  final String? ip;
   final DateTime? lastUsedAt;
   final DateTime? createdAt;
 
@@ -95,15 +87,13 @@ class ZolnitDevice {
     if (id == null) return null;
     return ZolnitDevice(
       id: id,
-      label: textOrNull(json['name']),
-      ip: textOrNull(json['ip']),
       lastUsedAt: _timestamp(json['last_used_at']),
       createdAt: _timestamp(json['created_at']),
     );
   }
 
   @override
-  String toString() => 'ZolnitDevice(${label ?? 'unnamed'})';
+  String toString() => 'ZolnitDevice(session)';
 }
 
 class ZolnitAccountClient {

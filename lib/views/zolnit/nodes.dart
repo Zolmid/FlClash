@@ -13,6 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'kit.dart';
+import 'data.dart';
 import 'bundle_routing.dart';
 import 'skin.dart';
 
@@ -198,6 +199,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
     final privateTransport = ref.watch(zolnitClientBundleTransportProvider);
+    final bundleStatus = ref.watch(zolnitBundleStatusProvider);
     final nodes = privateTransport && widget.session.clientBundle == null
         ? const <ZolnitNode>[]
         : widget.session.nodeList;
@@ -212,6 +214,12 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         selector.manual &&
         !safe &&
         core == CoreStatus.connected;
+    final bundleMessage = zolnitConfigurationMessage(
+      context,
+      widget.session,
+      bundleStatus,
+      privateTransport: privateTransport,
+    );
 
     return ListView(
       padding: zolnitPagePadding(skin, compact: widget.compact),
@@ -250,22 +258,23 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(
-              l10n.zolnitNodesCount(filtered.length),
-              style: zolnitText(context, 11, color: colors.muted),
-            ),
+            if (!privateTransport || widget.session.clientBundle != null)
+              Text(
+                l10n.zolnitNodesCount(filtered.length),
+                style: zolnitText(context, 11, color: colors.muted),
+              ),
             if (!selectorReady && (nodes.isNotEmpty || privateTransport))
               _SyncHint(
                 label: ref.watch(zolnitClientBundleTransportProvider)
                     ? l10n.zolnitBundleFetchHint
                     : l10n.zolnitNodeSyncHint,
-                syncing: _syncing,
+                syncing: _syncing || bundleStatus == ZolnitBundleStatus.loading,
                 onSync: _handleSync,
                 colors: colors,
               ),
           ],
         ),
-        if (_syncFailed) ...[
+        if (_syncFailed && bundleMessage == null) ...[
           const SizedBox(height: 8),
           Text(
             l10n.zolnitFailure,
@@ -276,7 +285,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         if (filtered.isEmpty)
           _EmptyState(
             message: nodes.isEmpty
-                ? l10n.zolnitNoNodes
+                ? bundleMessage ?? l10n.zolnitNoNodes
                 : l10n.zolnitNoMatchingNodes,
             colors: colors,
           )

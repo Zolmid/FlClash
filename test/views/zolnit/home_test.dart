@@ -2,15 +2,22 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/brand.dart';
 import 'package:fl_clash/views/zolnit/account.dart';
 import 'package:fl_clash/views/zolnit/connect_art.dart';
+import 'package:fl_clash/views/zolnit/connect.dart';
 import 'package:fl_clash/views/zolnit/home.dart';
+import 'package:fl_clash/views/zolnit/kit.dart';
+import 'package:fl_clash/views/zolnit/shell.dart';
+import 'package:fl_clash/views/zolnit/skin.dart';
+import 'package:fl_clash/views/zolnit/native_home.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -240,8 +247,10 @@ void main() {
   late List<http.Request> requests;
   bool loginFails = false;
   bool cancelled = false;
+  late Directory paths;
 
   setUpAll(() async {
+    paths = await Directory.systemTemp.createTemp('zolnit-home-test-');
     final font = Platform.environment['ZOLNIT_FONT_PATH'];
     if (font != null) {
       final loader = FontLoader('Roboto')
@@ -256,7 +265,10 @@ void main() {
     }
   });
 
-  setUp(() {
+  tearDownAll(() => paths.delete(recursive: true));
+
+  setUp(() async {
+    await useAppPaths(paths);
     requests = [];
     loginFails = false;
     cancelled = false;
@@ -343,6 +355,7 @@ void main() {
       overrides: [
         zolnitSessionProvider.overrideWithValue(session),
         zolnitSyncProfileProvider.overrideWithValue(() async => null),
+        zolnitClientBundleTransportProvider.overrideWithValue(false),
         safeModeProvider.overrideWithValue(true),
       ],
     );
@@ -360,6 +373,7 @@ void main() {
     bool phone = false,
     bool dark = false,
     Locale locale = const Locale('en'),
+    ZolnitSkin? skin,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = phone
@@ -375,11 +389,12 @@ void main() {
           locale: locale,
           theme: ThemeData(
             brightness: dark ? Brightness.dark : Brightness.light,
+            fontFamily: 'Roboto',
             fontFamilyFallback: const ['ZolNitCJK'],
           ).withAppShapes.withAppTypography.withAppSurfaces,
-          child: const RepaintBoundary(
-            key: ValueKey('zolnit-capture'),
-            child: ZolnitHomePage(),
+          child: RepaintBoundary(
+            key: const ValueKey('zolnit-capture'),
+            child: ZolnitHomePage(skin: skin),
           ),
         ),
       ),
@@ -423,10 +438,87 @@ void main() {
     await capture(tester, 'login-desktop-light');
   });
 
+  testWidgets(
+    'every supported platform starts in the shared Flutter shell',
+    (tester) async {
+      await session.login('client@example.com', 'password123');
+      final skin = switch (defaultTargetPlatform) {
+        TargetPlatform.android => ZolnitSkin.android,
+        TargetPlatform.iOS => ZolnitSkin.ios,
+        TargetPlatform.macOS => ZolnitSkin.macos,
+        TargetPlatform.windows => ZolnitSkin.windows,
+        _ => ZolnitSkin.linux,
+      };
+      await mount(tester, phone: !skin.desktop, skin: skin);
+      expect(find.byType(ZolnitConnectPage), findsOneWidget);
+      expect(find.byType(ZolnitTopBar), findsOneWidget);
+      expect(find.byType(ZolnitNativeHome), findsNothing);
+      expect(
+        find.byType(NavigationDock),
+        skin.desktop ? findsNothing : findsOneWidget,
+      );
+      await capture(tester, 'shared-shell-${skin.name}');
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+      TargetPlatform.macOS,
+      TargetPlatform.windows,
+      TargetPlatform.linux,
+    }),
+  );
+
   testWidgets('signed-out desktop dark shows brand panel', (tester) async {
     await mount(tester, dark: true);
     expect(find.byKey(const ValueKey('zolnit-brand-panel')), findsOneWidget);
     await capture(tester, 'login-desktop-dark');
+  });
+
+  testWidgets('mode controls wait for a successfully applied bundle', (
+    tester,
+  ) async {
+    container.updateOverrides([
+      zolnitSessionProvider.overrideWithValue(session),
+      zolnitSyncProfileProvider.overrideWithValue(() async => null),
+      zolnitClientBundleTransportProvider.overrideWithValue(true),
+      safeModeProvider.overrideWithValue(true),
+    ]);
+    await session.login('client@example.com', 'password123');
+    await mount(tester);
+    final controls = find.descendant(
+      of: find.byType(ZolnitSegmented<Mode>),
+      matching: find.byType(InkWell),
+    );
+    expect(controls, findsNWidgets(2));
+    for (final element in controls.evaluate()) {
+      expect((element.widget as InkWell).onTap, isNull);
+    }
+  });
+
+  testWidgets('bundle failure is not presented as an empty current plan', (
+    tester,
+  ) async {
+    container.updateOverrides([
+      zolnitSessionProvider.overrideWithValue(session),
+      zolnitSyncProfileProvider.overrideWithValue(() async => null),
+      zolnitClientBundleTransportProvider.overrideWithValue(true),
+      safeModeProvider.overrideWithValue(true),
+    ]);
+    await session.login('client@example.com', 'password123');
+    container
+        .read(zolnitBundleStatusProvider.notifier)
+        .set(ZolnitBundleStatus.unavailable);
+    await mount(tester);
+    await tester.tap(find.text('All servers').first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Connection configuration is temporarily unavailable.'),
+      findsWidgets,
+    );
+    expect(
+      find.text('No servers are available with your current plan.'),
+      findsNothing,
+    );
   });
 
   testWidgets(

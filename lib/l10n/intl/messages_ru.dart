@@ -256,17 +256,19 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "Здравствуйте, ${name}.";
 
-  static String m97(rate) => "Учёт ×${rate}";
+  static String m97(id) => "Сеанс входа #${id}";
 
-  static String m98(count) => "Серверы: ${count}";
+  static String m98(rate) => "Учёт ×${rate}";
 
-  static String m99(count) => "/ ${count}";
+  static String m99(count) => "Серверы: ${count}";
 
-  static String m100(days) => "Сброс через ${days} дн.";
+  static String m100(count) => "/ ${count}";
 
-  static String m101(node) => "Текущий маршрут: ${node}";
+  static String m101(days) => "Сброс через ${days} дн.";
 
-  static String m102(percent) => "Выгода ${percent}%";
+  static String m102(node) => "Текущий маршрут: ${node}";
+
+  static String m103(percent) => "Выгода ${percent}%";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2908,7 +2910,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("дн."),
     "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
-      "Здесь показаны сеансы входа в аккаунт; это не то же самое, что число онлайн-IP узла.",
+      "Просматривайте историю входов и завершайте сеансы, которые больше не используете.",
     ),
     "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("Сеансы входа"),
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
@@ -3017,6 +3019,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
       "Чуть ближе к вашему миру",
     ),
+    "zolnitLoginSession": m97,
     "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
       "Войдите, чтобы управлять тарифом и подключениями.",
     ),
@@ -3027,6 +3030,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Управление автопродлением",
     ),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Стриминг"),
+    "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось применить режим подключения. Обновите настройки подключения и повторите попытку.",
+    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Глобальный"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
       "Умная маршрутизация",
@@ -3068,12 +3074,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
       "Задержка показывает результат последней реальной проверки; если проверки не было, отображается —.",
     ),
-    "zolnitNodeMultiplier": m97,
+    "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Сервер"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "Доступные серверы автоматически обновляются вместе с тарифом.",
     ),
-    "zolnitNodesCount": m98,
+    "zolnitNodesCount": m99,
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Серверы"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "Доступные серверы обновляются из аккаунта.",
@@ -3088,7 +3094,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Устройства онлайн",
     ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Заказы"),
-    "zolnitOutOfDevices": m99,
+    "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Оплаченный доступ"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("Оплачено до"),
     "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
@@ -3179,7 +3185,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
       "Автоматическое продление",
     ),
-    "zolnitResetInDays": m100,
+    "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage(
       "Сбросить трафик",
     ),
@@ -3217,9 +3223,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Сеанс входа завершён.",
     ),
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
-      "Завершить этот сеанс входа? Чтобы управлять аккаунтом, на этом устройстве потребуется войти снова.",
+      "Выйти из этого сеанса? Это может быть текущий сеанс. Для его использования потребуется войти снова.",
     ),
-    "zolnitRouteCurrent": m101,
+    "zolnitRouteCurrent": m102,
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Недоступно",
     ),
@@ -3227,7 +3233,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "Безопасный режим не меняет сетевые настройки системы.",
     ),
-    "zolnitSavePercent": m102,
+    "zolnitSavePercent": m103,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Поиск серверов или регионов",
     ),
@@ -3235,8 +3241,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage(
       "Выбрать сервер",
     ),
+    "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("Создан"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "Сеанс истёк. Войдите снова.",
+    ),
+    "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage(
+      "Последняя активность",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Войти"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(

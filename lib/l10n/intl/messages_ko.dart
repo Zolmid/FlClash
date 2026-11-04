@@ -232,17 +232,19 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "안녕하세요, ${name}님.";
 
-  static String m97(rate) => "${rate}× 계량";
+  static String m97(id) => "로그인 세션 #${id}";
 
-  static String m98(count) => "서버: ${count}";
+  static String m98(rate) => "${rate}× 계량";
 
-  static String m99(count) => "/ ${count}대";
+  static String m99(count) => "서버: ${count}";
 
-  static String m100(days) => "${days}일 후 초기화";
+  static String m100(count) => "/ ${count}대";
 
-  static String m101(node) => "현재 경로: ${node}";
+  static String m101(days) => "${days}일 후 초기화";
 
-  static String m102(percent) => "${percent}% 절약";
+  static String m102(node) => "현재 경로: ${node}";
+
+  static String m103(percent) => "${percent}% 절약";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2291,7 +2293,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("일"),
     "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
-      "계정의 로그인 세션을 표시합니다. 노드의 온라인 IP 수와는 다릅니다.",
+      "로그인 기록을 확인하고 더 이상 사용하지 않는 세션에서 로그아웃하세요.",
     ),
     "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("로그인 세션"),
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
@@ -2378,12 +2380,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage(
       "당신의 세상에 한 걸음 더 가까이",
     ),
+    "zolnitLoginSession": m97,
     "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
       "로그인하여 요금제와 연결을 관리하세요.",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("가입 또는 비밀번호 찾기"),
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신 관리"),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("스트리밍"),
+    "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "연결 모드를 적용할 수 없습니다. 연결 설정을 새로 고친 뒤 다시 시도하세요.",
+    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("전체 모드"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("스마트 라우팅"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("매월"),
@@ -2413,12 +2419,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
       "지연 시간은 가장 최근 실제 측정값 기준이며, 측정 전에는 —로 표시됩니다.",
     ),
-    "zolnitNodeMultiplier": m97,
+    "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("서버"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 서버는 요금제에 맞춰 자동으로 업데이트됩니다.",
     ),
-    "zolnitNodesCount": m98,
+    "zolnitNodesCount": m99,
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("서버"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 서버는 계정에서 자동으로 업데이트됩니다.",
@@ -2429,7 +2435,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("일회성"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("온라인 기기"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("주문 내역"),
-    "zolnitOutOfDevices": m99,
+    "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("결제된 이용 권한"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("결제된 이용 만료일"),
     "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
@@ -2504,7 +2510,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("현재 요금제 갱신"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("요금제 갱신"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신"),
-    "zolnitResetInDays": m100,
+    "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("트래픽 초기화"),
     "zolnitRestoringSession": MessageLookupByLibrary.simpleMessage("로그인 복원 중…"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("자동 갱신 재개"),
@@ -2522,21 +2528,23 @@ class MessageLookup extends MessageLookupByLibrary {
       "로그인 세션이 종료되었습니다.",
     ),
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
-      "이 로그인 세션을 종료할까요? 해당 기기는 계정을 관리하려면 다시 로그인해야 합니다.",
+      "이 세션에서 로그아웃할까요? 현재 세션일 수도 있습니다. 다시 사용하려면 로그인해야 합니다.",
     ),
-    "zolnitRouteCurrent": m101,
+    "zolnitRouteCurrent": m102,
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("사용 불가"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("안전 모드"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "보안 모드는 시스템 네트워크를 변경하지 않습니다.",
     ),
-    "zolnitSavePercent": m102,
+    "zolnitSavePercent": m103,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("서버 또는 지역 검색"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("선택"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("서버 선택"),
+    "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("생성됨"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "로그인이 만료되었습니다. 다시 로그인하세요.",
     ),
+    "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("마지막 활동"),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("로그인"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도하세요.",

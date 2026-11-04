@@ -199,10 +199,10 @@ jobs:
           fi
           echo "package=$ver" >> "$GITHUB_OUTPUT"
 
-      - name: Validate native Apple surface contract
+      - name: Validate shared Flutter shell and Apple bridge contract
         if: matrix.platform == 'macos' && matrix.safe_preview && env.ZOLNIT_NATIVE_UI == 'true'
         run: |
-          flutter test test/views/zolnit/native_home_test.dart --dart-define=ZOLNIT_NATIVE_UI=true --dart-define=SAFE_MODE=true
+          flutter test test/views/zolnit/home_test.dart test/views/zolnit/native_home_test.dart --dart-define=ZOLNIT_NATIVE_UI=true --dart-define=SAFE_MODE=true
           swift test --package-path plugins/zolnit_native_ui/darwin
 
       - name: Compile desktop

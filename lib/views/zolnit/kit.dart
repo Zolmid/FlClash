@@ -281,8 +281,8 @@ class ZolnitSegmented<T> extends StatelessWidget {
   });
 
   final List<(T, String)> options;
-  final T value;
-  final ValueChanged<T> onChanged;
+  final T? value;
+  final ValueChanged<T>? onChanged;
   final bool underlined;
 
   @override
@@ -365,7 +365,7 @@ class ZolnitSegmented<T> extends StatelessWidget {
                   shape: AppShape.all(selectedCorner),
                   child: InkWell(
                     customBorder: AppShape.all(selectedCorner),
-                    onTap: () => onChanged(option),
+                    onTap: onChanged == null ? null : () => onChanged!(option),
                     child: Container(
                       height: phone
                           ? (skin == ZolnitSkin.ios ? 44 : 48)
@@ -404,6 +404,8 @@ class ZolnitSegmented<T> extends StatelessWidget {
                                         : colors.muted)
                                   : option == value && onAccent
                                   ? Colors.white
+                                  : onChanged == null
+                                  ? colors.muted
                                   : colors.ink,
                             ),
                           ),

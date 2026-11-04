@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/misc.dart' show ProviderListenable;
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -215,12 +220,21 @@ class _ConnectPanel extends ConsumerWidget {
         ? CoreStatus.connecting
         : CoreStatus.disconnected;
     final safe = ref.watch(safeModeProvider);
-    final mode = ref.watch(
-      patchClashConfigProvider.select((state) => state.mode),
+    final privateTransport = ref.watch(zolnitClientBundleTransportProvider);
+    final nodes = privateTransport && session.clientBundle == null
+        ? const <ZolnitNode>[]
+        : session.nodeList;
+    final configMessage = zolnitConfigurationMessage(
+      context,
+      session,
+      ref.watch(zolnitBundleStatusProvider),
+      privateTransport: privateTransport,
     );
-    final nodes = session.nodeList;
     final blocked =
-        safe || syncing || status == CoreStatus.connecting || nodes.isEmpty;
+        safe ||
+        syncing ||
+        status == CoreStatus.connecting ||
+        (status != CoreStatus.connected && nodes.isEmpty && !privateTransport);
     final label = syncing
         ? text.zolnitSyncing
         : switch (status) {
@@ -262,24 +276,13 @@ class _ConnectPanel extends ConsumerWidget {
               : status == CoreStatus.connected
               ? text.zolnitConnectSub
               : nodes.isEmpty
-              ? text.zolnitNoNodes
+              ? configMessage ?? text.zolnitNoNodes
               : text.zolnitConnectSub,
           textAlign: center ? TextAlign.center : TextAlign.start,
           style: zolnitText(context, sub, leading: 18, color: colors.muted),
         ),
         const SizedBox(height: 14),
-        ZolnitSegmented<Mode>(
-          value: mode,
-          options: [
-            (Mode.rule, text.zolnitModeSmart),
-            (Mode.global, text.zolnitModeGlobal),
-          ],
-          onChanged: (next) {
-            if (next != mode) {
-              ref.read(setupActionProvider.notifier).changeMode(next);
-            }
-          },
-        ),
+        _ModeControl(session: session, syncing: syncing, openNodes: openNodes),
       ],
     );
     final power = ZolnitPowerButton(
@@ -382,6 +385,7 @@ class _ConnectPanel extends ConsumerWidget {
                   child: Padding(
                     padding: EdgeInsets.only(top: skin.desktop ? 18 : 14),
                     child: _SelectedRow(
+                      emptyMessage: configMessage ?? text.zolnitNoNodes,
                       selection: selection,
                       connected: status == CoreStatus.connected,
                       stacked: stacked,
@@ -398,8 +402,119 @@ class _ConnectPanel extends ConsumerWidget {
   }
 }
 
+class _ModeControl extends ConsumerStatefulWidget {
+  const _ModeControl({
+    required this.session,
+    required this.syncing,
+    required this.openNodes,
+  });
+
+  final ZolnitSessionController session;
+  final bool syncing;
+  final VoidCallback openNodes;
+
+  @override
+  ConsumerState<_ModeControl> createState() => _ModeControlState();
+}
+
+class _ModeControlState extends ConsumerState<_ModeControl> {
+  bool _pending = false;
+  bool _failed = false;
+
+  bool _ready({bool watch = false}) {
+    T read<T>(ProviderListenable<T> provider) =>
+        watch ? ref.watch(provider) : ref.read(provider);
+    final safe = read(safeModeProvider);
+    final core = read(coreStatusProvider);
+    final profile = read(currentProfileProvider);
+    final groups = read(groupsProvider);
+    final transport = read(zolnitClientBundleTransportProvider);
+    final bundleStatus = read(zolnitBundleStatusProvider);
+    final session = widget.session;
+    return !safe &&
+        !widget.syncing &&
+        session.authenticated &&
+        core == CoreStatus.connected &&
+        profile != null &&
+        groups.isNotEmpty &&
+        (transport
+            ? bundleStatus == ZolnitBundleStatus.ready &&
+                  session.clientBundleFailure == null &&
+                  isCurrentZolnitBundleProfile(profile, session) &&
+                  profile.zolnitBundleId == session.clientBundle?.bundleId
+            : profile.label == zolnitProfileLabel(session));
+  }
+
+  Future<void> _change(Mode next) async {
+    if (_pending) return;
+    final session = widget.session;
+    final generation = session.api.generation;
+    final bundle = session.clientBundle;
+    bool sameAccount() =>
+        mounted &&
+        identical(widget.session, session) &&
+        session.api.generation == generation &&
+        session.authenticated;
+    setState(() {
+      _pending = true;
+      _failed = false;
+    });
+    try {
+      final applied =
+          _ready() &&
+          await ref
+              .read(setupActionProvider.notifier)
+              .changeModeIfCurrent(
+                next,
+                isCurrent: () =>
+                    sameAccount() &&
+                    identical(session.clientBundle, bundle) &&
+                    _ready(),
+              );
+      if (sameAccount()) setState(() => _failed = !applied);
+    } finally {
+      if (mounted) setState(() => _pending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.appLocalizations;
+    final ready = _ready(watch: true);
+    final mode = ref.watch(
+      patchClashConfigProvider.select((state) => state.mode),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ZolnitSegmented<Mode>(
+          value: ready ? mode : null,
+          options: [
+            (Mode.rule, text.zolnitModeSmart),
+            (Mode.global, text.zolnitModeGlobal),
+          ],
+          onChanged: ready && !_pending
+              ? (next) => unawaited(_change(next))
+              : null,
+        ),
+        if (_failed) ...[
+          Text(
+            text.zolnitModeChangeFailed,
+            key: const ValueKey('zolnit-mode-failure'),
+          ),
+          TextButton(
+            onPressed: widget.openNodes,
+            child: Text(text.zolnitBundleFetchHint),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _SelectedRow extends ConsumerWidget {
   const _SelectedRow({
+    required this.emptyMessage,
     required this.selection,
     required this.connected,
     required this.stacked,
@@ -407,6 +522,7 @@ class _SelectedRow extends ConsumerWidget {
   });
 
   final _Selection selection;
+  final String emptyMessage;
   final bool connected;
   final bool stacked;
   final VoidCallback onOpen;
@@ -457,7 +573,7 @@ class _SelectedRow extends ConsumerWidget {
         Expanded(
           child: node == null
               ? Text(
-                  text.zolnitNoNodes,
+                  emptyMessage,
                   style: zolnitText(context, 12, color: colors.muted),
                 )
               : InkWell(
@@ -757,7 +873,16 @@ class _NodesPanel extends ConsumerWidget {
     final text = context.appLocalizations;
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
-    final nodes = session.nodeList.take(3).toList();
+    final privateTransport = ref.watch(zolnitClientBundleTransportProvider);
+    final nodes = privateTransport && session.clientBundle == null
+        ? const <ZolnitNode>[]
+        : session.nodeList.take(3).toList();
+    final configMessage = zolnitConfigurationMessage(
+      context,
+      session,
+      ref.watch(zolnitBundleStatusProvider),
+      privateTransport: privateTransport,
+    );
     final selection = _selectionOf(ref, session.nodeList);
     final head = zolnitText(context, 11, color: colors.muted);
     final group = ref.watch(currentGroupsStateProvider).value.firstOrNull;
@@ -794,7 +919,7 @@ class _NodesPanel extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 22),
               child: Center(
                 child: Text(
-                  text.zolnitNoNodes,
+                  configMessage ?? text.zolnitNoNodes,
                   style: zolnitText(context, 12, color: colors.muted),
                 ),
               ),

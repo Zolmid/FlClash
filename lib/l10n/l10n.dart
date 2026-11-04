@@ -11709,6 +11709,16 @@ class AppLocalizations {
     return Intl.message('Global', name: 'zolnitModeGlobal', desc: '', args: []);
   }
 
+  /// `Couldn't apply the connection mode. Refresh the configuration and try again.`
+  String get zolnitModeChangeFailed {
+    return Intl.message(
+      'Couldn\'t apply the connection mode. Refresh the configuration and try again.',
+      name: 'zolnitModeChangeFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Selected`
   String get zolnitCurrentSelection {
     return Intl.message(
@@ -12329,10 +12339,10 @@ class AppLocalizations {
     );
   }
 
-  /// `These are your account's login sessions, which differ from a node's online IP count.`
+  /// `Review your login history and sign out of sessions you no longer use.`
   String get zolnitDevicesHint {
     return Intl.message(
-      'These are your account\'s login sessions, which differ from a node\'s online IP count.',
+      'Review your login history and sign out of sessions you no longer use.',
       name: 'zolnitDevicesHint',
       desc: '',
       args: [],
@@ -12359,6 +12369,36 @@ class AppLocalizations {
     );
   }
 
+  /// `Login session #{id}`
+  String zolnitLoginSession(Object id) {
+    return Intl.message(
+      'Login session #$id',
+      name: 'zolnitLoginSession',
+      desc: '',
+      args: [id],
+    );
+  }
+
+  /// `Created`
+  String get zolnitSessionCreated {
+    return Intl.message(
+      'Created',
+      name: 'zolnitSessionCreated',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Last active`
+  String get zolnitSessionLastActive {
+    return Intl.message(
+      'Last active',
+      name: 'zolnitSessionLastActive',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Sign out of this session`
   String get zolnitRevokeDevice {
     return Intl.message(
@@ -12369,10 +12409,10 @@ class AppLocalizations {
     );
   }
 
-  /// `End this login session? That device must sign in again to manage the account.`
+  /// `Sign out of this session? It may be your current session. You will need to sign in again to use it.`
   String get zolnitRevokeDeviceTip {
     return Intl.message(
-      'End this login session? That device must sign in again to manage the account.',
+      'Sign out of this session? It may be your current session. You will need to sign in again to use it.',
       name: 'zolnitRevokeDeviceTip',
       desc: '',
       args: [],

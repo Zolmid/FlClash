@@ -438,7 +438,7 @@ void main() {
   );
 
   testWidgets(
-    'Mac native content stays inside one shared shell across navigation',
+    'legacy native flag cannot replace the shared Flutter shell',
     (tester) async {
       nativeAvailable = true;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -454,16 +454,8 @@ void main() {
       final sidebar = find.byType(ZolnitSidebar);
       expect(sidebar, findsOneWidget);
       expect(find.byType(ZolnitTopBar), findsOneWidget);
-      expect(find.byType(AppKitView), findsOneWidget);
-      final nativeBounds = tester.getRect(find.byType(AppKitView));
-      expect(
-        nativeBounds.left,
-        greaterThanOrEqualTo(tester.getRect(sidebar).right),
-      );
-      expect(
-        nativeBounds.top,
-        greaterThanOrEqualTo(tester.getRect(find.byType(ZolnitTopBar)).bottom),
-      );
+      expect(find.byType(AppKitView), findsNothing);
+      expect(availabilityChecks, 0);
       for (final label in ['全部线路', '套餐', '账号', '连接']) {
         await tester.tap(
           find.descendant(of: sidebar, matching: find.text(label)),
@@ -471,10 +463,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(sidebar, findsOneWidget);
         expect(find.byType(ZolnitTopBar), findsOneWidget);
-        expect(
-          find.byType(AppKitView),
-          label == '连接' ? findsOneWidget : findsNothing,
-        );
+        expect(find.byType(AppKitView), findsNothing);
+        expect(availabilityChecks, 0);
         expect(tester.takeException(), isNull);
       }
       await tester.tap(

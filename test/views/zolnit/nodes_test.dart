@@ -4,9 +4,13 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/zolnit/nodes.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 
 import 'harness.dart';
@@ -26,11 +30,108 @@ class _RecordingProxies extends ProxiesAction {
 
 void main() {
   final harness = ZolnitHarness.register(
+    clientPlatform: 'macos',
+    distribution: 'direct',
     overrides: [
       profilesProvider.overrideWith(TestProfiles.new),
       proxiesActionProvider.overrideWith(_RecordingProxies.new),
     ],
   );
+
+  for (final (status, message) in [
+    (ZolnitBundleStatus.unloaded, '获取连接配置'),
+    (ZolnitBundleStatus.loading, '加载中'),
+    (ZolnitBundleStatus.unavailable, '连接配置暂时不可用。'),
+    (ZolnitBundleStatus.forbidden, '当前账号暂时无法获取连接配置，请检查套餐与流量。'),
+    (ZolnitBundleStatus.refreshFailed, '连接配置暂时不可用。'),
+    (ZolnitBundleStatus.ready, '获取连接配置'),
+  ]) {
+    testWidgets('missing bundle $status does not claim empty entitlement', (
+      tester,
+    ) async {
+      harness.container.dispose();
+      harness.container = ProviderContainer(
+        overrides: [
+          zolnitSessionProvider.overrideWithValue(harness.session),
+          zolnitClientBundleTransportProvider.overrideWithValue(true),
+          safeModeProvider.overrideWithValue(true),
+        ],
+      );
+      globalState.container = harness.container;
+      if (status != ZolnitBundleStatus.loading) {
+        harness.container.read(zolnitBundleStatusProvider.notifier).set(status);
+      }
+      await harness.mount(
+        tester,
+        ZolnitSkin.macos,
+        child: ZolnitNodesPage(
+          session: harness.session,
+          sync: () async => null,
+        ),
+      );
+      if (status == ZolnitBundleStatus.loading) {
+        harness.container.read(zolnitBundleStatusProvider.notifier).set(status);
+        await tester.pump();
+      }
+      expect(find.textContaining(message), findsWidgets);
+      expect(find.text('当前套餐暂无可用线路。'), findsNothing);
+      expect(find.text('线路：0'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final code in [
+    'client_api_unavailable',
+    'bundle_unavailable',
+    'entitlement_unavailable',
+  ]) {
+    testWidgets('bundle API $code shows failure and permits a retry', (
+      tester,
+    ) async {
+      harness.panel = (request) => request.url.path.endsWith('/client/bundle')
+          ? http.Response(
+              '{"error":{"code":"$code"}}',
+              code == 'entitlement_unavailable' ? 403 : 503,
+            )
+          : zolnitPanelFixture(request);
+      await harness.session.refreshClientBundle(coreVersion: 'v1.19.32');
+      expect(harness.session.clientBundleFailure, code);
+      harness.container.dispose();
+      harness.container = ProviderContainer(
+        overrides: [
+          zolnitSessionProvider.overrideWithValue(harness.session),
+          zolnitClientBundleTransportProvider.overrideWithValue(true),
+          safeModeProvider.overrideWithValue(true),
+        ],
+      );
+      globalState.container = harness.container;
+      var retries = 0;
+      await harness.mount(
+        tester,
+        ZolnitSkin.macos,
+        child: ZolnitNodesPage(
+          session: harness.session,
+          sync: () async {
+            retries++;
+            return null;
+          },
+        ),
+      );
+      expect(
+        find.text(
+          code == 'entitlement_unavailable'
+              ? '当前账号暂时无法获取连接配置，请检查套餐与流量。'
+              : '连接配置暂时不可用。',
+        ),
+        findsWidgets,
+      );
+      expect(find.text('当前套餐暂无可用线路。'), findsNothing);
+      await tester.tap(find.text('获取连接配置').last);
+      await tester.pumpAndSettle();
+      expect(retries, 1);
+      expect(harness.session.authenticated, isTrue);
+    });
+  }
 
   testWidgets('selection skips URL tests and checks selector membership', (
     tester,

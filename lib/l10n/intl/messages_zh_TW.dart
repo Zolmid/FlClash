@@ -231,17 +231,19 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "你好，${name}。";
 
-  static String m97(rate) => "${rate}× 計量";
+  static String m97(id) => "登入工作階段 #${id}";
 
-  static String m98(count) => "線路：${count}";
+  static String m98(rate) => "${rate}× 計量";
 
-  static String m99(count) => "/ ${count} 台";
+  static String m99(count) => "線路：${count}";
 
-  static String m100(days) => "${days} 天後重置";
+  static String m100(count) => "/ ${count} 台";
 
-  static String m101(node) => "目前線路：${node}";
+  static String m101(days) => "${days} 天後重置";
 
-  static String m102(percent) => "省 ${percent}%";
+  static String m102(node) => "目前線路：${node}";
+
+  static String m103(percent) => "省 ${percent}%";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2098,7 +2100,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("天"),
     "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
-      "這裡顯示帳戶的登入工作階段，與節點的線上 IP 數不同。",
+      "檢視登入記錄，並登出不再使用的工作階段。",
     ),
     "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("登入工作階段"),
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
@@ -2167,12 +2169,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "不必研究複雜設定。你想去的世界，輕輕一點就到。",
     ),
     "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage("離你的世界，再近一點"),
+    "zolnitLoginSession": m97,
     "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
       "登入你的帳戶，管理方案與連線。",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("註冊或找回密碼"),
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("管理自動續費"),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("海外影音"),
+    "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "無法套用連線模式。請重新整理連線設定後再試。",
+    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("全域模式"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("智慧分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月付"),
@@ -2194,10 +2200,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
       "延遲以最近一次實際檢測為準，未檢測時顯示 —。",
     ),
-    "zolnitNodeMultiplier": m97,
+    "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("線路"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用線路會隨套餐自動更新。"),
-    "zolnitNodesCount": m98,
+    "zolnitNodesCount": m99,
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("線路"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "線路會隨帳號套餐自動更新。",
@@ -2208,7 +2214,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("一次性"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("線上裝置"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("訂單紀錄"),
-    "zolnitOutOfDevices": m99,
+    "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("已付權益"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("已付權益截止"),
     "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
@@ -2279,7 +2285,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("續約目前方案"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("續約方案"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自動續訂"),
-    "zolnitResetInDays": m100,
+    "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("重設流量"),
     "zolnitRestoringSession": MessageLookupByLibrary.simpleMessage("正在恢復登入…"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("恢復自動續訂"),
@@ -2297,21 +2303,23 @@ class MessageLookup extends MessageLookupByLibrary {
       "登入工作階段已結束。",
     ),
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
-      "結束此登入工作階段？該裝置需重新登入才能管理帳戶。",
+      "登出此工作階段？這可能是目前的工作階段，登出後需要重新登入。",
     ),
-    "zolnitRouteCurrent": m101,
+    "zolnitRouteCurrent": m102,
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("無法使用"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "安全模式不會修改系統網路。",
     ),
-    "zolnitSavePercent": m102,
+    "zolnitSavePercent": m103,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜尋線路或地區"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("選擇"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("選擇線路"),
+    "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("建立時間"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "登入已失效，請重新登入。",
     ),
+    "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("最後活動"),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登入"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "電子郵件或密碼不正確，請重試。",

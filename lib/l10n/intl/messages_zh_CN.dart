@@ -227,17 +227,19 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m96(name) => "你好，${name}。";
 
-  static String m97(rate) => "${rate}× 计量";
+  static String m97(id) => "登录会话 #${id}";
 
-  static String m98(count) => "线路：${count}";
+  static String m98(rate) => "${rate}× 计量";
 
-  static String m99(count) => "/ ${count} 台";
+  static String m99(count) => "线路：${count}";
 
-  static String m100(days) => "${days} 天后重置";
+  static String m100(count) => "/ ${count} 台";
 
-  static String m101(node) => "当前线路：${node}";
+  static String m101(days) => "${days} 天后重置";
 
-  static String m102(percent) => "省 ${percent}%";
+  static String m102(node) => "当前线路：${node}";
+
+  static String m103(percent) => "省 ${percent}%";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2080,7 +2082,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitDaysLeftLabel": m91,
     "zolnitDaysUnit": MessageLookupByLibrary.simpleMessage("天"),
     "zolnitDevicesHint": MessageLookupByLibrary.simpleMessage(
-      "这里显示账户的登录会话，和节点的在线 IP 数不同。",
+      "查看登录记录，并退出不再使用的会话。",
     ),
     "zolnitDevicesTitle": MessageLookupByLibrary.simpleMessage("登录会话"),
     "zolnitDevicesUnavailable": MessageLookupByLibrary.simpleMessage(
@@ -2149,12 +2151,16 @@ class MessageLookup extends MessageLookupByLibrary {
       "不必研究复杂设置。你想去的世界，轻轻一点就到。",
     ),
     "zolnitLoginEyebrow": MessageLookupByLibrary.simpleMessage("离你的世界，再近一点"),
+    "zolnitLoginSession": m97,
     "zolnitLoginSubtitle": MessageLookupByLibrary.simpleMessage(
       "登录你的账户，管理套餐与连接。",
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("注册或找回密码"),
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("管理自动续费"),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("海外影音"),
+    "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "无法应用连接模式。请刷新连接配置后重试。",
+    ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("全局模式"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("智能分流"),
     "zolnitMonthly": MessageLookupByLibrary.simpleMessage("月付"),
@@ -2176,10 +2182,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
       "延迟以最近一次实际检测为准，未检测时显示 —。",
     ),
-    "zolnitNodeMultiplier": m97,
+    "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("线路"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用线路会随套餐自动更新。"),
-    "zolnitNodesCount": m98,
+    "zolnitNodesCount": m99,
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("线路"),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "线路会随账号套餐自动更新。",
@@ -2190,7 +2196,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("一次性"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("在线设备"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("订单记录"),
-    "zolnitOutOfDevices": m99,
+    "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("已付权益"),
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("已付权益截止"),
     "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
@@ -2259,7 +2265,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("续费当前套餐"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("续费套餐"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自动续费"),
-    "zolnitResetInDays": m100,
+    "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("重置流量"),
     "zolnitRestoringSession": MessageLookupByLibrary.simpleMessage("正在恢复登录…"),
     "zolnitResumeRenewal": MessageLookupByLibrary.simpleMessage("恢复自动续费"),
@@ -2275,21 +2281,23 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDevice": MessageLookupByLibrary.simpleMessage("退出此会话"),
     "zolnitRevokeDeviceDone": MessageLookupByLibrary.simpleMessage("登录会话已结束。"),
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
-      "结束此登录会话？该设备需重新登录才能管理账户。",
+      "退出此登录会话？这可能是当前会话，退出后需要重新登录。",
     ),
-    "zolnitRouteCurrent": m101,
+    "zolnitRouteCurrent": m102,
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("不可用"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "安全模式不会修改系统网络。",
     ),
-    "zolnitSavePercent": m102,
+    "zolnitSavePercent": m103,
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜索线路或地区"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("选择"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("选择线路"),
+    "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("创建时间"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "登录已失效，请重新登录。",
     ),
+    "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("最后活跃"),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登录"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "邮箱或密码不正确，请重试。",

@@ -96,7 +96,7 @@ void main() {
   });
 
   test(
-    'devices read Sanctum token rows and hide the id from toString',
+    'sessions read only supported Sanctum metadata and hide token names',
     () async {
       final (api, seen) = harness(
         (_) => data([
@@ -118,12 +118,10 @@ void main() {
       final devices = await ZolnitAccountClient(api).devices();
       expect(seen.single.url.path, '/api/v1/user/getActiveSession');
       expect(devices.map((d) => d.id), ['41', '42']);
-      expect(devices[0].label, 'Pixel 9');
       expect(devices[0].lastUsedAt, DateTime.utc(2026, 10, 22, 8, 30));
       expect(devices[0].createdAt, DateTime.utc(2026, 9, 21, 14, 13, 20));
       expect(devices[0].toString(), isNot(contains('41')));
-      expect(devices[1].label, isNull);
-      expect(devices[1].ip, '203.0.113.9');
+      expect(devices[0].toString(), isNot(contains('Pixel 9')));
       expect(devices[1].lastUsedAt, isNull);
       api.close();
     },

@@ -102,11 +102,12 @@ void main() {
       expect(find.text('¥0.00'), findsOneWidget);
       await harness.capture(tester, 'account-${skin.name}');
       if (!skin.desktop) {
-        await tester.scrollUntilVisible(find.text('MacBook Air'), 250);
+        await tester.scrollUntilVisible(find.text('登录会话 #41'), 250);
         await tester.pumpAndSettle();
       }
       expect(find.text('登录会话'), findsOneWidget);
-      expect(find.text('MacBook Air'), findsOneWidget);
+      expect(find.text('登录会话 #41'), findsOneWidget);
+      expect(find.text('MacBook Air'), findsNothing);
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
       expect(find.text('当前设备'), findsNothing);
       if (!skin.desktop) {
@@ -137,7 +138,7 @@ void main() {
       await tester.tap(find.text('确定'));
       await tester.pumpAndSettle();
       expect(revoked, isTrue);
-      expect(find.text('MacBook Air'), findsNothing);
+      expect(find.text('登录会话 #41'), findsNothing);
       expect(find.text('暂无可显示的登录会话。'), findsOneWidget);
     },
   );
@@ -156,7 +157,31 @@ void main() {
       fail = false;
       await tester.tap(find.text('刷新').last);
       await tester.pumpAndSettle();
-      expect(find.text('MacBook Air'), findsOneWidget);
+      expect(find.text('登录会话 #41'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a revoked current session expires only after authentication fails',
+    (tester) async {
+      var revoked = false;
+      harness.panel = (request) {
+        if (request.url.path.endsWith('/removeActiveSession')) {
+          revoked = true;
+          return zolnitJson(true);
+        }
+        if (revoked && request.url.path.endsWith('/user/info')) {
+          return http.Response('{"message":"Unauthenticated"}', 401);
+        }
+        return zolnitPanelFixture(request);
+      };
+      await openAccount(tester, ZolnitSkin.macos);
+      await tester.tap(find.byKey(const ValueKey('zolnit-revoke-41')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确定'));
+      await tester.pumpAndSettle();
+      expect(revoked, isTrue);
+      expect(find.text('欢迎回来'), findsOneWidget);
     },
   );
 
@@ -187,6 +212,69 @@ void main() {
     expect(find.text('密码已更新。'), findsOneWidget);
     expect(find.text('oldpass12'), findsNothing);
     expect(find.text('differentpass12'), findsNothing);
+  });
+
+  for (final leave in ['account', 'page']) {
+    testWidgets('delayed session 401 cannot refresh after leaving $leave', (
+      tester,
+    ) async {
+      final pending = Completer<http.Response>();
+      var requested = false;
+      harness.panel = (request) {
+        if (!requested && request.url.path.endsWith('/getActiveSession')) {
+          requested = true;
+          return pending.future;
+        }
+        return zolnitPanelFixture(request);
+      };
+      await harness.mount(tester, ZolnitSkin.macos);
+      await tester.tap(find.text('账号').first);
+      await tester.pump();
+      expect(requested, isTrue);
+      if (leave == 'account') {
+        await harness.relogin();
+      } else {
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+      harness.requests.clear();
+      pending.complete(http.Response('{"message":"Unauthenticated"}', 401));
+      await tester.pumpAndSettle();
+      expect(harness.session.authenticated, isTrue);
+      expect(
+        harness.requests.where((r) => r.url.path.endsWith('/user/info')),
+        isEmpty,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('transient refresh failure after revoke retains authentication', (
+    tester,
+  ) async {
+    var revoked = false;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/removeActiveSession')) {
+        revoked = true;
+        return zolnitJson(true);
+      }
+      if (revoked && request.url.path.endsWith('/user/info')) {
+        return http.Response('{"message":"Unavailable"}', 503);
+      }
+      if (revoked && request.url.path.endsWith('/getActiveSession')) {
+        return zolnitJson([]);
+      }
+      return zolnitPanelFixture(request);
+    };
+    await openAccount(tester, ZolnitSkin.macos);
+    expect(find.text('查看登录记录，并退出不再使用的会话。'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('zolnit-revoke-41')));
+    await tester.pumpAndSettle();
+    expect(find.text('退出此登录会话？这可能是当前会话，退出后需要重新登录。'), findsOneWidget);
+    await tester.tap(find.text('确定'));
+    await tester.pumpAndSettle();
+    expect(harness.session.authenticated, isTrue);
+    expect(find.text('lin@example.com'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('an old account session response cannot return after sign out', (
