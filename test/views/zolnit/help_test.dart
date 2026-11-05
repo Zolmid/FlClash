@@ -20,6 +20,28 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('help retains the shared page palette when opened from home', (
+    tester,
+  ) async {
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/knowledge/fetch')) {
+        return zolnitJson([
+          {'id': 1, 'title': '连接帮助', 'body': '帮助内容'},
+        ]);
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.mount(
+      tester,
+      ZolnitSkin.android,
+      size: const Size(1440, 900),
+    );
+    await tester.tap(find.text('帮助与支持'));
+    await waitFor(tester, find.text('连接帮助'));
+    final context = tester.element(find.byType(ZolnitHelpPage));
+    expect(Theme.of(context).scaffoldBackgroundColor, ZolnitColors.light.paper);
+  });
+
   testWidgets('help and support requests stay inside the app', (tester) async {
     var submitted = false;
     harness.panel = (request) {

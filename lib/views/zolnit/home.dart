@@ -335,7 +335,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
               colorScheme: colors,
               scaffoldBackgroundColor: colors.surface,
             )
-            .withAppSurfaces,
+            .withAppSurfaces
+            .copyWith(scaffoldBackgroundColor: colors.surface),
         child: Builder(
           builder: (context) => Material(
             color: colors.surface,
