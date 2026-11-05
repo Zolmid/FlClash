@@ -5,6 +5,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/views/zolnit/brand.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:fl_clash/views/zolnit/shell.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,19 @@ import 'harness.dart';
 
 void main() {
   final harness = ZolnitHarness.register();
+
+  testWidgets('a mobile platform shows the brand once at every width', (
+    tester,
+  ) async {
+    await harness.mount(tester, ZolnitSkin.android);
+    for (final width in [390.0, 820.0, 1440.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpAndSettle();
+      expect(find.byType(ZolnitBrand), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await harness.capture(tester, 'connect-width-${width.toInt()}');
+    }
+  });
 
   testWidgets('plan and cycle survive phone tablet and desktop resizing', (
     tester,

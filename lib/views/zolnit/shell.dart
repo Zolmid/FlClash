@@ -370,7 +370,7 @@ class ZolnitTopBar extends StatelessWidget {
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
     final text = context.appLocalizations;
-    final phone = compact || !skin.desktop;
+    final phone = compact;
     final height = switch (skin) {
       ZolnitSkin.macos => 62.0,
       ZolnitSkin.windows => 58.0,
