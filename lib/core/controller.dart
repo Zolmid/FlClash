@@ -364,6 +364,13 @@ class CoreController {
 
   Future<ProbeResult?> probe(ProbeParams params) => _interface.probe(params);
 
+  Future<Map<String, dynamic>?> firstPartyHTTP(
+    Map<String, dynamic> parameters,
+  ) => _interface.firstPartyHTTP(parameters);
+
+  Future<bool> cancelFirstPartyHTTP(String clientId, String requestId) =>
+      _interface.cancelFirstPartyHTTP(clientId, requestId);
+
   Future<OutboundIpResult?> outboundIp(OutboundIpParams params) =>
       _interface.outboundIp(params);
 

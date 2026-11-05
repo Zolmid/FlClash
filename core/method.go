@@ -57,6 +57,10 @@ func handleCrash() {
 func handleMethodCall(call *MethodCall) (data []byte) {
 	defer func() {
 		if r := recover(); r != nil {
+			if call.Method == firstPartyHTTPMethod || call.Method == cancelFirstPartyHTTPMethod {
+				data = encodeResponse(MethodResponse{ID: call.ID, Error: firstPartyHTTPError("internal_error")})
+				return
+			}
 			logError("panic in %s: %v\n%s", call.Method, r, stackTrace())
 			data = encodeResponse(MethodResponse{ID: call.ID, Error: &MethodError{
 				Code:    "internal_error",
@@ -76,7 +80,11 @@ func handleMethodCall(call *MethodCall) (data []byte) {
 	if err != nil {
 		return encodeResponse(MethodResponse{ID: call.ID, Error: asMethodError(err)})
 	}
-	return spillResponse(call.ID, encodeResponse(MethodResponse{ID: call.ID, Result: result}))
+	data = encodeResponse(MethodResponse{ID: call.ID, Result: result})
+	if call.Method == firstPartyHTTPMethod {
+		return spillFirstPartyHTTPResponse(call.ID, data)
+	}
+	return spillResponse(call.ID, data)
 }
 
 func encodeResponse(response MethodResponse) []byte {
@@ -222,6 +230,8 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	asyncTestDelayMethod:                 withArguments(handleTestDelay),
 	watchRouteMethod:                     watchRouteHandler,
 	probeMethod:                          withArguments(handleProbe),
+	firstPartyHTTPMethod:                 firstPartyHTTPHandler,
+	cancelFirstPartyHTTPMethod:           cancelFirstPartyHTTPHandler,
 	outboundIpMethod:                     withArguments(handleOutboundIp),
 	serviceCheckMethod:                   withArguments(handleServiceCheck),
 	getTrafficMethod:                     withArguments(handleGetTraffic),

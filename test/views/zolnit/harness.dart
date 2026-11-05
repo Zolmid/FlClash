@@ -225,11 +225,17 @@ const zolnitViewports = <ZolnitSkin, (Size, TargetPlatform)>{
 /// Set ZOLNIT_CAPTURE_DIR to write PNGs; ZOLNIT_FONT_PATH,
 /// ZOLNIT_CJK_FONT_PATH and ZOLNIT_CJK_BOLD_FONT_PATH name the fonts to load.
 class ZolnitHarness {
-  ZolnitHarness._(this.overrides, this.clientPlatform, this.distribution);
+  ZolnitHarness._(
+    this.overrides,
+    this.clientPlatform,
+    this.distribution,
+    this.vault,
+  );
 
   final List<Override> overrides;
   final String? clientPlatform;
   final String? distribution;
+  final ZolnitSessionVault? vault;
 
   late ZolnitSessionController session;
   late ProviderContainer container;
@@ -241,8 +247,14 @@ class ZolnitHarness {
     List<Override> overrides = const [],
     String? clientPlatform,
     String? distribution,
+    ZolnitSessionVault? vault,
   }) {
-    final harness = ZolnitHarness._(overrides, clientPlatform, distribution);
+    final harness = ZolnitHarness._(
+      overrides,
+      clientPlatform,
+      distribution,
+      vault,
+    );
     setUpAll(harness._loadFonts);
     setUp(harness._start);
     tearDown(harness._stop);
@@ -281,6 +293,7 @@ class ZolnitHarness {
     );
     session = ZolnitSessionController(
       api: api,
+      vault: vault,
       billing: ZolnitBillingClient(api),
       checkout: CheckoutController(
         backend: _Backend(),
@@ -302,6 +315,7 @@ class ZolnitHarness {
     panel = zolnitPanelFixture;
     requests.clear();
     await relogin();
+    await Future<void>.delayed(Duration.zero);
   }
 
   Future<void> relogin() async {

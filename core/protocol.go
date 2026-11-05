@@ -63,6 +63,8 @@ const (
 	resetTrafficMethod                   CoreMethod = "resetTraffic"
 	asyncTestDelayMethod                 CoreMethod = "asyncTestDelay"
 	probeMethod                          CoreMethod = "probe"
+	firstPartyHTTPMethod                 CoreMethod = "firstPartyHTTP"
+	cancelFirstPartyHTTPMethod           CoreMethod = "cancelFirstPartyHTTP"
 	outboundIpMethod                     CoreMethod = "outboundIp"
 	serviceCheckMethod                   CoreMethod = "serviceCheck"
 	getConnectionsMethod                 CoreMethod = "getConnections"
@@ -295,6 +297,27 @@ type ProbeResult struct {
 	// response headers, and ProbeResult is the shape the Dart side decodes.
 	header    http.Header
 	lowerBody string
+}
+
+type FirstPartyHTTPParams struct {
+	ClientID  string            `json:"client-id"`
+	RequestID string            `json:"request-id"`
+	Method    string            `json:"method"`
+	URL       string            `json:"url"`
+	Headers   map[string]string `json:"headers"`
+	Body      string            `json:"body"`
+	Timeout   int64             `json:"timeout"`
+}
+
+type FirstPartyHTTPCancelParams struct {
+	ClientID  string `json:"client-id"`
+	RequestID string `json:"request-id"`
+}
+
+type FirstPartyHTTPResult struct {
+	Status  int               `json:"status"`
+	Headers map[string]string `json:"headers"`
+	Body    string            `json:"body"`
 }
 
 type Traffic struct {

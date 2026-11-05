@@ -2,6 +2,7 @@ package com.zolmid.zolnit.renewal
 
 import android.os.SystemClock
 import com.zolmid.zolnit.ServiceController
+import com.zolmid.zolnit.ServiceState
 import com.zolmid.zolnit.common.GlobalState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -18,7 +19,9 @@ internal object AndroidClientBundleRenewal {
             scope = GlobalState,
             store = ClientBundleEpochStore(FlutterBundleSecurePreferences(GlobalState.application)),
             rpc = BundleRpc { method, args -> invoke(method, args) },
-            transport = ClientBundleHttpTransport(),
+            transport = ClientBundleHttpTransport.android(GlobalState.application) {
+                ServiceState.awaitActiveVpnOptions()?.enable == true
+            },
             mainBarrier = { action -> withContext(Dispatchers.Main.immediate) { action() } },
             monotonicMillis = SystemClock::elapsedRealtime,
         )

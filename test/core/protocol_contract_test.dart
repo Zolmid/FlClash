@@ -52,6 +52,12 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
         'rule': 'Match',
         'rule-payload': '',
       },
+      CoreMethod.firstPartyHTTP => {
+        'status': 200,
+        'headers': {'Content-Type': 'application/json'},
+        'body': 'e30=',
+      },
+      CoreMethod.cancelFirstPartyHTTP => true,
       CoreMethod.getConnections => {
         'connections': [
           {
@@ -242,6 +248,28 @@ void main() {
         maxBody: 64,
       ),
     );
+    final response = await handler.firstPartyHTTP({
+      'client-id': 'client',
+      'request-id': 'client_request',
+      'method': 'GET',
+      'url': 'https://link.zolmid.com/api/v1/user/info',
+      'headers': <String, String>{},
+      'body': '',
+      'timeout': 24000,
+    });
+    expect(response?['status'], 200);
+    expect(
+      handler.calls[CoreMethod.firstPartyHTTP],
+      containsPair('request-id', 'client_request'),
+    );
+    expect(
+      await handler.cancelFirstPartyHTTP('client', 'client_request'),
+      isTrue,
+    );
+    expect(handler.calls[CoreMethod.cancelFirstPartyHTTP], {
+      'client-id': 'client',
+      'request-id': 'client_request',
+    });
     await handler.clearEffect(42);
 
     for (final method in [

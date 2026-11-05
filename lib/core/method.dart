@@ -37,6 +37,8 @@ enum CoreMethod {
   resetTraffic,
   asyncTestDelay,
   probe,
+  firstPartyHTTP,
+  cancelFirstPartyHTTP,
   outboundIp,
   serviceCheck,
   getConnections,

@@ -2571,6 +2571,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "로그인이 만료되었습니다. 다시 로그인하세요.",
     ),
     "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("마지막 활동"),
+    "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "저장된 로그인 정보를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
+    ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("로그인"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도하세요.",

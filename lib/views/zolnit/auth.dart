@@ -44,7 +44,7 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
   }
 
   Future<void> _login() async {
-    if (_submitting || widget.session.busy) return;
+    if (_submitting) return;
     if (_form.currentState?.validate() != true) return;
     setState(() => _submitting = true);
     try {
@@ -84,7 +84,7 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
     final session = widget.session;
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
-    final busy = _submitting || session.busy;
+    final busy = _submitting;
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;

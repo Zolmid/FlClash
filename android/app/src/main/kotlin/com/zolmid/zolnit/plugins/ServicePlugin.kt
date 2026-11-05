@@ -6,7 +6,10 @@ import com.zolmid.zolnit.ServiceController
 import com.zolmid.zolnit.ServiceState
 import com.zolmid.zolnit.common.Components
 import com.zolmid.zolnit.models.SharedState
+import com.zolmid.zolnit.network.FirstPartyHttpTransport
 import com.google.gson.Gson
+import android.os.Handler
+import android.os.Looper
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -23,11 +26,16 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var coreChannel: MethodChannel
     private lateinit var scope: CoroutineScope
+    private lateinit var firstPartyHttp: FirstPartyHttpTransport
+    private val httpResults = Handler(Looper.getMainLooper())
     private val gson = Gson()
     private var commandRevision = 0
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        firstPartyHttp = FirstPartyHttpTransport.android(binding.applicationContext) {
+            ServiceState.awaitActiveVpnOptions()?.enable == true
+        }
         messenger = binding.binaryMessenger
         channel = MethodChannel(messenger, SERVICE_CHANNEL)
         channel.setMethodCallHandler(this)
@@ -47,6 +55,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         coreChannel.setMethodCallHandler(null)
+        firstPartyHttp.close()
         scope.cancel()
         ServiceController.setEventListener(null)
     }
@@ -55,6 +64,15 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         when (call.method) {
             "configureClientBundleRenewal", "logoutClientBundleRenewal", "clientBundleRenewalStatus" ->
                 renewal(call, result)
+            "firstPartyHttpRequest" -> firstPartyHttp(call, result)
+            "cancelFirstPartyHttpRequest" -> {
+                runCatching {
+                    firstPartyHttp.cancel(requireNotNull(call.arguments as? Map<*, *>))
+                }.fold(
+                    { result.success(null) },
+                    { result.error("INVALID_ARGUMENT", "Invalid HTTP request identifier", null) },
+                )
+            }
             "init" -> initialize(result)
             "shutdown" -> shutdown(result)
             "getRunTime" -> getRunTime(result)
@@ -68,6 +86,22 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             "start" -> start(call, result)
             "stop" -> stop(call, result)
             else -> result.notImplemented()
+        }
+    }
+
+    private fun firstPartyHttp(call: MethodCall, result: MethodChannel.Result) {
+        val arguments = call.arguments as? Map<*, *>
+        if (arguments == null) {
+            result.error("INVALID_ARGUMENT", "Invalid first-party HTTP request", null)
+            return
+        }
+        firstPartyHttp.submit(arguments) { response ->
+            httpResults.post {
+                response.fold(
+                    { value -> result.success(value) },
+                    { result.error("NETWORK", "First-party HTTP request failed", null) },
+                )
+            }
         }
     }
 

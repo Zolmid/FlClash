@@ -141,12 +141,33 @@ void main() {
         expect(error.serverMessage, isNull);
       }
       final error = await _failure('/api/v1/user/info', 403, {
-        'message': 'PRIVATE_DO_NOT_RENDER',
+        'status': 'fail',
+        'message': '未登录或登陆已过期',
+        'data': null,
+        'error': null,
       });
       expect(error.code, 'unauthenticated');
       expect(error.serverMessage, isNull);
     },
   );
+
+  test('foreign account 403 responses preserve the credential', () async {
+    for (final body in [
+      '<html>edge denied</html>',
+      {'message': 'forbidden'},
+      {'status': 'fail', 'message': 'forbidden', 'error': 'edge'},
+      {'status': 'fail', 'message': '账户受限', 'data': null, 'error': null},
+    ]) {
+      final error = await _failure(
+        '/api/v1/user/info',
+        403,
+        body,
+        rawBody: body is String,
+      );
+      expect(error.code, 'api_error', reason: '$body');
+      expect(error.statusCode, 403);
+    }
+  });
 
   test(
     'subscription and order permission failures do not invalidate authentication',

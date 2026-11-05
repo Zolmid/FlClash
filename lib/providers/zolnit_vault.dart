@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -30,15 +32,19 @@ class SecureZolnitSessionVault implements ZolnitSessionVault {
 
   @override
   Future<void> deleteAuthorization() async {
-    await beforeDelete?.call();
-    await _storage.delete(key: _key);
+    final retirement = Future<void>.sync(() async {
+      await beforeDelete?.call();
+    }).timeout(const Duration(seconds: 3), onTimeout: () {});
+    await Future.wait([_storage.delete(key: _key), retirement]);
   }
 
   @override
   Future<String?> readAuthorization() async {
     final value = await _storage.read(key: _key);
     if (value == null) return null;
-    final allowed = await allowsRestore?.call(value) ?? true;
+    final allowed =
+        await allowsRestore?.call(value).timeout(const Duration(seconds: 3)) ??
+        true;
     return allowed ? value : null;
   }
 

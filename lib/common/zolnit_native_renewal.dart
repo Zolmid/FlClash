@@ -68,12 +68,14 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
   ZolnitNativeRenewalClient({
     required ZolnitRenewalJournal journal,
     ZolnitNativeRenewalCall? call,
+    this.operationTimeout = const Duration(seconds: 3),
   }) : _journal = journal,
        _call = call ?? _invoke;
 
   static const _channel = MethodChannel('$packageName/service');
   final ZolnitRenewalJournal _journal;
   final ZolnitNativeRenewalCall _call;
+  final Duration operationTimeout;
   Future<void> _tail = Future.value();
   int _revision = 0;
   bool _disposed = false;
@@ -118,7 +120,7 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
         'accountGeneration': accountGeneration,
         'authorization': authorization,
         'distribution': distribution,
-      });
+      }).timeout(operationTimeout);
       if (result is! Map) {
         throw StateError('Native renewal returned an invalid receipt');
       }
@@ -173,7 +175,7 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
     final result = await _call(
       'clientBundleRenewalStatus',
       null,
-    ).timeout(const Duration(seconds: 3));
+    ).timeout(operationTimeout);
     if (result is! Map) return;
     if (result['sessionEpoch'] != scope.epoch) return;
     final state = result['state'];
@@ -201,7 +203,7 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
   Future<void> _retire(_Scope scope) async {
     final result = await _call('logoutClientBundleRenewal', {
       'sessionEpoch': scope.epoch,
-    });
+    }).timeout(operationTimeout);
     if (result != true) {
       throw StateError('Native renewal cleanup was not acknowledged');
     }

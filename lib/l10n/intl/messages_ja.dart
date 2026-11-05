@@ -2613,6 +2613,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "ログインの有効期限が切れました。もう一度ログインしてください。",
     ),
     "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("最終利用"),
+    "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "保存されたログイン情報に一時的にアクセスできません。もう一度お試しください。",
+    ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("ログイン"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "メールアドレスまたはパスワードが正しくありません。もう一度お試しください。",

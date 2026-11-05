@@ -10974,6 +10974,16 @@ class AppLocalizations {
     );
   }
 
+  /// `Saved sign-in information is temporarily unavailable. Please try again.`
+  String get zolnitSessionStorageUnavailable {
+    return Intl.message(
+      'Saved sign-in information is temporarily unavailable. Please try again.',
+      name: 'zolnitSessionStorageUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Choose server`
   String get zolnitSelectServer {
     return Intl.message(

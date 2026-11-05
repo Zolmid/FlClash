@@ -36,6 +36,7 @@ void main() {
             clientBundleResponse(clientBundleFixture(accountId: '2'));
         if (restore) {
           await client.session.restore();
+          await Future<void>.delayed(Duration.zero);
         } else {
           await client.login();
         }

@@ -3108,6 +3108,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage(
       "Last active",
     ),
+    "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "Saved sign-in information is temporarily unavailable. Please try again.",
+    ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Sign in"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "Email or password is incorrect. Try again.",

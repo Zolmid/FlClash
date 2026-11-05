@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "연결 해제",
   "zolnitDisconnecting": "연결 해제 중…",
   "zolnitRestoringSession": "로그인 복원 중…",
+  "zolnitSessionStorageUnavailable": "저장된 로그인 정보를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
   "zolnitSelectServer": "서버 선택",
   "zolnitCurrentPlanLabel": "현재 요금제",
   "zolnitPlans": "요금제",

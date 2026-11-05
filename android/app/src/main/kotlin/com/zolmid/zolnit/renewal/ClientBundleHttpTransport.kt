@@ -1,6 +1,12 @@
 package com.zolmid.zolnit.renewal
 
+import android.content.Context
+import com.zolmid.zolnit.network.AndroidFirstPartyCalls
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.CookieJar
@@ -22,10 +28,24 @@ import kotlin.coroutines.resumeWithException
 
 internal class ClientBundleHttpTransport(
     private val calls: Call.Factory = newClient(),
+    private val selectCalls: (suspend () -> Call.Factory)? = null,
 ) : BundleTransport {
     private val active = AtomicReference<Call?>()
+    private val activeRequest = AtomicReference<Job?>()
 
-    override suspend fun get(authorization: String, coreVersion: String): BundleHttpResponse =
+    override suspend fun get(authorization: String, coreVersion: String): BundleHttpResponse = withTimeout(15_000) {
+        val job = currentCoroutineContext()[Job]!!
+        check(activeRequest.compareAndSet(null, job)) { "request_already_active" }
+        try {
+            val selected = selectCalls?.invoke() ?: calls
+            currentCoroutineContext().ensureActive()
+            get(selected, authorization, coreVersion)
+        } finally {
+            activeRequest.compareAndSet(job, null)
+        }
+    }
+
+    private suspend fun get(calls: Call.Factory, authorization: String, coreVersion: String): BundleHttpResponse =
         suspendCancellableCoroutine { continuation ->
             val request = Request.Builder().url(ENDPOINT).get()
                 .header("Authorization", authorization).header("Accept", "application/json")
@@ -39,6 +59,7 @@ internal class ClientBundleHttpTransport(
                 call.cancel()
                 active.compareAndSet(call, null)
             }
+            if (!continuation.isActive) return@suspendCancellableCoroutine
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     active.compareAndSet(call, null)
@@ -48,6 +69,7 @@ internal class ClientBundleHttpTransport(
                 override fun onResponse(call: Call, response: Response) {
                     val result = runCatching {
                         response.use {
+                            check(continuation.isActive && !call.isCanceled())
                             if (it.code == 401 || it.code == 429) {
                                 return@use BundleHttpResponse(it.code, "", retryAfter(it.header("Retry-After")))
                             }
@@ -57,6 +79,7 @@ internal class ClientBundleHttpTransport(
                             body.byteStream().use { stream ->
                                 val buffer = ByteArray(8_192)
                                 while (true) {
+                                    check(continuation.isActive && !call.isCanceled())
                                     val count = stream.read(buffer)
                                     if (count < 0) break
                                     require(bytes.size() + count <= MAX_BYTES)
@@ -79,9 +102,17 @@ internal class ClientBundleHttpTransport(
             })
         }
 
-    override fun cancel() { active.getAndSet(null)?.cancel() }
+    override fun cancel() {
+        activeRequest.get()?.cancel()
+    }
 
     companion object {
+        fun android(context: Context, ownVpnActive: suspend () -> Boolean): ClientBundleHttpTransport {
+            val client = newClient().newBuilder().retryOnConnectionFailure(true).build()
+            val bound = AndroidFirstPartyCalls(context, client, ownVpnActive)
+            return ClientBundleHttpTransport(client, bound::select)
+        }
+
         fun newClient(): OkHttpClient = OkHttpClient.Builder()
             .cookieJar(CookieJar.NO_COOKIES).cache(null).proxy(Proxy.NO_PROXY)
             .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)

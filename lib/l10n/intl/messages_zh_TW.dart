@@ -2340,6 +2340,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "登入已失效，請重新登入。",
     ),
     "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("最後活動"),
+    "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "暫時無法讀取或儲存登入資訊，請稍後重試。",
+    ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登入"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "電子郵件或密碼不正確，請重試。",

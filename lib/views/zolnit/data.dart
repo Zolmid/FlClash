@@ -118,6 +118,7 @@ String zolnitFailureText(
     'payment_disallowed' ||
     'stripe_disabled_for_distribution' => text.zolnitPaymentUnavailable,
     'network' || 'timeout' => text.networkException,
+    'storage_unavailable' => text.zolnitSessionStorageUnavailable,
     'invalid_credentials' => text.zolnitSignInRejected,
     'unauthenticated' => text.zolnitSessionExpired,
     'entitlement_unavailable' => text.zolnitBundleForbidden,

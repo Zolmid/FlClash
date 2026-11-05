@@ -3379,6 +3379,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage(
       "Última actividad",
     ),
+    "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "La información de inicio de sesión guardada no está disponible temporalmente. Inténtalo de nuevo.",
+    ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Iniciar sesión"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "El correo o la contraseña no son correctos. Inténtalo de nuevo.",

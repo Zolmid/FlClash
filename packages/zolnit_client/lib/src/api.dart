@@ -36,7 +36,7 @@ class XboardClient {
     this.distribution,
     this.userAgent = 'ZolNit/0',
     this.contentLanguage,
-  }) : _client = client ?? createClient(),
+  }) : _client = client ?? createClient(origin: origin),
        origin = _validateOrigin(origin) {
     if ((clientPlatform != null &&
             !{
@@ -244,7 +244,9 @@ class XboardClient {
       return ClientFailure(classified, statusCode: statusCode);
     }
     if (statusCode == 401 ||
-        (statusCode == 403 && path == '/api/v1/user/info')) {
+        (statusCode == 403 &&
+            path == '/api/v1/user/info' &&
+            _isExpiredAccountResponse(bodyBytes))) {
       return ClientFailure('unauthenticated', statusCode: statusCode);
     }
     // XBoard reports business errors such as an unpaid order as HTTP 500; the
@@ -290,6 +292,24 @@ class XboardClient {
       return text;
     } on FormatException {
       return null;
+    }
+  }
+
+  static bool _isExpiredAccountResponse(List<int> bodyBytes) {
+    try {
+      final value = jsonDecode(utf8.decode(bodyBytes));
+      if (value is! Map<String, dynamic> || value['status'] != 'fail') {
+        return false;
+      }
+      final error = value['error'];
+      final code = error is Map ? error['code'] : null;
+      const codes = {'unauthenticated', 'session_expired'};
+      const messages = {'未登录或登陆已过期', '未登录或登录已过期'};
+      return value['data'] == null &&
+          ((code is String && codes.contains(code)) ||
+              (error == null && messages.contains(value['message'])));
+    } catch (_) {
+      return false;
     }
   }
 

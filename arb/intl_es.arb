@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "Desconectar",
   "zolnitDisconnecting": "Desconectando…",
   "zolnitRestoringSession": "Restaurando sesión…",
+  "zolnitSessionStorageUnavailable": "La información de inicio de sesión guardada no está disponible temporalmente. Inténtalo de nuevo.",
   "zolnitSelectServer": "Elegir servidor",
   "zolnitCurrentPlanLabel": "Plan actual",
   "zolnitPlans": "Planes",

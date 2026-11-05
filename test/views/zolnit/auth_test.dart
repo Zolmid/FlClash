@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/views/zolnit/auth.dart';
 import 'package:fl_clash/views/zolnit/brand.dart';
+import 'package:fl_clash/views/zolnit/data.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,6 +114,22 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('zolnit-sign-in')));
     await tester.pump();
     expect(harness.requests, isEmpty);
+  });
+
+  testWidgets('storage recovery failure is not shown as a network error', (
+    tester,
+  ) async {
+    await harness.mount(
+      tester,
+      ZolnitSkin.macos,
+      child: Builder(
+        builder: (context) =>
+            Text(zolnitFailureText(context, 'storage_unavailable', null)),
+      ),
+    );
+
+    expect(find.text('暂时无法读取或保存登录信息，请稍后重试。'), findsOneWidget);
+    expect(find.text('网络异常，请检查连接后重试'), findsNothing);
   });
 
   testWidgets('pending failure locks fields and clears attempted password', (

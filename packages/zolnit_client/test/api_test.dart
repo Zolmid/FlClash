@@ -185,9 +185,7 @@ void main() {
         );
         addTearDown(client.close);
         client.setAuthorization('Bearer token');
-        final code = {401, 403}.contains(status)
-            ? 'unauthenticated'
-            : 'api_error';
+        final code = status == 401 ? 'unauthenticated' : 'api_error';
         await expectLater(
           client.account(),
           throwsA(

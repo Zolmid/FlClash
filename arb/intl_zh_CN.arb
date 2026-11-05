@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "断开连接",
   "zolnitDisconnecting": "正在断开…",
   "zolnitRestoringSession": "正在恢复登录…",
+  "zolnitSessionStorageUnavailable": "暂时无法读取或保存登录信息，请稍后重试。",
   "zolnitSelectServer": "选择线路",
   "zolnitCurrentPlanLabel": "当前套餐",
   "zolnitPlans": "套餐",

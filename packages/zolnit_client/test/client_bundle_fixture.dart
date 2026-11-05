@@ -104,7 +104,10 @@ class ClientBundleSessionFixture {
   final requests = <http.Request>[];
   Future<http.Response> Function(http.Request)? onBundle;
   int invalidations = 0;
-  Future<void> login() =>
-      session.login('fixture@example.invalid', 'fixture-password');
+  Future<void> login() async {
+    await session.login('fixture@example.invalid', 'fixture-password');
+    await Future<void>.delayed(Duration.zero);
+  }
+
   void dispose() => session.dispose();
 }

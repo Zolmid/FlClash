@@ -28,6 +28,8 @@ class ZolnitSessionController extends ChangeNotifier {
     this.vault,
     this.confirmRecurring,
     this.onAuthenticationInvalidated,
+    this.vaultTimeout = const Duration(seconds: 5),
+    this.authenticationTimeout = const Duration(seconds: 30),
   }) : _billing = billing {
     checkout.addListener(_checkoutChanged);
   }
@@ -38,6 +40,8 @@ class ZolnitSessionController extends ChangeNotifier {
   final Future<bool> Function(Json terms)? confirmRecurring;
   final ZolnitSessionVault? vault;
   final Future<void> Function()? onAuthenticationInvalidated;
+  final Duration vaultTimeout;
+  final Duration authenticationTimeout;
   final Map<String, Future<dynamic>> _flights = {};
   final Map<String, String?> _intents = {};
   final _quoteFlights =
@@ -252,7 +256,7 @@ class ZolnitSessionController extends ChangeNotifier {
                     await onAuthenticationInvalidated?.call();
                   }
                 }),
-              ]);
+              ]).timeout(vaultTimeout);
             } catch (_) {}
             return fallback;
           }
@@ -285,12 +289,12 @@ class ZolnitSessionController extends ChangeNotifier {
     if (_disposed) return Future.value();
     final active = _flights['login'];
     if (active != null) return active as Future<void>;
-    final deletion = _invalidate();
+    _invalidate(deleteAuthorization: false);
     return _run<void>('login', null, (work) async {
       try {
-        await deletion;
-        if (!_current(work)) return;
-        final result = await api.login(email, password);
+        final result = await api
+            .login(email, password)
+            .timeout(authenticationTimeout);
         if (!_current(work)) return;
         final authorization = result['auth_data'];
         if (authorization is! String || authorization.isEmpty) {
@@ -298,18 +302,28 @@ class ZolnitSessionController extends ChangeNotifier {
         }
         api.setAuthorization(authorization);
         work.generation = api.generation;
-        await _loadCore(work);
+        await _loadIdentity(work);
+        if (!_current(work)) return;
+        final hydration = _startOptionalLoad(work);
         if (_current(work)) {
-          await _writeAuthorization(work, authorization);
+          await _persistAuthorization(work, authorization);
           if (!_current(work)) return;
           _authenticated = true;
           _restoreState = ZolnitRestoreState.signedIn;
+          unawaited(hydration);
         }
-      } catch (_) {
+      } catch (error) {
         if (_current(work)) {
           api.setAuthorization(null);
           work.generation = api.generation;
           _clearSnapshots();
+          if (error is ClientFailure &&
+              (error.code == 'unauthenticated' ||
+                  error.code == 'invalid_authorization')) {
+            await _deleteAuthorization(
+              work,
+            ).timeout(vaultTimeout, onTimeout: () {});
+          }
         }
         rethrow;
       }
@@ -328,22 +342,21 @@ class ZolnitSessionController extends ChangeNotifier {
     late final Future<void> operation;
     operation = Future<void>.microtask(() async {
       try {
-        String? authorization;
-        await _queueVault(() async {
-          if (_current(work)) authorization = await vault.readAuthorization();
-        });
+        final authorization = await _readAuthorization(vault);
         if (!_current(work)) return;
-        final restoredAuthorization = authorization;
-        if (restoredAuthorization == null || restoredAuthorization.isEmpty) {
+        if (authorization == null || authorization.isEmpty) {
           _restoreState = ZolnitRestoreState.signedOut;
           return;
         }
-        api.setAuthorization(restoredAuthorization);
+        api.setAuthorization(authorization);
         work.generation = api.generation;
-        await _loadCore(work);
+        await _loadIdentity(work);
+        if (!_current(work)) return;
+        final hydration = _startOptionalLoad(work);
         if (_current(work)) {
           _authenticated = true;
           _restoreState = ZolnitRestoreState.signedIn;
+          unawaited(hydration);
         }
       } catch (error) {
         if (_current(work)) {
@@ -354,7 +367,16 @@ class ZolnitSessionController extends ChangeNotifier {
           api.setAuthorization(null);
           work.generation = api.generation;
           _clearSnapshots();
-          if (invalid) await _deleteAuthorization(work);
+          if (invalid) {
+            try {
+              await Future.wait<void>([
+                _deleteAuthorization(work),
+                Future<void>.sync(() async {
+                  if (_current(work)) await onAuthenticationInvalidated?.call();
+                }),
+              ]).timeout(vaultTimeout);
+            } catch (_) {}
+          }
           if (!_current(work)) return;
           _restoreState = invalid
               ? ZolnitRestoreState.expired
@@ -373,29 +395,68 @@ class ZolnitSessionController extends ChangeNotifier {
     return operation;
   }
 
+  Future<String?> _readAuthorization(ZolnitSessionVault vault) async {
+    try {
+      await _vaultTail.timeout(vaultTimeout);
+      return await vault.readAuthorization().timeout(vaultTimeout);
+    } catch (error) {
+      if (error is ClientFailure) rethrow;
+      throw const ClientFailure('storage_unavailable');
+    }
+  }
+
   Future<void> _writeAuthorization(_SessionWork work, String authorization) {
     final vault = this.vault;
     if (vault == null) return Future.value();
     final generation = _vaultGeneration;
-    return _queueVault(() async {
+    return _queueVaultMutation(() async {
       if (_current(work) && generation == _vaultGeneration) {
         await vault.writeAuthorization(authorization);
       }
     });
   }
 
+  Future<void> _persistAuthorization(
+    _SessionWork work,
+    String authorization,
+  ) async {
+    try {
+      await _writeAuthorization(work, authorization).timeout(vaultTimeout);
+    } on TimeoutException {
+      _scheduleFailedPersistenceCleanup();
+      throw const ClientFailure('storage_unavailable');
+    } catch (error) {
+      if (error is ClientFailure) rethrow;
+      _scheduleFailedPersistenceCleanup();
+      throw const ClientFailure('storage_unavailable');
+    }
+  }
+
+  void _scheduleFailedPersistenceCleanup() {
+    final vault = this.vault;
+    if (vault == null) return;
+    final generation = ++_vaultGeneration;
+    unawaited(
+      _queueVaultMutation(() async {
+        if (generation == _vaultGeneration) {
+          await vault.deleteAuthorization();
+        }
+      }),
+    );
+  }
+
   Future<void> _deleteAuthorization(_SessionWork work) {
     final vault = this.vault;
     if (vault == null) return Future.value();
     final generation = _vaultGeneration;
-    return _queueVault(() async {
+    return _queueVaultMutation(() async {
       if (generation == _vaultGeneration) {
         await vault.deleteAuthorization();
       }
     });
   }
 
-  Future<void> _queueVault(Future<void> Function() action) {
+  Future<void> _queueVaultMutation(Future<void> Function() action) {
     final operation = _vaultTail.catchError((_) {}).then((_) => action());
     _vaultTail = operation.catchError((_) {});
     return operation;
@@ -452,7 +513,7 @@ class ZolnitSessionController extends ChangeNotifier {
     final vault = this.vault;
     if (vault == null) return Future.value();
     final generation = _vaultGeneration;
-    return _queueVault(() async {
+    return _queueVaultMutation(() async {
       if (generation == _vaultGeneration) await vault.deleteAuthorization();
     });
   }
@@ -460,8 +521,14 @@ class ZolnitSessionController extends ChangeNotifier {
   Future<void> logout() {
     if (_disposed) return Future.value();
     final deletion = _invalidate();
+    final epoch = _epoch;
     notifyListeners();
-    return deletion;
+    return deletion.timeout(vaultTimeout).catchError((Object _) {
+      if (!_disposed && epoch == _epoch) {
+        _failure = 'storage_unavailable';
+        notifyListeners();
+      }
+    });
   }
 
   static Json _object(dynamic value) {
@@ -476,39 +543,77 @@ class ZolnitSessionController extends ChangeNotifier {
     return List<Json>.unmodifiable(value.map(_object));
   }
 
-  Future<void> _loadCore(_SessionWork work) async {
+  Future<void> _loadIdentity(_SessionWork work) async {
+    final account = _object(await api.account().timeout(authenticationTimeout));
+    if (_current(work)) _account = account;
+  }
+
+  Future<void> _startOptionalLoad(_SessionWork work) {
+    final active = _flights['optional'];
+    if (active != null) return active as Future<void>;
     final read = ++_readSequence;
     _coreRead = read;
     _ordersRead = read;
-    final values = await Future.wait<dynamic>([
-      api.account(),
-      api.subscription(),
-      api.nodes(),
-      api.plans(),
-      api.orders(),
-      api.paymentMethods(),
-      api.notices().then<dynamic>((value) => value, onError: (_) => null),
-    ]);
-    if (!_current(work)) return;
-    final account = _object(values[0]);
-    final subscription = _object(values[1]);
-    final nodes = _list(values[2]);
-    final plans = _list(values[3]);
-    final orders = _list(values[4]);
-    final methods = _list(values[5]);
-    final notices = values[6] is List
-        ? List<Json>.unmodifiable((values[6] as List).whereType<Json>())
-        : const <Json>[];
-    if (read == _coreRead) {
-      _clearQuotePreviews();
-      _account = account;
-      _subscription = subscription;
-      _nodes = nodes;
-      _plans = plans;
-      _paymentMethods = methods;
-      _notices = notices;
+
+    Future<void> load(
+      Future<dynamic> request,
+      void Function(dynamic value) apply,
+    ) async {
+      try {
+        final value = await request.timeout(authenticationTimeout);
+        if (_current(work) && read == _coreRead) {
+          apply(value);
+          if (_authenticated) notifyListeners();
+        }
+      } catch (_) {
+        return;
+      }
     }
-    if (read == _ordersRead) _orders = orders;
+
+    late final Future<void> operation;
+    operation =
+        Future.wait<void>([
+          load(api.subscription(), (value) {
+            if (value is Json) {
+              _subscription = Map<String, dynamic>.unmodifiable(value);
+            }
+          }),
+          load(api.nodes(), (value) {
+            if (value is List && value.every((entry) => entry is Json)) {
+              _nodes = _list(value);
+            }
+          }),
+          load(api.plans(), (value) {
+            if (value is List && value.every((entry) => entry is Json)) {
+              _clearQuotePreviews();
+              _plans = _list(value);
+            }
+          }),
+          load(api.orders(), (value) {
+            if (read == _ordersRead &&
+                value is List &&
+                value.every((entry) => entry is Json)) {
+              _orders = _list(value);
+            }
+          }),
+          load(api.paymentMethods(), (value) {
+            if (value is List && value.every((entry) => entry is Json)) {
+              _paymentMethods = _list(value);
+            }
+          }),
+          load(api.notices(), (value) {
+            if (value is List) {
+              _notices = List<Json>.unmodifiable(value.whereType<Json>());
+            }
+          }),
+        ]).whenComplete(() {
+          if (identical(_flights['optional'], operation)) {
+            _flights.remove('optional');
+            if (!_disposed && _current(work)) notifyListeners();
+          }
+        });
+    _flights['optional'] = operation;
+    return operation;
   }
 
   Future<ZolnitClientBundle?> refreshClientBundle({
@@ -536,7 +641,11 @@ class ZolnitSessionController extends ChangeNotifier {
     return bundle;
   }, clientBundle: true);
 
-  Future<void> refresh() => _run<void>('refresh', null, _loadCore);
+  Future<void> refresh() => _run<void>('refresh', null, (work) async {
+    final hydration = _startOptionalLoad(work);
+    await _loadIdentity(work);
+    if (_current(work)) await hydration;
+  });
 
   Future<void> _loadBilling(_SessionWork work) async {
     final read = ++_readSequence;

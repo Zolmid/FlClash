@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "Отключиться",
   "zolnitDisconnecting": "Отключение…",
   "zolnitRestoringSession": "Восстановление входа…",
+  "zolnitSessionStorageUnavailable": "Сохранённые данные входа временно недоступны. Повторите попытку позже.",
   "zolnitSelectServer": "Выбрать сервер",
   "zolnitCurrentPlanLabel": "Текущий тариф",
   "zolnitPlans": "Тарифы",

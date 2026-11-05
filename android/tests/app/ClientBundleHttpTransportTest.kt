@@ -1,6 +1,8 @@
 package com.zolmid.zolnit.renewal
 
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import okhttp3.Call
@@ -37,6 +39,39 @@ private class FixtureCall(private val request: Request, private val response: Re
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ClientBundleHttpTransportTest {
+    @Test fun selectsBoundFactoryForEachRenewalWithoutFlutter() = runTest {
+        var selections = 0
+        val transport = ClientBundleHttpTransport(
+            calls = Call.Factory { error("ambient factory must not be used") },
+            selectCalls = {
+                selections++
+                Call.Factory { request -> FixtureCall(request, response(200, "{}".toResponseBody())) }
+            },
+        )
+        repeat(2) { assertEquals(200, transport.get("Bearer fixture", "v").status) }
+        assertEquals(2, selections)
+    }
+
+    @Test fun cancelAndTotalDeadlineReleaseNetworkSelectionBeforeAnyHttpSend() = runTest {
+        var cleaned = 0
+        val transport = ClientBundleHttpTransport(
+            calls = Call.Factory { error("must not send") },
+            selectCalls = { try { awaitCancellation() } finally { cleaned++ } },
+        )
+        val first = launch { runCatching { transport.get("Bearer fixture", "v") } }
+        runCurrent()
+        transport.cancel()
+        runCurrent()
+        assertTrue(first.isCompleted)
+        assertEquals(1, cleaned)
+        val second = launch { runCatching { transport.get("Bearer fixture", "v") } }
+        runCurrent()
+        advanceTimeBy(15_001)
+        runCurrent()
+        assertTrue(second.isCompleted)
+        assertEquals(2, cleaned)
+    }
+
     private fun response(code: Int, body: ResponseBody, retry: String? = null): Response = Response.Builder()
         .request(Request.Builder().url("https://fixture.invalid").build()).protocol(Protocol.HTTP_1_1)
         .code(code).message("fixture").body(body).apply { retry?.let { header("Retry-After", it) } }.build()

@@ -2318,6 +2318,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "登录已失效，请重新登录。",
     ),
     "zolnitSessionLastActive": MessageLookupByLibrary.simpleMessage("最后活跃"),
+    "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
+      "暂时无法读取或保存登录信息，请稍后重试。",
+    ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登录"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "邮箱或密码不正确，请重试。",

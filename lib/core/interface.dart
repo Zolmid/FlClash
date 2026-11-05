@@ -68,6 +68,10 @@ mixin CoreInterface {
 
   Future<ProbeResult?> probe(ProbeParams params);
 
+  Future<Map<String, dynamic>?> firstPartyHTTP(Map<String, dynamic> parameters);
+
+  Future<bool> cancelFirstPartyHTTP(String clientId, String requestId);
+
   Future<OutboundIpResult?> outboundIp(OutboundIpParams params);
 
   Future<List<ServiceCheckItem>> serviceCheck(ServiceCheckParams params);
@@ -149,8 +153,13 @@ abstract class CoreHandlerInterface with CoreInterface {
   }) async {
     return await handleWatch(
       onStart: () {
+        final suffix =
+            (method == CoreMethod.firstPartyHTTP ||
+                method == CoreMethod.cancelFirstPartyHTTP)
+            ? ''
+            : ' $arguments';
         commonPrint.log(
-          'Invoke method ${method.name} ${DateTime.now()} $arguments',
+          'Invoke method ${method.name} ${DateTime.now()}$suffix',
         );
       },
       function: () async {
@@ -645,6 +654,25 @@ abstract class CoreHandlerInterface with CoreInterface {
       timeout: probeGuardDuration(params),
     );
     return data == null ? null : ProbeResult.fromJson(data);
+  }
+
+  @override
+  Future<Map<String, dynamic>?> firstPartyHTTP(
+    Map<String, dynamic> parameters,
+  ) => _invokeMethod<Map<String, dynamic>>(
+    method: CoreMethod.firstPartyHTTP,
+    arguments: parameters,
+    timeout: const Duration(seconds: 27),
+  );
+
+  @override
+  Future<bool> cancelFirstPartyHTTP(String clientId, String requestId) async {
+    return await _invokeMethod<bool>(
+          method: CoreMethod.cancelFirstPartyHTTP,
+          arguments: {'client-id': clientId, 'request-id': requestId},
+          timeout: const Duration(seconds: 2),
+        ) ??
+        false;
   }
 
   @override

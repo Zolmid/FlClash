@@ -131,6 +131,8 @@ class _Fixture {
     bool allowStripe = true,
     this.vault,
     Future<void> Function()? onAuthenticationInvalidated,
+    Duration vaultTimeout = const Duration(seconds: 5),
+    Duration authenticationTimeout = const Duration(seconds: 30),
   }) : checkout = _Checkout(allowStripe: allowStripe) {
     httpClient = _Http((request) async {
       requests.add(request);
@@ -202,6 +204,8 @@ class _Fixture {
       checkout: checkout,
       vault: vault,
       onAuthenticationInvalidated: onAuthenticationInvalidated,
+      vaultTimeout: vaultTimeout,
+      authenticationTimeout: authenticationTimeout,
     );
   }
 
@@ -235,6 +239,7 @@ void main() {
       expect(session.authenticated, isFalse);
       await fixture.login();
       expect(session.authenticated, isTrue);
+      await Future<void>.delayed(Duration.zero);
       expect(session.account, {'email': 'student@example'});
       expect(session.nodes, isEmpty);
       expect(session.failure, isNull);
@@ -353,11 +358,170 @@ void main() {
     );
   });
 
+  test('cold restore without a credential signs out promptly', () async {
+    final restored = _Fixture(vault: _Vault());
+    addTearDown(restored.session.dispose);
+
+    await restored.session.restore();
+
+    expect(restored.session.restoreState, ZolnitRestoreState.signedOut);
+    expect(restored.session.authenticated, isFalse);
+    expect(restored.requests, isEmpty);
+  });
+
+  test('a never completing vault read is bounded', () async {
+    final vault = _Vault()..pendingRead = Completer<void>();
+    final restored = _Fixture(
+      vault: vault,
+      vaultTimeout: const Duration(milliseconds: 10),
+    );
+    addTearDown(restored.session.dispose);
+
+    await restored.session.restore();
+
+    expect(restored.session.restoreState, ZolnitRestoreState.offline);
+    expect(restored.session.authenticated, isFalse);
+    expect(restored.session.failure, 'storage_unavailable');
+    expect(restored.requests, isEmpty);
+  });
+
+  test('a newer restore succeeds after an older read times out', () async {
+    final oldRead = Completer<void>();
+    final vault = _Vault()
+      ..value = 'Bearer old'
+      ..pendingRead = oldRead;
+    final restored = _Fixture(
+      vault: vault,
+      vaultTimeout: const Duration(milliseconds: 10),
+    );
+    addTearDown(restored.session.dispose);
+
+    await restored.session.restore();
+    expect(restored.session.restoreState, ZolnitRestoreState.offline);
+    vault
+      ..value = 'Bearer newer'
+      ..pendingRead = null;
+    await restored.session.restore();
+    oldRead.complete();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(restored.session.authenticated, isTrue);
+    expect(restored.session.restoreState, ZolnitRestoreState.signedIn);
+    expect(
+      restored.requests
+          .where((request) => request.url.path.endsWith('/info'))
+          .last
+          .headers['Authorization'],
+      'Bearer newer',
+    );
+  });
+
+  test('manual login supersedes a pending automatic restore', () async {
+    final read = Completer<void>();
+    final vault = _Vault()
+      ..value = 'Bearer stale'
+      ..pendingRead = read;
+    final restored = _Fixture(vault: vault);
+    addTearDown(restored.session.dispose);
+
+    final automatic = restored.session.restore();
+    await Future<void>.delayed(Duration.zero);
+    final manual = restored.login();
+    await manual;
+    read.complete();
+    await automatic;
+
+    expect(restored.session.authenticated, isTrue);
+    expect(restored.session.account?['email'], 'student@example');
+    expect(vault.value, 'Bearer placeholder');
+  });
+
+  test(
+    'identity network timeout is bounded and preserves a saved token',
+    () async {
+      final vault = _Vault()..value = 'Bearer retained';
+      final restored = _Fixture(
+        vault: vault,
+        authenticationTimeout: const Duration(milliseconds: 10),
+      );
+      addTearDown(restored.session.dispose);
+      restored.override = (request) async => request.url.path.endsWith('/info')
+          ? Completer<http.Response>().future
+          : null;
+
+      await restored.session.restore();
+
+      expect(restored.session.restoreState, ZolnitRestoreState.offline);
+      expect(restored.session.authenticated, isFalse);
+      expect(vault.value, 'Bearer retained');
+    },
+  );
+
+  test('optional API timeout does not delay authentication', () async {
+    final never = Completer<http.Response>();
+    final client = _Fixture(
+      authenticationTimeout: const Duration(milliseconds: 10),
+    );
+    addTearDown(client.session.dispose);
+    client.override = (request) async =>
+        request.url.path.endsWith('/getSubscribe') ? never.future : null;
+
+    await client.login();
+
+    expect(client.session.authenticated, isTrue);
+    expect(client.session.account?['email'], 'student@example');
+    expect(client.session.subscription, isNull);
+  });
+
+  test('refresh retains optional snapshots when one endpoint fails', () async {
+    await fixture.login();
+    await fixture.session.refresh();
+    final subscription = fixture.session.subscription;
+    final plans = fixture.session.plans;
+    fixture.override = (request) async =>
+        request.url.path.endsWith('/getSubscribe')
+        ? http.Response('unavailable', 503)
+        : null;
+
+    await fixture.session.refresh();
+
+    expect(fixture.session.authenticated, isTrue);
+    expect(fixture.session.subscription, same(subscription));
+    expect(fixture.session.plans, isNotEmpty);
+    expect(fixture.session.plans, isNot(same(plans)));
+  });
+
+  test(
+    'vault write timeout reports storage failure and cleans up late write',
+    () async {
+      final write = Completer<void>();
+      final vault = _Vault()
+        ..value = 'Bearer previous'
+        ..pendingWrite = write;
+      final client = _Fixture(
+        vault: vault,
+        vaultTimeout: const Duration(milliseconds: 10),
+      );
+      addTearDown(client.session.dispose);
+
+      await client.login();
+
+      expect(client.session.authenticated, isFalse);
+      expect(client.session.failure, 'storage_unavailable');
+      expect(vault.value, 'Bearer previous');
+      write.complete();
+      await vault.deleteStarted.future;
+      await Future<void>.delayed(Duration.zero);
+      expect(vault.value, isNull);
+    },
+  );
+
   test('restore keeps a signed-in controller and its snapshots', () async {
     final vault = _Vault();
     final client = _Fixture(vault: vault);
     addTearDown(client.session.dispose);
     await client.login();
+    await Future<void>.delayed(Duration.zero);
     final count = client.requests.length;
     vault.value = null;
     await client.session.restore();
@@ -366,6 +530,35 @@ void main() {
     expect(client.session.restoreState, ZolnitRestoreState.signedIn);
     expect(client.session.account?['email'], 'student@example');
   });
+
+  test(
+    'an expired cold restore retires the preceding tunnel without blocking',
+    () async {
+      final vault = _Vault()..value = 'Bearer expired';
+      final gate = Completer<void>();
+      var shutdowns = 0;
+      final client = _Fixture(
+        vault: vault,
+        vaultTimeout: const Duration(milliseconds: 20),
+        onAuthenticationInvalidated: () {
+          shutdowns++;
+          return gate.future;
+        },
+      );
+      addTearDown(client.session.dispose);
+      addTearDown(() {
+        if (!gate.isCompleted) gate.complete();
+      });
+      client.override = (r) async => r.url.path.endsWith('/info')
+          ? http.Response('unauthorized', 401)
+          : null;
+      await client.session.restore().timeout(const Duration(seconds: 1));
+      expect(client.session.restoreState, ZolnitRestoreState.expired);
+      expect(client.session.authenticated, isFalse);
+      expect(shutdowns, 1);
+      expect(vault.value, isNull);
+    },
+  );
 
   test('close keeps the saved authorization but logout removes it', () async {
     final vault = _Vault();
@@ -419,7 +612,7 @@ void main() {
   );
 
   test(
-    'subscription 403 does not remove a valid saved authorization',
+    'subscription 403 keeps valid authentication and saved authorization',
     () async {
       final vault = _Vault()..value = 'Bearer retained';
       final restored = _Fixture(vault: vault);
@@ -431,10 +624,46 @@ void main() {
 
       await restored.session.restore();
 
-      expect(restored.session.restoreState, ZolnitRestoreState.offline);
+      expect(restored.session.restoreState, ZolnitRestoreState.signedIn);
+      expect(restored.session.authenticated, isTrue);
+      expect(restored.session.subscription, isNull);
       expect(vault.value, 'Bearer retained');
     },
   );
+
+  test('user-info 403 expires the saved authorization', () async {
+    final vault = _Vault()..value = 'Bearer expired';
+    final restored = _Fixture(vault: vault);
+    addTearDown(restored.session.dispose);
+    restored.override = (request) async => request.url.path.endsWith('/info')
+        ? http.Response(
+            '{"status":"fail","message":"未登录或登陆已过期","data":null,"error":null}',
+            403,
+            headers: {'content-type': 'application/json'},
+          )
+        : null;
+
+    await restored.session.restore();
+
+    expect(restored.session.restoreState, ZolnitRestoreState.expired);
+    expect(restored.session.failure, 'unauthenticated');
+    expect(vault.value, isNull);
+  });
+
+  test('HTML user-info 403 preserves the saved authorization', () async {
+    final vault = _Vault()..value = 'Bearer retained';
+    final restored = _Fixture(vault: vault);
+    addTearDown(restored.session.dispose);
+    restored.override = (request) async => request.url.path.endsWith('/info')
+        ? http.Response('<html>edge denied</html>', 403)
+        : null;
+
+    await restored.session.restore();
+
+    expect(restored.session.restoreState, ZolnitRestoreState.offline);
+    expect(restored.session.failure, 'api_error');
+    expect(vault.value, 'Bearer retained');
+  });
 
   test(
     'an authenticated user-info 401 expires and deletes the token',
@@ -485,6 +714,55 @@ void main() {
   });
 
   test(
+    'expired authentication does not wait forever for tunnel cleanup',
+    () async {
+      final gate = Completer<void>();
+      final client = _Fixture(
+        vault: _Vault(),
+        vaultTimeout: const Duration(milliseconds: 20),
+        onAuthenticationInvalidated: () => gate.future,
+      );
+      addTearDown(client.session.dispose);
+      addTearDown(() {
+        if (!gate.isCompleted) gate.complete();
+      });
+      await client.login();
+      client.override = (r) async => r.url.path.endsWith('/info')
+          ? http.Response('unauthorized', 401)
+          : null;
+      await client.session.refresh().timeout(const Duration(seconds: 1));
+      expect(client.session.authenticated, isFalse);
+      expect(client.session.restoreState, ZolnitRestoreState.expired);
+      expect(client.session.failure, 'unauthenticated');
+    },
+  );
+
+  test(
+    'logout reports pending storage cleanup and still finishes it later',
+    () async {
+      final gate = Completer<void>();
+      final vault = _Vault();
+      final client = _Fixture(
+        vault: vault,
+        vaultTimeout: const Duration(milliseconds: 20),
+      );
+      addTearDown(client.session.dispose);
+      addTearDown(() {
+        if (!gate.isCompleted) gate.complete();
+      });
+      await client.login();
+      vault.pendingDelete = gate;
+      await client.session.logout().timeout(const Duration(seconds: 1));
+      expect(client.session.authenticated, isFalse);
+      expect(client.session.failure, 'storage_unavailable');
+      expect(vault.value, isNotNull);
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(vault.value, isNull);
+    },
+  );
+
+  test(
     'logout deletion completes after dispose and cannot be overwritten',
     () async {
       final pendingWrite = Completer<void>();
@@ -522,22 +800,26 @@ void main() {
     expect(vault.value, isNull);
   });
 
+  test('missing or invalid auth_data fails closed', () async {
+    for (final auth in [null, '', 'not bearer']) {
+      fixture.override = (r) async =>
+          r.url.path.endsWith('/login') ? _data({'auth_data': auth}) : null;
+      await fixture.login();
+      expect(fixture.session.authenticated, isFalse);
+      expect(fixture.session.failure, 'invalid_authorization');
+    }
+  });
+
   test(
-    'missing or invalid auth_data and malformed lists fail closed',
+    'malformed ancillary lists do not reject valid authentication',
     () async {
-      for (final auth in [null, '', 'not bearer']) {
-        fixture.override = (r) async =>
-            r.url.path.endsWith('/login') ? _data({'auth_data': auth}) : null;
-        await fixture.login();
-        expect(fixture.session.authenticated, isFalse);
-        expect(fixture.session.failure, 'invalid_authorization');
-      }
       fixture.override = (r) async =>
           r.url.path.endsWith('/server/fetch') ? _data([null]) : null;
       await fixture.login();
-      expect(fixture.session.authenticated, isFalse);
-      expect(fixture.session.account, isNull);
-      expect(fixture.session.failure, 'invalid_response');
+      expect(fixture.session.authenticated, isTrue);
+      expect(fixture.session.account?['email'], 'student@example');
+      expect(fixture.session.nodes, isEmpty);
+      expect(fixture.session.failure, isNull);
     },
   );
 
@@ -559,6 +841,7 @@ void main() {
       response.complete(_data({'email': 'student@example'}));
       await login;
       fixture.override = null;
+      await Future<void>.delayed(Duration.zero);
       var reentered = false;
       fixture.session.addListener(() {
         if (fixture.session.busy && !reentered) {
@@ -748,6 +1031,7 @@ void main() {
       final restricted = _Fixture(allowStripe: false);
       addTearDown(restricted.session.dispose);
       await restricted.login();
+      await Future<void>.delayed(Duration.zero);
       expect(restricted.session.plans.single['month_price'], 1200);
       expect(
         await restricted.session.createOrder(planId: 1, period: 'month_price'),
@@ -935,6 +1219,7 @@ void main() {
         return null;
       };
       await fixture.login();
+      await fixture.session.refresh();
       final session = fixture.session;
       expect(session.noticeList.single.title, 'Maintenance');
       expect(session.noticeList.single.body, 'Tonight');

@@ -12,6 +12,8 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
+import '../core/first_party_http.dart';
+
 import 'zolnit_vault.dart';
 import 'zolnit_bundle.dart';
 
@@ -19,6 +21,14 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
   final policy = ClientPaymentPolicy.fromEnvironment();
   final api = XboardClient(
     origin: Uri.parse('https://link.zolmid.com'),
+    client: system.isAndroid
+        ? null
+        : CoreFirstPartyHttpClient(
+            invoke: ref.read(coreHandlerProvider).firstPartyHTTP,
+            cancel: ref.read(coreHandlerProvider).cancelFirstPartyHTTP,
+            useCore: () =>
+                !ref.read(safeModeProvider) && ref.read(isStartProvider),
+          ),
     clientPlatform: policy.platformHeader,
     distribution: policy.distributionHeader,
     userAgent: globalState.ua,

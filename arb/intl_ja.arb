@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "切断",
   "zolnitDisconnecting": "切断中…",
   "zolnitRestoringSession": "ログインを復元中…",
+  "zolnitSessionStorageUnavailable": "保存されたログイン情報に一時的にアクセスできません。もう一度お試しください。",
   "zolnitSelectServer": "サーバーを選択",
   "zolnitCurrentPlanLabel": "現在のプラン",
   "zolnitPlans": "プラン",

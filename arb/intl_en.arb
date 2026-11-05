@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "Disconnect",
   "zolnitDisconnecting": "Disconnecting…",
   "zolnitRestoringSession": "Restoring sign-in…",
+  "zolnitSessionStorageUnavailable": "Saved sign-in information is temporarily unavailable. Please try again.",
   "zolnitSelectServer": "Choose server",
   "zolnitCurrentPlanLabel": "Current plan",
   "zolnitPlans": "Plans",

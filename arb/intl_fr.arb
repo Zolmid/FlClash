@@ -1294,6 +1294,7 @@
   "zolnitDisconnectAction": "Déconnecter",
   "zolnitDisconnecting": "Déconnexion…",
   "zolnitRestoringSession": "Restauration de la session…",
+  "zolnitSessionStorageUnavailable": "Les informations de connexion enregistrées sont temporairement indisponibles. Veuillez réessayer.",
   "zolnitSelectServer": "Choisir un serveur",
   "zolnitCurrentPlanLabel": "Forfait actuel",
   "zolnitPlans": "Forfaits",

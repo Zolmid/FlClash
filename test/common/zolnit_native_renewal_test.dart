@@ -110,6 +110,25 @@ void main() {
     expect(attempts, 2);
   });
 
+  test('stuck native cleanup leaves a durable restore barrier', () async {
+    final journal = _Journal();
+    final never = Completer<Object?>();
+    final client = ZolnitNativeRenewalClient(
+      journal: journal,
+      operationTimeout: const Duration(milliseconds: 10),
+      call: (method, _) => method == 'configureClientBundleRenewal'
+          ? Future<Object?>.value(_receipt)
+          : never.future,
+    );
+    addTearDown(client.dispose);
+    await _configure(client);
+
+    await expectLater(client.logout(), throwsA(isA<TimeoutException>()));
+
+    expect(await client.allowsRestoration(_authorization), isFalse);
+    expect(journal.value, isNotNull);
+  });
+
   test(
     'closing the frontend does not revoke a pending valid native session',
     () async {
