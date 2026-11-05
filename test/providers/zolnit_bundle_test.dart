@@ -794,7 +794,7 @@ void main() {
       await entered.future;
       expect(
         container.read(zolnitConnectionPhaseProvider),
-        ZolnitConnectionPhase.connecting,
+        ZolnitConnectionPhase.connected,
       );
 
       await fixture.session.logout();
@@ -818,6 +818,50 @@ void main() {
         container.read(zolnitConnectionPhaseProvider),
         ZolnitConnectionPhase.unavailable,
       );
+    },
+  );
+
+  test(
+    'a new bundle being validated retains the fresh active connection only until its TTL',
+    () async {
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      container.read(runTimeProvider.notifier).value = 1;
+      tunnelState = TunnelState.connected;
+      container.invalidate(tunnelStateProvider);
+      final hold = container.listen(zolnitConnectionPhaseProvider, (_, _) {});
+      addTearDown(hold.close);
+      await container.read(zolnitStoredBundleProvider.future);
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connected,
+      );
+      final entered = Completer<void>();
+      final pending = Completer<void>();
+      validation = () {
+        entered.complete();
+        return pending.future;
+      };
+      fixture.onBundle = (_) async => clientBundleResponse(
+        clientBundleFixture(issuedAt: 1100, bundleId: 'new-pending'),
+      );
+      now = bundleTime(1101);
+      final operation = container.read(zolnitSyncProfileProvider)();
+      await entered.future;
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.connected,
+      );
+      now = bundleTime(1301);
+      container.invalidate(zolnitBundleClockProvider);
+      container.invalidate(zolnitConnectionPhaseProvider);
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        isNot(ZolnitConnectionPhase.connected),
+      );
+      pending.complete();
+      await operation;
     },
   );
 

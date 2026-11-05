@@ -11,7 +11,6 @@ import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_connection.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/zolnit/connect.dart';
-import 'package:fl_clash/views/zolnit/connect_art.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,12 +119,12 @@ void main() {
         container.read(runTimeProvider.notifier).value = 1;
         await mount(tester, syncing: state == ZolnitConnectionPhase.connecting);
         expect(find.text('已连接'), findsNothing);
-        final power = tester.widget<ZolnitPowerButton>(
-          find.byType(ZolnitPowerButton),
+        final power = tester.widget<ZolnitButton>(
+          find.widgetWithText(ZolnitButton, '断开连接'),
         );
         expect(power.onPressed, isNotNull);
         expect(power.label, '断开连接');
-        await tester.tap(find.byType(ZolnitPowerButton));
+        await tester.tap(find.widgetWithText(ZolnitButton, '断开连接'));
         await tester.pump();
         expect(connectionRequests, 1);
         expect(tester.takeException(), isNull);
@@ -141,7 +140,9 @@ void main() {
     await mount(tester);
     expect(find.text('已连接'), findsOneWidget);
     expect(
-      tester.widget<ZolnitPowerButton>(find.byType(ZolnitPowerButton)).label,
+      tester
+          .widget<ZolnitButton>(find.widgetWithText(ZolnitButton, '断开连接'))
+          .label,
       '断开连接',
     );
   });
@@ -162,12 +163,17 @@ void main() {
         }
         await tester.pumpAndSettle();
         expect(displayed(tester), Mode.rule);
-        expect(find.text('无法应用连接模式。请刷新连接配置后重试。'), findsOneWidget);
+        expect(find.text('模式切换未完成，请稍后重试。'), findsOneWidget);
         expect(find.textContaining('config is not applied'), findsNothing);
-        await tester.tap(find.text('获取连接配置'));
-        expect(openedNodes, 1);
+        reply = Completer<String>();
+        await tester.tap(find.text('重试'));
+        await tester.pump();
+        expect(openedNodes, 0);
+        expect(calls, hasLength(2));
+        reply.complete('config is not applied');
+        await tester.pumpAndSettle();
+        expect(displayed(tester), Mode.rule);
         expect(tester.takeException(), isNull);
-        expect(calls, hasLength(1));
       },
     );
   }

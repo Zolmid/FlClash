@@ -11709,10 +11709,10 @@ class AppLocalizations {
     return Intl.message('Global', name: 'zolnitModeGlobal', desc: '', args: []);
   }
 
-  /// `Couldn't apply the connection mode. Refresh the configuration and try again.`
+  /// `Could not switch modes. Please try again.`
   String get zolnitModeChangeFailed {
     return Intl.message(
-      'Couldn\'t apply the connection mode. Refresh the configuration and try again.',
+      'Could not switch modes. Please try again.',
       name: 'zolnitModeChangeFailed',
       desc: '',
       args: [],
@@ -13152,6 +13152,176 @@ class AppLocalizations {
       desc: '',
       args: [],
     );
+  }
+
+  /// `Online payment`
+  String get zolnitOnlinePayment {
+    return Intl.message(
+      'Online payment',
+      name: 'zolnitOnlinePayment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `One payment. No automatic renewal.`
+  String get zolnitManualPayment {
+    return Intl.message(
+      'One payment. No automatic renewal.',
+      name: 'zolnitManualPayment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Plan details`
+  String get zolnitPlanDetails {
+    return Intl.message(
+      'Plan details',
+      name: 'zolnitPlanDetails',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic renewal off`
+  String get zolnitRenewalOff {
+    return Intl.message(
+      'Automatic renewal off',
+      name: 'zolnitRenewalOff',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic renewal is off. Your paid access remains valid. You can resume renewal or make a one-time purchase.`
+  String get zolnitRenewalOffHint {
+    return Intl.message(
+      'Automatic renewal is off. Your paid access remains valid. You can resume renewal or make a one-time purchase.',
+      name: 'zolnitRenewalOffHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic renewal on`
+  String get zolnitRenewalActive {
+    return Intl.message(
+      'Automatic renewal on',
+      name: 'zolnitRenewalActive',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Awaiting completion`
+  String get zolnitRenewalPending {
+    return Intl.message(
+      'Awaiting completion',
+      name: 'zolnitRenewalPending',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Ended`
+  String get zolnitRenewalEnded {
+    return Intl.message(
+      'Ended',
+      name: 'zolnitRenewalEnded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Needs attention`
+  String get zolnitRenewalAttention {
+    return Intl.message(
+      'Needs attention',
+      name: 'zolnitRenewalAttention',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Previous subscriptions`
+  String get zolnitRenewalHistory {
+    return Intl.message(
+      'Previous subscriptions',
+      name: 'zolnitRenewalHistory',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Smart routing options`
+  String get zolnitRoutingOptions {
+    return Intl.message(
+      'Smart routing options',
+      name: 'zolnitRoutingOptions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Checking automatic routes. You can select a server below.`
+  String get zolnitRoutePreparing {
+    return Intl.message(
+      'Checking automatic routes. You can select a server below.',
+      name: 'zolnitRoutePreparing',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No help articles are available yet.`
+  String get zolnitHelpNoArticles {
+    return Intl.message(
+      'No help articles are available yet.',
+      name: 'zolnitHelpNoArticles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Support requests`
+  String get zolnitSupportTickets {
+    return Intl.message(
+      'Support requests',
+      name: 'zolnitSupportTickets',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `New request`
+  String get zolnitNewTicket {
+    return Intl.message(
+      'New request',
+      name: 'zolnitNewTicket',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Describe your question`
+  String get zolnitTicketMessage {
+    return Intl.message(
+      'Describe your question',
+      name: 'zolnitTicketMessage',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Reply`
+  String get zolnitTicketReply {
+    return Intl.message('Reply', name: 'zolnitTicketReply', desc: '', args: []);
+  }
+
+  /// `Send`
+  String get zolnitSendRequest {
+    return Intl.message('Send', name: 'zolnitSendRequest', desc: '', args: []);
   }
 }
 

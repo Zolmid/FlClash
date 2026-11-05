@@ -3049,6 +3049,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
       "Tous les six mois",
     ),
+    "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage(
+      "Aucun article d’aide disponible.",
+    ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
       "Aide et assistance",
     ),
@@ -3123,9 +3126,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
       "Gérer le renouvellement automatique",
     ),
+    "zolnitManualPayment": MessageLookupByLibrary.simpleMessage(
+      "Paiement unique, sans renouvellement automatique.",
+    ),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Streaming"),
     "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
-      "Impossible d’appliquer le mode de connexion. Actualisez la configuration et réessayez.",
+      "Impossible de changer de mode. Réessayez.",
     ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage(
@@ -3139,6 +3145,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNewPassword": MessageLookupByLibrary.simpleMessage(
       "Nouveau mot de passe",
     ),
+    "zolnitNewTicket": MessageLookupByLibrary.simpleMessage("Nouvelle demande"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage(
       "Prochain renouvellement",
     ),
@@ -3191,6 +3198,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage(
       "Appareils en ligne",
     ),
+    "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage(
+      "Paiement en ligne",
+    ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Commandes"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Accès payé"),
@@ -3220,6 +3230,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Vous avez une commande en attente. Poursuivez le paiement ou fermez-la dans Commandes avant d’en passer une autre.",
     ),
     "zolnitPerMonth": MessageLookupByLibrary.simpleMessage("/ mois"),
+    "zolnitPlanDetails": MessageLookupByLibrary.simpleMessage(
+      "Détails du forfait",
+    ),
     "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
       "Le nouveau forfait commence après confirmation du premier paiement ou du crédit de la valeur restante.",
     ),
@@ -3284,6 +3297,23 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage(
       "Renouveler le forfait",
     ),
+    "zolnitRenewalActive": MessageLookupByLibrary.simpleMessage(
+      "Renouvellement activé",
+    ),
+    "zolnitRenewalAttention": MessageLookupByLibrary.simpleMessage(
+      "Action requise",
+    ),
+    "zolnitRenewalEnded": MessageLookupByLibrary.simpleMessage("Terminé"),
+    "zolnitRenewalHistory": MessageLookupByLibrary.simpleMessage(
+      "Abonnements précédents",
+    ),
+    "zolnitRenewalOff": MessageLookupByLibrary.simpleMessage(
+      "Renouvellement désactivé",
+    ),
+    "zolnitRenewalOffHint": MessageLookupByLibrary.simpleMessage(
+      "Le renouvellement est désactivé. Votre accès payé reste valable. Vous pouvez le réactiver ou payer une fois.",
+    ),
+    "zolnitRenewalPending": MessageLookupByLibrary.simpleMessage("À finaliser"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage(
       "Renouvellement automatique",
     ),
@@ -3328,8 +3358,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "Fermer cette session ? Il peut s’agir de votre session actuelle. Vous devrez vous reconnecter pour l’utiliser.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
+      "Vérification des routes automatiques. Vous pouvez choisir un serveur ci-dessous.",
+    ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Indisponible",
+    ),
+    "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
+      "Options de routage intelligent",
     ),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("Mode sans échec"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
@@ -3343,6 +3379,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage(
       "Choisir un serveur",
     ),
+    "zolnitSendRequest": MessageLookupByLibrary.simpleMessage("Envoyer"),
     "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("Créée le"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "Votre session a expiré. Reconnectez-vous.",
@@ -3367,6 +3404,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage(
       "Choisir un forfait",
     ),
+    "zolnitSupportTickets": MessageLookupByLibrary.simpleMessage(
+      "Demandes d’assistance",
+    ),
     "zolnitSync": MessageLookupByLibrary.simpleMessage(
       "Synchroniser les données du compte",
     ),
@@ -3385,6 +3425,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage(
       "Tous les trois ans",
     ),
+    "zolnitTicketMessage": MessageLookupByLibrary.simpleMessage(
+      "Décrivez votre question",
+    ),
+    "zolnitTicketReply": MessageLookupByLibrary.simpleMessage("Répondre"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("Trafic restant"),
     "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("restant"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage(

@@ -83,8 +83,10 @@ class ZolnitPlansPage extends StatefulWidget {
   State<ZolnitPlansPage> createState() => _ZolnitPlansPageState();
 }
 
-class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
+class _ZolnitPlansPageState extends State<ZolnitPlansPage>
+    with WidgetsBindingObserver {
   String? _chosen;
+  int? _selectedPlanId;
   Object? _quoteContext;
   int _quoteRequest = 0;
   bool _quoteLoading = false;
@@ -92,10 +94,13 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
   Map<int, String> _quoteErrors = const {};
   Map<int, Map<int, RecurringPlanQuote>> _quotes = const {};
   Timer? _quoteExpiry;
+  Timer? _quoteRetry;
+  int _quoteRetries = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.session.addListener(_sessionChanged);
     _syncQuotes();
   }
@@ -136,6 +141,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
 
   bool _currentQuote(int request, Object context) =>
       mounted &&
+      _foreground &&
       _quoteRequest == request &&
       _quoteContext == context &&
       _context() == context;
@@ -150,6 +156,8 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
     _quoteContext = context;
     final request = ++_quoteRequest;
     _quoteExpiry?.cancel();
+    _quoteRetry?.cancel();
+    if (!refresh) _quoteRetries = 0;
     _quoteExpiry = null;
     _quotes = const {};
     _quoteErrors = const {};
@@ -162,7 +170,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
         widget.session.api.distribution != 'apple-app-store' &&
         widget.session.checkout.allowStripe &&
         period != null;
-    if (_quoteLoading) {
+    if (_quoteLoading && _foreground) {
       scheduleMicrotask(() => _loadQuotes(request, context, period!, refresh));
     }
   }
@@ -173,6 +181,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
     String period,
     bool refresh,
   ) async {
+    if (!_currentQuote(request, context)) return;
     final session = widget.session;
     try {
       if (refresh && session.recurringMethods.isEmpty) {
@@ -187,6 +196,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
           _quoteLoading = false;
           _quoteFailure = session.billingFailure;
         });
+        if (_quoteFailure != null) _scheduleRetry(request, context);
         return;
       }
       Future<({int id, Map<int, RecurringPlanQuote> quotes, String? error})>
@@ -215,6 +225,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
         _quotes = {for (final result in results) result.id: result.quotes};
         _quoteErrors = {for (final result in results) result.id: ?result.error};
       });
+      if (_quoteErrors.isNotEmpty) _scheduleRetry(request, context);
       final expirations = [
         for (final result in results)
           for (final option in result.quotes.values)
@@ -228,11 +239,8 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
         _quoteExpiry = Timer(
           Duration(milliseconds: remaining > 0 ? remaining : 0),
           () {
-            if (_currentQuote(request, context)) {
-              setState(() {
-                _quotes = const {};
-                _quoteFailure = 'recurring_quote_expired';
-              });
+            if (_currentQuote(request, context) && _foreground) {
+              _retryQuotes();
             }
           },
         );
@@ -245,16 +253,42 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
               ? error.code
               : 'quote_unavailable';
         });
+        _scheduleRetry(request, context);
       }
     }
   }
 
   void _retryQuotes() => setState(() => _syncQuotes(refresh: true));
 
+  bool get _foreground =>
+      WidgetsBinding.instance.lifecycleState == null ||
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
+  void _scheduleRetry(int request, Object context) {
+    if (!_foreground || !widget.session.authenticated) return;
+    _quoteRetries = (_quoteRetries + 1).clamp(0, 4);
+    _quoteRetry?.cancel();
+    _quoteRetry = Timer(Duration(seconds: 15 * (1 << _quoteRetries)), () {
+      if (_foreground && _currentQuote(request, context)) _retryQuotes();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _retryQuotes();
+    } else {
+      _quoteRetry?.cancel();
+      _quoteExpiry?.cancel();
+    }
+  }
+
   @override
   void dispose() {
     _quoteRequest++;
     _quoteExpiry?.cancel();
+    _quoteRetry?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     widget.session.removeListener(_sessionChanged);
     super.dispose();
   }
@@ -281,7 +315,23 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(text.zolnitBuy),
-        content: Text('${plan.name} · ${zolnitMoney(plan.prices[period])}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${plan.name} · ${zolnitMoney(plan.prices[period])}'),
+              const SizedBox(height: 8),
+              Text(
+                '${_periodLabel(context, period)} · ${text.zolnitManualPayment}',
+              ),
+              if (plan.note case final note?) ...[
+                const SizedBox(height: 12),
+                Text(note),
+              ],
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -328,14 +378,6 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
     final quoteRequest = _quoteRequest;
     final quoteContext = _quoteContext;
 
-    final saving = <String, int>{
-      for (final key in periods)
-        if (plans
-                .map((plan) => plan.savingPercent(key) ?? 0)
-                .fold(0, (best, value) => value > best ? value : best)
-            case final percent when percent > 0)
-          key: percent,
-    };
     final currentName = usage != null && usage.hasPlan
         ? usage.planName ??
               plans.where((plan) => plan.id == usage.planId).firstOrNull?.name
@@ -344,115 +386,169 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final padding = zolnitPagePadding(skin, compact: widget.compact);
-        final columns =
-            skin.desktop &&
-                !widget.compact &&
-                constraints.maxWidth - padding.horizontal >= 900
-            ? 3
-            : 1;
-        final cards = [
-          for (final (index, plan) in visiblePlans.indexed)
-            _PlanCard(
-              key: ValueKey((
-                session.accountGeneration,
-                session.api.generation,
-                period,
-                plan.id,
-              )),
-              plan: plan,
-              index: index,
-              period: period,
-              current:
-                  usage != null && plan.id != null && plan.id == usage.planId,
-              equalHeight: columns > 1,
-              session: session,
-              onBuy: period == null ? null : () => _create(plan, period),
-              onMonthly: _monthly,
-              onOrders: widget.onOrderCreated,
-              onManageRenewals: widget.onManageRenewals,
-              quoteLoading: _quoteLoading,
-              quoteFailure: _quoteFailure,
-              quoteErrors: _quoteErrors,
-              quotes: {
-                for (final entry in _quotes.entries)
-                  entry.key: ?entry.value[plan.id],
-              },
-              quoteCurrent: () =>
-                  quoteContext != null &&
-                  _currentQuote(quoteRequest, quoteContext),
-              onQuoteRetry: _retryQuotes,
-            ),
-        ];
-        final Widget grid;
-        if (columns == 1) {
-          grid = Column(
-            children: [
-              for (final (index, card) in cards.indexed) ...[
-                if (index > 0) const SizedBox(height: 25),
-                card,
-              ],
-            ],
-          );
-        } else {
-          grid = Column(
-            children: [
-              for (var start = 0; start < cards.length; start += columns) ...[
-                if (start > 0) const SizedBox(height: 20),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < columns; i++) ...[
-                        if (i > 0) const SizedBox(width: 20),
-                        Expanded(
-                          child: start + i < cards.length
-                              ? cards[start + i]
-                              : const SizedBox.shrink(),
+        final selected =
+            visiblePlans
+                .where((plan) => plan.id == _selectedPlanId)
+                .firstOrNull ??
+            visiblePlans
+                .where((plan) => plan.id == usage?.planId)
+                .firstOrNull ??
+            visiblePlans.firstOrNull;
+        final options = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final plan in visiblePlans)
+              Semantics(
+                key: ValueKey('zolnit-plan-state-${plan.id}'),
+                selected: plan.id == selected?.id,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: colors.solid,
+                    shape: AppShape.lg,
+                    child: InkWell(
+                      key: ValueKey('zolnit-plan-option-${plan.id}'),
+                      customBorder: AppShape.lg,
+                      onTap: () => setState(() => _selectedPlanId = plan.id),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            GlyphIcon(
+                              plan.id == selected?.id
+                                  ? AppGlyphs.check
+                                  : AppGlyphs.layers,
+                              size: 20,
+                              color: plan.id == selected?.id
+                                  ? colors.accent
+                                  : colors.muted,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plan.name,
+                                    style: zolnitText(
+                                      context,
+                                      15,
+                                      weight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (plan.allowance case final allowance?)
+                                    Text(
+                                      allowance,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: zolnitText(
+                                        context,
+                                        11,
+                                        color: colors.muted,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              zolnitMoney(plan.prices[period]),
+                              style: zolnitText(
+                                context,
+                                15,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ],
+              ),
+          ],
+        );
+        Widget details(ZolnitPlan plan) {
+          final index = visiblePlans.indexOf(plan);
+          return _PlanCard(
+            key: ValueKey((
+              session.accountGeneration,
+              session.api.generation,
+              plan.id,
+            )),
+            plan: plan,
+            index: index,
+            period: period,
+            current:
+                usage != null && plan.id != null && plan.id == usage.planId,
+            equalHeight: false,
+            session: session,
+            onBuy: period == null ? null : () => _create(plan, period),
+            onMonthly: _monthly,
+            onOrders: widget.onOrderCreated,
+            onManageRenewals: widget.onManageRenewals,
+            quoteLoading: _quoteLoading,
+            quoteFailure: _quoteFailure,
+            quoteErrors: _quoteErrors,
+            quotes: {
+              for (final entry in _quotes.entries)
+                entry.key: ?entry.value[plan.id],
+            },
+            quoteCurrent: () =>
+                quoteContext != null &&
+                _currentQuote(quoteRequest, quoteContext),
+            onQuoteRetry: _retryQuotes,
           );
         }
+
+        final wide = constraints.maxWidth - padding.horizontal >= 680;
+        final grid = selected == null
+            ? const SizedBox.shrink()
+            : Flex(
+                direction: wide ? Axis.horizontal : Axis.vertical,
+                crossAxisAlignment: !wide
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.start,
+                children: [
+                  Flexible(flex: wide ? 4 : 0, child: options),
+                  SizedBox(width: wide ? 18 : 0, height: wide ? 0 : 8),
+                  Flexible(flex: wide ? 5 : 0, child: details(selected)),
+                ],
+              );
         return ListView(
           padding: padding,
           children: [
-            ZolnitPageHeading(
-              title: text.zolnitPlansHeadline,
-              subtitle: text.zolnitPlansSub,
-            ),
-            SizedBox(height: skin.desktop ? 24 : 22),
             _CurrentBanner(
               line: currentName == null
                   ? null
                   : text.zolnitCurrentPlanLine(currentName),
-              hint: currentName == null
-                  ? text.zolnitNoCurrentPlanHint
-                  : expires == null
+              hint: expires == null
                   ? null
                   : text.zolnitCurrentPlanHint(zolnitDotDate(expires)),
               onOrders: widget.onOrderCreated,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             if (periods.length > 1)
-              Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: _BillingTabs(
-                    periods: periods,
-                    selected: period,
-                    saving: saving,
-                    onSelected: (key) => setState(() {
-                      _chosen = key;
-                      _syncQuotes();
-                    }),
-                  ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final key in periods)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(_periodLabel(context, key)),
+                          selected: period == key,
+                          onSelected: (_) => setState(() {
+                            _chosen = key;
+                            _syncQuotes();
+                          }),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            SizedBox(height: periods.length > 1 ? 30 : 12),
+            const SizedBox(height: 12),
             if (visiblePlans.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 40),
@@ -527,7 +623,7 @@ class _CurrentBanner extends StatelessWidget {
             : phone
             ? 20
             : 23,
-        vertical: 20,
+        vertical: 12,
       ),
       decoration: ShapeDecoration(
         color: fill,
@@ -599,192 +695,6 @@ BorderSide _sageEdge(ZolnitColors colors) => BorderSide(
   color: Color.alphaBlend(colors.ink.withValues(alpha: 0.06), colors.sage),
 );
 
-class _BillingTabs extends StatelessWidget {
-  const _BillingTabs({
-    required this.periods,
-    required this.selected,
-    required this.saving,
-    required this.onSelected,
-  });
-
-  final List<String> periods;
-  final String? selected;
-  final Map<String, int> saving;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = context.appLocalizations;
-    final skin = ZolnitSkin.of(context);
-    final colors = ZolnitColors.of(context);
-    final (
-      track,
-      side,
-      corner,
-      inset,
-      height,
-      fill,
-      tabCorner,
-      pad,
-    ) = switch (skin) {
-      ZolnitSkin.macos => (
-        colors.blue.withValues(alpha: 0.6),
-        BorderSide(color: colors.line(0.063)),
-        10.0,
-        3.0,
-        32.0,
-        colors.solid,
-        7.0,
-        18.0,
-      ),
-      ZolnitSkin.windows => (
-        Colors.transparent,
-        BorderSide.none,
-        0.0,
-        3.0,
-        37.0,
-        Colors.transparent,
-        0.0,
-        12.0,
-      ),
-      ZolnitSkin.linux => (
-        colors.solid,
-        BorderSide(color: colors.line()),
-        5.0,
-        0.0,
-        36.0,
-        colors.accent,
-        0.0,
-        20.0,
-      ),
-      ZolnitSkin.ios => (
-        colors.isDark ? colors.soft : const Color(0xffe4e8e7),
-        BorderSide.none,
-        13.0,
-        3.0,
-        44.0,
-        colors.solid,
-        10.0,
-        16.0,
-      ),
-      ZolnitSkin.android => (
-        Colors.transparent,
-        BorderSide(color: colors.ink.withValues(alpha: 0.4)),
-        28.0,
-        0.0,
-        48.0,
-        colors.blue,
-        0.0,
-        18.0,
-      ),
-    };
-    final onAccent = skin == ZolnitSkin.linux;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      padding: EdgeInsets.all(inset),
-      decoration: ShapeDecoration(
-        color: track,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: AppRadius.all(corner),
-          side: side,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final key in periods)
-            Semantics(
-              button: true,
-              selected: key == selected,
-              child: Material(
-                color: key == selected ? fill : Colors.transparent,
-                shape: AppShape.all(tabCorner),
-                child: InkWell(
-                  customBorder: AppShape.all(tabCorner),
-                  onTap: () => onSelected(key),
-                  child: SizedBox(
-                    height: height,
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: pad),
-                          child: Center(
-                            widthFactor: 1,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    _periodLabel(context, key),
-                                    maxLines: 1,
-                                    style: zolnitText(
-                                      context,
-                                      12,
-                                      weight: FontWeight.w600,
-                                      color: key == selected
-                                          ? (onAccent
-                                                ? Colors.white
-                                                : colors.ink)
-                                          : colors.muted,
-                                    ),
-                                  ),
-                                ),
-                                if (saving[key] != null) ...[
-                                  const SizedBox(width: 6),
-                                  DecoratedBox(
-                                    decoration: ShapeDecoration(
-                                      color: skin == ZolnitSkin.android
-                                          ? colors.solid
-                                          : colors.soft,
-                                      shape: AppShape.all(4),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 3,
-                                      ),
-                                      child: Text(
-                                        text.zolnitSavePercent(saving[key]!),
-                                        maxLines: 1,
-                                        style: zolnitText(
-                                          context,
-                                          11,
-                                          leading: 13,
-                                          color: colors.muted,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (skin == ZolnitSkin.windows && key == selected)
-                          PositionedDirectional(
-                            start: pad,
-                            end: pad,
-                            bottom: 0,
-                            child: DecoratedBox(
-                              decoration: ShapeDecoration(
-                                color: colors.accent,
-                                shape: AppShape.full,
-                              ),
-                              child: const SizedBox(height: 2),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PlanCard extends StatelessWidget {
   const _PlanCard({
     super.key,
@@ -833,12 +743,13 @@ class _PlanCard extends StatelessWidget {
     final price = period == null ? null : plan.prices[period];
     final recurring = period != null && _periodMonths.containsKey(period);
     final months = _periodMonths[period] ?? 1;
-    final bigPrice = price == null
-        ? '—'
-        : _trimmed(recurring ? price / months / 100 : price / 100);
+    final totalPrice = price == null ? '—' : _trimmed(price / 100);
+    final perMonthPrice = price == null || !recurring || months <= 1
+        ? null
+        : _trimmed(price / months / 100);
     final note = switch (period) {
       null || 'onetime_price' || 'reset_price' => null,
-      'month_price' => text.zolnitBilledMonthly,
+      'month_price' => text.zolnitManualPayment,
       final key =>
         price == null
             ? null
@@ -861,22 +772,10 @@ class _PlanCard extends StatelessWidget {
               text.zolnitFeatureSpeed(plan.speedLimitMbps!),
             ...lines.skip(1),
           ];
-    final (name, nameWeight, priceSize, priceWeight) = switch (skin) {
-      ZolnitSkin.macos ||
-      ZolnitSkin.windows => (17.0, FontWeight.w600, 36.0, FontWeight.w500),
-      ZolnitSkin.linux => (17.0, FontWeight.w700, 36.0, FontWeight.w700),
-      ZolnitSkin.ios => (21.0, FontWeight.w600, 41.0, FontWeight.w600),
-      ZolnitSkin.android => (21.0, FontWeight.w500, 42.0, FontWeight.w500),
-    };
-    final iconSize = switch (skin) {
-      ZolnitSkin.macos => 37.0,
-      ZolnitSkin.windows => 34.0,
-      ZolnitSkin.linux => 30.0,
-      ZolnitSkin.ios => 44.0,
-      ZolnitSkin.android => 48.0,
-    };
-    final tints = [colors.sage, colors.blue, colors.lavender];
-    final glyphs = [AppGlyphs.proxies, AppGlyphs.bolt, AppGlyphs.star];
+    const name = 18.0;
+    const nameWeight = FontWeight.w600;
+    const priceSize = 30.0;
+    const priceWeight = FontWeight.w600;
     final canBuy =
         onBuy != null &&
         price != null &&
@@ -903,32 +802,11 @@ class _PlanCard extends StatelessWidget {
                 ? BorderSide.none
                 : BorderSide(color: colors.accent))
           : null,
-      padding: switch (skin) {
-        ZolnitSkin.ios => const EdgeInsets.fromLTRB(25, 29, 25, 29),
-        ZolnitSkin.android => const EdgeInsets.fromLTRB(26, 30, 26, 30),
-        _ => const EdgeInsets.fromLTRB(22, 25, 22, 25),
-      },
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: equalHeight ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          ZolnitIconTile(
-            glyph: glyphs[index % glyphs.length],
-            tint: skin == ZolnitSkin.linux
-                ? Colors.transparent
-                : tints[index % tints.length],
-            size: iconSize,
-            iconSize: phone ? 22 : 18,
-            color: colors.accent,
-            corner: switch (skin) {
-              ZolnitSkin.macos => 10,
-              ZolnitSkin.windows => 6,
-              ZolnitSkin.linux => 0,
-              ZolnitSkin.ios => 13,
-              ZolnitSkin.android => 18,
-            },
-          ),
-          SizedBox(height: phone ? 22 : 17),
           Text(
             plan.name,
             maxLines: 1,
@@ -947,7 +825,7 @@ class _PlanCard extends StatelessWidget {
               style: zolnitText(context, 11, leading: 20, color: colors.muted),
             ),
           ],
-          const SizedBox(height: 23),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -961,7 +839,7 @@ class _PlanCard extends StatelessWidget {
               ],
               Flexible(
                 child: Text(
-                  bigPrice,
+                  totalPrice,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: zolnitText(
@@ -972,76 +850,54 @@ class _PlanCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (price != null && recurring) ...[
-                const SizedBox(width: 5),
-                Text(
-                  text.zolnitPerMonth,
-                  style: zolnitText(context, 11, color: colors.muted),
-                ),
-              ],
             ],
           ),
-          if (note != null) ...[
-            const SizedBox(height: 9),
-            Text(note, style: zolnitText(context, 11, color: colors.muted)),
-          ],
-          const SizedBox(height: 23),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: colors.line(phone ? 0.08 : 0.13)),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 23),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final (i, feature) in features.indexed)
-                    Padding(
-                      padding: EdgeInsets.only(top: i == 0 ? 0 : 13),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: GlyphIcon(
-                              AppGlyphs.check,
-                              size: 14,
-                              color: colors.muted,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              feature,
-                              style: zolnitText(
-                                context,
-                                phone ? 13 : 12,
-                                leading: 20,
-                                color: dark ? colors.ink : colors.muted,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          if (plan.note case final note?) ...[
-            const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          if (perMonthPrice != null)
             Text(
-              note,
-              style: zolnitText(context, 11, leading: 18, color: colors.muted),
+              '≈ ¥$perMonthPrice ${text.zolnitPerMonth}',
+              style: zolnitText(context, 12, color: colors.muted),
             ),
+          if (note != null)
+            Padding(
+              padding: EdgeInsets.only(top: perMonthPrice != null ? 4 : 0),
+              child: Text(
+                note,
+                style: zolnitText(context, 11, color: colors.muted),
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (features.isNotEmpty) ...[
+            Text(
+              features.take(3).join(' · '),
+              style: zolnitText(context, 12, leading: 19, color: colors.muted),
+            ),
+            const SizedBox(height: 8),
           ],
-          if (equalHeight) const Spacer() else const SizedBox(height: 28),
-          const SizedBox(height: 14),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(text.zolnitPlanDetails, style: zolnitText(context, 13)),
+            trailing: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
+            children: [
+              for (final feature in features)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      feature,
+                      style: zolnitText(context, 12, color: colors.muted),
+                    ),
+                  ),
+                ),
+              if (plan.note case final note?)
+                Text(note, style: zolnitText(context, 11, color: colors.muted)),
+            ],
+          ),
+          const SizedBox(height: 12),
           ZolnitButton(
             expand: true,
-            primary: current,
+            primary: true,
             label: current ? text.zolnitRenewCurrent : text.zolnitChoosePlan,
             glyph: AppGlyphs.arrowForward,
             onPressed: canBuy ? onBuy : null,
@@ -1069,9 +925,7 @@ class _PlanCard extends StatelessWidget {
               _QuoteDetails(
                 key: ValueKey('zolnit-monthly-${plan.id}-${method['id']}'),
                 session: session,
-                name: method['name'] is String
-                    ? method['name'] as String
-                    : text.unknown,
+                name: zolnitSanitizedMethodName(context, method['name']),
                 option: quotes[method['id']],
                 loading: quoteLoading,
                 error: quoteFailure ?? quoteErrors[method['id']],
@@ -1154,8 +1008,14 @@ class _QuoteDetails extends StatelessWidget {
     final reason = option?.unavailableReason;
     final code =
         error ?? reason ?? (quote == null ? 'recurring_unavailable' : null);
-    final unavailable =
-        error == 'recurring_quote_expired' || error == 'quote_expired'
+    final renewalOff =
+        code == 'active_subscription' &&
+        ZolnitRenewal.fromOverview(
+          session.billingOverview,
+        ).any((renewal) => renewal.state == RenewalState.disabled);
+    final unavailable = renewalOff
+        ? text.zolnitRenewalOffHint
+        : error == 'recurring_quote_expired' || error == 'quote_expired'
         ? text.zolnitQuoteExpired
         : code == 'pending_order' ||
               code == 'active_subscription' ||
@@ -1186,7 +1046,12 @@ class _QuoteDetails extends StatelessWidget {
             ),
             Wrap(
               children: [
-                TextButton(onPressed: onRetry, child: Text(text.retry)),
+                if (!const {
+                  'active_subscription',
+                  'pending_order',
+                  'checkout_exists',
+                }.contains(code))
+                  TextButton(onPressed: onRetry, child: Text(text.retry)),
                 if (code == 'pending_order')
                   TextButton(
                     onPressed: onOrders,

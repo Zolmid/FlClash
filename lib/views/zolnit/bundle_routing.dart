@@ -91,8 +91,10 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
       _ =>
         bundle != null && !eligible
             ? l10n.zolnitBundleNoCandidates
-            : bundle != null && (!automaticAllowed || !leaseReady)
-            ? l10n.zolnitRouteUnavailable
+            : bundle != null && !automaticAllowed
+            ? l10n.zolnitBundleAutomaticPending
+            : bundle != null && !leaseReady
+            ? l10n.zolnitRoutePreparing
             : null,
     };
     final message = bundle != null && !bundle.isFresh(now)
@@ -112,15 +114,19 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         ? const <String>[]
         : [service.route.groupName, service.manualGroup, 'DIRECT'];
     final mode = values.contains(policy?.realNow) ? policy!.realNow : null;
-    final target = mode == 'DIRECT'
-        ? 'DIRECT'
-        : mode == null
-        ? null
-        : groups.getGroup(mode)?.realNow;
+    String? target = mode;
+    final visited = <String>{};
+    while (target != null && visited.add(target)) {
+      final next = groups.getGroup(target)?.realNow;
+      if (next == null || next == target) break;
+      target = next;
+    }
     final current = target == 'DIRECT'
         ? l10n.direct
         : target == null || target == 'REJECT'
-        ? l10n.zolnitRouteUnavailable
+        ? (!leaseReady
+              ? l10n.zolnitRoutePreparing
+              : l10n.zolnitRouteUnavailable)
         : bundle?.outbounds
                   .where((o) => o.proxyName == target)
                   .firstOrNull

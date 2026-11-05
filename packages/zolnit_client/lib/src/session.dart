@@ -637,7 +637,10 @@ class ZolnitSessionController extends ChangeNotifier {
       } else {
         await _billing.cancelSubscription(id);
       }
-      if (_current(work)) await _loadBilling(work);
+      if (_current(work)) {
+        _clearQuotePreviews();
+        await _loadBilling(work);
+      }
     },
     billing: true,
     intent: '$id:$resume',

@@ -20,6 +20,11 @@ String? zolnitConfigurationMessage(
   if (status == ZolnitBundleStatus.loading) return text.loading;
   final failure = session.clientBundleFailure;
   if (failure != null) status = bundleFailureStatus(failure);
+  if (session.clientBundle == null &&
+      (status == ZolnitBundleStatus.unloaded ||
+          status == ZolnitBundleStatus.ready)) {
+    return text.loading;
+  }
   return switch (status) {
     ZolnitBundleStatus.loading => text.loading,
     ZolnitBundleStatus.forbidden => text.zolnitBundleForbidden,
@@ -33,7 +38,7 @@ String? zolnitConfigurationMessage(
           ? text.zolnitBundleUnavailable
           : text.zolnitBundleRefreshFailed,
     ZolnitBundleStatus.unavailable => text.zolnitBundleUnavailable,
-    _ => session.clientBundle == null ? text.zolnitBundleFetchHint : null,
+    _ => null,
   };
 }
 
@@ -67,6 +72,31 @@ String zolnitOrderStatus(BuildContext context, dynamic status) {
     3 => text.zolnitCompleted,
     4 => text.zolnitCredited,
     _ => text.unknown,
+  };
+}
+
+String zolnitSanitizedMethodName(BuildContext context, dynamic raw) {
+  if (raw is! String || raw.isEmpty) {
+    return context.appLocalizations.zolnitOnlinePayment;
+  }
+  final lower = raw.toLowerCase();
+  if (lower == 'stripe' ||
+      lower.contains('stripe') ||
+      lower.startsWith('pm_') ||
+      lower.startsWith('card_')) {
+    return context.appLocalizations.zolnitOnlinePayment;
+  }
+  return raw;
+}
+
+String zolnitRenewalLabel(BuildContext context, RenewalState state) {
+  final text = context.appLocalizations;
+  return switch (state) {
+    RenewalState.enabled => text.zolnitRenewalActive,
+    RenewalState.disabled => text.zolnitRenewalOff,
+    RenewalState.pending => text.zolnitRenewalPending,
+    RenewalState.ended => text.zolnitRenewalEnded,
+    RenewalState.attention => text.zolnitRenewalAttention,
   };
 }
 

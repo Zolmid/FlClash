@@ -49,6 +49,37 @@ final zolnitBundleStatusProvider =
       ZolnitBundleStatusNotifier.new,
     );
 
+class ZolnitBundleActivity {
+  const ZolnitBundleActivity({
+    this.refreshing = false,
+    this.failure,
+    this.retained,
+    this.generation,
+  });
+  final bool refreshing;
+  final String? failure;
+  final ZolnitClientBundle? retained;
+  final int? generation;
+}
+
+class ZolnitBundleActivityNotifier extends Notifier<ZolnitBundleActivity> {
+  @override
+  ZolnitBundleActivity build() => const ZolnitBundleActivity();
+  void set(ZolnitBundleActivity value) => state = value;
+}
+
+final zolnitBundleActivityProvider =
+    NotifierProvider<ZolnitBundleActivityNotifier, ZolnitBundleActivity>(
+      ZolnitBundleActivityNotifier.new,
+    );
+
+bool _transientBundleFailure(String code) =>
+    switch (bundleFailureStatus(code)) {
+      ZolnitBundleStatus.refreshFailed => true,
+      ZolnitBundleStatus.unavailable => code != 'core_version_required',
+      _ => false,
+    };
+
 bool isZolnitBundleProfile(Profile profile) =>
     profile.zolnitAccountId != null ||
     profile.zolnitBundleId != null ||
@@ -303,7 +334,23 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
         session.authenticated &&
         session.api.generation == generation;
     final status = ref.read(zolnitBundleStatusProvider.notifier);
-    status.set(ZolnitBundleStatus.loading);
+    final activity = ref.read(zolnitBundleActivityProvider.notifier);
+    final retained = session.clientBundle;
+    final background =
+        retained != null &&
+        retained.isFresh(clock()) &&
+        ref.read(zolnitBundleStatusProvider) == ZolnitBundleStatus.ready;
+    if (background) {
+      activity.set(
+        ZolnitBundleActivity(
+          refreshing: true,
+          retained: retained,
+          generation: generation,
+        ),
+      );
+    } else {
+      status.set(ZolnitBundleStatus.loading);
+    }
     Directory? staging;
     try {
       final core = ref.read(coreHandlerProvider);
@@ -376,13 +423,24 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
             ? ZolnitBundleStatus.ready
             : ZolnitBundleStatus.expired,
       );
+      activity.set(const ZolnitBundleActivity());
       return profile.id;
     } catch (error) {
       if (!current()) throw const ClientFailure('superseded');
       final code = error is ClientFailure
           ? error.code
           : 'client_bundle_storage_failed';
-      status.set(bundleFailureStatus(code));
+      final kept = session.clientBundle;
+      if (background &&
+          _transientBundleFailure(code) &&
+          kept != null &&
+          kept.bundleId == retained.bundleId &&
+          kept.isFresh(clock())) {
+        activity.set(ZolnitBundleActivity(failure: code));
+      } else {
+        status.set(bundleFailureStatus(code));
+        activity.set(const ZolnitBundleActivity());
+      }
       throw ClientFailure(code);
     } finally {
       if (staging != null && await staging.exists()) {

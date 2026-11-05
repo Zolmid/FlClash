@@ -72,6 +72,16 @@ void main() {
       find.text(locale.languageCode == 'en' ? 'Account' : '账号').first,
     );
     await tester.pumpAndSettle();
+    final sessions = find.widgetWithText(
+      ExpansionTile,
+      locale.languageCode == 'en' ? 'Login sessions' : '登录会话',
+    );
+    if (sessions.evaluate().isNotEmpty) {
+      await tester.ensureVisible(sessions.first);
+      await tester.pumpAndSettle();
+      await tester.tap(sessions.first);
+      await tester.pumpAndSettle();
+    }
   }
 
   Future<void> password(WidgetTester tester, String old, String fresh) async {
@@ -94,7 +104,7 @@ void main() {
       tester,
     ) async {
       await openAccount(tester, skin);
-      expect(find.text('我的账户'), findsOneWidget);
+      expect(find.text('我的账户'), findsNothing);
       expect(find.text('账号信息'), findsOneWidget);
       expect(find.text('订单记录'), findsOneWidget);
       expect(find.text('邀请有礼'), findsOneWidget);
@@ -105,7 +115,7 @@ void main() {
         await tester.scrollUntilVisible(find.text('登录会话 #41'), 250);
         await tester.pumpAndSettle();
       }
-      expect(find.text('登录会话'), findsOneWidget);
+      expect(find.text('登录会话'), findsWidgets);
       expect(find.text('登录会话 #41'), findsOneWidget);
       expect(find.text('MacBook Air'), findsNothing);
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
@@ -155,7 +165,8 @@ void main() {
       expect(find.text('lin@example.com'), findsOneWidget);
       expect(find.text('暂时无法获取登录会话，请重试。'), findsOneWidget);
       fail = false;
-      await tester.tap(find.text('刷新').last);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
       expect(find.text('登录会话 #41'), findsOneWidget);
     },

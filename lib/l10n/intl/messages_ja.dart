@@ -2375,6 +2375,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "プランと利用可能なサーバーを確認できます。",
     ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("6か月ごと"),
+    "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage(
+      "ヘルプ記事はまだありません。",
+    ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("ヘルプとサポート"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("招待コード"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
@@ -2429,9 +2432,12 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitLoginWebsite": MessageLookupByLibrary.simpleMessage("新規登録・パスワード再設定"),
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage("自動更新を管理"),
+    "zolnitManualPayment": MessageLookupByLibrary.simpleMessage(
+      "今回限りの支払い。自動更新なし。",
+    ),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("動画配信"),
     "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
-      "接続モードを適用できませんでした。接続設定を更新してからもう一度お試しください。",
+      "モードを切り替えられませんでした。もう一度お試しください。",
     ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("グローバル"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("スマート分流"),
@@ -2439,6 +2445,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitMonthlyEnrollment": MessageLookupByLibrary.simpleMessage("毎月の自動支払い"),
     "zolnitMySpace": MessageLookupByLibrary.simpleMessage("マイスペース"),
     "zolnitNewPassword": MessageLookupByLibrary.simpleMessage("新しいパスワード"),
+    "zolnitNewTicket": MessageLookupByLibrary.simpleMessage("新規依頼"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("次回の更新"),
     "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
       "有効なプランがありません。下から選んで始めましょう。",
@@ -2475,6 +2482,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOldPassword": MessageLookupByLibrary.simpleMessage("現在のパスワード"),
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("一回払い"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("オンラインのデバイス"),
+    "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage("オンライン決済"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("注文履歴"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("支払済み利用権"),
@@ -2498,6 +2506,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "保留中の注文があります。「注文」で支払いを続けるか閉じてから、もう一度お試しください。",
     ),
     "zolnitPerMonth": MessageLookupByLibrary.simpleMessage("/ 月"),
+    "zolnitPlanDetails": MessageLookupByLibrary.simpleMessage("プランの詳細"),
     "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
       "初回支払いまたは旧プランの残存価値の充当が確認されると、新しいプランが始まります。",
     ),
@@ -2550,6 +2559,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("現在のプランを更新"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("プランを更新"),
+    "zolnitRenewalActive": MessageLookupByLibrary.simpleMessage("自動更新はオン"),
+    "zolnitRenewalAttention": MessageLookupByLibrary.simpleMessage("確認が必要"),
+    "zolnitRenewalEnded": MessageLookupByLibrary.simpleMessage("終了"),
+    "zolnitRenewalHistory": MessageLookupByLibrary.simpleMessage("過去の契約"),
+    "zolnitRenewalOff": MessageLookupByLibrary.simpleMessage("自動更新はオフ"),
+    "zolnitRenewalOffHint": MessageLookupByLibrary.simpleMessage(
+      "自動更新は停止中です。支払い済みの利用期間は有効です。更新の再開または一回払いを選べます。",
+    ),
+    "zolnitRenewalPending": MessageLookupByLibrary.simpleMessage("手続き待ち"),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("自動更新"),
     "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("通信量をリセット"),
@@ -2574,7 +2592,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "このセッションからログアウトしますか？現在のセッションの可能性があります。利用するには再ログインが必要です。",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
+      "自動ルートを確認中です。下のサーバーを選択できます。",
+    ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("利用不可"),
+    "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
+      "スマートルーティング設定",
+    ),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("セーフモード"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
       "セーフモードではシステムのネットワーク設定は変更されません。",
@@ -2583,6 +2607,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("サーバーや地域を検索"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("選択"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("サーバーを選択"),
+    "zolnitSendRequest": MessageLookupByLibrary.simpleMessage("送信"),
     "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("作成日時"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "ログインの有効期限が切れました。もう一度ログインしてください。",
@@ -2603,6 +2628,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("期限切れ"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("未契約"),
     "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage("プランを選ぶ"),
+    "zolnitSupportTickets": MessageLookupByLibrary.simpleMessage("サポート依頼"),
     "zolnitSync": MessageLookupByLibrary.simpleMessage("アカウントデータを同期"),
     "zolnitSynced": MessageLookupByLibrary.simpleMessage("アカウントデータを同期しました"),
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage("アカウントデータを同期中…"),
@@ -2611,6 +2637,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTabOrders": MessageLookupByLibrary.simpleMessage("注文履歴"),
     "zolnitTagline": MessageLookupByLibrary.simpleMessage("接続を、もっとシンプルに。"),
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage("3年ごと"),
+    "zolnitTicketMessage": MessageLookupByLibrary.simpleMessage("問題を入力してください"),
+    "zolnitTicketReply": MessageLookupByLibrary.simpleMessage("返信"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("残りの通信量"),
     "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("残り"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage("今期の使用量"),

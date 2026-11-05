@@ -6,7 +6,6 @@ import 'package:zolnit_client/zolnit_client.dart';
 import 'brand.dart';
 import 'data.dart';
 
-export 'plans.dart' show ZolnitPlansPage;
 export 'nodes.dart' show ZolnitNodesPage;
 
 class ZolnitOrdersPage extends StatefulWidget {
@@ -110,9 +109,10 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                                 DropdownMenuItem<int>(
                                   value: method['id'] as int,
                                   child: Text(
-                                    method['name'] is String
-                                        ? method['name'] as String
-                                        : text.unknown,
+                                    zolnitSanitizedMethodName(
+                                      context,
+                                      method['name'],
+                                    ),
                                   ),
                                 ),
                             ],

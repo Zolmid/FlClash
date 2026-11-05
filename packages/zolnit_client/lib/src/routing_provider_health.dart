@@ -33,6 +33,8 @@ final class RoutingProviderHealthStore {
     _nodes.clear();
   }
 
+  void carryForward(int generation) => _generation = generation;
+
   bool observe({
     required int generation,
     required String nodeId,

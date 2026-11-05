@@ -324,6 +324,7 @@ class ZolnitHarness {
     Size? size,
     Widget? child,
     bool includeNavigatorKey = false,
+    bool settle = true,
   }) async {
     final (viewport, platform) = zolnitViewports[skin]!;
     tester.view.devicePixelRatio = 1;
@@ -354,7 +355,7 @@ class ZolnitHarness {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) await tester.pumpAndSettle();
   }
 
   Future<void> capture(WidgetTester tester, String name) async {

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -25,6 +23,12 @@ class _RecordingProxies extends ProxiesAction {
   void build() {}
 
   @override
+  Future<void> delayTestPageGroup(
+    String groupName, {
+    bool matchSearch = true,
+  }) async {}
+
+  @override
   void changeProxyDebounce(String groupName, String proxyName) {
     selections.add((groupName, proxyName));
   }
@@ -41,12 +45,12 @@ void main() {
   );
 
   for (final (status, message) in [
-    (ZolnitBundleStatus.unloaded, '获取连接配置'),
+    (ZolnitBundleStatus.unloaded, '加载中'),
     (ZolnitBundleStatus.loading, '加载中'),
     (ZolnitBundleStatus.unavailable, '连接配置暂时不可用。'),
     (ZolnitBundleStatus.forbidden, '当前账号暂时无法获取连接配置，请检查套餐与流量。'),
     (ZolnitBundleStatus.refreshFailed, '连接配置暂时不可用。'),
-    (ZolnitBundleStatus.ready, '获取连接配置'),
+    (ZolnitBundleStatus.ready, '加载中'),
   ]) {
     testWidgets('missing bundle $status does not claim empty entitlement', (
       tester,
@@ -87,52 +91,52 @@ void main() {
     'bundle_unavailable',
     'entitlement_unavailable',
   ]) {
-    testWidgets('bundle API $code shows failure and permits a retry', (
-      tester,
-    ) async {
-      harness.panel = (request) => request.url.path.endsWith('/client/bundle')
-          ? http.Response(
-              '{"error":{"code":"$code"}}',
-              code == 'entitlement_unavailable' ? 403 : 503,
-            )
-          : zolnitPanelFixture(request);
-      await harness.session.refreshClientBundle(coreVersion: 'v1.19.32');
-      expect(harness.session.clientBundleFailure, code);
-      harness.container.dispose();
-      harness.container = ProviderContainer(
-        overrides: [
-          zolnitSessionProvider.overrideWithValue(harness.session),
-          zolnitClientBundleTransportProvider.overrideWithValue(true),
-          safeModeProvider.overrideWithValue(true),
-        ],
-      );
-      globalState.container = harness.container;
-      var retries = 0;
-      await harness.mount(
-        tester,
-        ZolnitSkin.macos,
-        child: ZolnitNodesPage(
-          session: harness.session,
-          sync: () async {
-            retries++;
-            return null;
-          },
-        ),
-      );
-      expect(
-        find.text(
-          code == 'entitlement_unavailable'
-              ? '当前账号暂时无法获取连接配置，请检查套餐与流量。'
-              : '连接配置暂时不可用。',
-        ),
-        findsWidgets,
-      );
-      expect(find.text('当前套餐暂无可用线路。'), findsNothing);
-      await tester.tap(find.text('获取连接配置').last);
-      await tester.pumpAndSettle();
-      expect(retries, 1);
-      expect(harness.session.authenticated, isTrue);
-    });
+    testWidgets(
+      'bundle API $code shows the specific failure without requiring a configuration action',
+      (tester) async {
+        harness.panel = (request) => request.url.path.endsWith('/client/bundle')
+            ? http.Response(
+                '{"error":{"code":"$code"}}',
+                code == 'entitlement_unavailable' ? 403 : 503,
+              )
+            : zolnitPanelFixture(request);
+        await harness.session.refreshClientBundle(coreVersion: 'v1.19.32');
+        expect(harness.session.clientBundleFailure, code);
+        harness.container.dispose();
+        harness.container = ProviderContainer(
+          overrides: [
+            zolnitSessionProvider.overrideWithValue(harness.session),
+            zolnitClientBundleTransportProvider.overrideWithValue(true),
+            safeModeProvider.overrideWithValue(true),
+          ],
+        );
+        globalState.container = harness.container;
+        var retries = 0;
+        await harness.mount(
+          tester,
+          ZolnitSkin.macos,
+          child: ZolnitNodesPage(
+            session: harness.session,
+            sync: () async {
+              retries++;
+              return null;
+            },
+          ),
+        );
+        expect(
+          find.text(
+            code == 'entitlement_unavailable'
+                ? '当前账号暂时无法获取连接配置，请检查套餐与流量。'
+                : '连接配置暂时不可用。',
+          ),
+          findsWidgets,
+        );
+        expect(find.text('当前套餐暂无可用线路。'), findsNothing);
+        expect(find.text('获取连接配置'), findsNothing);
+        expect(retries, 0);
+        expect(harness.session.authenticated, isTrue);
+      },
+    );
   }
 
   testWidgets('selection skips URL tests and checks selector membership', (
@@ -239,29 +243,23 @@ void main() {
   );
 
   testWidgets(
-    'sync failures release the single-flight action and show a retryable error',
+    'entering an initialized client with no profile automatically requests data',
     (tester) async {
-      final pending = Completer<int?>();
       var syncs = 0;
+      harness.container.read(initProvider.notifier).value = true;
       await harness.mount(
         tester,
         ZolnitSkin.macos,
         child: ZolnitNodesPage(
           session: harness.session,
-          sync: () {
+          sync: () async {
             syncs++;
-            return pending.future;
+            return null;
           },
         ),
       );
-      final hint = find.text('可用线路会随套餐自动更新。');
-      await tester.tap(hint);
-      await tester.pump();
-      await tester.tap(hint);
       expect(syncs, 1);
-      pending.completeError(StateError('failed fixture'));
-      await tester.pumpAndSettle();
-      expect(find.text('操作未完成，请稍后重试。'), findsOneWidget);
+      expect(find.text('获取连接配置'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -272,7 +270,8 @@ void main() {
       await tester.tap(find.text('全部线路').first);
       await tester.pumpAndSettle();
       expect(find.byType(ZolnitNodesPage), findsOneWidget);
-      expect(find.text('线路'), findsOneWidget);
+      expect(find.text('全部线路'), findsWidgets);
+      expect(find.text('线路'), findsNothing);
       expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsWidgets);
       expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsWidgets);
       await harness.capture(tester, 'nodes-${skin.name}');
@@ -328,7 +327,8 @@ void main() {
     await harness.mount(tester, ZolnitSkin.macos, dark: true);
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(find.text('线路'), findsOneWidget);
+    expect(find.text('全部线路'), findsWidgets);
+    expect(find.text('线路'), findsNothing);
     expect(tester.takeException(), isNull);
     await harness.capture(tester, 'nodes-macos-dark');
   });
@@ -341,7 +341,8 @@ void main() {
     await harness.mount(tester, ZolnitSkin.ios, size: const Size(320, 640));
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
-    expect(find.text('线路'), findsOneWidget);
+    expect(find.text('全部线路'), findsWidgets);
+    expect(find.text('线路'), findsNothing);
     expect(tester.takeException(), isNull);
     await harness.capture(tester, 'nodes-ios-320-text-scale');
   });
@@ -382,12 +383,15 @@ void main() {
     expect(find.text('1.5\u00d7 \u8ba1\u91cf'), findsOneWidget);
   });
 
-  testWidgets('sync hint visible when profile not matched', (tester) async {
-    await harness.mount(tester, ZolnitSkin.macos);
-    await tester.tap(find.text('全部线路').first);
-    await tester.pumpAndSettle();
-    expect(find.text('可用线路会随套餐自动更新。'), findsOneWidget);
-  });
+  testWidgets(
+    'an unmatched profile does not require a manual configuration action',
+    (tester) async {
+      await harness.mount(tester, ZolnitSkin.macos);
+      await tester.tap(find.text('全部线路').first);
+      await tester.pumpAndSettle();
+      expect(find.text('可用线路会随套餐自动更新。'), findsNothing);
+    },
+  );
 
   test('display title strips protocol suffix from real node names', () {
     expect(zolnitDisplayTitle('香港 Lite A · HY2 · 1×'), '香港 Lite A');

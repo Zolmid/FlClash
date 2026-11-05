@@ -104,6 +104,8 @@ class ZolnitRouting with WidgetsBindingObserver {
   _RoutingPlan? _staged;
   final _preparedPlans = <(int, String), _RoutingPlan>{};
   _RoutingPlan? _active;
+  _RoutingPlan? _suspended;
+  Map<String, dynamic>? _suspendedLease;
   Object? _configuration;
   Map<String, dynamic>? _coreLease;
   Timer? _timer;
@@ -323,10 +325,7 @@ class ZolnitRouting with WidgetsBindingObserver {
     if (!_disposed) ref.read(zolnitCoreLeaseReadyProvider.notifier).set(ready);
   }
 
-  void _revokeCoreLease() {
-    final guard = _coreLease;
-    _coreLease = null;
-    _leaseReady(false);
+  void _releaseLease(Map<String, dynamic>? guard) {
     if (guard != null && !ref.read(safeModeProvider)) {
       unawaited(
         ref
@@ -336,6 +335,37 @@ class ZolnitRouting with WidgetsBindingObserver {
       );
     }
   }
+
+  void _revokeCoreLease() {
+    final guard = _coreLease;
+    final suspended = _suspendedLease;
+    _coreLease = null;
+    _suspendedLease = null;
+    _suspended = null;
+    _leaseReady(false);
+    _releaseLease(guard);
+    _releaseLease(suspended);
+  }
+
+  // Core renews a lease in place only while it is unrevoked, so a renewal must
+  // keep the old lease alive across the configuration push.
+  bool _continues(_RoutingPlan? previous, _RoutingPlan plan) =>
+      previous != null &&
+      previous.expiresAt != null &&
+      plan.expiresAt != null &&
+      previous.expiresAt!.isAfter(_now) &&
+      plan.expiresAt!.isAfter(_now) &&
+      previous.profileId == plan.profileId &&
+      previous.accountGeneration == plan.accountGeneration &&
+      previous.accountId != null &&
+      previous.accountId == plan.accountId &&
+      previous.metadataIdentity != null &&
+      previous.metadataIdentity == plan.metadataIdentity &&
+      previous.connectionDigest != null &&
+      previous.connectionDigest == plan.connectionDigest &&
+      previous.renewalOverlay == plan.renewalOverlay &&
+      !_invalidatedLeases.containsKey(_leaseIdentity(previous)) &&
+      !_invalidatedLeases.containsKey(_leaseIdentity(plan));
 
   bool acceptsPrepared(int profileId, String digest) {
     final plan = _preparedPlans[(profileId, digest)];
@@ -494,6 +524,11 @@ class ZolnitRouting with WidgetsBindingObserver {
         .read(coreHandlerProvider)
         .configurationChanges
         .value;
+    final previous =
+        _suspended ?? (_invalidLeaseToken == null ? _active : null);
+    final staleLease = _suspendedLease;
+    _suspended = null;
+    _suspendedLease = null;
     if (_active?.digest == plan.digest &&
         _active?.profileId == plan.profileId &&
         _active?.accountGeneration == plan.accountGeneration &&
@@ -504,6 +539,18 @@ class ZolnitRouting with WidgetsBindingObserver {
       unawaited(_configureNative());
       return;
     }
+    if (_continues(previous, plan)) {
+      _coreLease = null;
+      _active = plan;
+      _configuration = configuration;
+      _engine.carryForward(++_epoch);
+      _providerHealth.carryForward(_epoch);
+      _leaseTimers();
+      unawaited(_configureNative());
+      _schedule(plan);
+      return;
+    }
+    _releaseLease(staleLease);
     _revokeCoreLease();
     _active = plan;
     _nativeOwned = false;
@@ -515,6 +562,10 @@ class ZolnitRouting with WidgetsBindingObserver {
     _probeScope = Object();
     _leaseTimers();
     unawaited(_configureNative());
+    _schedule(plan);
+  }
+
+  void _schedule(_RoutingPlan plan) {
     _timer?.cancel();
     if (!ref.read(safeModeProvider) && plan.manifest != null) {
       _timer = Timer.periodic(const Duration(seconds: 30), (_) => kick());
@@ -534,6 +585,9 @@ class ZolnitRouting with WidgetsBindingObserver {
         ref
             .read(zolnitBundleStatusProvider.notifier)
             .set(ZolnitBundleStatus.unloaded);
+        ref
+            .read(zolnitBundleActivityProvider.notifier)
+            .set(const ZolnitBundleActivity());
       }
     } else if (_active?.expiresAt != null &&
         const {
@@ -550,10 +604,35 @@ class ZolnitRouting with WidgetsBindingObserver {
   }
 
   void suspend() {
-    _revokeCoreLease();
+    final plan = _active;
+    final continuable =
+        ref.read(coreStatusProvider) == CoreStatus.connected &&
+        identical(
+          _configuration,
+          ref.read(coreHandlerProvider).configurationChanges.value,
+        ) &&
+        plan != null &&
+        plan.expiresAt != null &&
+        plan.connectionDigest != null &&
+        plan.expiresAt!.isAfter(_now) &&
+        _invalidLeaseToken == null &&
+        !_invalidatedLeases.containsKey(_leaseIdentity(plan));
+    if (continuable) {
+      final guard = _coreLease ?? _suspendedLease;
+      _coreLease = null;
+      _suspended = plan;
+      _suspendedLease = guard;
+    } else {
+      _revokeCoreLease();
+    }
     _epoch++;
-    _providerHealth.resetGeneration(_epoch);
-    _probeScope = Object();
+    if (continuable) {
+      _engine.carryForward(_epoch);
+      _providerHealth.carryForward(_epoch);
+    } else {
+      _providerHealth.resetGeneration(_epoch);
+      _probeScope = Object();
+    }
     _active = null;
     _timer?.cancel();
     _timer = null;

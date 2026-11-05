@@ -1,6 +1,47 @@
 import 'package:fl_clash/common/system.dart';
 import 'package:material_ui/material_ui.dart';
 
+enum ZolnitLayout {
+  compact,
+  medium,
+  expanded;
+
+  static ZolnitLayout fromWidth(double width) {
+    if (width >= 1200) return expanded;
+    if (width >= 600) return medium;
+    return compact;
+  }
+
+  bool get useBottomNav => this == compact;
+  bool get useRail => this == medium;
+  bool get useSidebar => this == expanded;
+  bool get canDualColumn => this == expanded;
+}
+
+class ZolnitLayoutScope extends InheritedWidget {
+  const ZolnitLayoutScope({
+    super.key,
+    required this.layout,
+    required this.width,
+    required super.child,
+  });
+
+  final ZolnitLayout layout;
+  final double width;
+
+  static ZolnitLayout of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ZolnitLayoutScope>()?.layout ??
+      ZolnitLayout.compact;
+
+  static double widthOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ZolnitLayoutScope>()?.width ??
+      400;
+
+  @override
+  bool updateShouldNotify(ZolnitLayoutScope oldWidget) =>
+      layout != oldWidget.layout || width != oldWidget.width;
+}
+
 /// The platform family a ZolNit screen takes its geometry from.
 enum ZolnitSkin {
   macos,
@@ -25,7 +66,7 @@ enum ZolnitSkin {
     macos => 216,
     windows => 210,
     linux => 228,
-    _ => 0,
+    _ => 200,
   };
 
   double get panelCorner => switch (this) {

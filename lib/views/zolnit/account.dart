@@ -116,12 +116,14 @@ class _AccountInfoTab extends StatefulWidget {
   State<_AccountInfoTab> createState() => _AccountInfoTabState();
 }
 
-class _AccountInfoTabState extends State<_AccountInfoTab> {
+class _AccountInfoTabState extends State<_AccountInfoTab>
+    with WidgetsBindingObserver {
   List<ZolnitDevice>? _devices;
   ClientFailure? _deviceFailure;
   bool _loading = false;
   String? _revoking;
   bool _passwordChanged = false;
+  Timer? _deviceTimer;
   late int _generation;
 
   bool _current(int generation) =>
@@ -133,6 +135,13 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _deviceTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final state = WidgetsBinding.instance.lifecycleState;
+      if (state == null || state == AppLifecycleState.resumed) {
+        unawaited(_loadDevices());
+      }
+    });
     _generation = widget.session.api.generation;
     unawaited(_loadDevices());
   }
@@ -150,6 +159,18 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
       _passwordChanged = false;
       unawaited(_loadDevices());
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_loadDevices());
+  }
+
+  @override
+  void dispose() {
+    _deviceTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadDevices() async {
@@ -286,8 +307,9 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
     final entitlement = overview?['entitlement'];
     final source = entitlement is Json ? entitlement['source'] : null;
     final expires = usage?.expiresAt;
-    final contracts = overview?['subscriptions'];
+    final contracts = ZolnitRenewal.fromOverview(overview);
     final profile = ZolnitCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -299,11 +321,11 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
                   shape: AppShape.all(skin.badgeCorner),
                 ),
                 child: SizedBox.square(
-                  dimension: 52,
+                  dimension: 40,
                   child: Center(
                     child: Text(
                       name.characters.first,
-                      style: zolnitText(context, 24, weight: FontWeight.w600),
+                      style: zolnitText(context, 20, weight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -312,7 +334,7 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
               Expanded(
                 child: Text(
                   name,
-                  style: zolnitText(context, 23, weight: FontWeight.w600),
+                  style: zolnitText(context, 20, weight: FontWeight.w600),
                 ),
               ),
               if (usage?.planName case final plan?)
@@ -361,14 +383,12 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ZolnitSectionHeading(
-            title: text.zolnitDevicesTitle,
-            subtitle: text.zolnitDevicesHint,
-            actionLabel: text.zolnitRefresh,
-            onAction: _loading || _revoking != null ? null : _loadDevices,
+          Text(
+            text.zolnitDevicesHint,
+            style: zolnitText(context, 11, color: colors.muted),
           ),
           const SizedBox(height: 16),
-          if (_loading)
+          if (_loading && _devices == null)
             const Center(child: CommonCircleLoading(size: 22))
           else if (_deviceFailure case final failure?)
             Text(
@@ -428,137 +448,182 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
         ],
       ),
     );
-    final actions = LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 460 ? 2 : 1;
-        final width = (constraints.maxWidth - (columns - 1) * 14) / columns;
-        final entries = [
-          (
-            AppGlyphs.layers,
-            text.zolnitPlans,
-            usage?.planName ?? text.zolnitNoPlan,
-            widget.showPlans,
-          ),
-          (
-            AppGlyphs.help,
-            text.zolnitHelpSupport,
-            text.zolnitAccountHelpHint,
-            widget.openHelp,
-          ),
-          (
-            AppGlyphs.settings,
-            text.zolnitPreferences,
-            text.zolnitAccountPreferencesHint,
-            widget.showPreferences,
-          ),
-        ];
-        return Wrap(
-          spacing: 14,
-          runSpacing: 14,
+    final entries = [
+      (
+        AppGlyphs.layers,
+        text.zolnitPlans,
+        usage?.planName ?? text.zolnitNoPlan,
+        widget.showPlans,
+      ),
+      (
+        AppGlyphs.help,
+        text.zolnitHelpSupport,
+        text.zolnitAccountHelpHint,
+        widget.openHelp,
+      ),
+      (
+        AppGlyphs.settings,
+        text.zolnitPreferences,
+        text.zolnitAccountPreferencesHint,
+        widget.showPreferences,
+      ),
+    ];
+    final actions = ZolnitCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (final (glyph, title, hint, action) in entries)
+            ListTile(
+              leading: GlyphIcon(glyph, size: 22, color: colors.muted),
+              title: Text(
+                title,
+                style: zolnitText(context, 13, weight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                hint,
+                style: zolnitText(context, 11, color: colors.muted),
+              ),
+              trailing: const GlyphIcon(AppGlyphs.chevronForward, size: 16),
+              onTap: action,
+            ),
+        ],
+      ),
+    );
+    Widget renewalTile(ZolnitRenewal renewal) {
+      final data = renewal.data;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final (glyph, title, hint, action) in entries)
-              SizedBox(
-                width: width,
-                child: _AccountAction(
-                  glyph: glyph,
-                  title: title,
-                  hint: hint,
-                  onTap: action,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                Text(
+                  renewal.planName ?? text.zolnitRenewals,
+                  style: zolnitText(context, 14, weight: FontWeight.w600),
                 ),
+                Text(
+                  zolnitRenewalLabel(context, renewal.state),
+                  style: zolnitText(context, 12, color: colors.accent),
+                ),
+              ],
+            ),
+            if (data['paid_through'] != null)
+              _AccountRow(
+                label: text.zolnitPaidThrough,
+                value: zolnitDate(data['paid_through']),
+              ),
+            if (renewal.state != RenewalState.disabled &&
+                data['next_renewal_at'] != null)
+              _AccountRow(
+                label: text.zolnitNextRenewal,
+                value: zolnitDate(data['next_renewal_at']),
+              ),
+            if (renewal.id != null && renewal.canCancel)
+              TextButton(
+                onPressed: session.busy
+                    ? null
+                    : () => _renewal(renewal.id!, false),
+                child: Text(text.zolnitCancelRenewal),
+              ),
+            if (renewal.id != null && renewal.canResume)
+              TextButton(
+                onPressed: session.busy || !session.checkout.allowStripe
+                    ? null
+                    : () => _renewal(renewal.id!, true),
+                child: Text(text.zolnitResumeRenewal),
+              ),
+            if (renewal.state == RenewalState.pending)
+              Text(
+                text.zolnitPendingOrder,
+                style: zolnitText(context, 11, color: colors.muted),
               ),
           ],
-        );
-      },
+        ),
+      );
+    }
+
+    final renewals = ZolnitCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            text.zolnitRenewals,
+            style: zolnitText(context, 17, weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          if (session.billingFailure != null)
+            Text(
+              zolnitFailureText(
+                context,
+                session.billingFailure,
+                session.billingFailureMessage,
+                fallback: text.zolnitBillingUnavailable,
+              ),
+            )
+          else if (contracts.isEmpty)
+            Text(text.zolnitNoRenewals),
+          for (final renewal in contracts.where(
+            (item) => item.state != RenewalState.ended,
+          ))
+            renewalTile(renewal),
+          if (contracts.any((item) => item.state == RenewalState.ended))
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text(
+                text.zolnitRenewalHistory,
+                style: zolnitText(context, 13),
+              ),
+              children: [
+                for (final renewal in contracts.where(
+                  (item) => item.state == RenewalState.ended,
+                ))
+                  renewalTile(renewal),
+              ],
+            ),
+        ],
+      ),
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide =
-            skin.desktop && !widget.compact && constraints.maxWidth >= 1000;
-        final details = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [profile, const SizedBox(height: 20), actions],
-        );
+        final wide = constraints.maxWidth >= 740;
         return ListView(
           padding: zolnitPagePadding(skin, compact: widget.compact),
           children: [
-            ZolnitPageHeading(
-              title: text.zolnitAccountTitle,
-              subtitle: text.zolnitAccountSubtitle,
-            ),
-            const SizedBox(height: 24),
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: details),
-                  const SizedBox(width: 22),
-                  Expanded(flex: 2, child: devices),
-                ],
-              )
-            else ...[
-              details,
-              const SizedBox(height: 20),
-              devices,
-            ],
-            const SizedBox(height: 24),
-            ZolnitCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    text.zolnitRenewals,
-                    style: zolnitText(context, 17, weight: FontWeight.w600),
+            Flex(
+              direction: wide ? Axis.horizontal : Axis.vertical,
+              crossAxisAlignment: !wide
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  flex: wide ? 3 : 0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [profile, const SizedBox(height: 12), renewals],
                   ),
-                  const SizedBox(height: 12),
-                  if (session.billingFailure != null)
-                    Text(
-                      zolnitFailureText(
-                        context,
-                        session.billingFailure,
-                        session.billingFailureMessage,
-                        fallback: text.zolnitBillingUnavailable,
+                ),
+                SizedBox(width: wide ? 16 : 0, height: wide ? 0 : 12),
+                Flexible(
+                  flex: wide ? 2 : 0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      actions,
+                      const SizedBox(height: 12),
+                      ExpansionTile(
+                        title: Text(text.zolnitDevicesTitle),
+                        children: [devices],
                       ),
-                    )
-                  else if (contracts is! List || contracts.isEmpty)
-                    Text(text.zolnitNoRenewals),
-                  if (contracts is List)
-                    for (final contract in contracts.whereType<Json>()) ...[
-                      Text(
-                        contract['plan_name'] is String
-                            ? contract['plan_name'] as String
-                            : text.zolnitRenewals,
-                        style: zolnitText(context, 14, weight: FontWeight.w600),
-                      ),
-                      _AccountRow(
-                        label: text.zolnitPaidThrough,
-                        value: zolnitDate(contract['paid_through']),
-                      ),
-                      _AccountRow(
-                        label: text.zolnitNextRenewal,
-                        value: zolnitDate(contract['next_renewal_at']),
-                      ),
-                      if (contract['id'] is int &&
-                          contract['can_cancel'] == true)
-                        TextButton(
-                          onPressed: session.busy
-                              ? null
-                              : () => _renewal(contract['id'] as int, false),
-                          child: Text(text.zolnitCancelRenewal),
-                        ),
-                      if (contract['id'] is int &&
-                          contract['can_resume'] == true)
-                        TextButton(
-                          onPressed:
-                              session.busy || !session.checkout.allowStripe
-                              ? null
-                              : () => _renewal(contract['id'] as int, true),
-                          child: Text(text.zolnitResumeRenewal),
-                        ),
                     ],
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             TextButton(
               onPressed: session.busy || _revoking != null
                   ? null
@@ -576,64 +641,6 @@ class _AccountInfoTabState extends State<_AccountInfoTab> {
   }
 }
 
-class _AccountAction extends StatelessWidget {
-  const _AccountAction({
-    required this.glyph,
-    required this.title,
-    required this.hint,
-    required this.onTap,
-  });
-
-  final Glyph glyph;
-  final String title;
-  final String hint;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = ZolnitColors.of(context);
-    final skin = ZolnitSkin.of(context);
-    return ZolnitCard(
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        customBorder: AppShape.all(skin.panelCorner),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-          child: Row(
-            children: [
-              GlyphIcon(glyph, size: 23, color: colors.accent),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: zolnitText(context, 13, weight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      hint,
-                      style: zolnitText(context, 11, color: colors.muted),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              GlyphIcon(
-                AppGlyphs.chevronForward,
-                size: 14,
-                color: colors.muted,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _AccountRow extends StatelessWidget {
   const _AccountRow({required this.label, this.value, this.child});
 
@@ -645,7 +652,7 @@ class _AccountRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = ZolnitColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,

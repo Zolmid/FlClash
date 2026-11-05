@@ -194,6 +194,10 @@ class SmartRoutingEngine {
       ..addAll({for (final id in _services.keys) id: _ServiceState()});
   }
 
+  void carryForward(int generation) {
+    if (_generation != null) _generation = generation;
+  }
+
   void configure({
     required int generation,
     required List<SmartRouteNode> nodes,

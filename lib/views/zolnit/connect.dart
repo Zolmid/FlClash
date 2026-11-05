@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/zolnit_main_group.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
@@ -52,51 +53,68 @@ class ZolnitConnectPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
-    builder: (context, constraints) => _layout(
-      context,
-      viewportHeight: constraints.maxHeight,
-      stacked:
-          compact ||
-          !ZolnitSkin.of(context).desktop ||
-          constraints.maxWidth < 820,
-    ),
+    builder: (context, constraints) {
+      final layout = ZolnitLayoutScope.of(context);
+      return _layout(
+        context,
+        viewportHeight: constraints.maxHeight,
+        stacked: constraints.maxWidth < 740,
+        layout: layout,
+      );
+    },
   );
 
   Widget _layout(
     BuildContext context, {
     required bool stacked,
     required double viewportHeight,
+    required ZolnitLayout layout,
   }) {
     final skin = ZolnitSkin.of(context);
     final usage = session.usage;
-    final padding = zolnitPagePadding(skin, compact: compact);
-    final minimumHeight = viewportHeight.isFinite
-        ? (viewportHeight - padding.vertical - (stacked ? 256 : 188)).clamp(
-            0.0,
-            520.0,
-          )
-        : 0.0;
+    final padding = zolnitPagePadding(
+      skin,
+      compact: layout == ZolnitLayout.compact,
+    );
+    final minimumHeight =
+        stacked && layout == ZolnitLayout.compact && viewportHeight.isFinite
+        ? (viewportHeight - padding.vertical - 280).clamp(0.0, 310.0)
+        : 220.0;
+    final connection = _ConnectPanel(
+      session: session,
+      stacked: stacked,
+      syncing: syncing,
+      syncFailed: syncFailed,
+      connect: connect,
+      openNodes: openNodes,
+      minimumHeight: minimumHeight,
+    );
+    final options = _ConnectionOptions(
+      session: session,
+      syncing: syncing,
+      stacked: true,
+      openNodes: openNodes,
+    );
+    final plan = _PlanStrip(usage: usage, onPlans: openPlans);
     return ListView(
       padding: padding,
       children: [
-        _ConnectPanel(
-          session: session,
-          stacked: stacked,
-          syncing: syncing,
-          syncFailed: syncFailed,
-          connect: connect,
-          openNodes: openNodes,
-          minimumHeight: minimumHeight,
+        Flex(
+          direction: stacked ? Axis.vertical : Axis.horizontal,
+          crossAxisAlignment: stacked
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
+          children: [
+            Flexible(flex: stacked ? 0 : 3, child: connection),
+            SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
+            Flexible(
+              flex: stacked ? 0 : 2,
+              child: Column(
+                children: [options, const SizedBox(height: 12), plan],
+              ),
+            ),
+          ],
         ),
-        SizedBox(height: skin.desktop ? 16 : 14),
-        _ConnectionOptions(
-          session: session,
-          syncing: syncing,
-          stacked: stacked,
-          openNodes: openNodes,
-        ),
-        SizedBox(height: skin.desktop ? 16 : 14),
-        _PlanStrip(usage: usage, onPlans: openPlans),
       ],
     );
   }
@@ -111,7 +129,14 @@ class _Selection {
 
 _Selection _selectionOf(WidgetRef ref, List<ZolnitNode> nodes) {
   final groups = ref.watch(currentGroupsStateProvider).value;
-  final group = groups.isEmpty ? null : groups.first.name;
+  final bundle = ref.watch(zolnitSessionProvider).clientBundle;
+  final group = bundle == null
+      ? groups.firstOrNull?.name
+      : zolnitMainGroup(
+          bundle,
+          ref.watch(groupsProvider),
+          ref.watch(patchClashConfigProvider).mode,
+        )?.name;
   var chosen = group == null
       ? null
       : ref.watch(selectedProxyNameProvider(group));
@@ -178,7 +203,7 @@ class _ConnectPanel extends ConsumerWidget {
             (syncing ||
                 phase == ZolnitConnectionPhase.connecting ||
                 (nodes.isEmpty && !privateTransport)));
-    final label = syncing
+    final label = syncing && !running
         ? text.zolnitSyncing
         : switch (phase) {
             ZolnitConnectionPhase.connected => text.connected,
@@ -201,21 +226,25 @@ class _ConnectPanel extends ConsumerWidget {
             ? null
             : zolnitFailureText(context, session.failure, null));
     final android = skin == ZolnitSkin.android;
-    final center = !skin.desktop;
     final (headline, sub) = switch (skin) {
       ZolnitSkin.ios => (19.0, 11.0),
       ZolnitSkin.android => (23.0, 12.0),
       _ => (20.0, 12.0),
     };
+    final statusLine = safe && nodes.isNotEmpty
+        ? text.zolnitSafeModeConnect
+        : failureMessage ??
+              (nodes.isEmpty ? text.zolnitNoNodes : text.zolnitConnectSub);
+    final centered = ZolnitLayoutScope.of(context) == ZolnitLayout.compact;
     final copy = Column(
-      crossAxisAlignment: center
+      crossAxisAlignment: centered
           ? CrossAxisAlignment.center
           : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          actionLabel,
-          textAlign: center ? TextAlign.center : TextAlign.start,
+          label,
+          textAlign: centered ? TextAlign.center : TextAlign.start,
           style: zolnitText(
             context,
             headline,
@@ -223,27 +252,28 @@ class _ConnectPanel extends ConsumerWidget {
             weight: android ? FontWeight.w500 : FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 6),
+        if (phase == ZolnitConnectionPhase.connected && elapsed != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            elapsedText,
+            textAlign: centered ? TextAlign.center : TextAlign.start,
+            style: zolnitText(context, sub, color: colors.muted),
+          ),
+        ],
+        const SizedBox(height: 8),
         Text(
-          safe && nodes.isNotEmpty
-              ? text.zolnitSafeModeConnect
-              : failureMessage ??
-                    (nodes.isEmpty
-                        ? text.zolnitNoNodes
-                        : text.zolnitConnectSub),
-          textAlign: center ? TextAlign.center : TextAlign.start,
+          statusLine,
+          textAlign: centered ? TextAlign.center : TextAlign.start,
           style: zolnitText(context, sub, leading: 18, color: colors.muted),
         ),
+        const SizedBox(height: 14),
+        ZolnitButton(
+          label: actionLabel,
+          primary: !running,
+          glyph: running ? AppGlyphs.close : AppGlyphs.power,
+          onPressed: blocked ? null : connect,
+        ),
       ],
-    );
-    final power = ZolnitPowerButton(
-      status: phase == ZolnitConnectionPhase.connected
-          ? CoreStatus.connected
-          : phase == ZolnitConnectionPhase.connecting
-          ? CoreStatus.connecting
-          : CoreStatus.disconnected,
-      label: actionLabel,
-      onPressed: blocked ? null : connect,
     );
     return ZolnitCard(
       padding: EdgeInsets.zero,
@@ -277,79 +307,30 @@ class _ConnectPanel extends ConsumerWidget {
                 ),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: centered
+                    ? CrossAxisAlignment.stretch
+                    : CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      DecoratedBox(
-                        decoration: ShapeDecoration(
-                          color: phase == ZolnitConnectionPhase.connected
-                              ? const Color(0xff5f9b7a)
-                              : colors.accent,
-                          shape: AppShape.circle,
-                        ),
-                        child: const SizedBox.square(dimension: 7),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: zolnitText(
-                            context,
-                            skin.desktop ? 12 : 13,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      if (phase == ZolnitConnectionPhase.connected &&
-                          elapsed != null) ...[
-                        const Spacer(),
-                        const SizedBox(width: 8),
-                        Text(
-                          elapsedText,
-                          style: zolnitText(context, 12, color: colors.muted),
-                        ),
+                  if (centered)
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _StatusDot(phase: phase, syncing: syncing && !running),
+                        const SizedBox(height: 12),
+                        copy,
                       ],
-                    ],
-                  ),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: (minimumHeight - (skin.desktop ? 76 : 72))
-                          .clamp(0.0, double.infinity),
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _StatusDot(phase: phase, syncing: syncing && !running),
+                        const SizedBox(width: 16),
+                        Expanded(child: copy),
+                      ],
                     ),
-                    child: Center(
-                      heightFactor: 1,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: center
-                              ? 22
-                              : skin == ZolnitSkin.ios
-                              ? 29
-                              : 26,
-                        ),
-                        child: center
-                            ? Column(
-                                children: [
-                                  Center(child: power),
-                                  const SizedBox(height: 14),
-                                  copy,
-                                ],
-                              )
-                            : Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  power,
-                                  SizedBox(width: skin.desktop ? 26 : 14),
-                                  Expanded(child: copy),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -430,6 +411,7 @@ class _ModeControl extends ConsumerStatefulWidget {
 class _ModeControlState extends ConsumerState<_ModeControl> {
   bool _pending = false;
   bool _failed = false;
+  Mode? _failedMode;
 
   bool _ready({bool watch = false}) {
     T read<T>(ProviderListenable<T> provider) =>
@@ -445,14 +427,16 @@ class _ModeControlState extends ConsumerState<_ModeControl> {
     return !safe &&
         phase != ZolnitConnectionPhase.unavailable &&
         phase != ZolnitConnectionPhase.connecting &&
-        !widget.syncing &&
+        (!widget.syncing || read(isStartProvider)) &&
         session.authenticated &&
         core == CoreStatus.connected &&
         profile != null &&
         groups.isNotEmpty &&
         (transport
             ? bundleStatus == ZolnitBundleStatus.ready &&
-                  session.clientBundleFailure == null &&
+                  (session.clientBundleFailure == null ||
+                      read(zolnitBundleActivityProvider).failure ==
+                          session.clientBundleFailure) &&
                   isCurrentZolnitBundleProfile(profile, session) &&
                   profile.zolnitBundleId == session.clientBundle?.bundleId
             : profile.label == zolnitProfileLabel(session));
@@ -484,7 +468,12 @@ class _ModeControlState extends ConsumerState<_ModeControl> {
                     identical(session.clientBundle, bundle) &&
                     _ready(),
               );
-      if (sameAccount()) setState(() => _failed = !applied);
+      if (sameAccount()) {
+        setState(() {
+          _failed = !applied;
+          _failedMode = applied ? null : next;
+        });
+      }
     } finally {
       if (mounted) setState(() => _pending = false);
     }
@@ -517,8 +506,10 @@ class _ModeControlState extends ConsumerState<_ModeControl> {
             key: const ValueKey('zolnit-mode-failure'),
           ),
           TextButton(
-            onPressed: widget.openNodes,
-            child: Text(text.zolnitBundleFetchHint),
+            onPressed: ready && !_pending && _failedMode != null
+                ? () => unawaited(_change(_failedMode!))
+                : null,
+            child: Text(text.retry),
           ),
         ],
       ],
@@ -651,6 +642,45 @@ class _SelectedRow extends ConsumerWidget {
         ),
         if (connected) ...[const SizedBox(width: 12), speed],
       ],
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.phase, required this.syncing});
+
+  final ZolnitConnectionPhase phase;
+  final bool syncing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ZolnitColors.of(context);
+    final (color, glyph) = syncing
+        ? (colors.accent, AppGlyphs.refresh)
+        : switch (phase) {
+            ZolnitConnectionPhase.connected => (
+              Theme.of(context).colorScheme.success,
+              AppGlyphs.check,
+            ),
+            ZolnitConnectionPhase.connecting => (
+              colors.accent,
+              AppGlyphs.refresh,
+            ),
+            ZolnitConnectionPhase.unavailable => (
+              const Color(0xffb86e4b),
+              AppGlyphs.warning,
+            ),
+            _ => (colors.muted, AppGlyphs.power),
+          };
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: color.withValues(alpha: 0.15),
+        shape: AppShape.circle,
+      ),
+      child: SizedBox.square(
+        dimension: 64,
+        child: Center(child: GlyphIcon(glyph, size: 32, color: color)),
+      ),
     );
   }
 }

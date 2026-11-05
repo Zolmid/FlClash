@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fl_clash/views/zolnit/account.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
+import 'package:fl_clash/views/zolnit/shell.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
@@ -19,10 +20,17 @@ void main() {
     Locale locale = const Locale('zh', 'CN'),
     Size? size,
     String label = '套餐',
+    int selectedPlan = 2,
   }) async {
     await harness.mount(tester, skin, dark: dark, locale: locale, size: size);
     await tester.tap(find.text(label).first);
     await tester.pumpAndSettle();
+    final option = find.byKey(ValueKey('zolnit-plan-option-$selectedPlan'));
+    if (option.evaluate().isNotEmpty) {
+      await tester.ensureVisible(option);
+      await tester.tap(option);
+      await tester.pumpAndSettle();
+    }
   }
 
   Map<String, dynamic> quoteOffer(String period, {int? expiresAt}) => {
@@ -106,30 +114,24 @@ void main() {
     testWidgets('plans page renders the panel plans on ${skin.name}', (
       tester,
     ) async {
-      await openPlans(tester, skin);
-      expect(
-        find.descendant(
-          of: find.byType(ZolnitPageHeading),
-          matching: find.text('套餐'),
-        ),
-        findsOneWidget,
-      );
+      await openPlans(tester, skin, selectedPlan: 1);
       expect(find.text('当前套餐 · 轻享'), findsOneWidget);
-      for (final name in ['轻享', '畅享', '尊享']) {
-        expect(find.text(name), findsOneWidget);
-      }
-      for (final price in ['28', '48', '88']) {
+      for (final (id, name, price) in [
+        (1, '轻享', '28'),
+        (2, '畅享', '48'),
+        (3, '尊享', '88'),
+      ]) {
+        final option = find.byKey(ValueKey('zolnit-plan-option-$id'));
+        await tester.ensureVisible(option);
+        await tester.tap(option);
+        await tester.pumpAndSettle();
+        expect(find.text(name), findsWidgets);
         expect(find.text(price), findsOneWidget);
       }
-      expect(find.text('每月 150 GB 高速流量'), findsOneWidget);
-      expect(find.text('支持 5 台设备同时在线'), findsOneWidget);
-      expect(find.text('覆盖五个常用地区'), findsOneWidget);
-      expect(find.text('适合浏览、办公与轻量影音'), findsOneWidget);
-      expect(find.text('续费当前套餐'), findsOneWidget);
-      expect(find.text('选择套餐'), findsNWidgets(2));
-      expect(find.text('当前套餐'), findsOneWidget);
-      expect(find.textContaining('预览'), findsNothing);
+      expect(find.textContaining('Stripe'), findsNothing);
       expect(find.textContaining('PRIVATE_DO_NOT_RENDER'), findsNothing);
+      expect(saved(), 0);
+      expect(tester.takeException(), isNull);
       await harness.capture(tester, 'plans-${skin.name}');
       if (!skin.desktop) {
         await tester.drag(find.byType(ListView).first, const Offset(0, -900));
@@ -142,14 +144,13 @@ void main() {
   testWidgets(
     'a longer billing cycle shows the monthly equivalent and saving',
     (tester) async {
-      await openPlans(tester, ZolnitSkin.macos);
-      expect(find.text('省 20%'), findsOneWidget);
-      expect(find.text('省 5%'), findsOneWidget);
-      expect(find.text('按月付费，轻松开始'), findsNWidgets(3));
+      await openPlans(tester, ZolnitSkin.macos, selectedPlan: 1);
+      expect(find.text('本次付款，不自动续费。'), findsOneWidget);
       await tester.tap(find.text('年付'));
       await tester.pumpAndSettle();
-      expect(find.text('22.4'), findsOneWidget);
-      expect(find.text('每年 ¥268.80，一次支付'), findsOneWidget);
+      expect(find.textContaining('≈ ¥22.4'), findsOneWidget);
+      expect(find.text('268.8'), findsOneWidget);
+      expect(find.textContaining('一次支付'), findsOneWidget);
       expect(find.text('按月付费，轻松开始'), findsNothing);
       await harness.capture(tester, 'plans-macos-yearly');
     },
@@ -185,8 +186,11 @@ void main() {
     await harness.relogin();
     for (final skin in [ZolnitSkin.macos, ZolnitSkin.ios]) {
       await openPlans(tester, skin);
+      await tester.ensureVisible(find.text('套餐详情'));
+      await tester.tap(find.text('套餐详情'));
+      await tester.pumpAndSettle();
       expect(find.text('偶尔使用，按需连接'), findsOneWidget);
-      expect(find.text('200 GiB / 总量 · 不限时 · 用完为止'), findsOneWidget);
+      expect(find.text('200 GiB / 总量 · 不限时 · 用完为止'), findsWidgets);
       expect(find.text('最高 200 Mbps'), findsOneWidget);
       expect(find.text('2 个同时在线 IP'), findsOneWidget);
       expect(find.text('REALITY / HY2 双协议'), findsOneWidget);
@@ -232,10 +236,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(saved(), 0);
     expect(
-      find.descendant(
-        of: find.byType(ZolnitPageHeading),
-        matching: find.text('套餐'),
-      ),
+      find.descendant(of: find.byType(ZolnitTopBar), matching: find.text('套餐')),
       findsOneWidget,
     );
   });
@@ -257,6 +258,8 @@ void main() {
     await harness.relogin();
     await openPlans(tester, ZolnitSkin.macos);
     for (final plan in [1, 2, 3]) {
+      await tester.tap(find.byKey(ValueKey('zolnit-plan-option-$plan')));
+      await tester.pumpAndSettle();
       expect(find.byKey(ValueKey('zolnit-monthly-$plan-1')), findsOneWidget);
       expect(find.byKey(ValueKey('zolnit-monthly-$plan-2')), findsNothing);
     }
@@ -278,7 +281,7 @@ void main() {
     await openPlans(tester, ZolnitSkin.macos);
     expect(find.byKey(const ValueKey('zolnit-monthly-1-1')), findsNothing);
     expect(find.text('连续包月'), findsNothing);
-    expect(find.text('选择套餐'), findsNWidgets(2));
+    expect(find.text('选择套餐'), findsOneWidget);
   });
 
   testWidgets('an account without plans shows a plain empty state', (
@@ -288,13 +291,13 @@ void main() {
     await harness.relogin();
     await openPlans(tester, ZolnitSkin.macos);
     expect(find.text('暂无有效套餐'), findsOneWidget);
-    expect(find.text('你还没有有效套餐，选择一个开始使用。'), findsOneWidget);
+    expect(find.textContaining('Stripe'), findsNothing);
     expect(find.text('选择套餐'), findsNothing);
   });
 
   testWidgets('dark theme keeps the plan cards legible', (tester) async {
     await openPlans(tester, ZolnitSkin.macos, dark: true);
-    expect(find.text('畅享'), findsOneWidget);
+    expect(find.text('畅享'), findsWidgets);
     await harness.capture(tester, 'plans-macos-dark');
   });
 
@@ -341,30 +344,33 @@ void main() {
             : zolnitPanelFixture(request);
         await harness.relogin();
         await openPlans(tester, skin);
-        expect(find.text('CycleOnly'), findsOneWidget);
+        expect(find.text('CycleOnly'), findsWidgets);
         expect(find.text('OnceOnly'), findsNothing);
         expect(find.text('QuarterOnly'), findsNothing);
         expect(find.text('0'), findsOneWidget);
         await tester.tap(find.text('季付'));
         await tester.pumpAndSettle();
-        expect(find.text('CycleOnly'), findsOneWidget);
-        expect(find.text('QuarterOnly'), findsOneWidget);
+        expect(find.text('CycleOnly'), findsWidgets);
+        expect(find.text('QuarterOnly'), findsWidgets);
         expect(find.text('OnceOnly'), findsNothing);
         for (final period in ['半年付', '年付', '两年付', '三年付']) {
+          await tester.ensureVisible(find.text(period));
           await tester.tap(find.text(period));
           await tester.pumpAndSettle();
-          expect(find.text('CycleOnly'), findsOneWidget);
+          expect(find.text('CycleOnly'), findsWidgets);
           expect(find.text('OnceOnly'), findsNothing);
           expect(find.text('QuarterOnly'), findsNothing);
         }
+        await tester.ensureVisible(find.text('一次性'));
         await tester.tap(find.text('一次性'));
         await tester.pumpAndSettle();
-        expect(find.text('OnceOnly'), findsOneWidget);
+        expect(find.text('OnceOnly'), findsWidgets);
         expect(find.text('CycleOnly'), findsNothing);
         expect(find.text('0'), findsOneWidget);
+        await tester.ensureVisible(find.text('重置流量'));
         await tester.tap(find.text('重置流量'));
         await tester.pumpAndSettle();
-        expect(find.text('ResetOnly'), findsOneWidget);
+        expect(find.text('ResetOnly'), findsWidgets);
         expect(find.text('OnceOnly'), findsNothing);
         expect(find.text('CycleOnly'), findsNothing);
         expectReadOnly();
@@ -402,9 +408,9 @@ void main() {
         expectReadOnly();
         response.complete(zolnitJson(quoteBody('monthly')));
         await tester.pumpAndSettle();
-        expect(find.textContaining('首期付款: ¥7.01'), findsNWidgets(3));
-        expect(find.textContaining('后续付款: ¥25.20'), findsNWidgets(3));
-        expect(find.text('授权连续包月'), findsNWidgets(3));
+        expect(find.textContaining('首期付款: ¥7.01'), findsOneWidget);
+        expect(find.textContaining('后续付款: ¥25.20'), findsOneWidget);
+        expect(find.text('授权连续包月'), findsOneWidget);
         expect(quoteRequests(), hasLength(1));
         expectReadOnly();
         expect(tester.takeException(), isNull);
@@ -433,7 +439,7 @@ void main() {
       };
       await harness.relogin();
       await openPlans(tester, ZolnitSkin.macos);
-      expect(find.text('暂时无法获取报价，请重试。'), findsNWidgets(3));
+      expect(find.text('暂时无法获取报价，请重试。'), findsOneWidget);
       expect(find.text('授权连续包月'), findsNothing);
       failing = false;
       await tester.ensureVisible(find.text('重试').first);
@@ -441,7 +447,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(quoteRequests(), hasLength(2));
       expect(find.textContaining('待处理订单'), findsOneWidget);
-      expect(find.text('授权连续包月'), findsNWidgets(2));
+      expect(find.text('授权连续包月'), findsNothing);
       expectReadOnly();
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -472,7 +478,7 @@ void main() {
         await openPlans(tester, ZolnitSkin.macos);
         expect(configurationReads, 1);
         expect(quoteRequests(), isEmpty);
-        expect(find.text('暂时无法获取报价，请重试。'), findsNWidgets(3));
+        expect(find.text('暂时无法获取报价，请重试。'), findsOneWidget);
         expect(find.text('加载中…'), findsNothing);
         expect(harness.session.busy, isFalse);
         await tester.pump(const Duration(seconds: 1));
@@ -485,7 +491,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(configurationReads, 2);
         expect(quoteRequests(), hasLength(1));
-        expect(find.text('授权连续包月'), findsNWidgets(3));
+        expect(find.text('授权连续包月'), findsOneWidget);
         expectReadOnly();
         await tester.pumpWidget(const SizedBox.shrink());
       },
@@ -526,7 +532,7 @@ void main() {
     expect(quoteRequests(), hasLength(1));
     expect(find.text('授权连续包月'), findsNothing);
     expect(find.textContaining('首期付款'), findsNothing);
-    expect(find.text('暂时无法获取报价，请重试。'), findsNWidgets(3));
+    expect(find.text('暂时无法获取报价，请重试。'), findsOneWidget);
     expect(find.text('加载中…'), findsNothing);
     expect(harness.session.busy, isFalse);
     failing = false;
@@ -537,40 +543,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(configurationReads, 3);
     expect(quoteRequests(), hasLength(2));
-    expect(find.text('授权连续包月'), findsNWidgets(3));
+    expect(find.text('授权连续包月'), findsOneWidget);
     expectReadOnly();
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets(
-    'expired quotes stop authorization and explicit retry refreshes the batch',
-    (tester) async {
-      var expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3;
-      harness.panel = (request) {
-        if (request.url.path.endsWith('/zolnit-stripe/config')) {
-          return configuredChannels();
-        }
-        if (request.url.path.endsWith('/zolnit-stripe/plans')) {
-          return zolnitJson(quoteBody('monthly', expiresAt: expiry));
-        }
-        return zolnitPanelFixture(request);
-      };
-      await harness.relogin();
-      await openPlans(tester, ZolnitSkin.macos);
-      expect(find.text('授权连续包月'), findsNWidgets(3));
-      await tester.pump(const Duration(seconds: 4));
-      expect(find.text('报价已过期，请刷新后重试。'), findsNWidgets(3));
-      expect(find.text('授权连续包月'), findsNothing);
-      expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 300;
-      await tester.ensureVisible(find.text('重试').first);
-      await tester.tap(find.text('重试').first);
-      await tester.pumpAndSettle();
-      expect(quoteRequests(), hasLength(2));
-      expect(find.text('授权连续包月'), findsNWidgets(3));
-      expectReadOnly();
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+  testWidgets('quote expiry automatically fetches a fresh validated batch', (
+    tester,
+  ) async {
+    var expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-stripe/config')) {
+        return configuredChannels();
+      }
+      if (request.url.path.endsWith('/zolnit-stripe/plans')) {
+        return zolnitJson(quoteBody('monthly', expiresAt: expiry));
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await openPlans(tester, ZolnitSkin.macos);
+    expect(find.text('授权连续包月'), findsOneWidget);
+    expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 300;
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(quoteRequests(), hasLength(2));
+    expect(find.text('授权连续包月'), findsOneWidget);
+    expectReadOnly();
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('period change ignores the preceding quote response', (
     tester,
@@ -603,7 +604,7 @@ void main() {
     expect(find.textContaining('首期付款'), findsNothing);
     expect(find.textContaining('后续付款'), findsNothing);
     expect(find.text('本次报价'), findsNothing);
-    expect(find.text('每年 ¥268.80，一次支付'), findsOneWidget);
+    expect(find.textContaining('一次支付'), findsOneWidget);
     expectReadOnly();
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -636,9 +637,10 @@ void main() {
         await harness.relogin();
         await openPlans(tester, skin);
         for (final label in ['季付', '半年付', '年付', '两年付', '三年付', '一次性', '重置流量']) {
+          await tester.ensureVisible(find.text(label));
           await tester.tap(find.text(label));
           await tester.pumpAndSettle();
-          expect(find.text('Ordinary'), findsOneWidget);
+          expect(find.text('Ordinary'), findsWidgets);
           expect(quoteRequests(), isEmpty);
           expect(find.text('连续包月'), findsNothing);
           expect(find.text('本次报价'), findsNothing);

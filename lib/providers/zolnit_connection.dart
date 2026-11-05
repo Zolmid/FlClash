@@ -30,6 +30,23 @@ class _ZolnitSessionRevision extends Notifier<int> {
 final _zolnitSessionRevisionProvider =
     NotifierProvider<_ZolnitSessionRevision, int>(_ZolnitSessionRevision.new);
 
+final _connectionBundleProvider = Provider<ZolnitClientBundle?>((ref) {
+  ref.watch(_zolnitSessionRevisionProvider);
+  final session = ref.watch(zolnitSessionProvider);
+  final id = ref.watch(currentProfileProvider.select((p) => p?.zolnitBundleId));
+  final activity = ref.watch(zolnitBundleActivityProvider);
+  final retained = activity.retained;
+  if (activity.refreshing &&
+      session.authenticated &&
+      activity.generation == session.api.generation &&
+      retained?.bundleId == id &&
+      retained?.accountId == session.clientBundleAccountId &&
+      retained?.isFresh(ref.read(zolnitBundleClockProvider)()) == true) {
+    return retained;
+  }
+  return session.clientBundle;
+});
+
 final zolnitStoredBundleProvider = FutureProvider<bool>((ref) async {
   ref.watch(isStartProvider);
   final identity = ref.watch(
@@ -46,17 +63,19 @@ final zolnitStoredBundleProvider = FutureProvider<bool>((ref) async {
   );
   final profile = ref.read(currentProfileProvider);
   final session = ref.watch(zolnitSessionProvider);
+  ref.watch(_connectionBundleProvider.select((bundle) => bundle?.bundleId));
+  final bundle = ref.read(_connectionBundleProvider);
   if (identity == null ||
       profile == null ||
       !isCurrentZolnitBundleProfile(profile, session) ||
-      profile.zolnitBundleId != session.clientBundle?.bundleId) {
+      profile.zolnitBundleId != bundle?.bundleId) {
     return false;
   }
   final stored = await readZolnitClientBundle(
     profile,
     ref.read(zolnitBundleClockProvider)(),
   );
-  return stored.bundleId == session.clientBundle!.bundleId;
+  return stored.bundleId == bundle?.bundleId;
 });
 
 final zolnitConnectionPhaseProvider = Provider<ZolnitConnectionPhase>((ref) {
@@ -71,11 +90,13 @@ final zolnitConnectionPhaseProvider = Provider<ZolnitConnectionPhase>((ref) {
     return ZolnitConnectionPhase.unavailable;
   }
   final bundleStatus = ref.watch(zolnitBundleStatusProvider);
-  final bundle = session.clientBundle;
+  final bundle = ref.watch(_connectionBundleProvider);
   final currentBundle =
       bundleStatus == ZolnitBundleStatus.ready &&
+      bundle != null &&
+      bundle.isFresh(ref.read(zolnitBundleClockProvider)()) &&
       isCurrentZolnitBundleProfile(profile, session) &&
-      profile.zolnitBundleId == bundle?.bundleId;
+      profile.zolnitBundleId == bundle.bundleId;
   if (!currentBundle) {
     return bundleStatus == ZolnitBundleStatus.loading
         ? ZolnitConnectionPhase.connecting

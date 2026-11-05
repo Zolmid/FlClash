@@ -1,4 +1,5 @@
 import 'package:fl_clash/ui/icons/icons.dart';
+import 'package:fl_clash/views/zolnit/brand.dart';
 import 'package:fl_clash/views/zolnit/shell.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,7 +40,9 @@ void main() {
     ('windows', ZolnitSkin.windows, Size(1200, 800), false, 1.0, 1.0),
     ('linux', ZolnitSkin.linux, Size(1200, 800), false, 1.0, 1.0),
   ]) {
-    testWidgets('sidebar centers every row on $name', (tester) async {
+    testWidgets('adaptive navigation aligns each target on $name', (
+      tester,
+    ) async {
       tester.platformDispatcher.textScaleFactorTestValue = scale;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await harness.mount(tester, skin, size: size, dark: dark);
@@ -47,7 +50,8 @@ void main() {
       tester.view.physicalSize = size * dpr;
       await tester.pumpAndSettle();
 
-      final sidebar = find.byType(ZolnitSidebar);
+      final rail = size.width < 1200;
+      final sidebar = find.byType(rail ? ZolnitNavRail : ZolnitSidebar);
       for (final selected in labels) {
         await tester.tap(
           find.descendant(of: sidebar, matching: find.text(selected)),
@@ -70,28 +74,33 @@ void main() {
           glyphs.add(tester.getRect(glyph));
           texts.add(tester.getRect(text));
           expect(
-            tester.getCenter(glyph).dy,
-            closeTo(bounds.center.dy, 0.01),
+            rail ? tester.getCenter(glyph).dx : tester.getCenter(glyph).dy,
+            closeTo(rail ? bounds.center.dx : bounds.center.dy, 0.01),
             reason: '$label icon must be centered in its full hit area',
           );
           expect(
-            tester.getCenter(text).dy,
-            closeTo(bounds.center.dy, 0.01),
+            rail ? tester.getCenter(text).dx : tester.getCenter(text).dy,
+            closeTo(rail ? bounds.center.dx : bounds.center.dy, 0.01),
             reason: '$label text must be centered in its full hit area',
           );
         }
-        final height = switch (skin) {
-          ZolnitSkin.macos => 36.0,
-          ZolnitSkin.windows => 38.0,
-          _ => 42.0,
-        };
+        final height = rail
+            ? 56.0
+            : switch (skin) {
+                ZolnitSkin.macos => 36.0,
+                ZolnitSkin.windows => 38.0,
+                _ => 42.0,
+              };
         for (var index = 0; index < rows.length; index++) {
           expect(rows[index].height, height);
           expect(rows[index].width, rows.first.width);
           expect(glyphs[index].left, glyphs.first.left);
-          expect(texts[index].left, texts.first.left);
+          if (!rail) expect(texts[index].left, texts.first.left);
           if (index > 0) {
-            expect(rows[index].top - rows[index - 1].bottom, closeTo(4, 0.01));
+            expect(
+              rows[index].top - rows[index - 1].bottom,
+              closeTo(rail ? 8 : 4, 0.01),
+            );
           }
         }
         expect(tester.takeException(), isNull);
@@ -100,18 +109,19 @@ void main() {
     });
   }
 
-  testWidgets('Chinese sidebar heading uses its localized workspace title', (
-    tester,
-  ) async {
-    await harness.mount(tester, ZolnitSkin.macos);
-    final sidebar = find.byType(ZolnitSidebar);
-    expect(
-      find.descendant(of: sidebar, matching: find.text('我的空间')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: sidebar, matching: find.text('YOUR WORKSPACE')),
-      findsNothing,
-    );
-  });
+  testWidgets(
+    'sidebar presents the brand without a generic workspace heading',
+    (tester) async {
+      await harness.mount(tester, ZolnitSkin.macos);
+      final sidebar = find.byType(ZolnitSidebar);
+      expect(
+        find.descendant(of: sidebar, matching: find.byType(ZolnitBrand)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: sidebar, matching: find.text('YOUR WORKSPACE')),
+        findsNothing,
+      );
+    },
+  );
 }

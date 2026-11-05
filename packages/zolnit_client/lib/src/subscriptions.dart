@@ -1,5 +1,54 @@
 import 'api.dart';
 
+enum RenewalState { enabled, disabled, pending, ended, attention }
+
+class ZolnitRenewal {
+  const ZolnitRenewal(this.data);
+  final Json data;
+
+  static bool flag(Object? value) =>
+      value == true || value == 1 || value == '1';
+  static List<ZolnitRenewal> fromOverview(Json? overview) {
+    final rows = overview?['subscriptions'];
+    return rows is List
+        ? rows.whereType<Json>().map(ZolnitRenewal.new).toList()
+        : const [];
+  }
+
+  int? get id => data['id'] is int ? data['id'] as int : null;
+  int? get planId => data['plan_id'] is int ? data['plan_id'] as int : null;
+  String? get planName => data['plan_name'] as String?;
+  bool get canCancel => flag(data['can_cancel']);
+  bool get canResume => flag(data['can_resume']);
+  bool get scheduledToEnd => flag(data['cancel_at_period_end']);
+  RenewalState get state {
+    final status = data['status'];
+    if (const {
+      'canceled',
+      'cancelled',
+      'expired',
+      'incomplete_expired',
+    }.contains(status)) {
+      return RenewalState.ended;
+    }
+    if (flag(data['risk_hold']) || status == 'review') {
+      return RenewalState.attention;
+    }
+    if (scheduledToEnd) return RenewalState.disabled;
+    if (flag(data['initial_order_pending']) ||
+        const {'creating', 'checkout', 'incomplete'}.contains(status)) {
+      return RenewalState.pending;
+    }
+    if (status == 'past_due' || status == 'unpaid') {
+      return RenewalState.attention;
+    }
+    if (const {'active', 'trialing', 'scheduled_setup'}.contains(status)) {
+      return RenewalState.enabled;
+    }
+    return RenewalState.attention;
+  }
+}
+
 const recurringPeriodsByPrice = <String, String>{
   'month_price': 'monthly',
   'quarter_price': 'quarterly',

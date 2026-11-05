@@ -188,7 +188,11 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  void activate({SmartRoutingManifest? manifest, DateTime? expiresAt}) {
+  void activate({
+    SmartRoutingManifest? manifest,
+    DateTime? expiresAt,
+    String? connectionDigest,
+  }) {
     leaseExpiry = expiresAt;
     final prepared = prepareZolnitRouting(routingFixture());
     routing.stage(
@@ -201,6 +205,7 @@ void main() {
       metadataIdentity: expiresAt == null ? null : 'routing-fixture',
       accountId: expiresAt == null ? null : 'fixture-account',
       bundleId: expiresAt == null ? null : 'fixture-bundle',
+      connectionDigest: connectionDigest,
     );
     routing.activate(1, 'compiled-fixture');
   }
@@ -210,6 +215,45 @@ void main() {
     container.invalidate(safeModeProvider);
     await routing.run();
   }
+
+  test(
+    'same-configuration renewal does not revoke the live Core lease',
+    () async {
+      activate(
+        expiresAt: now.add(const Duration(minutes: 4)),
+        connectionDigest: 'document-a',
+      );
+      await runNormally();
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      clearInteractions(core);
+      routing.suspend();
+      activate(
+        expiresAt: now.add(const Duration(minutes: 5)),
+        connectionDigest: 'document-a',
+      );
+      await routing.run();
+      verifyNever(() => core.invalidateRoutingLease(any()));
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      routing.clear();
+      verify(() => core.invalidateRoutingLease(any())).called(1);
+    },
+  );
+
+  test('a changed configuration does not inherit the prior lease', () async {
+    activate(
+      expiresAt: now.add(const Duration(minutes: 4)),
+      connectionDigest: 'document-a',
+    );
+    await runNormally();
+    clearInteractions(core);
+    routing.suspend();
+    activate(
+      expiresAt: now.add(const Duration(minutes: 5)),
+      connectionDigest: 'document-b',
+    );
+    await routing.run();
+    verify(() => core.invalidateRoutingLease(any())).called(1);
+  });
 
   for (final status in [
     ZolnitBundleStatus.forbidden,

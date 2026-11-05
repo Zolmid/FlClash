@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/app_localizations.dart';
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/common/zolnit_main_group.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -37,8 +40,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
   String _region = '';
   String _routingService = 'ai';
   String _query = '';
-  bool _syncing = false;
-  bool _syncFailed = false;
+  Object? _measurementKey;
   late int _generation = widget.session.api.generation;
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
@@ -53,8 +55,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
       _routingService = 'ai';
       _query = '';
       _searchController.clear();
-      _syncing = false;
-      _syncFailed = false;
+      _measurementKey = null;
     }
   }
 
@@ -65,22 +66,39 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     super.dispose();
   }
 
-  Future<void> _handleSync() async {
-    if (_syncing) return;
-    final generation = _generation;
-    bool current() => mounted && generation == widget.session.api.generation;
-    setState(() {
-      _syncing = true;
-      _syncFailed = false;
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(groupsProvider, (_, _) => _autoMeasure());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(initProvider) && ref.read(currentProfileProvider) == null) {
+        unawaited(
+          widget.sync().then((_) => _autoMeasure(), onError: (Object _) {}),
+        );
+      } else {
+        _autoMeasure();
+      }
     });
-    try {
-      final profile = await widget.sync();
-      if (profile == null && current()) setState(() => _syncFailed = true);
-    } catch (_) {
-      if (current()) setState(() => _syncFailed = true);
-    } finally {
-      if (current()) setState(() => _syncing = false);
+  }
+
+  void _autoMeasure() {
+    if (!mounted ||
+        ref.read(safeModeProvider) ||
+        ref.read(coreStatusProvider) != CoreStatus.connected) {
+      return;
     }
+    final selector = _findSelector(ref, watch: false);
+    final group = selector.groupName;
+    if (group == null || !selector.manual) return;
+    final key = (
+      widget.session.api.generation,
+      widget.session.clientBundle?.bundleId,
+      group,
+    );
+    if (_measurementKey == key) return;
+    _measurementKey = key;
+    _handleDelayTest(group);
   }
 
   List<String> _regions(List<ZolnitNode> nodes) {
@@ -129,27 +147,26 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
                 : ref.read(currentGroupsStateProvider))
             .value;
     if (privateProfile) {
-      final services =
-          widget.session.clientBundle?.routingManifest.services ??
-          const <ManagedRouteService>[];
-      final service =
-          services.where((s) => s.route.id == _routingService).firstOrNull ??
-          services.firstOrNull;
-      if (service == null) return const _SelectorMatch(null, null);
-      final policy = groups.getGroup(service.groupName);
-      final mode = policy?.realNow;
-      if (mode != service.manualGroup && mode != service.route.groupName) {
+      final bundle = widget.session.clientBundle;
+      if (bundle == null ||
+          bundle.bundleId != profile.zolnitBundleId ||
+          !bundle.isFresh(ref.read(zolnitBundleClockProvider)())) {
         return const _SelectorMatch(null, null);
       }
-      final group = groups.getGroup(mode!);
-      if (group == null || group.type != GroupType.Selector) {
-        return const _SelectorMatch(null, null);
-      }
+      final group = zolnitMainGroup(
+        bundle,
+        watch ? ref.watch(groupsProvider) : ref.read(groupsProvider),
+        (watch
+                ? ref.watch(patchClashConfigProvider)
+                : ref.read(patchClashConfigProvider))
+            .mode,
+      );
+      if (group == null) return const _SelectorMatch(null, null);
       return _SelectorMatch(
         group.name,
         group.testUrl,
         group.all.map((proxy) => proxy.name).toSet(),
-        mode == service.manualGroup,
+        true,
         true,
       );
     }
@@ -226,22 +243,11 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     return ListView(
       padding: zolnitPagePadding(skin, compact: widget.compact),
       children: [
-        ZolnitPageHeading(
-          title: l10n.zolnitNodesHeadline,
-          subtitle: l10n.zolnitNodesSubtitle,
-          trailing: canTest
-              ? _DelayTestButton(
-                  groupName: selector.groupName!,
-                  onPressed: () => _handleDelayTest(selector.groupName!),
-                )
-              : null,
-        ),
-        SizedBox(height: skin.desktop ? 20 : 18),
-        ZolnitBundleRoutingPanel(
-          session: widget.session,
-          selectedServiceId: _routingService,
-          onServiceChanged: (value) => setState(() => _routingService = value),
-        ),
+        if (bundleMessage != null && nodes.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(bundleMessage),
+          ),
         _Toolbar(
           skin: skin,
           colors: colors,
@@ -265,24 +271,13 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
                 l10n.zolnitNodesCount(filtered.length),
                 style: zolnitText(context, 11, color: colors.muted),
               ),
-            if (!selectorReady && (nodes.isNotEmpty || privateTransport))
-              _SyncHint(
-                label: ref.watch(zolnitClientBundleTransportProvider)
-                    ? l10n.zolnitBundleFetchHint
-                    : l10n.zolnitNodeSyncHint,
-                syncing: _syncing || bundleStatus == ZolnitBundleStatus.loading,
-                onSync: _handleSync,
-                colors: colors,
+            if (canTest)
+              _DelayTestButton(
+                groupName: selector.groupName!,
+                onPressed: () => _handleDelayTest(selector.groupName!),
               ),
           ],
         ),
-        if (_syncFailed && bundleMessage == null) ...[
-          const SizedBox(height: 8),
-          Text(
-            l10n.zolnitFailure,
-            style: zolnitText(context, 12, color: colors.muted),
-          ),
-        ],
         SizedBox(height: skin.desktop ? 12 : 14),
         if (filtered.isEmpty)
           _EmptyState(
@@ -309,6 +304,24 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
                 : null,
           ),
         const SizedBox(height: 12),
+        if (privateTransport &&
+            ref.watch(patchClashConfigProvider).mode == Mode.rule &&
+            widget.session.clientBundle?.routingManifest.services.isNotEmpty ==
+                true)
+          ExpansionTile(
+            title: Text(
+              l10n.zolnitRoutingOptions,
+              style: zolnitText(context, 13),
+            ),
+            children: [
+              ZolnitBundleRoutingPanel(
+                session: widget.session,
+                selectedServiceId: _routingService,
+                onServiceChanged: (value) =>
+                    setState(() => _routingService = value),
+              ),
+            ],
+          ),
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
@@ -583,56 +596,6 @@ class _EmptyState extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: zolnitText(context, 13, color: colors.muted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SyncHint extends StatelessWidget {
-  const _SyncHint({
-    required this.label,
-    required this.syncing,
-    required this.onSync,
-    required this.colors,
-  });
-
-  final String label;
-  final bool syncing;
-  final VoidCallback onSync;
-  final ZolnitColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: AppShape.sm,
-      onTap: syncing ? null : onSync,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (syncing)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: CommonCircleLoading(size: 12),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: GlyphIcon(
-                  AppGlyphs.arrowDown,
-                  size: 12,
-                  color: colors.accent,
-                ),
-              ),
-            Flexible(
-              child: Text(
-                label,
-                style: zolnitText(context, 11, color: colors.accent),
-              ),
             ),
           ],
         ),

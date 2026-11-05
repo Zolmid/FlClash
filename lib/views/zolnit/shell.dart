@@ -7,6 +7,126 @@ import 'brand.dart';
 import 'kit.dart';
 import 'skin.dart';
 
+class ZolnitNavRail extends StatelessWidget {
+  const ZolnitNavRail({
+    super.key,
+    required this.labels,
+    required this.glyphs,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<String> labels;
+  final List<Glyph> glyphs;
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = ZolnitSkin.of(context);
+    final colors = ZolnitColors.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          colors.ink.withValues(alpha: 0.03),
+          colors.paper,
+        ),
+        border: Border(right: BorderSide(color: colors.line(0.08))),
+      ),
+      child: SafeArea(
+        right: false,
+        child: SizedBox(
+          width: 72,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              for (var i = 0; i < labels.length; i++)
+                _RailItem(
+                  glyph: glyphs[i],
+                  label: labels[i],
+                  selected: i == selected,
+                  skin: skin,
+                  colors: colors,
+                  onTap: () => onSelected(i),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RailItem extends StatelessWidget {
+  const _RailItem({
+    required this.glyph,
+    required this.label,
+    required this.selected,
+    required this.skin,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final Glyph glyph;
+  final String label;
+  final bool selected;
+  final ZolnitSkin skin;
+  final ZolnitColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? colors.accent : colors.muted;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: InkWell(
+          customBorder: AppShape.sm,
+          onTap: onTap,
+          child: SizedBox(
+            width: 64,
+            height: 56,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                DecoratedBox(
+                  decoration: ShapeDecoration(
+                    color: selected
+                        ? colors.accent.withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    shape: AppShape.full,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: GlyphIcon(glyph, size: 20, color: color),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: zolnitText(
+                    context,
+                    10,
+                    weight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ZolnitSidebar extends StatelessWidget {
   const ZolnitSidebar({
     super.key,
@@ -49,23 +169,7 @@ class ZolnitSidebar extends StatelessWidget {
                 child: ZolnitBrand(width: 150),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(26, 26, 16, 8),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  text.zolnitWorkspace,
-                  style: zolnitText(
-                    context,
-                    10,
-                    leading: 14,
-                    weight: FontWeight.w600,
-                    color: colors.muted,
-                    spacing: 1.6,
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 20),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(13, 10, 13, 0),
@@ -248,8 +352,6 @@ class ZolnitTopBar extends StatelessWidget {
     required this.title,
     required this.showBrand,
     required this.initial,
-    required this.busy,
-    required this.onRefresh,
     required this.onNotices,
     required this.onHelp,
     required this.onAccount,
@@ -259,8 +361,6 @@ class ZolnitTopBar extends StatelessWidget {
   final String title;
   final bool showBrand;
   final String initial;
-  final bool busy;
-  final VoidCallback onRefresh;
   final VoidCallback onNotices;
   final VoidCallback onHelp;
   final VoidCallback onAccount;
@@ -336,11 +436,6 @@ class ZolnitTopBar extends StatelessWidget {
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _BarButton(
-          tooltip: text.zolnitRefresh,
-          glyph: AppGlyphs.refresh,
-          onPressed: busy ? null : onRefresh,
-        ),
         _BarButton(
           tooltip: text.zolnitNotices,
           glyph: AppGlyphs.bell,

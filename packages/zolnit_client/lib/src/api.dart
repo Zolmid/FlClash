@@ -328,6 +328,21 @@ class XboardClient {
   Future<dynamic> plans() => request('/api/v1/user/plan/fetch');
   Future<dynamic> nodes() => request('/api/v1/user/server/fetch');
   Future<dynamic> notices() => request('/api/v1/user/notice/fetch');
+  Future<List<Json>> knowledge({required String language}) async {
+    final value = await request(
+      '/api/v1/user/knowledge/fetch',
+      query: {'language': language},
+    );
+    if (value is! Map && value is! List) {
+      throw const ClientFailure('invalid_response');
+    }
+    final groups = value is Map ? value.values : [value];
+    return [
+      for (final group in groups)
+        if (group is List) ...group.whereType<Json>(),
+    ];
+  }
+
   Future<dynamic> orders() => request('/api/v1/user/order/fetch');
   Future<dynamic> paymentMethods() =>
       request('/api/v1/user/order/getPaymentMethod');

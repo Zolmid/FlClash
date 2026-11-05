@@ -2800,6 +2800,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
       "Every six months",
     ),
+    "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage(
+      "No help articles are available yet.",
+    ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("Help & support"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("Invite code"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
@@ -2870,9 +2873,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitManageRenewals": MessageLookupByLibrary.simpleMessage(
       "Manage automatic renewal",
     ),
+    "zolnitManualPayment": MessageLookupByLibrary.simpleMessage(
+      "One payment. No automatic renewal.",
+    ),
     "zolnitMediaService": MessageLookupByLibrary.simpleMessage("Streaming"),
     "zolnitModeChangeFailed": MessageLookupByLibrary.simpleMessage(
-      "Couldn\'t apply the connection mode. Refresh the configuration and try again.",
+      "Could not switch modes. Please try again.",
     ),
     "zolnitModeGlobal": MessageLookupByLibrary.simpleMessage("Global"),
     "zolnitModeSmart": MessageLookupByLibrary.simpleMessage("Smart routing"),
@@ -2882,6 +2888,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitMySpace": MessageLookupByLibrary.simpleMessage("My space"),
     "zolnitNewPassword": MessageLookupByLibrary.simpleMessage("New password"),
+    "zolnitNewTicket": MessageLookupByLibrary.simpleMessage("New request"),
     "zolnitNextRenewal": MessageLookupByLibrary.simpleMessage("Next renewal"),
     "zolnitNoCurrentPlanHint": MessageLookupByLibrary.simpleMessage(
       "You have no active plan yet. Pick one below to get started.",
@@ -2928,6 +2935,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage(
       "Devices online",
     ),
+    "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage(
+      "Online payment",
+    ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Orders"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Paid access"),
@@ -2953,6 +2963,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "You have a pending order. Continue paying or close it in Orders before placing another.",
     ),
     "zolnitPerMonth": MessageLookupByLibrary.simpleMessage("/ month"),
+    "zolnitPlanDetails": MessageLookupByLibrary.simpleMessage("Plan details"),
     "zolnitPlanSwitch": MessageLookupByLibrary.simpleMessage(
       "The new plan starts after the first payment or remaining-value credit is confirmed.",
     ),
@@ -3013,6 +3024,25 @@ class MessageLookup extends MessageLookupByLibrary {
       "Renew current plan",
     ),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("Renew plan"),
+    "zolnitRenewalActive": MessageLookupByLibrary.simpleMessage(
+      "Automatic renewal on",
+    ),
+    "zolnitRenewalAttention": MessageLookupByLibrary.simpleMessage(
+      "Needs attention",
+    ),
+    "zolnitRenewalEnded": MessageLookupByLibrary.simpleMessage("Ended"),
+    "zolnitRenewalHistory": MessageLookupByLibrary.simpleMessage(
+      "Previous subscriptions",
+    ),
+    "zolnitRenewalOff": MessageLookupByLibrary.simpleMessage(
+      "Automatic renewal off",
+    ),
+    "zolnitRenewalOffHint": MessageLookupByLibrary.simpleMessage(
+      "Automatic renewal is off. Your paid access remains valid. You can resume renewal or make a one-time purchase.",
+    ),
+    "zolnitRenewalPending": MessageLookupByLibrary.simpleMessage(
+      "Awaiting completion",
+    ),
     "zolnitRenewals": MessageLookupByLibrary.simpleMessage("Automatic renewal"),
     "zolnitResetInDays": m101,
     "zolnitResetTraffic": MessageLookupByLibrary.simpleMessage("Reset traffic"),
@@ -3051,8 +3081,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "Sign out of this session? It may be your current session. You will need to sign in again to use it.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
+      "Checking automatic routes. You can select a server below.",
+    ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Unavailable",
+    ),
+    "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
+      "Smart routing options",
     ),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("Safe mode"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(
@@ -3064,6 +3100,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("Select"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("Choose server"),
+    "zolnitSendRequest": MessageLookupByLibrary.simpleMessage("Send"),
     "zolnitSessionCreated": MessageLookupByLibrary.simpleMessage("Created"),
     "zolnitSessionExpired": MessageLookupByLibrary.simpleMessage(
       "Sign-in expired. Sign in again.",
@@ -3088,6 +3125,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage(
       "Choose a plan",
     ),
+    "zolnitSupportTickets": MessageLookupByLibrary.simpleMessage(
+      "Support requests",
+    ),
     "zolnitSync": MessageLookupByLibrary.simpleMessage("Sync account data"),
     "zolnitSynced": MessageLookupByLibrary.simpleMessage("Account data synced"),
     "zolnitSyncing": MessageLookupByLibrary.simpleMessage(
@@ -3102,6 +3142,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitThreeYearly": MessageLookupByLibrary.simpleMessage(
       "Every three years",
     ),
+    "zolnitTicketMessage": MessageLookupByLibrary.simpleMessage(
+      "Describe your question",
+    ),
+    "zolnitTicketReply": MessageLookupByLibrary.simpleMessage("Reply"),
     "zolnitTrafficLeft": MessageLookupByLibrary.simpleMessage("Traffic left"),
     "zolnitTrafficLeftShort": MessageLookupByLibrary.simpleMessage("remaining"),
     "zolnitTrafficUsed": MessageLookupByLibrary.simpleMessage(

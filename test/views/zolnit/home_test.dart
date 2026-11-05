@@ -11,7 +11,6 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/brand.dart';
 import 'package:fl_clash/views/zolnit/account.dart';
-import 'package:fl_clash/views/zolnit/connect_art.dart';
 import 'package:fl_clash/views/zolnit/connect.dart';
 import 'package:fl_clash/views/zolnit/home.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
@@ -547,7 +546,7 @@ void main() {
       await capture(tester, 'dashboard-desktop-light');
       await tester.tap(find.text('Plans').first);
       await tester.pumpAndSettle();
-      expect(find.text('Test Plan'), findsOneWidget);
+      expect(find.text('Test Plan'), findsNWidgets(2));
       expect(find.text('12'), findsOneWidget);
       await capture(tester, 'plans-desktop-light');
       await tester.tap(find.text('Account').first);
@@ -912,8 +911,8 @@ void main() {
       (tester) async {
         await signInPopulated();
         await mountPopulated(tester);
-        final button = tester.widget<ZolnitPowerButton>(
-          find.byType(ZolnitPowerButton),
+        final button = tester.widget<ZolnitButton>(
+          find.widgetWithText(ZolnitButton, '连接').first,
         );
         expect(button.onPressed, isNull);
       },

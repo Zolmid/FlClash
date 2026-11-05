@@ -124,19 +124,15 @@ class ZolnitCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
-    return Container(
+    return Material(
       clipBehavior: Clip.antiAlias,
-      padding: padding,
-      decoration: ShapeDecoration(
-        color: color ?? colors.solid,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: radius ?? AppRadius.all(corner ?? skin.panelCorner),
-          side:
-              side ??
-              (bordered ? zolnitHairline(skin, colors) : BorderSide.none),
-        ),
+      color: color ?? colors.solid,
+      shape: RoundedSuperellipseBorder(
+        borderRadius: radius ?? AppRadius.all(corner ?? skin.panelCorner),
+        side:
+            side ?? (bordered ? zolnitHairline(skin, colors) : BorderSide.none),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }
@@ -734,4 +730,15 @@ String zolnitDisplayTitle(String title) {
         : '',
     flag: node.flag ?? named.flag,
   );
+}
+
+Future<T?> openZolnitPage<T>(BuildContext context, Widget page) {
+  final skin = ZolnitSkin.of(context);
+  final themed = InheritedTheme.captureAll(
+    context,
+    ZolnitSkinScope(skin: skin, child: page),
+  );
+  return Navigator.of(
+    context,
+  ).push(MaterialPageRoute<T>(builder: (_) => themed));
 }

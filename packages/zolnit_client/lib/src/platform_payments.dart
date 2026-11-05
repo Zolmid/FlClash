@@ -18,11 +18,18 @@ class NativeCheckoutPlatform implements CheckoutPlatform {
   static bool _confirming = false;
 
   @override
-  Future<bool> open(Uri uri) => launchUrl(
-    uri,
-    mode: LaunchMode.externalApplication,
-    webOnlyWindowName: '_blank',
-  );
+  Future<bool> open(Uri uri) async {
+    final inApp =
+        uri.scheme == 'https' &&
+        await supportsLaunchMode(LaunchMode.inAppBrowserView);
+    return launchUrl(
+      uri,
+      mode: inApp
+          ? LaunchMode.inAppBrowserView
+          : LaunchMode.externalApplication,
+      webOnlyWindowName: '_blank',
+    );
+  }
 
   @override
   Future<void> confirmStripe(
