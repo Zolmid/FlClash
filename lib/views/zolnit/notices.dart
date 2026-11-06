@@ -6,6 +6,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 import '../../providers/zolnit_realtime.dart';
 
 import 'data.dart';
+import 'kit.dart';
 
 Future<void> showZolnitNotice(BuildContext context, ZolnitNotice notice) {
   final text = context.appLocalizations;
@@ -80,8 +81,10 @@ Future<void> showZolnitNotices(
                       ListTile(
                         title: Text(
                           item.title,
-                          style: TextStyle(
-                            fontWeight: read.contains(item.id)
+                          style: zolnitText(
+                            outer,
+                            14,
+                            weight: read.contains(item.id)
                                 ? FontWeight.normal
                                 : FontWeight.bold,
                           ),
