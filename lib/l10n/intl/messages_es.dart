@@ -2944,8 +2944,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Se detendrán los próximos cargos automáticos. También se cancelará un primer pedido sin pagar. El acceso ya pagado depende del resultado del servidor.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Cancelado"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("Caja"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage(
       "Cambiar contraseña",
+    ),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "La confirmación de pago muestra el cargo real en SGD antes de autorizarlo.",
     ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "Ya hay un pago en curso. Consulta su estado en Cuenta y no lo envíes de nuevo.",
@@ -2955,6 +2959,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Elegir plan"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completado"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
+      "Confirmando el pago",
+    ),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("Conectar"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Un toque y conectado al instante",
@@ -3049,6 +3056,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
       "Ayuda y soporte",
+    ),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage(
+      "Pagar en la aplicación",
     ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage(
       "Código de invitación",
@@ -3221,6 +3231,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage(
       "Pago en línea",
     ),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage(
+      "Detalles del pedido",
+    ),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage(
+      "Número de pedido",
+    ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Pedidos"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Acceso pagado"),
@@ -3234,6 +3250,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Contraseña actualizada.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Pagar pedido"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
+      "Método de pago",
+    ),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "El estado del pedido debe confirmarse al volver del pago.",
     ),
@@ -3303,6 +3322,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "La facturación mensual automática no está disponible para este plan por ahora.",
+    ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
+      "Total de referencia (CNY)",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualizar"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Registrarse"),
@@ -3395,6 +3417,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "El modo seguro nunca modifica la red del sistema.",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage(
+      "Escanea para pagar",
+    ),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Buscar servidores o regiones",
     ),
@@ -3412,6 +3437,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "La información de inicio de sesión guardada no está disponible temporalmente. Inténtalo de nuevo.",
+    ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage(
+      "Importe del cargo",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Iniciar sesión"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(

@@ -11,6 +11,7 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/brand.dart';
 import 'package:fl_clash/views/zolnit/account.dart';
+import 'package:fl_clash/views/zolnit/catalogue.dart';
 import 'package:fl_clash/views/zolnit/connect.dart';
 import 'package:fl_clash/views/zolnit/home.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
@@ -244,6 +245,7 @@ void main() {
   late ZolnitSessionController session;
   late ProviderContainer container;
   late List<http.Request> requests;
+  String planTitle = 'Test Plan';
   bool loginFails = false;
   bool cancelled = false;
   late Directory paths;
@@ -269,6 +271,7 @@ void main() {
   setUp(() async {
     await useAppPaths(paths);
     requests = [];
+    planTitle = 'Test Plan';
     loginFails = false;
     cancelled = false;
     final api = XboardClient(
@@ -301,18 +304,44 @@ void main() {
           data = <Json>[];
         } else if (path.endsWith('/plan/fetch')) {
           data = [
-            {'id': 1, 'name': 'Test Plan', 'month_price': 1200},
+            {'id': 1, 'name': planTitle, 'month_price': 1200},
           ];
         } else if (path.endsWith('/order/fetch')) {
           data = [
-            {'trade_no': 'orderA', 'status': 0, 'total_amount': 1200},
+            {
+              'trade_no': 'orderA',
+              'status': 0,
+              'total_amount': 1200,
+              'period': 'month_price',
+              'plan_id': 1,
+              'plan': {'name': planTitle},
+            },
           ];
         } else if (path.endsWith('/order/save')) {
           data = 'orderA';
         } else if (path.endsWith('/getPaymentMethod')) {
           data = [
-            {'id': 1, 'name': 'Stripe'},
+            {'id': 1, 'name': 'Stripe', 'payment': 'ZolnitStripe'},
           ];
+        } else if (path.endsWith('/zolnit-stripe/config')) {
+          data = {
+            'enabled': true,
+            'configured': true,
+            'settlement_currency': 'SGD',
+            'channels': [
+              {
+                'id': 1,
+                'provider': 'ZolnitStripe',
+                'enabled': true,
+                'configured': true,
+                'native_checkout': {
+                  'platform': 'android',
+                  'available': true,
+                  'wallets': ['payment_sheet'],
+                },
+              },
+            ],
+          };
         } else if (path.endsWith('/subscriptions/1/cancel')) {
           cancelled = true;
           data = {'cancel_at_period_end': true};
@@ -337,7 +366,11 @@ void main() {
         } else {
           return http.Response('{}', 404);
         }
-        return http.Response(jsonEncode({'data': data}), 200);
+        return http.Response.bytes(
+          utf8.encode(jsonEncode({'data': data})),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
       }),
     );
     session = ZolnitSessionController(
@@ -588,8 +621,35 @@ void main() {
         (request) => request.url.path.endsWith('/order/save'),
       );
       expect(jsonDecode(request.body), {'plan_id': 1, 'period': 'month_price'});
-      expect(find.text('orderA'), findsOneWidget);
-      expect(find.text('Awaiting payment'), findsOneWidget);
+      expect(find.byType(ZolnitCashierPage), findsOneWidget);
+      expect(find.text('orderA'), findsNothing);
+      expect(find.text('Pay order'), findsWidgets);
+      await capture(tester, 'cashier-wide');
+    },
+  );
+
+  testWidgets(
+    'phone cashier shows real order details and provides a route back',
+    (tester) async {
+      planTitle = '轻量';
+      await session.login('client@example.com', 'password123');
+      await mount(tester, phone: true, locale: const Locale('zh', 'CN'));
+      await tester.tap(find.text('套餐').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('选择套餐').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确定').last);
+      await tester.pumpAndSettle();
+      expect(find.byType(ZolnitCashierPage), findsOneWidget);
+      expect(find.text('收银台'), findsOneWidget);
+      expect(find.text('轻量 · 月付'), findsOneWidget);
+      expect(find.text('Stripe'), findsNothing);
+      expect(find.text('orderA'), findsNothing);
+      await capture(tester, 'cashier-phone');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(ZolnitCashierPage), findsNothing);
+      expect(find.byType(ZolnitOrdersPage), findsOneWidget);
     },
   );
 
@@ -836,53 +896,51 @@ void main() {
       expect(populatedPlatform.opened, isEmpty);
     });
 
-    testWidgets(
-      'an approved quote creates the order and opens hosted checkout',
-      (tester) async {
-        await signInPopulated();
-        await mountPopulated(tester);
-        await tester.tap(find.text('\u5957\u9910').first);
-        await tester.pumpAndSettle();
-        expect(consents, isEmpty);
-        expect(
-          populatedRequests.where(
-            (request) =>
-                request.method == 'POST' &&
-                request.url.path.contains('/zolnit-stripe/'),
-          ),
-          isEmpty,
-        );
-        expect(populatedPlatform.opened, isEmpty);
-        final button = find.descendant(
-          of: find.byKey(const ValueKey('zolnit-monthly-3-1')),
-          matching: find.widgetWithText(TextButton, '授权连续包月'),
-        );
-        await tester.ensureVisible(button);
-        await tester.pumpAndSettle();
-        await tester.tap(button);
-        await tester.pumpAndSettle();
-        final posts = populatedRequests
-            .where(
-              (r) =>
-                  r.method == 'POST' && r.url.path.contains('/zolnit-stripe/'),
-            )
-            .toList();
-        expect(posts.map((r) => r.url.path), [
-          '/api/v1/zolnit-stripe/recurring-orders',
-          '/api/v1/zolnit-stripe/subscribe',
-        ]);
-        expect(jsonDecode(posts.first.body), {
-          'payment_id': 1,
-          'plan_id': 3,
-          'quote_id': 9,
-          'consent': true,
-        });
-        expect(consents, hasLength(1));
-        expect(populatedPlatform.opened.single.host, 'checkout.stripe.com');
-        expect(find.text('monthlyA'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
+    testWidgets('an approved quote creates the order and opens the cashier', (
+      tester,
+    ) async {
+      await signInPopulated();
+      await mountPopulated(tester);
+      await tester.tap(find.text('\u5957\u9910').first);
+      await tester.pumpAndSettle();
+      expect(consents, isEmpty);
+      expect(
+        populatedRequests.where(
+          (request) =>
+              request.method == 'POST' &&
+              request.url.path.contains('/zolnit-stripe/'),
+        ),
+        isEmpty,
+      );
+      expect(populatedPlatform.opened, isEmpty);
+      final button = find.descendant(
+        of: find.byKey(const ValueKey('zolnit-monthly-3-1')),
+        matching: find.widgetWithText(TextButton, '授权连续包月'),
+      );
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      final posts = populatedRequests
+          .where(
+            (r) => r.method == 'POST' && r.url.path.contains('/zolnit-stripe/'),
+          )
+          .toList();
+      expect(posts.map((r) => r.url.path), [
+        '/api/v1/zolnit-stripe/recurring-orders',
+      ]);
+      expect(jsonDecode(posts.first.body), {
+        'payment_id': 1,
+        'plan_id': 3,
+        'quote_id': 9,
+        'consent': true,
+      });
+      expect(consents, hasLength(1));
+      expect(populatedPlatform.opened, isEmpty);
+      expect(find.byType(ZolnitCashierPage), findsOneWidget);
+      expect(find.text('monthlyA'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('populated nodes page renders server names', (tester) async {
       await signInPopulated();

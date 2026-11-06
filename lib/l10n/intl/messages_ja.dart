@@ -2300,7 +2300,11 @@ class MessageLookup extends MessageLookupByLibrary {
       "今後の自動請求を停止します。初回の未払い注文も取り消されます。支払済みの利用権はサーバーの結果に従います。",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("取り消し済み"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("お支払い"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage("パスワードを変更"),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "実際のSGD請求額は、承認前の支払い確認画面に表示されます。",
+    ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "決済がすでに処理中です。アカウントで状況を確認し、重複して送信しないでください。",
     ),
@@ -2309,6 +2313,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("プランを選ぶ"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("完了"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("支払いを確認中"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("接続"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "ワンタップですぐに接続",
@@ -2382,6 +2387,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "ヘルプ記事はまだありません。",
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("ヘルプとサポート"),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("アプリ内で支払う"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("招待コード"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
       "招待コードをコピーしました",
@@ -2507,6 +2513,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("一回払い"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("オンラインのデバイス"),
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage("オンライン決済"),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage("注文の詳細"),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage("注文番号"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("注文履歴"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("支払済み利用権"),
@@ -2518,6 +2526,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "パスワードを更新しました。",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("支払いへ"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage("支払い方法"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "支払いから戻った後も注文状況の確認が必要です。",
     ),
@@ -2576,6 +2585,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "現在、このプランでは毎月の自動支払いをご利用いただけません。",
     ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage("参考合計（CNY）"),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("更新"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("新規登録"),
     "zolnitRegistrationBrowserUnavailable":
@@ -2633,6 +2643,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "セーフモードではシステムのネットワーク設定は変更されません。",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage("スキャンして支払う"),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("サーバーや地域を検索"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("選択"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("サーバーを選択"),
@@ -2645,6 +2656,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "保存されたログイン情報に一時的にアクセスできません。もう一度お試しください。",
     ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage("決済金額"),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("ログイン"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "メールアドレスまたはパスワードが正しくありません。もう一度お試しください。",

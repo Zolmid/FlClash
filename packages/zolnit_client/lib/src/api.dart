@@ -411,11 +411,19 @@ class XboardClient {
     body: {'trade_no': tradeNo},
   );
 
-  Future<Json> checkout(String tradeNo, int methodId) async =>
+  Future<Json> checkout(
+    String tradeNo,
+    int methodId, {
+    String? nativeWallet,
+  }) async =>
       await request(
             '/api/v1/user/order/checkout',
             method: 'POST',
-            body: {'trade_no': tradeNo, 'method': methodId},
+            body: {
+              'trade_no': tradeNo,
+              'method': methodId,
+              'zolnit_native_wallet': ?nativeWallet,
+            },
             unwrap: false,
           )
           as Json;

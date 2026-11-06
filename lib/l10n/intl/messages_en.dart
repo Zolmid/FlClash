@@ -2701,8 +2701,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Canceled"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("Checkout"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage(
       "Change password",
+    ),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "The payment confirmation shows the actual SGD charge before you authorize it.",
     ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "A checkout is already in progress. Check its status in Account and do not submit it again.",
@@ -2712,6 +2716,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Choose plan"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completed"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
+      "Confirming payment",
+    ),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("Connect"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Ready to connect",
@@ -2807,6 +2814,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "No help articles are available yet.",
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("Help & support"),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage(
+      "Pay in the app",
+    ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("Invite code"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
       "Invite code copied",
@@ -2962,6 +2972,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage(
       "Online payment",
     ),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage("Order details"),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage("Order number"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Orders"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Paid access"),
@@ -2973,6 +2985,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Password updated.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Pay order"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
+      "Payment method",
+    ),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "Your order still needs confirmation after returning from payment.",
     ),
@@ -3038,6 +3053,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "Monthly billing is not available for this plan right now.",
+    ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
+      "Reference total (CNY)",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Refresh"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Sign up"),
@@ -3126,6 +3144,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Safe mode never changes the system network.",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage("Scan to pay"),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Search servers or regions",
     ),
@@ -3141,6 +3160,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "Saved sign-in information is temporarily unavailable. Please try again.",
+    ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage(
+      "Settlement total",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Sign in"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(

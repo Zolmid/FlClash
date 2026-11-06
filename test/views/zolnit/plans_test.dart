@@ -203,7 +203,7 @@ void main() {
     expect(saved(), 0);
   });
 
-  testWidgets('a confirmed purchase creates the order and opens the orders', (
+  testWidgets('a confirmed purchase opens the cashier for the created order', (
     tester,
   ) async {
     await openPlans(tester, ZolnitSkin.macos);
@@ -223,7 +223,7 @@ void main() {
     expect(request.body, contains('"plan_id":2'));
     expect(request.body, contains('"period":"month_price"'));
     expect(find.byType(ZolnitPageHeading), findsNothing);
-    expect(find.text('订单记录'), findsWidgets);
+    expect(find.text('收银台'), findsOneWidget);
   });
 
   testWidgets('declining the confirmation creates nothing', (tester) async {

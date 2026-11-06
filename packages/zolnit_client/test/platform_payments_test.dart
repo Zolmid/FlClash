@@ -223,73 +223,61 @@ void main() {
     },
   );
 
-  test(
-    'Android eligibility needs server capability rather than a build flag',
-    () {
-      const blocked = ClientPaymentPolicy(
-        platform: TargetPlatform.android,
-        isWeb: false,
-        distribution: ClientDistribution.direct,
-      );
-      expect(blocked.allowStripe, isTrue);
-      expect(blocked.allowAndroidSdk, isTrue);
+  test('Android native selection needs a matching server capability', () {
+    const blocked = ClientPaymentPolicy(
+      platform: TargetPlatform.android,
+      isWeb: false,
+      distribution: ClientDistribution.direct,
+    );
+    expect(blocked.allowStripe, isTrue);
+    expect(blocked.allowAndroidSdk, isTrue);
 
-      const enabled = ClientPaymentPolicy(
-        platform: TargetPlatform.android,
+    const capability = <String, dynamic>{
+      'available': true,
+      'platform': 'android',
+      'wallets': ['payment_sheet', 'wechat_pay'],
+    };
+    expect(blocked.supportsNativeCapability(capability), isTrue);
+    expect(blocked.nativeWalletForCapability(capability), 'payment_sheet');
+    expect(
+      blocked.supportsNativeCapability({...capability, 'available': false}),
+      isFalse,
+    );
+    expect(
+      blocked.supportsNativeCapability({...capability, 'available': 'true'}),
+      isFalse,
+    );
+    expect(
+      blocked.supportsNativeCapability({
+        ...capability,
+        'wallets': ['wechat_pay'],
+      }),
+      isFalse,
+    );
+    expect(
+      blocked.supportsNativeCapability({
+        ...capability,
+        'wallets': 'payment_sheet',
+      }),
+      isFalse,
+    );
+    expect(
+      blocked.supportsNativeCapability(capability, recurring: true),
+      isFalse,
+    );
+    expect(blocked.supportsNativeCapability({}), isFalse);
+    for (final platform in [
+      TargetPlatform.iOS,
+      TargetPlatform.macOS,
+      TargetPlatform.android,
+    ]) {
+      final policy = ClientPaymentPolicy(
+        platform: platform,
         isWeb: false,
-        distribution: ClientDistribution.direct,
-        androidNativeStripe: true,
+        distribution: ClientDistribution.appleAppStore,
       );
-      expect(enabled.allowStripe, isTrue);
-      expect(enabled.allowAndroidSdk, isTrue);
-      const capability = <String, dynamic>{
-        'available': true,
-        'platform': 'android',
-        'payment_method': 'wechat_pay',
-        'recurring': false,
-      };
-      expect(blocked.supportsNativeCapability(capability), isTrue);
-      expect(
-        enabled.supportsNativeCapability({...capability, 'available': false}),
-        isFalse,
-      );
-      expect(
-        enabled.supportsNativeCapability({...capability, 'available': 'true'}),
-        isFalse,
-      );
-      expect(
-        enabled.supportsNativeCapability({
-          ...capability,
-          'payment_method': 'card',
-        }),
-        isFalse,
-      );
-      expect(
-        enabled.supportsNativeCapability({
-          ...capability,
-          'payment_method': 'alipay',
-        }),
-        isFalse,
-      );
-      expect(
-        enabled.supportsNativeCapability(capability, recurring: true),
-        isFalse,
-      );
-      expect(enabled.supportsNativeCapability({}), isFalse);
-      for (final platform in [
-        TargetPlatform.iOS,
-        TargetPlatform.macOS,
-        TargetPlatform.android,
-      ]) {
-        final policy = ClientPaymentPolicy(
-          platform: platform,
-          isWeb: false,
-          distribution: ClientDistribution.appleAppStore,
-          androidNativeStripe: true,
-        );
-        expect(policy.allowStripe, isFalse);
-        expect(policy.supportsNativeCapability(capability), isFalse);
-      }
-    },
-  );
+      expect(policy.allowStripe, isFalse);
+      expect(policy.supportsNativeCapability(capability), isFalse);
+    }
+  });
 }

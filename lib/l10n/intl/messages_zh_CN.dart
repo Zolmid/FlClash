@@ -2047,7 +2047,11 @@ class MessageLookup extends MessageLookupByLibrary {
       "停止后续自动扣款；首期尚未付款的订单也会取消。已付权益以服务端结果为准。",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("已取消"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("收银台"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage("修改密码"),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "实际扣款金额会在授权前的付款确认中以新加坡元（SGD）显示。",
+    ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "已有一笔结算正在处理，请在账号页查看状态，请勿重复提交。",
     ),
@@ -2056,6 +2060,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("选择套餐"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("已完成"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("正在确认付款"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("连接"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage("准备连接"),
     "zolnitConnectOnLaunch": MessageLookupByLibrary.simpleMessage("启动后自动连接"),
@@ -2117,6 +2122,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage("半年付"),
     "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage("暂无帮助文章。"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("帮助与支持"),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("应用内付款"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("邀请码"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage("邀请码已复制"),
     "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(
@@ -2224,6 +2230,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("一次性"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("在线设备"),
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage("在线支付"),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage("订单详情"),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage("订单号"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("订单记录"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("已付权益"),
@@ -2233,6 +2241,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage("密码已更新。"),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("前往付款"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage("付款方式"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "付款返回后仍需确认订单状态。",
     ),
@@ -2287,6 +2296,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "当前暂时无法为该套餐开通连续包月。",
     ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage("参考总额（CNY）"),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("刷新"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("注册"),
     "zolnitRegistrationBrowserUnavailable":
@@ -2338,6 +2348,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "安全模式不会修改系统网络。",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage("扫码付款"),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("搜索线路或地区"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("选择"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("选择线路"),
@@ -2350,6 +2361,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "暂时无法读取或保存登录信息，请稍后重试。",
     ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage("结算金额"),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("登录"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "邮箱或密码不正确，请重试。",

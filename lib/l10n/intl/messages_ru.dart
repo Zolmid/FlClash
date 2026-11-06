@@ -2865,8 +2865,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Будущие автоматические списания прекратятся. Неоплаченный первый заказ тоже будет отменён. Оплаченный доступ определяется результатом сервера.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Отменён"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("Оплата"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage(
       "Изменить пароль",
+    ),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "Перед подтверждением в окне оплаты отображается фактическая сумма списания в SGD.",
     ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "Оплата уже обрабатывается. Проверьте статус в разделе «Аккаунт» и не отправляйте повторно.",
@@ -2876,6 +2880,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Выбрать тариф"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Завершён"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
+      "Подтверждаем оплату",
+    ),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("Подключиться"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Одно касание — и вы на связи",
@@ -2964,6 +2971,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
       "Помощь и поддержка",
+    ),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage(
+      "Оплатить в приложении",
     ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("Код приглашения"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
@@ -3130,6 +3140,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage(
       "Онлайн-оплата",
     ),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage("Детали заказа"),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage("Номер заказа"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Заказы"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Оплаченный доступ"),
@@ -3141,6 +3153,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Пароль обновлён.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Оплатить заказ"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
+      "Способ оплаты",
+    ),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "После возвращения с оплаты статус заказа ещё нужно подтвердить.",
     ),
@@ -3212,6 +3227,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "Ежемесячная автоматическая оплата для этого тарифа сейчас недоступна.",
+    ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
+      "Справочная сумма (CNY)",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Обновить"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Регистрация"),
@@ -3306,6 +3324,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Безопасный режим не меняет сетевые настройки системы.",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage(
+      "Сканировать для оплаты",
+    ),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Поиск серверов или регионов",
     ),
@@ -3323,6 +3344,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "Сохранённые данные входа временно недоступны. Повторите попытку позже.",
+    ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage(
+      "Сумма списания",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Войти"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(

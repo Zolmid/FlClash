@@ -70,12 +70,14 @@ class ZolnitPlansPage extends StatefulWidget {
     super.key,
     required this.session,
     required this.onOrderCreated,
+    required this.onOrders,
     required this.onManageRenewals,
     this.compact = false,
   });
 
   final ZolnitSessionController session;
-  final VoidCallback onOrderCreated;
+  final ValueChanged<String> onOrderCreated;
+  final VoidCallback onOrders;
   final VoidCallback onManageRenewals;
   final bool compact;
 
@@ -303,8 +305,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
     if (trade == null || !mounted || session.api.generation != generation) {
       return;
     }
-    widget.onOrderCreated();
-    await session.payOrder(trade, paymentId);
+    widget.onOrderCreated(trade);
   }
 
   Future<void> _create(ZolnitPlan plan, String period) async {
@@ -349,7 +350,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
     }
     final tradeNo = await session.createOrder(planId: plan.id!, period: period);
     if (tradeNo != null && mounted && session.api.generation == generation) {
-      widget.onOrderCreated();
+      widget.onOrderCreated(tradeNo);
     }
   }
 
@@ -485,7 +486,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
             session: session,
             onBuy: period == null ? null : () => _create(plan, period),
             onMonthly: _monthly,
-            onOrders: widget.onOrderCreated,
+            onOrders: widget.onOrders,
             onManageRenewals: widget.onManageRenewals,
             quoteLoading: _quoteLoading,
             quoteFailure: _quoteFailure,
@@ -525,7 +526,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
               hint: expires == null
                   ? null
                   : text.zolnitCurrentPlanHint(zolnitDotDate(expires)),
-              onOrders: widget.onOrderCreated,
+              onOrders: widget.onOrders,
             ),
             const SizedBox(height: 12),
             if (periods.length > 1)

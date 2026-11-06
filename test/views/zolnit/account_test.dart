@@ -34,7 +34,7 @@ void main() {
     Future<void> mount() => harness.mount(
       tester,
       ZolnitSkin.macos,
-      child: ZolnitOrdersPage(session: harness.session),
+      child: ZolnitOrdersPage(session: harness.session, onCheckout: (_) {}),
     );
     await mount();
     await tester.tap(find.byType(DropdownButton<int>));
@@ -343,6 +343,18 @@ void main() {
       expect(find.text('重新连接'), findsNothing);
       expect(harness.container.read(appSettingProvider).autoRun, isFalse);
       await harness.capture(tester, 'preferences-${skin.name}');
+      expect(find.byTooltip('返回'), findsOneWidget);
+      await tester.tap(find.byTooltip('返回'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('zolnit-account')), findsOneWidget);
+      expect(find.byKey(const ValueKey('zolnit-preferences')), findsNothing);
+      await tester.tap(preferences);
+      await tester.pumpAndSettle();
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('zolnit-account')), findsOneWidget);
+      await tester.tap(preferences);
+      await tester.pumpAndSettle();
       harness.requests.clear();
       await tester.tap(find.byKey(const ValueKey('zolnit-auto-connect')));
       await tester.pumpAndSettle();

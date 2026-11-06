@@ -60,6 +60,7 @@ class StripeCheckout extends CheckoutAction {
     required this.wallet,
     required this.returnUri,
     this.wechatAppId,
+    this.chargeMinorSgd,
     super.fallbackQr,
   }) {
     if (!RegExp(r'^pk_(test|live)_[A-Za-z0-9]+$').hasMatch(publishableKey) ||
@@ -85,6 +86,7 @@ class StripeCheckout extends CheckoutAction {
   final StripeWallet wallet;
   final Uri returnUri;
   final String? wechatAppId;
+  final int? chargeMinorSgd;
 
   @override
   String toString() => 'StripeCheckout($wallet, [redacted])';
@@ -128,6 +130,8 @@ class CheckoutController extends ChangeNotifier {
   final DateTime Function() _now;
   CheckoutStage _stage = CheckoutStage.idle;
   PaymentQr? _qr;
+  int? _chargeMinorSgd;
+  int? get chargeMinorSgd => _chargeMinorSgd;
   String? _tradeNo;
   String? _failure;
   String? _failureMessage;
@@ -161,6 +165,7 @@ class CheckoutController extends ChangeNotifier {
       }
       return _active!;
     }
+    _chargeMinorSgd = null;
     _tradeNo = tradeNo;
     final generation = ++_generation;
     _qr = null;
@@ -211,6 +216,7 @@ class CheckoutController extends ChangeNotifier {
             throw const ClientFailure('launch_unavailable');
           }
         case StripeCheckout():
+          _chargeMinorSgd = action.chargeMinorSgd;
           await platform.confirmStripe(
             action,
             isCurrent: () => _current(generation),
@@ -350,6 +356,7 @@ class CheckoutController extends ChangeNotifier {
     _generation++;
     _active = null;
     _refreshing = null;
+    _chargeMinorSgd = null;
     _tradeNo = null;
     _qr = null;
     _failure = null;

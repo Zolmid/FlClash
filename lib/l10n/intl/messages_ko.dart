@@ -2254,7 +2254,11 @@ class MessageLookup extends MessageLookupByLibrary {
       "향후 자동 결제가 중단됩니다. 첫 주문이 미결제 상태라면 해당 주문도 취소됩니다. 결제된 이용 권한은 서버 결과에 따릅니다.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("취소됨"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("결제"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage("비밀번호 변경"),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "실제 SGD 청구 금액은 승인 전에 결제 확인 화면에 표시됩니다.",
+    ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "이미 진행 중인 결제가 있습니다. 계정에서 상태를 확인하고 다시 제출하지 마세요.",
     ),
@@ -2263,6 +2267,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("요금제 선택"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("완료"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("결제 확인 중"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("연결"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "탭 한 번으로 바로 연결",
@@ -2338,6 +2343,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "도움말 문서가 아직 없습니다.",
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("도움말 및 지원"),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("앱에서 결제"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("초대 코드"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
       "초대 코드가 복사되었습니다",
@@ -2469,6 +2475,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOneTime": MessageLookupByLibrary.simpleMessage("일회성"),
     "zolnitOnlineDevices": MessageLookupByLibrary.simpleMessage("온라인 기기"),
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage("온라인 결제"),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage("주문 상세"),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage("주문 번호"),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("주문 내역"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("결제된 이용 권한"),
@@ -2480,6 +2488,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "비밀번호가 변경되었습니다.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("주문 결제"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage("결제 수단"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "결제에서 돌아온 후에도 주문 상태를 확인해야 합니다.",
     ),
@@ -2538,6 +2547,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "현재 이 요금제는 월 자동 결제를 사용할 수 없습니다.",
     ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage("참조 합계(CNY)"),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("새로고침"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("회원가입"),
     "zolnitRegistrationBrowserUnavailable":
@@ -2591,6 +2601,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "보안 모드는 시스템 네트워크를 변경하지 않습니다.",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage("스캔하여 결제"),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage("서버 또는 지역 검색"),
     "zolnitSelectColumn": MessageLookupByLibrary.simpleMessage("선택"),
     "zolnitSelectServer": MessageLookupByLibrary.simpleMessage("서버 선택"),
@@ -2603,6 +2614,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "저장된 로그인 정보를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
     ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage("결제 금액"),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("로그인"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(
       "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도하세요.",

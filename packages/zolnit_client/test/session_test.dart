@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -254,6 +255,77 @@ void main() {
             .every((r) => r.headers['Authorization'] == 'Bearer placeholder'),
         isTrue,
       );
+    },
+  );
+
+  test(
+    'native checkout capability remains bound to its payment method ID',
+    () async {
+      fixture.override = (request) async {
+        if (!request.url.path.endsWith('/getPaymentMethod')) return null;
+        return _data([
+          {
+            'id': 4,
+            'payment': 'ZolnitStripe',
+            'native_checkout': {
+              'available': true,
+              'platform': 'android',
+              'wallets': ['payment_sheet'],
+            },
+          },
+          {
+            'id': 5,
+            'native_checkout': {
+              'available': true,
+              'platform': 'android',
+              'wallets': ['wechat_pay'],
+            },
+          },
+        ]);
+      };
+      final existingOverride = fixture.override;
+      fixture.override = (request) async {
+        if (request.url.path.endsWith('/zolnit-stripe/config')) {
+          return _data({
+            'enabled': true,
+            'configured': true,
+            'channels': [
+              {
+                'id': 4,
+                'provider': 'ZolnitStripe',
+                'enabled': true,
+                'configured': true,
+                'native_checkout': {
+                  'available': true,
+                  'platform': 'android',
+                  'wallets': ['payment_sheet'],
+                },
+              },
+            ],
+          });
+        }
+        return existingOverride?.call(request);
+      };
+      await fixture.login();
+      await Future<void>.delayed(Duration.zero);
+      await fixture.session.refreshRecurringOptions();
+      const android = ClientPaymentPolicy(
+        platform: TargetPlatform.android,
+        isWeb: false,
+        distribution: ClientDistribution.direct,
+      );
+      const desktop = ClientPaymentPolicy(
+        platform: TargetPlatform.macOS,
+        isWeb: false,
+        distribution: ClientDistribution.direct,
+      );
+      expect(
+        fixture.session.nativeWalletForMethod(4, android),
+        'payment_sheet',
+      );
+      expect(fixture.session.nativeWalletForMethod(5, android), isNull);
+      expect(fixture.session.nativeWalletForMethod(4, desktop), isNull);
+      expect(fixture.session.nativeWalletForMethod(99, android), isNull);
     },
   );
 

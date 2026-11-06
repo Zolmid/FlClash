@@ -8,10 +8,17 @@ import 'data.dart';
 
 export 'nodes.dart' show ZolnitNodesPage;
 
+export 'cashier.dart' show ZolnitCashierPage;
+
 class ZolnitOrdersPage extends StatefulWidget {
-  const ZolnitOrdersPage({super.key, required this.session});
+  const ZolnitOrdersPage({
+    super.key,
+    required this.session,
+    required this.onCheckout,
+  });
 
   final ZolnitSessionController session;
+  final ValueChanged<String> onCheckout;
 
   @override
   State<ZolnitOrdersPage> createState() => _ZolnitOrdersPageState();
@@ -96,8 +103,12 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                       Text(tradeNo, style: AppTextStyle.headline.of(context)),
                       Text(zolnitOrderStatus(context, order['status'])),
                       ZolnitValue(
-                        label: text.zolnitAmountDue,
+                        label: text.zolnitReferenceAmount,
                         value: zolnitMoney(order['total_amount']),
+                      ),
+                      Text(
+                        text.zolnitChargeCurrencyNotice,
+                        style: AppTextStyle.caption1.of(context),
                       ),
                       if (order['status'] == 0) ...[
                         if (methods.isNotEmpty)
@@ -135,10 +146,7 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                               onPressed:
                                   session.busy || !session.checkout.allowStripe
                                   ? null
-                                  : () => session.payOrder(
-                                      tradeNo,
-                                      selected ?? 0,
-                                    ),
+                                  : () => widget.onCheckout(tradeNo),
                               child: Text(text.zolnitPay),
                             ),
                             TextButton(

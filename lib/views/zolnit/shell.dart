@@ -355,6 +355,7 @@ class ZolnitTopBar extends StatelessWidget {
     required this.onNotices,
     required this.onHelp,
     required this.onAccount,
+    this.onBack,
   });
 
   final bool compact;
@@ -364,6 +365,7 @@ class ZolnitTopBar extends StatelessWidget {
   final VoidCallback onNotices;
   final VoidCallback onHelp;
   final VoidCallback onAccount;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -386,14 +388,14 @@ class ZolnitTopBar extends StatelessWidget {
       ZolnitSkin.android => colors.paper,
     };
     final side = phone ? 0.0 : 1.0;
-    final Widget leading;
+    final Widget heading;
     if (phone && showBrand) {
-      leading = const Align(
+      heading = const Align(
         alignment: AlignmentDirectional.centerStart,
         child: ZolnitBrand(width: 112),
       );
     } else if (skin == ZolnitSkin.windows || skin == ZolnitSkin.linux) {
-      leading = Row(
+      heading = Row(
         children: [
           Text(
             text.zolnitMySpace,
@@ -418,7 +420,7 @@ class ZolnitTopBar extends StatelessWidget {
         ],
       );
     } else {
-      leading = Align(
+      heading = Align(
         alignment: AlignmentDirectional.centerStart,
         child: Text(
           title,
@@ -433,6 +435,19 @@ class ZolnitTopBar extends StatelessWidget {
         ),
       );
     }
+    final leading = onBack == null
+        ? heading
+        : Row(
+            children: [
+              _BarButton(
+                tooltip: text.back,
+                glyph: AppGlyphs.arrowBack,
+                onPressed: onBack,
+              ),
+              const SizedBox(width: 4),
+              Expanded(child: heading),
+            ],
+          );
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
       children: [

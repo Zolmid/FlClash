@@ -38,6 +38,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   int _selected = 0;
   ZolnitAccountTab _accountTab = ZolnitAccountTab.info;
   bool _showingPreferences = false;
+  int _preferencesOrigin = 3;
+  String? _cashierTradeNo;
   bool _syncing = false;
   bool _syncFailed = false;
   int? _syncGeneration;
@@ -272,6 +274,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = index;
       _accountTab = ZolnitAccountTab.info;
       _showingPreferences = false;
+      _cashierTradeNo = null;
     });
     unawaited(_refreshData());
     if (index == 3) unawaited(ref.read(zolnitSessionProvider).refreshBilling());
@@ -289,13 +292,32 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = 3;
       _accountTab = ZolnitAccountTab.orders;
       _showingPreferences = false;
+      _cashierTradeNo = null;
+    });
+  }
+
+  void _showCashier(String tradeNo) {
+    setState(() {
+      _selected = 3;
+      _accountTab = ZolnitAccountTab.orders;
+      _showingPreferences = false;
+      _cashierTradeNo = tradeNo;
     });
   }
 
   void _showPreferences() {
     setState(() {
+      if (!_showingPreferences) _preferencesOrigin = _selected;
       _selected = 3;
       _showingPreferences = true;
+      _cashierTradeNo = null;
+    });
+  }
+
+  void _returnToAccount() {
+    setState(() {
+      _showingPreferences = false;
+      _selected = _preferencesOrigin;
     });
   }
 
@@ -308,6 +330,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = 0;
       _accountTab = ZolnitAccountTab.info;
       _showingPreferences = false;
+      _cashierTradeNo = null;
       _syncFailed = false;
       _syncing = false;
       _syncGeneration = null;
@@ -375,6 +398,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                 ];
                 final title = _showingPreferences
                     ? text.zolnitPreferences
+                    : _cashierTradeNo != null
+                    ? text.zolnitCashierTitle
                     : labels[_selected];
                 final name = zolnitDisplayName(session.account, session.usage);
                 final page = _showingPreferences
@@ -382,6 +407,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                         key: const ValueKey('zolnit-preferences'),
                         compact: false,
                         openWebsite: () => unawaited(_website()),
+                      )
+                    : _cashierTradeNo != null
+                    ? ZolnitCashierPage(
+                        session: session,
+                        tradeNo: _cashierTradeNo!,
+                        onClose: _showOrders,
                       )
                     : switch (_selected) {
                         0 => ZolnitConnectPage(
@@ -403,7 +434,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                         2 => ZolnitPlansPage(
                           key: const ValueKey('zolnit-plans'),
                           session: session,
-                          onOrderCreated: _showOrders,
+                          onOrderCreated: _showCashier,
+                          onOrders: _showOrders,
                           onManageRenewals: () => _select(3),
                           compact: false,
                         ),
@@ -420,83 +452,103 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                           openHelp: () => _openHelp(context),
                           compact: false,
                           logout: _logout,
+                          onCheckout: _showCashier,
                         ),
                       };
-                return DisplayFeatureSubScreen(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth;
-                      final layout = ZolnitLayout.fromWidth(width);
-                      final body = ZolnitLayoutScope(
-                        layout: layout,
-                        width: width,
-                        child: Column(
-                          children: [
-                            ZolnitTopBar(
-                              compact: !layout.useSidebar,
-                              title: title,
-                              showBrand: _selected == 0 && !_showingPreferences,
-                              initial: name.characters.first,
-                              onNotices: () => unawaited(
-                                showZolnitNotices(context, session.noticeList),
-                              ),
-                              onHelp: () => _openHelp(context),
-                              onAccount: () => _select(3),
-                            ),
-                            Expanded(
-                              child: Align(
-                                alignment: Alignment.topCenter,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 1200,
+                return PopScope(
+                  canPop: !_showingPreferences && _cashierTradeNo == null,
+                  onPopInvokedWithResult: (didPop, _) {
+                    if (!didPop && _showingPreferences) {
+                      _returnToAccount();
+                    } else if (!didPop && _cashierTradeNo != null) {
+                      _showOrders();
+                    }
+                  },
+                  child: DisplayFeatureSubScreen(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final width = constraints.maxWidth;
+                        final layout = ZolnitLayout.fromWidth(width);
+                        final body = ZolnitLayoutScope(
+                          layout: layout,
+                          width: width,
+                          child: Column(
+                            children: [
+                              ZolnitTopBar(
+                                compact: !layout.useSidebar,
+                                title: title,
+                                showBrand:
+                                    _selected == 0 && !_showingPreferences,
+                                initial: name.characters.first,
+                                onNotices: () => unawaited(
+                                  showZolnitNotices(
+                                    context,
+                                    session.noticeList,
                                   ),
-                                  child: page,
+                                ),
+                                onHelp: () => _openHelp(context),
+                                onAccount: () => _select(3),
+                                onBack: _showingPreferences
+                                    ? _returnToAccount
+                                    : _cashierTradeNo != null
+                                    ? _showOrders
+                                    : null,
+                              ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 1200,
+                                    ),
+                                    child: page,
+                                  ),
                                 ),
                               ),
-                            ),
-                            if (layout.useBottomNav)
-                              SafeArea(
-                                top: false,
-                                child: NavigationDock(
-                                  selectedIndex: _selected,
-                                  onSelected: _select,
-                                  destinations: [
-                                    for (var i = 0; i < labels.length; i++)
-                                      NavigationDockDestination(
-                                        glyph: glyphs[i],
-                                        label: labels[i],
-                                      ),
-                                  ],
+                              if (layout.useBottomNav)
+                                SafeArea(
+                                  top: false,
+                                  child: NavigationDock(
+                                    selectedIndex: _selected,
+                                    onSelected: _select,
+                                    destinations: [
+                                      for (var i = 0; i < labels.length; i++)
+                                        NavigationDockDestination(
+                                          glyph: glyphs[i],
+                                          label: labels[i],
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      );
-                      return Row(
-                        children: [
-                          if (layout.useRail)
-                            ZolnitNavRail(
-                              labels: labels,
-                              glyphs: glyphs,
-                              selected: _selected,
-                              onSelected: _select,
-                            )
-                          else if (layout.useSidebar)
-                            ZolnitSidebar(
-                              labels: labels,
-                              glyphs: glyphs,
-                              selected: _selected,
-                              onSelected: _select,
-                              onHelp: () => _openHelp(context),
-                              onPreferences: _showPreferences,
-                            ),
-                          Expanded(
-                            key: const ValueKey('zolnit-content'),
-                            child: body,
+                            ],
                           ),
-                        ],
-                      );
-                    },
+                        );
+                        return Row(
+                          children: [
+                            if (layout.useRail)
+                              ZolnitNavRail(
+                                labels: labels,
+                                glyphs: glyphs,
+                                selected: _selected,
+                                onSelected: _select,
+                              )
+                            else if (layout.useSidebar)
+                              ZolnitSidebar(
+                                labels: labels,
+                                glyphs: glyphs,
+                                selected: _selected,
+                                onSelected: _select,
+                                onHelp: () => _openHelp(context),
+                                onPreferences: _showPreferences,
+                              ),
+                            Expanded(
+                              key: const ValueKey('zolnit-content'),
+                              child: body,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 );
               },

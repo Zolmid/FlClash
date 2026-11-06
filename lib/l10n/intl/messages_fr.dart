@@ -2946,8 +2946,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Les prochains prélèvements automatiques seront arrêtés. Une première commande impayée sera aussi annulée. Les droits déjà payés suivent le résultat du serveur.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Annulée"),
+    "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("Paiement"),
     "zolnitChangePassword": MessageLookupByLibrary.simpleMessage(
       "Modifier le mot de passe",
+    ),
+    "zolnitChargeCurrencyNotice": MessageLookupByLibrary.simpleMessage(
+      "La confirmation de paiement affiche le montant réel en SGD avant votre autorisation.",
     ),
     "zolnitCheckoutExists": MessageLookupByLibrary.simpleMessage(
       "Un paiement est déjà en cours. Consultez son état dans Compte sans le soumettre à nouveau.",
@@ -2959,6 +2963,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Choisir ce forfait",
     ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Terminée"),
+    "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
+      "Confirmation du paiement",
+    ),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("Se connecter"),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Un geste, et vous êtes connecté",
@@ -3057,6 +3064,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage(
       "Aide et assistance",
+    ),
+    "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage(
+      "Payer dans l’application",
     ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage(
       "Code d\'invitation",
@@ -3225,6 +3235,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitOnlinePayment": MessageLookupByLibrary.simpleMessage(
       "Paiement en ligne",
     ),
+    "zolnitOrderDetails": MessageLookupByLibrary.simpleMessage(
+      "Détails de la commande",
+    ),
+    "zolnitOrderNumber": MessageLookupByLibrary.simpleMessage(
+      "Numéro de commande",
+    ),
     "zolnitOrders": MessageLookupByLibrary.simpleMessage("Commandes"),
     "zolnitOutOfDevices": m100,
     "zolnitPaid": MessageLookupByLibrary.simpleMessage("Accès payé"),
@@ -3238,6 +3254,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Mot de passe mis à jour.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Payer la commande"),
+    "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
+      "Mode de paiement",
+    ),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "L’état de la commande doit encore être confirmé après votre retour du paiement.",
     ),
@@ -3309,6 +3328,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRecurringUnavailable": MessageLookupByLibrary.simpleMessage(
       "La facturation mensuelle automatique n’est pas disponible pour ce forfait pour le moment.",
+    ),
+    "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
+      "Total de référence (CNY)",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualiser"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Créer un compte"),
@@ -3403,6 +3425,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Le mode sécurisé ne modifie jamais le réseau du système.",
     ),
     "zolnitSavePercent": m103,
+    "zolnitScanToPay": MessageLookupByLibrary.simpleMessage(
+      "Scanner pour payer",
+    ),
     "zolnitSearchNodes": MessageLookupByLibrary.simpleMessage(
       "Rechercher un serveur ou une région",
     ),
@@ -3420,6 +3445,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
       "Les informations de connexion enregistrées sont temporairement indisponibles. Veuillez réessayer.",
+    ),
+    "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage(
+      "Montant débité",
     ),
     "zolnitSignIn": MessageLookupByLibrary.simpleMessage("Se connecter"),
     "zolnitSignInRejected": MessageLookupByLibrary.simpleMessage(

@@ -7,6 +7,7 @@ import 'catalog.dart';
 import 'parse.dart';
 import 'client_bundle.dart';
 import 'checkout.dart';
+import 'policy.dart';
 import 'subscriptions.dart';
 import 'session_vault.dart';
 
@@ -83,6 +84,7 @@ class ZolnitSessionController extends ChangeNotifier {
   Json? _recurringConfig;
   bool _recurringOptionsAttempted = false;
   final Map<String, Json> _recurringTerms = {};
+  final Set<String> _singlePaymentOrders = {};
   String? _completedTrade;
   Object? _nodesSource;
   Object? _plansSource;
@@ -157,6 +159,46 @@ class ZolnitSessionController extends ChangeNotifier {
   }
 
   List<Json> get paymentMethods => _paymentMethods;
+  bool knownSinglePayment(String tradeNo) =>
+      _singlePaymentOrders.contains(tradeNo);
+
+  bool hasRecurringTerms(String tradeNo) =>
+      _recurringTerms.containsKey(tradeNo);
+
+  String? nativeWalletForMethod(int methodId, ClientPaymentPolicy policy) {
+    final method = _paymentMethods
+        .where((method) => method['id'] == methodId)
+        .singleOrNull;
+    final provider = method?['payment'];
+    if (provider != 'ZolnitStripe' ||
+        _recurringConfig?['enabled'] != true ||
+        _recurringConfig?['configured'] != true) {
+      return null;
+    }
+    final channels = _recurringConfig?['channels'];
+    final channel = channels is List
+        ? channels
+              .whereType<Json>()
+              .where(
+                (channel) =>
+                    channel['id'] == methodId &&
+                    channel['provider'] == provider &&
+                    channel['enabled'] == true &&
+                    channel['configured'] == true,
+              )
+              .singleOrNull
+        : null;
+    final capability = channel?['native_checkout'];
+    return capability is Json
+        ? policy.nativeWalletForCapability(capability)
+        : null;
+  }
+
+  String? get billingSettlementCurrency {
+    final value = _recurringConfig?['settlement_currency'];
+    return value is String ? value.toUpperCase() : null;
+  }
+
   Json? get billingOverview => _billingOverview;
   List<Json> get recurringMethods {
     final config = _recurringConfig;
@@ -501,6 +543,7 @@ class ZolnitSessionController extends ChangeNotifier {
     _recurringConfig = null;
     _recurringOptionsAttempted = false;
     _recurringTerms.clear();
+    _singlePaymentOrders.clear();
     _completedTrade = null;
   }
 
@@ -788,6 +831,7 @@ class ZolnitSessionController extends ChangeNotifier {
     );
     if (!_current(work)) return null;
     if (trade.isEmpty) throw const ClientFailure('invalid_response');
+    _singlePaymentOrders.add(trade);
     await _loadOrders(work);
     return _current(work) ? trade : null;
   }, intent: '$planId:$period:${coupon ?? ''}');
@@ -837,6 +881,10 @@ class ZolnitSessionController extends ChangeNotifier {
 
   Future<void> payOrder(String tradeNo, int methodId) =>
       _run<void>('payment', null, (work) async {
+        if (_recurringTerms[tradeNo] == null) {
+          await ensureRecurringOptions();
+          if (!_current(work)) return;
+        }
         await checkout.start(
           tradeNo,
           methodId,

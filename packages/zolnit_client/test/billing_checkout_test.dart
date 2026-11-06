@@ -51,6 +51,7 @@ class _Harness {
     int detailStatus = 200,
     Json? ordinary,
     Json? subscribed,
+    String? Function(int methodId)? nativeWalletForMethod,
   }) {
     api = XboardClient(
       origin: Uri.parse('https://panel.example'),
@@ -76,7 +77,11 @@ class _Harness {
       }),
     );
     api.setAuthorization('Bearer accountA');
-    backend = XboardCheckoutBackend(api, confirmRecurring: confirm);
+    backend = XboardCheckoutBackend(
+      api,
+      confirmRecurring: confirm,
+      nativeWalletForMethod: nativeWalletForMethod,
+    );
     addTearDown(api.close);
   }
 
@@ -100,19 +105,20 @@ void main() {
   };
 
   test(
-    'ordinary WeChat action retains original order and exact checkout POST',
+    'advertised PaymentSheet retains original order and exact checkout POST',
     () async {
       final h = _Harness(
         probe: (_) async => http.Response('{}', 404),
-        ordinary: {'type': 3, 'data': native('wechat_pay')},
+        ordinary: {'type': 3, 'data': native('card')},
+        nativeWalletForMethod: (id) => id == 2 ? 'payment_sheet' : null,
       );
       final action = await h.backend.start('orderA', 2) as StripeCheckout;
-      expect(action.wallet, StripeWallet.wechatPay);
-      expect(action.wechatAppId, 'wx1234567890abcdef');
+      expect(action.wallet, StripeWallet.card);
       expect(h.paths, [_detail, _probe, _checkout]);
       expect(jsonDecode(h.posts.single.body), {
         'trade_no': 'orderA',
         'method': 2,
+        'zolnit_native_wallet': 'payment_sheet',
       });
     },
   );
@@ -129,21 +135,10 @@ void main() {
                 ? {'type': 3, 'data': native(wallet)}
                 : native(wallet),
           );
-          if (wallet == 'wechat_pay') {
-            await expectLater(
-              h.backend.startRecurring('orderA', 2, approvedTerms: _intent()),
-              throwsA(_failure('recurring_wallet_unsupported')),
-            );
-          } else {
-            expect(
-              await h.backend.startRecurring(
-                'orderA',
-                2,
-                approvedTerms: _intent(),
-              ),
-              isA<StripeCheckout>(),
-            );
-          }
+          await expectLater(
+            h.backend.startRecurring('orderA', 2, approvedTerms: _intent()),
+            throwsA(_failure('recurring_wallet_unsupported')),
+          );
           expect(h.paths, [_detail, _probe, _subscribe]);
           expect(jsonDecode(h.posts.single.body), {
             'trade_no': 'orderA',
@@ -158,16 +153,35 @@ void main() {
     }
   }
 
-  test('ordinary WeChat pre-confirm response may omit app ID', () async {
-    final payload = native('wechat_pay')..remove('wechat_app_id');
+  test(
+    'unadvertised native response is rejected without a wallet hint',
+    () async {
+      final h = _Harness(
+        probe: (_) async => http.Response('{}', 404),
+        ordinary: {'type': 3, 'data': native('card')},
+      );
+      await expectLater(
+        h.backend.start('orderA', 2),
+        throwsA(_failure('invalid_billing_response')),
+      );
+      expect(jsonDecode(h.posts.single.body), {
+        'trade_no': 'orderA',
+        'method': 2,
+      });
+      expect(h.posts.length, 1);
+    },
+  );
+
+  test('untrusted wallet selector cannot add a checkout hint', () async {
     final h = _Harness(
       probe: (_) async => http.Response('{}', 404),
-      ordinary: {'type': 3, 'data': payload},
+      nativeWalletForMethod: (_) => 'foreign_wallet',
     );
-    final action = await h.backend.start('orderA', 2) as StripeCheckout;
-    expect(action.wallet, StripeWallet.wechatPay);
-    expect(action.wechatAppId, isNull);
-    expect(h.posts.length, 1);
+    await h.backend.start('orderA', 2);
+    expect(jsonDecode(h.posts.single.body), {
+      'trade_no': 'orderA',
+      'method': 2,
+    });
   });
 
   for (final patch in <Json>[
@@ -181,6 +195,7 @@ void main() {
     test('invalid native WeChat payload is rejected $patch', () async {
       final h = _Harness(
         probe: (_) async => http.Response('{}', 404),
+        nativeWalletForMethod: (_) => 'payment_sheet',
         ordinary: {
           'type': 3,
           'data': {...native('wechat_pay'), ...patch},
@@ -557,6 +572,7 @@ void main() {
     test('Android typed extension accepts only pi secret $secret', () async {
       final h = _Harness(
         probe: (_) async => http.Response('{}', 404),
+        nativeWalletForMethod: (_) => 'payment_sheet',
         ordinary: {
           'type': 3,
           'data': {

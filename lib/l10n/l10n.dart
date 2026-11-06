@@ -55,6 +55,86 @@ class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
+  /// `Checkout`
+  String get zolnitCashierTitle {
+    return Intl.message(
+      'Checkout',
+      name: 'zolnitCashierTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Payment method`
+  String get zolnitPaymentMethod {
+    return Intl.message(
+      'Payment method',
+      name: 'zolnitPaymentMethod',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Order details`
+  String get zolnitOrderDetails {
+    return Intl.message(
+      'Order details',
+      name: 'zolnitOrderDetails',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Order number`
+  String get zolnitOrderNumber {
+    return Intl.message(
+      'Order number',
+      name: 'zolnitOrderNumber',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pay in the app`
+  String get zolnitInAppPayment {
+    return Intl.message(
+      'Pay in the app',
+      name: 'zolnitInAppPayment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Scan to pay`
+  String get zolnitScanToPay {
+    return Intl.message(
+      'Scan to pay',
+      name: 'zolnitScanToPay',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Confirming payment`
+  String get zolnitConfirmingPayment {
+    return Intl.message(
+      'Confirming payment',
+      name: 'zolnitConfirmingPayment',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Settlement total`
+  String get zolnitSettlementTotal {
+    return Intl.message(
+      'Settlement total',
+      name: 'zolnitSettlementTotal',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `The registration page could not open. Please try again.`
   String get zolnitRegistrationBrowserUnavailable {
     return Intl.message(
@@ -11444,6 +11524,26 @@ class AppLocalizations {
     return Intl.message(
       'Your order still needs confirmation after returning from payment.',
       name: 'zolnitPaymentReturn',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Reference total (CNY)`
+  String get zolnitReferenceAmount {
+    return Intl.message(
+      'Reference total (CNY)',
+      name: 'zolnitReferenceAmount',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The payment confirmation shows the actual SGD charge before you authorize it.`
+  String get zolnitChargeCurrencyNotice {
+    return Intl.message(
+      'The payment confirmation shows the actual SGD charge before you authorize it.',
+      name: 'zolnitChargeCurrencyNotice',
       desc: '',
       args: [],
     );

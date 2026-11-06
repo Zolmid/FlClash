@@ -26,14 +26,24 @@ PaymentQr? _qr(Json json) {
 }
 
 class XboardCheckoutBackend implements RecurringCheckoutBackend {
-  const XboardCheckoutBackend(this.api, {this.confirmRecurring});
+  const XboardCheckoutBackend(
+    this.api, {
+    this.confirmRecurring,
+    this.nativeWalletForMethod,
+  });
 
   final XboardClient api;
   final Future<bool> Function(Json intent)? confirmRecurring;
+  final String? Function(int methodId)? nativeWalletForMethod;
 
   @override
-  Future<CheckoutAction> start(String tradeNo, int methodId) =>
-      _start(tradeNo, methodId, null, recurring: false);
+  Future<CheckoutAction> start(String tradeNo, int methodId) => _start(
+    tradeNo,
+    methodId,
+    null,
+    recurring: false,
+    nativeWallet: _nativeWallet(methodId),
+  );
 
   @override
   Future<CheckoutAction> startRecurring(
@@ -41,6 +51,13 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     int methodId, {
     required Json approvedTerms,
   }) => _start(tradeNo, methodId, approvedTerms, recurring: true);
+
+  String? _nativeWallet(int methodId) =>
+      switch (nativeWalletForMethod?.call(methodId)) {
+        'payment_sheet' => 'payment_sheet',
+        'wechat_pay' => 'wechat_pay',
+        _ => null,
+      };
 
   static const _termFields = [
     'payment_id',
@@ -69,6 +86,7 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     int methodId,
     Json? approved, {
     required bool recurring,
+    String? nativeWallet,
   }) async {
     final generation = api.generation;
     void ensureCurrent() {
@@ -94,9 +112,13 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     } on ClientFailure catch (error) {
       ensureCurrent();
       if (error.statusCode != 404 || recurring) rethrow;
-      final response = await api.checkout(tradeNo, methodId);
+      final response = await api.checkout(
+        tradeNo,
+        methodId,
+        nativeWallet: nativeWallet,
+      );
       ensureCurrent();
-      return _checkout(response, tradeNo);
+      return _checkout(response, tradeNo, nativeWallet: nativeWallet);
     }
     if (intent is! Json ||
         intent['recurring'] != true ||
@@ -155,17 +177,7 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     }
     _rejectEmbedded(value);
     if (value['type'] == 3 || value['kind'] == 'stripe_android') {
-      final action = _checkout(
-        value['type'] == 3 ? value : {'type': 3, 'data': value},
-        tradeNo,
-      );
-      if (action is! StripeCheckout) {
-        throw const ClientFailure('invalid_billing_response');
-      }
-      if (action.wallet == StripeWallet.wechatPay) {
-        throw const ClientFailure('recurring_wallet_unsupported');
-      }
-      return action;
+      throw const ClientFailure('recurring_wallet_unsupported');
     }
     if (value['checkout_mode'] != 'hosted' ||
         value['session_id'] is! String ||
@@ -197,7 +209,11 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     return HostedCheckout(uri, fallbackQr: _qr(value));
   }
 
-  CheckoutAction _checkout(Json response, String tradeNo) {
+  CheckoutAction _checkout(
+    Json response,
+    String tradeNo, {
+    required String? nativeWallet,
+  }) {
     if (response['type'] == -1 && response['data'] == true) {
       return const StatusOnlyCheckout();
     }
@@ -226,7 +242,7 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
         if (qr == null) throw const ClientFailure('invalid_billing_response');
         return QrCheckout(qr);
       case 'stripe_android':
-        if (response['type'] != 3) {
+        if (response['type'] != 3 || nativeWallet == null) {
           throw const ClientFailure('invalid_billing_response');
         }
         final wallet = switch (value['wallet']) {
@@ -235,7 +251,24 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
           'wechat_pay' => StripeWallet.wechatPay,
           _ => throw const ClientFailure('invalid_billing_response'),
         };
+        final expectedWallet = switch (nativeWallet) {
+          'payment_sheet' => StripeWallet.card,
+          'wechat_pay' => StripeWallet.wechatPay,
+          _ => throw const ClientFailure('invalid_billing_response'),
+        };
+        if (wallet != expectedWallet) {
+          throw const ClientFailure('invalid_billing_response');
+        }
+        final charge = value['charge_amount'];
+        if ((value.containsKey('charge_amount') ||
+                value.containsKey('charge_currency')) &&
+            (charge is! int ||
+                charge <= 0 ||
+                value['charge_currency'] != 'sgd')) {
+          throw const ClientFailure('invalid_billing_response');
+        }
         return StripeCheckout(
+          chargeMinorSgd: charge as int?,
           publishableKey: _string(value, 'publishable_key'),
           clientSecret: _string(value, 'client_secret'),
           wallet: wallet,

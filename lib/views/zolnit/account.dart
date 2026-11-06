@@ -28,6 +28,7 @@ class ZolnitAccountPage extends StatefulWidget {
     required this.showPreferences,
     required this.openHelp,
     required this.logout,
+    required this.onCheckout,
     this.compact = false,
   });
 
@@ -38,6 +39,7 @@ class ZolnitAccountPage extends StatefulWidget {
   final VoidCallback showPreferences;
   final VoidCallback openHelp;
   final VoidCallback logout;
+  final ValueChanged<String> onCheckout;
   final bool compact;
 
   @override
@@ -83,6 +85,7 @@ class _ZolnitAccountPageState extends State<ZolnitAccountPage> {
             ),
             ZolnitAccountTab.orders => ZolnitOrdersPage(
               session: widget.session,
+              onCheckout: widget.onCheckout,
             ),
             ZolnitAccountTab.invite => ZolnitInviteTab(
               session: widget.session,

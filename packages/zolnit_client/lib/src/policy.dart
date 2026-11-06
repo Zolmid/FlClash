@@ -9,14 +9,9 @@ class ClientPaymentPolicy {
     required this.platform,
     required this.isWeb,
     required this.distribution,
-    this.androidNativeStripe = false,
   });
 
-  factory ClientPaymentPolicy.fromEnvironment({
-    bool androidNativeStripe = const bool.fromEnvironment(
-      'ZOLNIT_ANDROID_NATIVE_STRIPE',
-    ),
-  }) {
+  factory ClientPaymentPolicy.fromEnvironment() {
     const channel = String.fromEnvironment('ZOLNIT_DISTRIBUTION');
     final apple =
         {
@@ -35,15 +30,12 @@ class ClientPaymentPolicy {
       platform: defaultTargetPlatform,
       isWeb: kIsWeb,
       distribution: distribution,
-      androidNativeStripe: androidNativeStripe,
     );
   }
 
   final TargetPlatform platform;
   final bool isWeb;
   final ClientDistribution distribution;
-  final bool androidNativeStripe;
-
   String get platformHeader => isWeb ? 'web' : platform.name.toLowerCase();
   String get distributionHeader =>
       distribution == ClientDistribution.direct ? 'direct' : 'apple-app-store';
@@ -52,13 +44,19 @@ class ClientPaymentPolicy {
   bool get allowAndroidSdk =>
       allowStripe && !isWeb && platform == TargetPlatform.android;
 
+  String? nativeWalletForCapability(Json capability) {
+    final wallets = capability['wallets'];
+    if (!allowAndroidSdk ||
+        capability['available'] != true ||
+        capability['platform'] != 'android' ||
+        wallets is! List) {
+      return null;
+    }
+    return wallets.contains('payment_sheet') ? 'payment_sheet' : null;
+  }
+
   bool supportsNativeCapability(Json capability, {bool recurring = false}) =>
-      allowAndroidSdk &&
-      !recurring &&
-      capability['available'] == true &&
-      capability['platform'] == 'android' &&
-      capability['payment_method'] == 'wechat_pay' &&
-      capability['recurring'] == false;
+      !recurring && nativeWalletForCapability(capability) != null;
   bool get allowAppleIap =>
       !isWeb &&
       {TargetPlatform.iOS, TargetPlatform.macOS}.contains(platform) &&

@@ -34,8 +34,14 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
     userAgent: globalState.ua,
     contentLanguage: _contentLanguage,
   );
+  late final ZolnitSessionController session;
   final checkout = CheckoutController(
-    backend: XboardCheckoutBackend(api, confirmRecurring: _confirmRecurring),
+    backend: XboardCheckoutBackend(
+      api,
+      confirmRecurring: _confirmRecurring,
+      nativeWalletForMethod: (methodId) =>
+          session.nativeWalletForMethod(methodId, policy),
+    ),
     platform: NativeCheckoutPlatform(merchantName: 'ZolNit'),
     allowedHttpsOrigins: const {
       'https://checkout.stripe.com',
@@ -43,7 +49,7 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
     },
     allowStripe: policy.allowStripe,
   );
-  final session = ZolnitSessionController(
+  session = ZolnitSessionController(
     api: api,
     billing: ZolnitBillingClient(api),
     checkout: checkout,
