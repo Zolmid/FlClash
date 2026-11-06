@@ -246,13 +246,26 @@ class CheckoutController extends ChangeNotifier {
           }.contains(error.code) &&
           action?.fallbackQr?.isValidAt(_now()) == true) {
         _showQr(action!);
+      } else if ((error.statusCode == null ||
+              error.statusCode == 408 ||
+              error.statusCode! >= 500) &&
+          {
+            'api_error',
+            'invalid_billing_response',
+            'invalid_response',
+            'network',
+            'sdk_error',
+            'timeout',
+          }.contains(error.code)) {
+        _failure = 'payment_status_unknown';
+        _set(CheckoutStage.processing);
       } else {
         _set(CheckoutStage.failed);
       }
     } catch (_) {
       if (!_current(generation)) return;
-      _failure = 'payment_error';
-      _set(CheckoutStage.failed);
+      _failure = 'payment_status_unknown';
+      _set(CheckoutStage.processing);
     }
   }
 
@@ -280,7 +293,11 @@ class CheckoutController extends ChangeNotifier {
   }
 
   Future<void> refresh() {
-    if (_disposed || tradeNo == null) return Future.value();
+    if (_disposed ||
+        tradeNo == null ||
+        {CheckoutStage.completed, CheckoutStage.cancelled}.contains(stage)) {
+      return Future.value();
+    }
     if (_refreshing != null) return _refreshing!;
     final generation = _generation;
     final currentTradeNo = tradeNo!;
@@ -350,6 +367,17 @@ class CheckoutController extends ChangeNotifier {
       if (failure == 'unauthenticated') return;
       if (attempt + 1 < attempts) await Future<void>.delayed(interval);
     }
+  }
+
+  void cancel(String tradeNo) {
+    if (_disposed || _tradeNo != tradeNo) return;
+    _generation++;
+    _active = null;
+    _refreshing = null;
+    _qr = null;
+    _failure = null;
+    _failureMessage = null;
+    _set(CheckoutStage.cancelled);
   }
 
   void reset() {

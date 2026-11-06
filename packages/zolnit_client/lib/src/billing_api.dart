@@ -246,7 +246,10 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
           throw const ClientFailure('invalid_billing_response');
         }
         final wallet = switch (value['wallet']) {
-          'card' => StripeWallet.card,
+          // `payment_sheet` is the canonical one-time capability returned by
+          // the panel. `card` is the legacy spelling for the same bounded
+          // PaymentSheet flow; neither is accepted for another request type.
+          'payment_sheet' || 'card' => StripeWallet.card,
           'alipay' => StripeWallet.alipay,
           'wechat_pay' => StripeWallet.wechatPay,
           _ => throw const ClientFailure('invalid_billing_response'),

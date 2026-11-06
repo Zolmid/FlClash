@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "应用内付款",
   "zolnitScanToPay": "扫码付款",
   "zolnitConfirmingPayment": "正在确认付款",
+  "zolnitPaymentCheckStatus": "暂时无法确认付款结果。请先查看订单状态，不要重复提交。",
+  "zolnitPaymentCancelled": "已取消付款。请查看订单状态，或重新选择付款方式。",
   "zolnitSettlementTotal": "结算金额",
   "zolnitRegistrationBrowserUnavailable": "无法打开注册页，请重试。",
   "zolnitRegistrationReturnExpired": "账号已创建，但自动登录链接已失效。请使用新账号登录。",

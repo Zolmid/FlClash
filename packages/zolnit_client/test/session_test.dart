@@ -79,6 +79,13 @@ class _Checkout extends CheckoutController {
   }
 
   @override
+  void cancel(String tradeNo) {
+    if (trade != tradeNo) return;
+    value = CheckoutStage.cancelled;
+    notifyListeners();
+  }
+
+  @override
   void dispose() {
     disposals++;
     super.dispose();
@@ -1095,9 +1102,10 @@ void main() {
       expect(fixture.count('/order/save'), 1);
       expect(fixture.checkout.starts, 1);
       await fixture.session.cancelOrder(trade);
-      expect(fixture.checkout.tradeNo, isNull);
+      expect(fixture.checkout.tradeNo, trade);
+      expect(fixture.checkout.stage, CheckoutStage.cancelled);
       expect(fixture.count('/order/cancel'), 1);
-      expect(fixture.count('/order/fetch'), 4);
+      expect(fixture.count('/order/fetch'), 3);
     },
   );
 
@@ -1210,6 +1218,34 @@ void main() {
       );
       expect(fixture.count('/order/save'), 1);
       expect(fixture.checkout.starts, 1);
+    },
+  );
+
+  test(
+    'confirmed cancellation returns before a stale list and rejects a second tap',
+    () async {
+      await fixture.login();
+      await fixture.session.payOrder('original-trade', 1);
+      final entered = Completer<void>(), reload = Completer<http.Response>();
+      fixture.override = (request) async {
+        if (request.url.path.endsWith('/order/fetch')) {
+          entered.complete();
+          return reload.future;
+        }
+        return null;
+      };
+      final stale = fixture.session.refresh();
+      await entered.future;
+      await fixture.session.cancelOrder('original-trade');
+      expect(fixture.checkout.stage, CheckoutStage.cancelled);
+      reload.complete(
+        _data([
+          {'trade_no': 'original-trade', 'status': 0},
+        ]),
+      );
+      await stale;
+      await fixture.session.cancelOrder('original-trade');
+      expect(fixture.count('/order/cancel'), 1);
     },
   );
 

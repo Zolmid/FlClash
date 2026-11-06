@@ -50,6 +50,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   int? _syncGeneration;
   Future<int?>? _syncFlight;
   Future<void>? _refreshFlight;
+  Future<void>? _reconcileFlight;
+  Future<void>? _paymentFlight;
+  DateTime? _nextOrderCheck;
   Timer? _refreshTimer;
   DateTime? _nextRefresh;
   int _refreshFailures = 0;
@@ -112,6 +115,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       unawaited(old?.dispose() ?? Future.value());
       _observedGeneration = _session.api.generation;
       _nextRefresh = null;
+      _nextOrderCheck = null;
       _refreshFailures = 0;
       scheduleMicrotask(() => unawaited(_refreshData(force: true)));
     }
@@ -132,7 +136,16 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     }
     if (!ref.read(initProvider)) return Future.value();
     if (_refreshFlight case final pending?) return pending;
-    if (!force && _realtime?.healthy == true) return Future.value();
+    if (!force && _realtime?.healthy == true) {
+      final pending = _pendingOrders();
+      final live = _session.api.liveReads?.supports('order.status') == true;
+      if (pending.isEmpty ||
+          (!live && _nextOrderCheck?.isAfter(_now) == true)) {
+        return Future.value();
+      }
+      if (!live) _nextOrderCheck = _now.add(const Duration(seconds: 60));
+      return _reconcileOrders(pending);
+    }
     if (!force && _nextRefresh?.isAfter(_now) == true) {
       return Future.value();
     }
@@ -178,6 +191,58 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     }();
     _refreshFlight = work;
     return work;
+  }
+
+  List<String> _pendingOrders() => [
+    for (final order in _session.orders)
+      if (order['status'] == 0 &&
+          order['trade_no'] is String &&
+          order['trade_no'] != _cashierTradeNo)
+        order['trade_no'] as String,
+  ].take(3).toList();
+
+  // The HTTP sweep is off while healthy; keep pending orders reconciling.
+  Future<void> _reconcileOrders(List<String> tradeNos) {
+    if (_reconcileFlight case final pending?) return pending;
+    final generation = _session.api.generation;
+    late final Future<void> work;
+    work = () async {
+      try {
+        for (final tradeNo in tradeNos) {
+          final status = await _session.api.orderStatus(tradeNo);
+          if (!_currentRealtime(generation)) return;
+          if (status != 0) {
+            await _refreshData(force: true);
+            return;
+          }
+        }
+      } catch (_) {
+        // The order check retries on the next tick.
+      } finally {
+        if (identical(_reconcileFlight, work)) _reconcileFlight = null;
+      }
+    }();
+    _reconcileFlight = work;
+    return work;
+  }
+
+  void _reconcileCheckout(int gen) {
+    final checkout = _session.checkout;
+    if (_paymentFlight != null ||
+        !_currentRealtime(gen) ||
+        checkout.tradeNo == null ||
+        !{
+          CheckoutStage.awaitingPayment,
+          CheckoutStage.qr,
+          CheckoutStage.processing,
+        }.contains(checkout.stage)) {
+      return;
+    }
+    late final Future<void> work;
+    work = _session.refreshPayment().catchError((Object _) {}).whenComplete(() {
+      if (identical(_paymentFlight, work)) _paymentFlight = null;
+    });
+    _paymentFlight = work;
   }
 
   @override
@@ -227,6 +292,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
               unawaited(_refreshData(force: true));
             }
           });
+        } else {
+          scheduleMicrotask(() => _reconcileCheckout(gen));
         }
       },
       onResync: () async {
@@ -267,6 +334,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         await _session.refreshRealtimeNotices();
         return;
       case 'account.changed':
+        _reconcileCheckout(gen);
         await _session.refresh();
         if (_currentRealtime(gen)) {
           await Future.wait([_session.refreshBilling(), _sync()]);

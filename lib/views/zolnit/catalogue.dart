@@ -26,6 +26,7 @@ class ZolnitOrdersPage extends StatefulWidget {
 
 class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
   final Map<String, int> _methods = {};
+  final Set<String> _cancelling = {};
   late int _generation;
 
   @override
@@ -45,31 +46,37 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
   }
 
   Future<void> _cancel(String tradeNo) async {
+    if (_cancelling.contains(tradeNo)) return;
+    setState(() => _cancelling.add(tradeNo));
     final text = context.appLocalizations;
     final session = widget.session;
     final generation = session.api.generation;
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(text.zolnitCancelOrder),
-        content: Text(text.zolnitCancelOrderTip),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(text.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(text.confirm),
-          ),
-        ],
-      ),
-    );
-    if (approved == true &&
-        mounted &&
-        widget.session == session &&
-        session.api.generation == generation) {
-      await session.cancelOrder(tradeNo);
+    try {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(text.zolnitCancelOrder),
+          content: Text(text.zolnitCancelOrderTip),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(text.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(text.confirm),
+            ),
+          ],
+        ),
+      );
+      if (approved == true &&
+          mounted &&
+          widget.session == session &&
+          session.api.generation == generation) {
+        await session.cancelOrder(tradeNo);
+      }
+    } finally {
+      if (mounted) setState(() => _cancelling.remove(tradeNo));
     }
   }
 
@@ -90,6 +97,8 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
               child: Builder(
                 builder: (context) {
                   final tradeNo = order['trade_no'] as String;
+                  final typedOrder = ZolnitOrder.fromJson(order);
+                  final cancelling = _cancelling.contains(tradeNo);
                   final preferred = _methods[tradeNo];
                   final selected =
                       methods.any((method) => method['id'] == preferred)
@@ -100,7 +109,18 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(tradeNo, style: AppTextStyle.headline.of(context)),
+                      Text(
+                        typedOrder?.planName ?? text.zolnitOrderDetails,
+                        style: AppTextStyle.headline.of(context),
+                      ),
+                      Text(
+                        zolnitOrderDateTime(order['created_at']),
+                        style: AppTextStyle.caption1.of(context),
+                      ),
+                      Text(
+                        '${text.zolnitOrderNumber} · $tradeNo',
+                        style: AppTextStyle.caption2.of(context),
+                      ),
                       Text(zolnitOrderStatus(context, order['status'])),
                       ZolnitValue(
                         label: text.zolnitReferenceAmount,
@@ -150,7 +170,7 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                               child: Text(text.zolnitPay),
                             ),
                             TextButton(
-                              onPressed: session.busy
+                              onPressed: session.busy || cancelling
                                   ? null
                                   : () => _cancel(tradeNo),
                               child: Text(text.zolnitCancelOrder),

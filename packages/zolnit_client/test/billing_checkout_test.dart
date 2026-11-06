@@ -105,11 +105,11 @@ void main() {
   };
 
   test(
-    'advertised PaymentSheet retains original order and exact checkout POST',
+    'canonical PaymentSheet response retains original order and exact checkout POST',
     () async {
       final h = _Harness(
         probe: (_) async => http.Response('{}', 404),
-        ordinary: {'type': 3, 'data': native('card')},
+        ordinary: {'type': 3, 'data': native('payment_sheet')},
         nativeWalletForMethod: (id) => id == 2 ? 'payment_sheet' : null,
       );
       final action = await h.backend.start('orderA', 2) as StripeCheckout;
@@ -122,6 +122,17 @@ void main() {
       });
     },
   );
+
+  test('legacy card response remains a guarded PaymentSheet alias', () async {
+    final h = _Harness(
+      probe: (_) async => http.Response('{}', 404),
+      ordinary: {'type': 3, 'data': native('card')},
+      nativeWalletForMethod: (id) => id == 2 ? 'payment_sheet' : null,
+    );
+    final action = await h.backend.start('orderA', 2) as StripeCheckout;
+    expect(action.wallet, StripeWallet.card);
+    expect(h.paths, [_detail, _probe, _checkout]);
+  });
 
   for (final wallet in ['card', 'alipay', 'wechat_pay']) {
     for (final wrapped in [true, false]) {

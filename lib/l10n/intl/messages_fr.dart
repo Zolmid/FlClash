@@ -3254,6 +3254,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Mot de passe mis à jour.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Payer la commande"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "Le paiement a été annulé. Vérifiez l’état de la commande ou choisissez à nouveau un moyen de paiement.",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "Nous ne pouvons pas confirmer le résultat du paiement. Vérifiez l’état de la commande avant toute nouvelle action.",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
       "Mode de paiement",
     ),

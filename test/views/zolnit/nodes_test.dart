@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/yaml.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -24,6 +25,7 @@ import '../../helpers/test_profiles.dart';
 
 class _RecordingProxies extends ProxiesAction {
   final selections = <(String, String)>[];
+  final measurements = <(List<String>, String)>[];
 
   @override
   void build() {}
@@ -33,6 +35,11 @@ class _RecordingProxies extends ProxiesAction {
     String groupName, {
     bool matchSearch = true,
   }) async {}
+
+  @override
+  Future<void> delayTestNodes(List<Proxy> proxies, String testUrl) async {
+    measurements.add((proxies.map((proxy) => proxy.name).toList(), testUrl));
+  }
 
   @override
   void changeProxyDebounce(String groupName, String proxyName) {
@@ -247,6 +254,33 @@ void main() {
       await tester.tap(find.text('香港').first);
       expect(action.selections, isEmpty);
       expect(find.textContaining('自动选路在此只读'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'measures every physical server without following an automatic default',
+    (tester) async {
+      await preparePrivateBundle(tester, automatic: true);
+      final action =
+          harness.container.read(proxiesActionProvider.notifier)
+              as _RecordingProxies;
+      await tester.pump();
+
+      expect(action.measurements, hasLength(1));
+      expect(
+        action.measurements.single.$1,
+        orderedEquals(
+          harness.container
+              .read(zolnitSessionProvider)
+              .nodeList
+              .map((node) => node.proxyName)
+              .toList(),
+        ),
+      );
+      expect(action.measurements.single.$2, defaultTestUrl);
+      await tester.tap(find.text('延迟测试'));
+      await tester.pump();
+      expect(action.measurements, hasLength(2));
     },
   );
 

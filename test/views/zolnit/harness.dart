@@ -36,12 +36,18 @@ class _Platform implements CheckoutPlatform {
 }
 
 class _Backend implements CheckoutBackend {
+  _Backend(this.onStatus);
+  final void Function() onStatus;
+
   @override
   Future<CheckoutAction> start(String tradeNo, int methodId) async =>
       HostedCheckout(Uri.parse('https://checkout.stripe.com/pay'));
 
   @override
-  Future<int> status(String tradeNo) async => 0;
+  Future<int> status(String tradeNo) async {
+    onStatus();
+    return 0;
+  }
 }
 
 const _gib = 1073741824;
@@ -238,6 +244,7 @@ class ZolnitHarness {
   final ZolnitSessionVault? vault;
 
   late ZolnitSessionController session;
+  int paymentStatusReads = 0;
   late ProviderContainer container;
   late Directory _paths;
   FutureOr<http.Response> Function(http.Request) panel = zolnitPanelFixture;
@@ -296,7 +303,7 @@ class ZolnitHarness {
       vault: vault,
       billing: ZolnitBillingClient(api),
       checkout: CheckoutController(
-        backend: _Backend(),
+        backend: _Backend(() => paymentStatusReads++),
         platform: _Platform(),
         allowedHttpsOrigins: {'https://checkout.stripe.com'},
         allowStripe: distribution != 'apple-app-store',

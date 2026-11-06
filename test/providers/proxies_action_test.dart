@@ -678,6 +678,32 @@ void main() {
       verify(() => core.asyncTestDelay(_testUrl, 'HK-01')).called(1);
     });
 
+    test(
+      'tests physical nodes without resolving a nested automatic group',
+      () async {
+        when(() => core.asyncTestDelay(_testUrl, 'HK-01')).thenAnswer(
+          (_) async => const Delay(name: 'HK-01', url: _testUrl, value: 10),
+        );
+        final container = _delayContainer(buildContainer);
+        container
+            .read(groupsProvider.notifier)
+            .update(
+              (_) => [
+                const Group(
+                  name: 'MATCH',
+                  type: GroupType.URLTest,
+                  all: [Proxy(name: 'DIRECT', type: 'Direct')],
+                ),
+              ],
+            );
+
+        await actionOf(container).delayTestNodes(const [_proxy], _testUrl);
+
+        verify(() => core.asyncTestDelay(_testUrl, 'HK-01')).called(1);
+        expect(container.read(delayDataSourceProvider)[_testUrl]?['HK-01'], 10);
+      },
+    );
+
     test('testing groups probes a shared node once per test URL', () async {
       const otherUrl = 'http://other.test';
       when(() => core.asyncTestDelay(any(), any())).thenAnswer(
@@ -854,6 +880,30 @@ void main() {
       expect(delays?['HK-1'], isNull);
       expect(container.read(pendingDelayTestsProvider), isEmpty);
     });
+
+    test(
+      'a profile change discards an in-flight physical-node result',
+      () async {
+        final release = Completer<Delay?>();
+        when(
+          () => core.asyncTestDelay(_testUrl, 'HK-01'),
+        ).thenAnswer((_) => release.future);
+        final container = _delayContainer(
+          () => buildContainer(profile: _selectedProfile('HK-01')),
+        );
+        final run = actionOf(
+          container,
+        ).delayTestNodes(const [_proxy], _testUrl);
+
+        expect(container.read(pendingDelayTestsProvider), isNotEmpty);
+        container.read(currentProfileIdProvider.notifier).value = 2;
+        expect(container.read(pendingDelayTestsProvider), isEmpty);
+        release.complete(const Delay(name: 'HK-01', url: _testUrl, value: 12));
+        await run;
+
+        expect(container.read(delayDataSourceProvider), isEmpty);
+      },
+    );
 
     test('a proxy that fails leaves the rest of the run', () async {
       var calls = 0;

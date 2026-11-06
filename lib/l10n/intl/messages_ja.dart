@@ -2526,6 +2526,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "パスワードを更新しました。",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("支払いへ"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "支払いをキャンセルしました。注文の状態を確認するか、支払い方法を選び直してください。",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "支払い結果を確認できません。ほかの操作をする前に注文の状態を確認してください。",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage("支払い方法"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "支払いから戻った後も注文状況の確認が必要です。",

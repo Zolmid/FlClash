@@ -930,14 +930,24 @@ class ZolnitSessionController extends ChangeNotifier {
         await _reconcilePayment(work);
       }, intent: '$tradeNo:$methodId');
 
-  Future<void> cancelOrder(String tradeNo) =>
-      _run<void>('cancelOrder', null, (work) async {
-        await api.cancelOrder(tradeNo);
-        if (!_current(work)) return;
-        if (checkout.tradeNo == tradeNo) checkout.reset();
-        if (!_current(work)) return;
-        await _loadOrders(work);
-      }, intent: tradeNo);
+  Future<void> cancelOrder(String tradeNo) => _run<void>('cancelOrder', null, (
+    work,
+  ) async {
+    if (_orders.any((o) => o['trade_no'] == tradeNo && o['status'] == 2) ||
+        (checkout.tradeNo == tradeNo &&
+            checkout.stage == CheckoutStage.cancelled)) {
+      return;
+    }
+    await api.cancelOrder(tradeNo);
+    if (!_current(work)) return;
+    _ordersRead = ++_readSequence;
+    checkout.cancel(tradeNo);
+    _orders = List<Json>.unmodifiable([
+      for (final order in _orders)
+        if (order['trade_no'] == tradeNo) {...order, 'status': 2} else order,
+    ]);
+    notifyListeners();
+  }, intent: tradeNo);
 
   Future<void> refreshPayment() => _run<void>('payment', null, (work) async {
     await checkout.refresh();

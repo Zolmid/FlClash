@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "Pay in the app",
   "zolnitScanToPay": "Scan to pay",
   "zolnitConfirmingPayment": "Confirming payment",
+  "zolnitPaymentCheckStatus": "We could not confirm the payment result. Check the order status before trying anything else.",
+  "zolnitPaymentCancelled": "Payment was cancelled. Check the order status or choose a payment method again.",
   "zolnitSettlementTotal": "Settlement total",
   "zolnitRegistrationBrowserUnavailable": "The registration page could not open. Please try again.",
   "zolnitRegistrationReturnExpired": "Your account was created, but automatic sign-in expired. You can now sign in.",

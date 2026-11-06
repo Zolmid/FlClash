@@ -3153,6 +3153,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Пароль обновлён.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Оплатить заказ"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "Оплата отменена. Проверьте статус заказа или снова выберите способ оплаты.",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "Не удалось подтвердить результат оплаты. Проверьте статус заказа, прежде чем повторять действие.",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
       "Способ оплаты",
     ),

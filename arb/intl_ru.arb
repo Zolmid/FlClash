@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "Оплатить в приложении",
   "zolnitScanToPay": "Сканировать для оплаты",
   "zolnitConfirmingPayment": "Подтверждаем оплату",
+  "zolnitPaymentCheckStatus": "Не удалось подтвердить результат оплаты. Проверьте статус заказа, прежде чем повторять действие.",
+  "zolnitPaymentCancelled": "Оплата отменена. Проверьте статус заказа или снова выберите способ оплаты.",
   "zolnitSettlementTotal": "Сумма списания",
   "zolnitRegistrationBrowserUnavailable": "Не удалось открыть страницу регистрации. Попробуйте ещё раз.",
   "zolnitRegistrationReturnExpired": "Аккаунт создан, но ссылка для автоматического входа истекла. Войдите в новый аккаунт.",

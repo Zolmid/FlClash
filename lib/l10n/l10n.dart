@@ -125,6 +125,26 @@ class AppLocalizations {
     );
   }
 
+  /// `We could not confirm the payment result. Check the order status before trying anything else.`
+  String get zolnitPaymentCheckStatus {
+    return Intl.message(
+      'We could not confirm the payment result. Check the order status before trying anything else.',
+      name: 'zolnitPaymentCheckStatus',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Payment was cancelled. Check the order status or choose a payment method again.`
+  String get zolnitPaymentCancelled {
+    return Intl.message(
+      'Payment was cancelled. Check the order status or choose a payment method again.',
+      name: 'zolnitPaymentCancelled',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Settlement total`
   String get zolnitSettlementTotal {
     return Intl.message(

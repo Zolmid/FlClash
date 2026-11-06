@@ -133,6 +133,24 @@ void main() {
     expect(controller.stage, CheckoutStage.idle);
   });
 
+  test(
+    'cancellation makes an outstanding status poll stale and terminal',
+    () async {
+      await controller.start('orderA', 2);
+      backend.deferredStatus = Completer();
+      final refresh = controller.refresh();
+      await Future<void>.delayed(Duration.zero);
+      controller.cancel('orderA');
+      backend.deferredStatus!.complete(0);
+      await refresh;
+      expect(controller.tradeNo, 'orderA');
+      expect(controller.stage, CheckoutStage.cancelled);
+      final checks = backend.checks;
+      await controller.refresh();
+      expect(backend.checks, checks);
+    },
+  );
+
   test('foreign or credential-bearing checkout URLs never launch', () async {
     for (final url in [
       'http://checkout.stripe.com/pay',
@@ -190,6 +208,24 @@ void main() {
       expect(controller.stage, entry.value);
     }
   });
+
+  test(
+    'an ambiguous post-intent SDK failure requires status verification',
+    () async {
+      backend.action = StripeCheckout(
+        publishableKey: 'pk_test_demo',
+        clientSecret: 'pi_demo_secret_demo',
+        wallet: StripeWallet.card,
+        returnUri: Uri.parse('zolnit://safepay'),
+      );
+      platform.sdkFailure = 'sdk_error';
+      await controller.start('orderA', 2);
+      expect(controller.stage, CheckoutStage.processing);
+      expect(controller.failure, 'payment_status_unknown');
+      expect(controller.tradeNo, 'orderA');
+      expect(backend.starts, 1);
+    },
+  );
 
   test('App Store policy blocks Stripe before backend side effects', () async {
     final apple = CheckoutController(

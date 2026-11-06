@@ -60,6 +60,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('orders lead with a plan and local timestamp, not the trade ID', (
+    tester,
+  ) async {
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/order/fetch')) {
+        return zolnitJson([
+          {
+            'trade_no': '20261107013337',
+            'status': 0,
+            'total_amount': 500,
+            'created_at': 1794015217,
+            'plan': {'id': 1, 'name': '轻享'},
+          },
+        ]);
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await harness.mount(
+      tester,
+      ZolnitSkin.macos,
+      child: ZolnitOrdersPage(session: harness.session, onCheckout: (_) {}),
+    );
+    expect(find.text('轻享'), findsOneWidget);
+    expect(find.text('20261107013337'), findsNothing);
+    expect(find.textContaining('订单号 · 20261107013337'), findsOneWidget);
+    expect(find.textContaining(':'), findsWidgets);
+  });
+
   Future<void> openAccount(
     WidgetTester tester,
     ZolnitSkin skin, {

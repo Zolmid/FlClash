@@ -55,6 +55,13 @@ String zolnitDate(dynamic seconds) =>
       )
     : '—';
 
+String zolnitOrderDateTime(dynamic seconds) =>
+    seconds is int && seconds > 0 && seconds < 253402300800
+    ? DateFormat.yMMMd().add_Hm().format(
+        DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal(),
+      )
+    : '—';
+
 String zolnitBytes(dynamic bytes) => bytes is num
     ? '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB'
     : '—';
@@ -115,6 +122,9 @@ String zolnitFailureText(
     'quote_expired' || 'recurring_quote_expired' => text.zolnitQuoteExpired,
     'checkout_exists' => text.zolnitCheckoutExists,
     'checkout_processing' => text.zolnitCheckoutProcessing,
+    'payment_status_unknown' => text.zolnitPaymentCheckStatus,
+    'user_cancelled' => text.zolnitPaymentCancelled,
+    'sdk_error' || 'payment_error' => text.zolnitPaymentCheckStatus,
     'rate_limited' => text.zolnitRateLimited,
     'recurring_unavailable' => text.zolnitRecurringUnavailable,
     'payment_disallowed' ||

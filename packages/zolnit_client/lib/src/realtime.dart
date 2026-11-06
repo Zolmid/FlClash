@@ -150,7 +150,9 @@ Future<ZolnitRealtimeSocket> connectZolnitRealtimeSocket(String ticket) async {
   }
 }
 
-final class ZolnitRealtimeChannel {
+const zolnitLiveReadMethods = {'order.status', 'inbox.list', 'notice.list'};
+
+final class ZolnitRealtimeChannel implements ZolnitLiveReads {
   ZolnitRealtimeChannel({
     required this.api,
     required this.scopeKey,
@@ -161,8 +163,10 @@ final class ZolnitRealtimeChannel {
     ZolnitRealtimeConnect? connect,
     this.random = _defaultRandom,
     this.pulseTimeout = const Duration(seconds: 150),
+    this.rpcTimeout = const Duration(seconds: 8),
   }) : _connect = connect ?? connectZolnitRealtimeSocket,
-       _production = connect == null;
+       _production = connect == null,
+       _apiGeneration = api.generation;
   final XboardClient api;
   final String Function() scopeKey;
   final ZolnitRealtimeStore store;
@@ -173,6 +177,8 @@ final class ZolnitRealtimeChannel {
   final bool _production;
   final double Function() random;
   final Duration pulseTimeout;
+  final Duration rpcTimeout;
+  final int _apiGeneration;
   ZolnitRealtimeSocket? _socket;
   // Both normal disposal and failed sessions cancel this subscription in _drop.
   // ignore: cancel_subscriptions
@@ -188,7 +194,9 @@ final class ZolnitRealtimeChannel {
   int _epoch = 0, _attempt = 0, _rpcId = 0;
   var _cursor = const ZolnitRealtimeCursor();
   final _dedup = <String>{};
-  final _requests = <String, Completer<RealtimeJson?>>{};
+  final _methods = <String>{};
+  final _untilPulse = <String>{};
+  final _requests = <String, Completer<Map<dynamic, dynamic>?>>{};
   bool get healthy =>
       !_disposed && _foreground && _socket != null && _ready && _pulse;
   bool _current(int epoch) => !_disposed && _foreground && epoch == _epoch;
@@ -206,6 +214,7 @@ final class ZolnitRealtimeChannel {
 
   Future<void> dispose() async {
     _disposed = true;
+    api.detachLiveReads(this);
     _drop(retry: false);
   }
 
@@ -221,6 +230,8 @@ final class ZolnitRealtimeChannel {
     _ready = false;
     _pulse = false;
     _opening = false;
+    _methods.clear();
+    _untilPulse.clear();
     _retry?.cancel();
     _deadline?.cancel();
     _ping?.cancel();
@@ -296,9 +307,25 @@ final class ZolnitRealtimeChannel {
             return;
           }
           if (raw is! String ||
-              raw.length > 8192 ||
+              raw.length > 65536 ||
               pending >= 96 ||
               buffered + raw.length > 262144) {
+            _fail(epoch);
+            return;
+          }
+          final Object? m;
+          try {
+            m = jsonDecode(raw);
+          } on FormatException {
+            _fail(epoch);
+            return;
+          }
+          // A handler in the ordered chain may itself be awaiting this reply.
+          if (m is Map && m['v'] == 1 && m['op'] == 'response') {
+            _requests.remove(m['id'])?.complete(m);
+            return;
+          }
+          if (raw.length > 8192) {
             _fail(epoch);
             return;
           }
@@ -306,7 +333,7 @@ final class ZolnitRealtimeChannel {
           buffered += raw.length;
           order = order
               .then((_) async {
-                if (_current(epoch)) await _frame(raw, scope, epoch);
+                if (_current(epoch)) await _frame(m, scope, epoch);
               })
               .catchError((Object _) {
                 _fail(epoch);
@@ -340,11 +367,11 @@ final class ZolnitRealtimeChannel {
     }
   }
 
-  Future<void> _frame(String raw, String scope, int epoch) async {
-    final m = jsonDecode(raw);
+  Future<void> _frame(Object? m, String scope, int epoch) async {
     if (m is! Map || m['v'] != 1) throw const FormatException();
     switch (m['op']) {
       case 'pulse':
+        _untilPulse.clear();
         _pulse = true;
         if (_ready) {
           _attempt = 0;
@@ -353,15 +380,21 @@ final class ZolnitRealtimeChannel {
         _notify();
         return;
       case 'ready':
+        final methods = m['methods'];
+        _methods
+          ..clear()
+          ..addAll(
+            methods is List
+                ? methods.whereType<String>().where(
+                    zolnitLiveReadMethods.contains,
+                  )
+                : const <String>[],
+          );
+        api.attachLiveReads(this, _apiGeneration);
         _ready = true;
         if (_pulse) _attempt = 0;
         _watch(epoch, pulseTimeout);
         _notify();
-        return;
-      case 'response':
-        final c = _requests.remove(m['id']);
-        final data = m['data'];
-        c?.complete(data is Map<String, dynamic> ? data : null);
         return;
       case 'resync':
         final cursor = ZolnitRealtimeCursor.parse(m['cursor']);
@@ -412,10 +445,14 @@ final class ZolnitRealtimeChannel {
     }
   }
 
-  Future<RealtimeJson?> _rpc(String method, [RealtimeJson? data]) async {
+  Future<Map<dynamic, dynamic>?> _exchange(
+    String method,
+    RealtimeJson? data, {
+    bool failOnTimeout = false,
+  }) async {
     final s = _socket, epoch = _epoch;
     if (s == null || !_ready || _requests.length >= 8) return null;
-    final id = 'r${++_rpcId}', c = Completer<RealtimeJson?>();
+    final id = 'r${++_rpcId}', c = Completer<Map<dynamic, dynamic>?>();
     _requests[id] = c;
     try {
       s.send(
@@ -428,8 +465,11 @@ final class ZolnitRealtimeChannel {
         }),
       );
       return await c.future.timeout(
-        const Duration(seconds: 8),
-        onTimeout: () => null,
+        rpcTimeout,
+        onTimeout: () {
+          if (failOnTimeout) _fail(epoch);
+          return null;
+        },
       );
     } catch (_) {
       _fail(epoch);
@@ -437,6 +477,46 @@ final class ZolnitRealtimeChannel {
     } finally {
       _requests.remove(id);
     }
+  }
+
+  Future<RealtimeJson?> _rpc(String method, [RealtimeJson? data]) async {
+    final reply = (await _exchange(method, data))?['data'];
+    return reply is RealtimeJson ? reply : null;
+  }
+
+  @override
+  bool supports(String method) =>
+      healthy &&
+      _methods.contains(method) &&
+      !_untilPulse.contains(method) &&
+      api.generation == _apiGeneration;
+
+  @override
+  Future<({Object? result})?> read(
+    String method,
+    RealtimeJson data,
+    bool Function(Object? result) valid,
+  ) async {
+    if (!supports(method)) return null;
+    final epoch = _epoch;
+    final reply = await _exchange(method, data, failOnTimeout: true);
+    if (reply == null || !_current(epoch)) return null;
+    final body = reply['data'];
+    if (body is Map && body.containsKey('result') && valid(body['result'])) {
+      return (result: body['result']);
+    }
+    if (body == null && reply['error'] != null) {
+      final error = reply['error'];
+      if (error == 'unsupported' ||
+          (error is Map && error['code'] == 'unsupported')) {
+        _methods.remove(method);
+      } else {
+        _untilPulse.add(method);
+      }
+      return null;
+    }
+    _fail(epoch);
+    return null;
   }
 
   Future<ZolnitRealtimeCursor?> status() async =>

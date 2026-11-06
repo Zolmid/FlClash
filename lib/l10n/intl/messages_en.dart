@@ -2985,6 +2985,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Password updated.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Pay order"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "Payment was cancelled. Check the order status or choose a payment method again.",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "We could not confirm the payment result. Check the order status before trying anything else.",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
       "Payment method",
     ),

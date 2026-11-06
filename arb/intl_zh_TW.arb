@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "App 內付款",
   "zolnitScanToPay": "掃碼付款",
   "zolnitConfirmingPayment": "正在確認付款",
+  "zolnitPaymentCheckStatus": "暫時無法確認付款結果。請先查看訂單狀態，不要重複提交。",
+  "zolnitPaymentCancelled": "已取消付款。請查看訂單狀態，或重新選擇付款方式。",
   "zolnitSettlementTotal": "結算金額",
   "zolnitRegistrationBrowserUnavailable": "無法開啟註冊頁，請重試。",
   "zolnitRegistrationReturnExpired": "帳號已建立，但自動登入連結已失效。請使用新帳號登入。",

@@ -79,7 +79,7 @@ class ZolnitOrder {
       planId: positiveOrNull(
         wholeOrNull(json['plan_id']) ?? wholeOrNull(plan?['id']),
       ),
-      planName: textOrNull(plan?['name']),
+      planName: textOrNull(plan?['name']) ?? textOrNull(json['plan_name']),
       period: textOrNull(json['period']),
       type: wholeOrNull(json['type']),
       totalCents: nonNegativeInt(json['total_amount']),

@@ -92,17 +92,33 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         ref.read(coreStatusProvider) != CoreStatus.connected) {
       return;
     }
-    final selector = _findSelector(ref, watch: false);
-    final group = selector.groupName;
-    if (group == null || !selector.manual) return;
+    if (!_isCurrentAccount(ref, watch: false)) return;
     final key = (
       widget.session.api.generation,
       widget.session.clientBundle?.bundleId,
-      group,
+      ref.read(currentProfileProvider)?.id,
+      widget.session.nodeList.map((node) => node.proxyName).join('\u0000'),
+      ref.read(realTestUrlProvider()),
     );
     if (_measurementKey == key) return;
     _measurementKey = key;
-    _handleDelayTest(group);
+    _measureNodes();
+  }
+
+  bool _isCurrentAccount(WidgetRef ref, {required bool watch}) {
+    final profile = watch
+        ? ref.watch(currentProfileProvider)
+        : ref.read(currentProfileProvider);
+    final privateProfile = profile != null && isZolnitBundleProfile(profile);
+    if (privateProfile) {
+      final bundle = widget.session.clientBundle;
+      return isCurrentZolnitBundleProfile(profile, widget.session) &&
+          bundle != null &&
+          bundle.bundleId == profile.zolnitBundleId &&
+          bundle.isFresh(ref.read(zolnitBundleClockProvider)());
+    }
+    return !ref.read(zolnitClientBundleTransportProvider) &&
+        profile?.label == zolnitProfileLabel(widget.session);
   }
 
   ZolnitRouteMetadata? _serverHosts(ZolnitClientBundle bundle) {
@@ -193,13 +209,8 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         : ref.read(currentProfileProvider);
     final privateProfile = profile != null && isZolnitBundleProfile(profile);
     final label = zolnitProfileLabel(widget.session);
-    if (privateProfile) {
-      if (!isCurrentZolnitBundleProfile(profile, widget.session)) {
-        return const _SelectorMatch(null, null);
-      }
-    } else if (ref.read(zolnitClientBundleTransportProvider) ||
-        label == null ||
-        profile?.label != label) {
+    if (!_isCurrentAccount(ref, watch: watch) ||
+        (!privateProfile && label == null)) {
       return const _SelectorMatch(null, null);
     }
     final groups =
@@ -277,15 +288,35 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     if (target != null) _selectNode(groupName, target.proxyName);
   }
 
-  void _handleDelayTest(String groupName) {
-    final safe = ref.read(safeModeProvider);
-    final core = ref.read(coreStatusProvider);
-    if (safe ||
-        core != CoreStatus.connected ||
-        _findSelector(ref, watch: false).groupName != groupName) {
+  void _measureNodes() {
+    if (!mounted ||
+        ref.read(safeModeProvider) ||
+        ref.read(coreStatusProvider) != CoreStatus.connected ||
+        !_isCurrentAccount(ref, watch: false)) {
       return;
     }
-    ref.read(proxiesActionProvider.notifier).delayTestPageGroup(groupName);
+    final url = ref.read(realTestUrlProvider());
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return;
+    }
+    final proxies = [
+      for (final node in widget.session.nodeList)
+        if (node.proxyName.trim().isNotEmpty)
+          Proxy(name: node.proxyName, type: 'ss'),
+    ];
+    if (proxies.isEmpty) return;
+    final group = 'zolnit-nodes-${widget.session.api.generation}';
+    final testing = ref.read(delayTestingGroupsProvider.notifier);
+    if (!testing.start(group)) return;
+    unawaited(
+      ref
+          .read(proxiesActionProvider.notifier)
+          .delayTestNodes(proxies, url)
+          .whenComplete(() => testing.stop(group)),
+    );
   }
 
   @override
@@ -314,18 +345,11 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final selector = _findSelector(ref);
     final selectorReady = selector.groupName != null;
     final active = _activeProxy(selector);
-    final delays = <String, int?>{};
-    int? delayOf(ZolnitNode node) => selector.members.contains(node.proxyName)
-        ? delays.putIfAbsent(
-            node.proxyName,
-            () => ref.watch(
-              delayProvider(
-                proxyName: node.proxyName,
-                testUrl: selector.testUrl,
-              ),
-            ),
-          )
-        : null;
+    final testUrl = ref.watch(realTestUrlProvider());
+    final delays = ref.watch(delayDataSourceProvider);
+    final currentAccount = _isCurrentAccount(ref, watch: true);
+    int? delayOf(ZolnitNode node) =>
+        currentAccount ? (delays[testUrl]?[node.proxyName]) : null;
     final shown = {
       for (final entry in entries)
         entry.key:
@@ -355,11 +379,10 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
                     ?.type
                     .isComputedSelected ==
                 true);
-    final canTest =
-        selectorReady &&
-        selector.manual &&
-        !safe &&
-        core == CoreStatus.connected;
+    final canTest = currentAccount && !safe && core == CoreStatus.connected;
+    if (canTest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _autoMeasure());
+    }
     final bundleMessage = zolnitConfigurationMessage(
       context,
       widget.session,
@@ -406,8 +429,8 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
             ],
             if (canTest)
               _DelayTestButton(
-                groupName: selector.groupName!,
-                onPressed: () => _handleDelayTest(selector.groupName!),
+                groupName: 'zolnit-nodes-${widget.session.api.generation}',
+                onPressed: _measureNodes,
               ),
           ],
         ),

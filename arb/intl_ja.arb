@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "アプリ内で支払う",
   "zolnitScanToPay": "スキャンして支払う",
   "zolnitConfirmingPayment": "支払いを確認中",
+  "zolnitPaymentCheckStatus": "支払い結果を確認できません。ほかの操作をする前に注文の状態を確認してください。",
+  "zolnitPaymentCancelled": "支払いをキャンセルしました。注文の状態を確認するか、支払い方法を選び直してください。",
   "zolnitSettlementTotal": "決済金額",
   "zolnitRegistrationBrowserUnavailable": "登録ページを開けませんでした。再度お試しください。",
   "zolnitRegistrationReturnExpired": "アカウントは作成されましたが、自動ログインの期限が切れました。新しいアカウントでログインしてください。",

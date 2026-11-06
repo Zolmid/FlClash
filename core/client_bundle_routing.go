@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"core/clientbundle"
 )
 
 //go:embed client_bundle_routing_regions.json
@@ -92,6 +94,7 @@ type clientBundleRoutingState struct {
 	jobs          chan nativeRoutingJob
 	owner         *ClientBundleOwnerGuard
 	policy        nativeRoutingPolicy
+	proxies       map[string]map[string]any
 	revision      uint64
 	batch         uint64
 	samples       map[string]map[string]nativeProviderSample
@@ -120,6 +123,10 @@ func replaceClientBundleRoutingLocked(body []byte, owner *ClientBundleOwnerGuard
 		Data nativeRoutingPolicy `json:"data"`
 	}
 	if json.Unmarshal(body, &envelope) != nil || owner == nil {
+		return
+	}
+	validated, code := clientbundle.Parse(body, owner.AccountID, routingLeaseNow())
+	if code != "" {
 		return
 	}
 	policy := envelope.Data
@@ -151,6 +158,7 @@ func replaceClientBundleRoutingLocked(body []byte, owner *ClientBundleOwnerGuard
 		current.probeCancel()
 	}
 	current.policy = policy
+	current.proxies = validated.Proxies
 	current.revision++
 	valid := map[string]bool{}
 	for _, service := range policy.Routing.Services {

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/constant"
 )
@@ -69,6 +70,30 @@ func reportMissingDelayTestProxy(name string) {
 	logError("delay test: %q is not part of the applied config", name)
 }
 
+func lookupDelayTestProxy(name string) constant.Proxy {
+	if proxy := lookupProxy(name); proxy != nil {
+		return proxy
+	}
+	configMu.Lock()
+	defer configMu.Unlock()
+	if clientBundleRouting == nil || clientBundleRouting.policy.Expires <= routingLeaseNow().Unix() || !matchesClientBundleOwnerLocked(clientBundleRouting.owner) {
+		return nil
+	}
+	mapping := clientBundleRouting.proxies[name]
+	if mapping == nil {
+		return nil
+	}
+	if dialer, _ := mapping["dialer-proxy"].(string); dialer != "" {
+		return nil
+	}
+	proxy, err := adapter.ParseProxy(mapping)
+	if err != nil {
+		logError("delay test: cannot construct bundle proxy %q", name)
+		return nil
+	}
+	return proxy
+}
+
 // A nil answer means the test never got a slot, which says nothing about the proxy.
 func handleTestDelay(params *TestDelayParams) *Delay {
 	url := params.TestUrl
@@ -77,7 +102,7 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	}
 	result := &Delay{Name: params.ProxyName, Url: url, Value: delayFailed}
 
-	proxy := lookupProxy(params.ProxyName)
+	proxy := lookupDelayTestProxy(params.ProxyName)
 	if proxy == nil {
 		reportMissingDelayTestProxy(params.ProxyName)
 		return result

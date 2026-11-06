@@ -12,7 +12,7 @@ class _DelayTestTarget {
   final String key;
 }
 
-typedef _DelayTestBatch = ({List<Proxy> proxies, String? testUrl});
+typedef _DelayTestBatch = ({List<Proxy> proxies, String? testUrl, bool direct});
 
 class _DelayTestJob {
   _DelayTestJob(Iterable<String> keys) : held = keys.toSet();
@@ -46,6 +46,7 @@ class ProxiesAction extends _$ProxiesAction {
   void build() {
     ref.onDispose(() => _delayFlushTimer?.cancel());
     ref.listen(currentProfileIdProvider, (_, _) {
+      cancelDelayTests();
       _pendingSelectedRollback.clear();
       _selectionIntents.updateAll((_, intent) => intent + 1);
     });
@@ -411,18 +412,24 @@ class ProxiesAction extends _$ProxiesAction {
 
   Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) {
     return _runDelayTests([
-      (proxies: [proxy], testUrl: testUrl),
+      (proxies: [proxy], testUrl: testUrl, direct: false),
     ]);
   }
 
   Future<void> delayTest(List<Proxy> proxies, [String? testUrl]) async {
-    await _runDelayTests([(proxies: proxies, testUrl: testUrl)]);
+    await _runDelayTests([(proxies: proxies, testUrl: testUrl, direct: false)]);
+    ref.read(sortNumProvider.notifier).add();
+  }
+
+  Future<void> delayTestNodes(List<Proxy> proxies, String testUrl) async {
+    await _runDelayTests([(proxies: proxies, testUrl: testUrl, direct: true)]);
     ref.read(sortNumProvider.notifier).add();
   }
 
   Future<void> delayTestGroups(List<Group> groups) async {
     await _runDelayTests([
-      for (final group in groups) (proxies: group.all, testUrl: group.testUrl),
+      for (final group in groups)
+        (proxies: group.all, testUrl: group.testUrl, direct: false),
     ]);
     ref.read(sortNumProvider.notifier).add();
   }
@@ -464,12 +471,14 @@ class ProxiesAction extends _$ProxiesAction {
     for (final batch in batches) {
       final fallbackTestUrl = ref.read(realTestUrlProvider(batch.testUrl));
       for (final proxy in batch.proxies) {
-        final state = computeRealSelectedProxyState(
-          proxy.name,
-          groups: groups,
-          selectedMap: selectedMap,
-        );
-        if (state.proxyName.isEmpty) {
+        final state = batch.direct
+            ? SelectedProxyState(proxyName: proxy.name)
+            : computeRealSelectedProxyState(
+                proxy.name,
+                groups: groups,
+                selectedMap: selectedMap,
+              );
+        if (state.proxyName.isEmpty || proxy.type.toLowerCase() == 'direct') {
           continue;
         }
         final currentTestUrl = state.testUrl.takeFirstValid([fallbackTestUrl]);

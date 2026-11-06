@@ -3250,6 +3250,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Contraseña actualizada.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("Pagar pedido"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "El pago se canceló. Comprueba el estado del pedido o vuelve a elegir un método de pago.",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "No pudimos confirmar el resultado del pago. Comprueba el estado del pedido antes de volver a intentarlo.",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage(
       "Método de pago",
     ),

@@ -2488,6 +2488,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "비밀번호가 변경되었습니다.",
     ),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("주문 결제"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "결제가 취소되었습니다. 주문 상태를 확인하거나 결제 수단을 다시 선택하세요.",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "결제 결과를 확인할 수 없습니다. 다른 작업을 하기 전에 주문 상태를 확인하세요.",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage("결제 수단"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "결제에서 돌아온 후에도 주문 상태를 확인해야 합니다.",

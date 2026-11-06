@@ -2259,6 +2259,12 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage("密碼已更新。"),
     "zolnitPay": MessageLookupByLibrary.simpleMessage("前往付款"),
+    "zolnitPaymentCancelled": MessageLookupByLibrary.simpleMessage(
+      "已取消付款。請查看訂單狀態，或重新選擇付款方式。",
+    ),
+    "zolnitPaymentCheckStatus": MessageLookupByLibrary.simpleMessage(
+      "暫時無法確認付款結果。請先查看訂單狀態，不要重複提交。",
+    ),
     "zolnitPaymentMethod": MessageLookupByLibrary.simpleMessage("付款方式"),
     "zolnitPaymentReturn": MessageLookupByLibrary.simpleMessage(
       "付款返回後仍需確認訂單狀態。",

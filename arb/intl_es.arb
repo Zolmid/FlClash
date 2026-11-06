@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "Pagar en la aplicación",
   "zolnitScanToPay": "Escanea para pagar",
   "zolnitConfirmingPayment": "Confirmando el pago",
+  "zolnitPaymentCheckStatus": "No pudimos confirmar el resultado del pago. Comprueba el estado del pedido antes de volver a intentarlo.",
+  "zolnitPaymentCancelled": "El pago se canceló. Comprueba el estado del pedido o vuelve a elegir un método de pago.",
   "zolnitSettlementTotal": "Importe del cargo",
   "zolnitRegistrationBrowserUnavailable": "No se pudo abrir la página de registro. Inténtalo de nuevo.",
   "zolnitRegistrationReturnExpired": "Tu cuenta se ha creado, pero el enlace de acceso automático ha caducado. Ya puedes iniciar sesión.",

@@ -16,12 +16,18 @@ import 'harness.dart';
 class _Wire implements ZolnitRealtimeSocket {
   final frames = StreamController<Object?>();
   final sent = <String>[];
+  Map<String, dynamic>? Function(String method, Object? data)? answer;
   @override
   Stream<Object?> get messages => frames.stream;
   @override
   void send(Object x) {
     sent.add('$x');
     if (x == 'ping' && !frames.isClosed) frames.add('pong');
+    final m = x is String && x.startsWith('{') ? jsonDecode(x) : null;
+    final reply = m is Map && m['op'] == 'request'
+        ? answer?.call(m['method'] as String, m['data'])
+        : null;
+    if (reply != null) receive({'op': 'response', 'id': m['id'], ...reply});
   }
 
   void receive(Map<String, dynamic> frame) =>
@@ -141,13 +147,15 @@ void main() {
       };
       final previous = h.panel;
       h.panel = (req) {
-        if (req.url.path.endsWith('/realtime/inbox'))
+        if (req.url.path.endsWith('/realtime/inbox')) {
           return zolnitJson({
             'subject': 'b' * 64,
             'events': [note],
           });
-        if (req.url.path.endsWith('/realtime/read'))
+        }
+        if (req.url.path.endsWith('/realtime/read')) {
           return zolnitJson({'read': true, 'event_id': note['id']});
+        }
         return previous(req);
       };
       await h.mount(tester, ZolnitSkin.android);
@@ -189,6 +197,136 @@ void main() {
         isFalse,
       );
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'negotiated reads reconcile a pending order over WSS without an HTTP sweep',
+    (tester) async {
+      var status = 0;
+      final previous = h.panel;
+      h.panel = (req) => req.url.path.endsWith('/order/fetch')
+          ? zolnitJson([
+              {'trade_no': 'pending-1', 'status': status},
+            ])
+          : previous(req);
+      wire.answer = (method, data) => switch (method) {
+        'order.status' => {
+          'data': {'result': status},
+        },
+        'notice.list' => {
+          'data': {'result': <Object>[]},
+        },
+        _ => null,
+      };
+      await h.mount(tester, ZolnitSkin.android);
+      await tester.pump();
+      wire.receive({
+        'op': 'ready',
+        'methods': ['order.status', 'inbox.list', 'notice.list'],
+      });
+      wire.receive({'op': 'pulse'});
+      await tester.pumpAndSettle();
+      expect(h.session.orders.single['trade_no'], 'pending-1');
+      h.requests.clear();
+      int reads() => wire.sent.where((s) => s.contains('order.status')).length;
+      for (var i = 0; i < 3; i++) {
+        now = now.add(const Duration(seconds: 15));
+        await tester.pump(const Duration(seconds: 15));
+        wire.receive({'op': 'pulse'});
+        await tester.pumpAndSettle();
+      }
+      expect(reads(), 3);
+      wire.receive({
+        'op': 'event',
+        'scope': 'global',
+        'seq': 1,
+        'id': 'd' * 32,
+        'type': 'notice.changed',
+        'data': {},
+      });
+      await tester.pumpAndSettle();
+      expect(wire.sent.where((s) => s.contains('notice.list')), hasLength(1));
+      expect(h.requests, isEmpty);
+      status = 3;
+      now = now.add(const Duration(seconds: 15));
+      await tester.pump(const Duration(seconds: 15));
+      await tester.pumpAndSettle();
+      expect(
+        h.requests.where((r) => r.url.path.endsWith('/order/fetch')),
+        hasLength(1),
+      );
+      expect(
+        h.requests.any((r) => r.url.path.endsWith('/order/check')),
+        isFalse,
+      );
+      expect(h.session.orders.single['status'], 3);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'an old edge checks pending orders by targeted HTTP at a slower cadence',
+    (tester) async {
+      final previous = h.panel;
+      h.panel = (req) => req.url.path.endsWith('/order/fetch')
+          ? zolnitJson([
+              {'trade_no': 'pending-1', 'status': 0},
+            ])
+          : previous(req);
+      await h.mount(tester, ZolnitSkin.android);
+      await tester.pump();
+      wire.receive({'op': 'ready'});
+      wire.receive({'op': 'pulse'});
+      await tester.pumpAndSettle();
+      h.requests.clear();
+      for (var i = 0; i < 5; i++) {
+        now = now.add(const Duration(seconds: 15));
+        await tester.pump(const Duration(seconds: 15));
+        wire.receive({'op': 'pulse'});
+        await tester.pumpAndSettle();
+      }
+      expect(h.requests.map((r) => r.url.path), [
+        '/api/v1/user/order/check',
+        '/api/v1/user/order/check',
+      ]);
+      expect(wire.sent.any((s) => s.contains('"request"')), isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'an active checkout reconciles once on becoming healthy and on account.changed',
+    (tester) async {
+      await h.mount(tester, ZolnitSkin.android);
+      await tester.pump();
+      await h.session.checkout.start('pending-1', 1);
+      await tester.pumpAndSettle();
+      expect(h.session.checkout.stage, CheckoutStage.awaitingPayment);
+      final base = h.paymentStatusReads;
+      wire.receive({
+        'op': 'ready',
+        'methods': ['order.status'],
+      });
+      wire.receive({'op': 'pulse'});
+      await tester.pumpAndSettle();
+      expect(h.paymentStatusReads, base + 1);
+      wire.receive({'op': 'pulse'});
+      await tester.pumpAndSettle();
+      expect(h.paymentStatusReads, base + 1);
+      wire.receive({
+        'op': 'event',
+        'scope': 'account',
+        'seq': 1,
+        'id': 'e' * 32,
+        'type': 'account.changed',
+        'data': {},
+      });
+      await tester.pumpAndSettle();
+      expect(h.paymentStatusReads, base + 2);
+      expect(wire.sent.any((s) => s.contains('"ack"')), isTrue);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );

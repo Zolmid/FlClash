@@ -6,6 +6,8 @@
   "zolnitInAppPayment": "Payer dans l’application",
   "zolnitScanToPay": "Scanner pour payer",
   "zolnitConfirmingPayment": "Confirmation du paiement",
+  "zolnitPaymentCheckStatus": "Nous ne pouvons pas confirmer le résultat du paiement. Vérifiez l’état de la commande avant toute nouvelle action.",
+  "zolnitPaymentCancelled": "Le paiement a été annulé. Vérifiez l’état de la commande ou choisissez à nouveau un moyen de paiement.",
   "zolnitSettlementTotal": "Montant débité",
   "zolnitRegistrationBrowserUnavailable": "Impossible d’ouvrir la page d’inscription. Réessayez.",
   "zolnitRegistrationReturnExpired": "Votre compte a été créé, mais le lien de connexion automatique a expiré. Vous pouvez vous connecter.",

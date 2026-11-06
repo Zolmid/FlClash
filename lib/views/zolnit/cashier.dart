@@ -31,14 +31,17 @@ class ZolnitCashierPage extends StatefulWidget {
 class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
   int? _methodId;
   bool _details = false;
+  bool _cancelling = false;
   Timer? _poll;
 
   @override
   void initState() {
     super.initState();
-    _poll = Timer.periodic(const Duration(seconds: 5), (_) {
+    _poll = Timer.periodic(const Duration(seconds: 5), (timer) {
       final s = widget.session;
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+          (s.api.liveReads?.supports('order.status') != true ||
+              timer.tick % 12 == 0) &&
           !s.busy &&
           s.checkout.tradeNo == widget.tradeNo &&
           {
@@ -58,27 +61,33 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
   }
 
   Future<void> _cancel() async {
+    if (_cancelling) return;
+    setState(() => _cancelling = true);
     final text = context.appLocalizations;
-    if (await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(text.zolnitCancelOrder),
-            content: Text(text.zolnitCancelOrderTip),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(text.cancel),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(text.confirm),
-              ),
-            ],
-          ),
-        ) ==
-        true) {
-      await widget.session.cancelOrder(widget.tradeNo);
-      if (mounted && widget.session.failure == null) widget.onClose();
+    try {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(text.zolnitCancelOrder),
+          content: Text(text.zolnitCancelOrderTip),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(text.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(text.confirm),
+            ),
+          ],
+        ),
+      );
+      if (approved == true) {
+        await widget.session.cancelOrder(widget.tradeNo);
+        if (mounted && widget.session.failure == null) widget.onClose();
+      }
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
     }
   }
 
@@ -89,6 +98,7 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
     final order = session.orders
         .where((order) => order['trade_no'] == widget.tradeNo)
         .singleOrNull;
+    final typedOrder = order == null ? null : ZolnitOrder.fromJson(order);
     final methods = session.paymentMethods
         .where((method) => method['id'] is int && (method['id'] as int) > 0)
         .toList();
@@ -100,18 +110,13 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
     final checking = session.checkout.tradeNo == widget.tradeNo;
     final status = order?['status'];
     final colors = ZolnitColors.of(context);
-    final nested = order?['plan'];
     final planName =
-        (nested is Map && nested['name'] is String
-            ? nested['name'] as String
-            : null) ??
+        typedOrder?.planName ??
         session.planList
             .where((p) => p.id == order?['plan_id'])
             .firstOrNull
             ?.name ??
-        (order?['plan_name'] is String
-            ? order!['plan_name'] as String
-            : text.zolnitPlans);
+        text.zolnitPlans;
     final period = switch (order?['period']) {
       'month_price' || 'monthly' => text.zolnitMonthly,
       'quarter_price' || 'quarterly' => text.zolnitQuarterly,
@@ -124,7 +129,8 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
     };
     final state = checking ? session.checkout.stage : CheckoutStage.idle;
     final done = status == 3 || state == CheckoutStage.completed;
-    final closed = status == 2 || status == 4;
+    final closed =
+        status == 2 || status == 4 || state == CheckoutStage.cancelled;
     final waiting =
         state == CheckoutStage.processing ||
         state == CheckoutStage.awaitingPayment ||
@@ -312,7 +318,8 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
           else
             FilledButton(
               onPressed:
-                  (payable || canContinue) &&
+                  !_cancelling &&
+                      (payable || canContinue) &&
                       session.checkout.allowStripe &&
                       selected != null
                   ? () => session.payOrder(widget.tradeNo, selected)
@@ -325,9 +332,9 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
                     : text.zolnitPay,
               ),
             ),
-          if (status == 0 && !done && (!waiting || canContinue))
+          if (status == 0 && !done && !closed && (!waiting || canContinue))
             TextButton(
-              onPressed: session.busy ? null : _cancel,
+              onPressed: session.busy || _cancelling ? null : _cancel,
               child: Text(text.zolnitCancelOrder),
             ),
         ],
@@ -355,7 +362,12 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SelectableText(
-                  '${text.zolnitOrderNumber} · ${widget.tradeNo}',
+                  [
+                    if (order?['created_at'] != null)
+                      zolnitOrderDateTime(order!['created_at']),
+                    '${text.zolnitOrderNumber} · ${widget.tradeNo}',
+                  ].join('\n'),
+                  style: zolnitText(context, 11, color: colors.muted),
                 ),
               ),
             ),

@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -582,6 +585,94 @@ func TestTestDelayRejectsAnUnknownProxyWithoutWaitingForASlot(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("an unknown proxy queued behind a saturated delay-test semaphore")
+	}
+}
+
+func TestTestDelayUsesTheCurrentBundleWithoutApplyingItsConfig(t *testing.T) {
+	params, _ := bundleOwnerFixture(t)
+	owner, err := handleBeginClientBundleOwner(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(15 * time.Millisecond)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(target.Close)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodConnect {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		upstream, err := net.Dial("tcp", r.Host)
+		if err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		client, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			_ = upstream.Close()
+			return
+		}
+		defer client.Close()
+		defer upstream.Close()
+		_, _ = client.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+		go func() { _, _ = io.Copy(upstream, client) }()
+		_, _ = io.Copy(client, upstream)
+	}))
+	t.Cleanup(proxy.Close)
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(proxy.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyPort, err := strconv.Atoi(port)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientBundleRouting = &clientBundleRoutingState{
+		cancel: func() {},
+		owner:  owner,
+		policy: nativeRoutingPolicy{Expires: routingLeaseNow().Unix() + 60},
+		proxies: map[string]map[string]any{
+			"bundle-http": {"name": "bundle-http", "type": "http", "server": "127.0.0.1", "port": proxyPort},
+		},
+	}
+	if lookupProxy("bundle-http") != nil {
+		t.Fatal("fixture unexpectedly applied the bundle proxy")
+	}
+
+	delay := handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: target.URL})
+	if delay == nil || delay.Value <= 0 {
+		t.Fatalf("isolated bundle URLTest = %+v, want a positive end-to-end delay", delay)
+	}
+	if lookupProxy("bundle-http") != nil {
+		t.Fatal("isolated delay test applied the bundle proxy")
+	}
+	clientBundleRouting.policy.Expires = routingLeaseNow().Unix()
+	if lookupDelayTestProxy("bundle-http") != nil {
+		t.Fatal("expired bundle remains available to probe")
+	}
+}
+
+func TestTestDelayWillNotDropABundleDialerProxy(t *testing.T) {
+	params, _ := bundleOwnerFixture(t)
+	owner, err := handleBeginClientBundleOwner(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientBundleRouting = &clientBundleRoutingState{
+		cancel: func() {},
+		owner:  owner,
+		policy: nativeRoutingPolicy{Expires: routingLeaseNow().Unix() + 60},
+		proxies: map[string]map[string]any{
+			"chained": {"name": "chained", "type": "direct", "dialer-proxy": "hop"},
+		},
+	}
+	if proxy := lookupDelayTestProxy("chained"); proxy != nil {
+		t.Fatal("isolated delay test must not bypass a bundle dialer-proxy")
 	}
 }
 

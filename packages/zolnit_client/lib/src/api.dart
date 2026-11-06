@@ -37,6 +37,30 @@ final class ZolnitRealtimeInbox {
   const ZolnitRealtimeInbox({required this.subject, required this.events});
   final String subject;
   final List<Json> events;
+
+  static ZolnitRealtimeInbox? parse(Object? value) {
+    if (value is! Json ||
+        value['subject'] is! String ||
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(value['subject'] as String) ||
+        value['events'] is! List) {
+      return null;
+    }
+    return ZolnitRealtimeInbox(
+      subject: value['subject'] as String,
+      events: List<Json>.unmodifiable(value['events'].whereType<Json>()),
+    );
+  }
+}
+
+/// Typed reads served over a negotiated realtime channel. [read] completes
+/// with null whenever the caller must use the canonical HTTP endpoint.
+abstract interface class ZolnitLiveReads {
+  bool supports(String method);
+  Future<({Object? result})?> read(
+    String method,
+    Json data,
+    bool Function(Object? result) valid,
+  );
 }
 
 class XboardClient {
@@ -75,8 +99,46 @@ class XboardClient {
   String? _authorization;
   int _generation = 0;
   bool _closed = false;
+  ZolnitLiveReads? _liveReads;
+  int? _liveGeneration;
 
   int get generation => _generation;
+
+  ZolnitLiveReads? get liveReads =>
+      !_closed && _liveGeneration == _generation ? _liveReads : null;
+
+  void attachLiveReads(ZolnitLiveReads reads, int generation) {
+    if (_closed || generation != _generation) return;
+    _liveReads = reads;
+    _liveGeneration = generation;
+  }
+
+  void detachLiveReads(ZolnitLiveReads reads) {
+    if (!identical(_liveReads, reads)) return;
+    _liveReads = null;
+    _liveGeneration = null;
+  }
+
+  Future<T> _preferLive<T>(
+    String method,
+    Json data,
+    T? Function(Object?) parse,
+    Future<T> Function() http,
+  ) async {
+    final live = liveReads;
+    if (live != null && live.supports(method)) {
+      final generation = _generation;
+      final reply = await live.read(method, data, (v) => parse(v) != null);
+      if (_closed || generation != _generation) {
+        throw const ClientFailure('superseded');
+      }
+      if (reply != null) {
+        final value = parse(reply.result);
+        if (value != null) return value;
+      }
+    }
+    return http();
+  }
 
   static Uri _validateOrigin(Uri uri) {
     if (uri.scheme != 'https' ||
@@ -217,19 +279,16 @@ class XboardClient {
     );
   }
 
-  Future<ZolnitRealtimeInbox> realtimeInbox() async {
-    final value = await request('/api/v1/zolnit/client/realtime/inbox');
-    if (value is! Json ||
-        value['subject'] is! String ||
-        !RegExp(r'^[0-9a-f]{64}$').hasMatch(value['subject'] as String) ||
-        value['events'] is! List) {
-      throw const ClientFailure('invalid_realtime_inbox');
-    }
-    return ZolnitRealtimeInbox(
-      subject: value['subject'] as String,
-      events: List<Json>.unmodifiable(value['events'].whereType<Json>()),
-    );
-  }
+  Future<ZolnitRealtimeInbox> realtimeInbox() => _preferLive(
+    'inbox.list',
+    const {},
+    ZolnitRealtimeInbox.parse,
+    () async =>
+        ZolnitRealtimeInbox.parse(
+          await request('/api/v1/zolnit/client/realtime/inbox'),
+        ) ??
+        (throw const ClientFailure('invalid_realtime_inbox')),
+  );
 
   Future<void> markRealtimeInboxRead(String eventId) async {
     if (!RegExp(r'^[0-9a-f]{32}$').hasMatch(eventId)) {
@@ -427,7 +486,12 @@ class XboardClient {
   Future<dynamic> subscription() => request('/api/v1/user/getSubscribe');
   Future<dynamic> plans() => request('/api/v1/user/plan/fetch');
   Future<dynamic> nodes() => request('/api/v1/user/server/fetch');
-  Future<dynamic> notices() => request('/api/v1/user/notice/fetch');
+  Future<dynamic> notices() => _preferLive<dynamic>(
+    'notice.list',
+    const {},
+    (v) => v is List && v.every((e) => e is Json) ? v : null,
+    () => request('/api/v1/user/notice/fetch'),
+  );
   Future<List<Json>> knowledge({required String language}) async {
     final value = await request(
       '/api/v1/user/knowledge/fetch',
@@ -462,9 +526,14 @@ class XboardClient {
   Future<dynamic> order(String tradeNo) =>
       request('/api/v1/user/order/detail', query: {'trade_no': tradeNo});
 
-  Future<int> orderStatus(String tradeNo) async =>
-      await request('/api/v1/user/order/check', query: {'trade_no': tradeNo})
-          as int;
+  Future<int> orderStatus(String tradeNo) => _preferLive(
+    'order.status',
+    {'trade_no': tradeNo},
+    (v) => v is int ? v : null,
+    () async =>
+        await request('/api/v1/user/order/check', query: {'trade_no': tradeNo})
+            as int,
+  );
 
   Future<dynamic> cancelOrder(String tradeNo) => request(
     '/api/v1/user/order/cancel',
@@ -562,6 +631,7 @@ class XboardClient {
   void close() {
     _closed = true;
     _authorization = null;
+    _liveReads = null;
     _generation++;
     _client.close();
   }
