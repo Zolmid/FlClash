@@ -13,6 +13,7 @@ import 'connect.dart' show zolnitDisplayName;
 import 'data.dart';
 import 'invite.dart';
 import 'kit.dart';
+import 'motion.dart';
 import 'password.dart';
 import 'skin.dart';
 
@@ -214,21 +215,14 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
     bool current() =>
         _current(generation) && identical(widget.session, session);
     final text = context.appLocalizations;
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(text.zolnitRevokeDevice),
-        content: Text(text.zolnitRevokeDeviceTip),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(text.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(text.confirm),
-          ),
-        ],
+    final approved = await showZolnitDialog<bool>(
+      context,
+      (_) => ZolnitAlert(
+        title: text.zolnitRevokeDevice,
+        message: text.zolnitRevokeDeviceTip,
+        cancelLabel: text.zolnitNotNow,
+        confirmLabel: text.zolnitSignOut,
+        destructive: true,
       ),
     );
     if (approved != true || !current() || _revoking != null) return;
@@ -269,25 +263,17 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
   Future<void> _renewal(int id, bool resume) async {
     final text = context.appLocalizations;
     final generation = _generation;
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          resume ? text.zolnitResumeRenewal : text.zolnitCancelRenewal,
-        ),
-        content: Text(
-          resume ? text.zolnitResumeRenewalTip : text.zolnitCancelRenewalTip,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(text.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(text.confirm),
-          ),
-        ],
+    final title = resume ? text.zolnitResumeRenewal : text.zolnitCancelRenewal;
+    final approved = await showZolnitDialog<bool>(
+      context,
+      (_) => ZolnitAlert(
+        title: title,
+        message: resume
+            ? text.zolnitResumeRenewalTip
+            : text.zolnitCancelRenewalTip,
+        cancelLabel: text.zolnitNotNow,
+        confirmLabel: title,
+        destructive: !resume,
       ),
     );
     if (approved == true && _current(generation)) {
@@ -575,6 +561,7 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
             renewalTile(renewal),
           if (contracts.any((item) => item.state == RenewalState.ended))
             ExpansionTile(
+              trailing: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
               tilePadding: EdgeInsets.zero,
               title: Text(
                 text.zolnitRenewalHistory,
@@ -618,6 +605,10 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
                       actions,
                       const SizedBox(height: 12),
                       ExpansionTile(
+                        trailing: const GlyphIcon(
+                          AppGlyphs.chevronDown,
+                          size: 16,
+                        ),
                         title: Text(text.zolnitDevicesTitle),
                         children: [devices],
                       ),

@@ -10,6 +10,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 
 import 'data.dart';
 import 'kit.dart';
+import 'skin.dart';
 
 List<Json> _prepareHelpArticles(List<Json> articles) => [
   for (final article in articles)
@@ -155,8 +156,22 @@ class _ZolnitHelpPageState extends State<ZolnitHelpPage>
   @override
   Widget build(BuildContext context) {
     final text = context.appLocalizations;
+    final colors = ZolnitColors.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(text.zolnitHelpSupport)),
+      appBar: AppBar(
+        centerTitle: false,
+        backgroundColor: colors.paper,
+        surfaceTintColor: colors.paper,
+        leading: IconButton(
+          tooltip: text.back,
+          onPressed: () => unawaited(Navigator.maybePop(context)),
+          icon: GlyphIcon(AppGlyphs.arrowBack, color: colors.ink),
+        ),
+        title: Text(
+          text.zolnitHelpSupport,
+          style: AppTextStyle.headline.of(context, emphasized: true),
+        ),
+      ),
       body: ListenableBuilder(
         listenable: widget.session,
         builder: (context, _) {
@@ -169,12 +184,34 @@ class _ZolnitHelpPageState extends State<ZolnitHelpPage>
                 padding: const EdgeInsets.all(16),
                 children: [
                   if (_loading) const LinearProgressIndicator(),
-                  if (_error != null)
-                    Text(zolnitFailureText(context, _error, null)),
-                  if (!_loading && _articles.isEmpty)
+                  if (_error != null && !_loading)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            zolnitFailureText(
+                              context,
+                              _error,
+                              null,
+                              fallback: text.zolnitHelpLoadFailed,
+                            ),
+                            style: zolnitText(context, 13, color: colors.ink),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => unawaited(_load()),
+                          child: Text(text.retry),
+                        ),
+                      ],
+                    )
+                  else if (!_loading && _articles.isEmpty)
                     Text(text.zolnitHelpNoArticles),
                   for (final article in _articles)
                     ExpansionTile(
+                      trailing: const GlyphIcon(
+                        AppGlyphs.chevronDown,
+                        size: 16,
+                      ),
                       title: Text(article['title'] as String? ?? ''),
                       childrenPadding: const EdgeInsets.all(12),
                       children: [

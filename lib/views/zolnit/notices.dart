@@ -7,22 +7,16 @@ import '../../providers/zolnit_realtime.dart';
 
 import 'data.dart';
 import 'kit.dart';
+import 'motion.dart';
 
 Future<void> showZolnitNotice(BuildContext context, ZolnitNotice notice) {
   final text = context.appLocalizations;
-  return showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(notice.title),
-      content: SingleChildScrollView(
-        child: Text(notice.body.isEmpty ? '—' : notice.body),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(text.confirm),
-        ),
-      ],
+  return showZolnitDialog<void>(
+    context,
+    (_) => ZolnitAlert(
+      title: notice.title,
+      message: notice.body.isEmpty ? '—' : notice.body,
+      confirmLabel: text.zolnitGotIt,
     ),
   );
 }
@@ -42,7 +36,7 @@ Future<void> showZolnitNotices(
   };
   Future<void> dialog(BuildContext ctx, WidgetBuilder builder) async {
     if (!isCurrent()) return;
-    final route = DialogRoute<void>(context: ctx, builder: builder);
+    final route = zolnitDialogRoute<void>(ctx, builder);
     void guard() {
       if (!isCurrent()) {
         scheduleMicrotask(() {
@@ -115,8 +109,9 @@ Future<void> showZolnitNotices(
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(inner),
-                                    child: Text(text.confirm),
+                                    onPressed: () =>
+                                        zolnitCloseDialog<void>(inner),
+                                    child: Text(text.zolnitGotIt),
                                   ),
                                 ],
                               ),
@@ -137,8 +132,8 @@ Future<void> showZolnitNotices(
                             content: SingleChildScrollView(child: Text(n.body)),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(inner),
-                                child: Text(text.confirm),
+                                onPressed: () => zolnitCloseDialog<void>(inner),
+                                child: Text(text.zolnitGotIt),
                               ),
                             ],
                           ),
@@ -149,8 +144,8 @@ Future<void> showZolnitNotices(
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(outer),
-            child: Text(text.confirm),
+            onPressed: () => zolnitCloseDialog<void>(outer),
+            child: Text(text.close),
           ),
         ],
       ),

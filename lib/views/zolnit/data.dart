@@ -1,6 +1,5 @@
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
-import 'package:fl_clash/ui/ui.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -80,7 +79,7 @@ String zolnitOrderStatus(BuildContext context, dynamic status) {
     2 => text.zolnitCanceled,
     3 => text.zolnitCompleted,
     4 => text.zolnitCredited,
-    _ => text.unknown,
+    _ => text.zolnitStatusUnconfirmed,
   };
 }
 
@@ -142,29 +141,4 @@ String zolnitFailureText(
     'profile_sync_failed' => text.zolnitBundleUnavailable,
     _ => fallback ?? text.zolnitFailure,
   };
-}
-
-class ZolnitValue extends StatelessWidget {
-  const ZolnitValue({super.key, required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTextStyle.footnote
-              .of(context)
-              .copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 4),
-        Text(value, style: AppTextStyle.headline.of(context)),
-      ],
-    ),
-  );
 }

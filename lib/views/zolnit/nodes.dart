@@ -105,21 +105,8 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     _measureNodes();
   }
 
-  bool _isCurrentAccount(WidgetRef ref, {required bool watch}) {
-    final profile = watch
-        ? ref.watch(currentProfileProvider)
-        : ref.read(currentProfileProvider);
-    final privateProfile = profile != null && isZolnitBundleProfile(profile);
-    if (privateProfile) {
-      final bundle = widget.session.clientBundle;
-      return isCurrentZolnitBundleProfile(profile, widget.session) &&
-          bundle != null &&
-          bundle.bundleId == profile.zolnitBundleId &&
-          bundle.isFresh(ref.read(zolnitBundleClockProvider)());
-    }
-    return !ref.read(zolnitClientBundleTransportProvider) &&
-        profile?.label == zolnitProfileLabel(widget.session);
-  }
+  bool _isCurrentAccount(WidgetRef ref, {required bool watch}) =>
+      zolnitProfileIsCurrent(ref, widget.session, watch: watch);
 
   ZolnitRouteMetadata? _serverHosts(ZolnitClientBundle bundle) {
     final key = bundle.connectionSha256;
@@ -490,6 +477,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
             widget.session.clientBundle?.routingManifest.services.isNotEmpty ==
                 true)
           ExpansionTile(
+            trailing: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
             title: Text(
               l10n.zolnitRoutingOptions,
               style: zolnitText(context, 13),
@@ -906,4 +894,24 @@ class _RouteTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Whether the running profile's measured delays belong to [session].
+bool zolnitProfileIsCurrent(
+  WidgetRef ref,
+  ZolnitSessionController session, {
+  required bool watch,
+}) {
+  final profile = watch
+      ? ref.watch(currentProfileProvider)
+      : ref.read(currentProfileProvider);
+  if (profile != null && isZolnitBundleProfile(profile)) {
+    final bundle = session.clientBundle;
+    return isCurrentZolnitBundleProfile(profile, session) &&
+        bundle != null &&
+        bundle.bundleId == profile.zolnitBundleId &&
+        bundle.isFresh(ref.read(zolnitBundleClockProvider)());
+  }
+  return !ref.read(zolnitClientBundleTransportProvider) &&
+      profile?.label == zolnitProfileLabel(session);
 }

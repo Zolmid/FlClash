@@ -558,8 +558,8 @@ void main() {
       final status = tester
           .widget<Text>(find.byKey(const ValueKey('bundle-status')))
           .data!;
-      expect(status, contains('expired'));
-      expect(status, contains('temporarily unavailable'));
+      expect(status, contains('out of date'));
+      expect(status, contains("couldn't be loaded"));
       final dropdown = tester.widget<DropdownButton<String>>(
         find.byKey(const ValueKey('bundle-routing-mode')),
       );
@@ -585,7 +585,7 @@ void main() {
     await mount(tester);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('bundle-status'))).data,
-      contains('No exit is confirmed eligible'),
+      contains('No server is confirmed for automatic selection'),
     );
     expect(
       tester

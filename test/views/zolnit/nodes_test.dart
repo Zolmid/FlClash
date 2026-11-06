@@ -253,7 +253,7 @@ void main() {
               as _RecordingProxies;
       await tester.tap(find.text('香港').first);
       expect(action.selections, isEmpty);
-      expect(find.textContaining('自动选路在此只读'), findsOneWidget);
+      expect(find.textContaining('此处无法更改'), findsOneWidget);
     },
   );
 
@@ -296,7 +296,7 @@ void main() {
     await tester.tap(find.text('香港').first);
     expect(action.selections, isEmpty);
     await tester.pump();
-    expect(find.textContaining('已保存偏好'), findsOneWidget);
+    expect(find.textContaining('已保存的选择'), findsOneWidget);
     harness.container.read(coreStatusProvider.notifier).value =
         CoreStatus.connected;
     await tester.pump();
@@ -315,9 +315,9 @@ void main() {
   for (final (status, message) in [
     (ZolnitBundleStatus.unloaded, '加载中'),
     (ZolnitBundleStatus.loading, '加载中'),
-    (ZolnitBundleStatus.unavailable, '连接配置暂时不可用。'),
+    (ZolnitBundleStatus.unavailable, '暂时无法获取连接配置，请稍后重试。'),
     (ZolnitBundleStatus.forbidden, '当前账号暂时无法获取连接配置，请检查套餐与流量。'),
-    (ZolnitBundleStatus.refreshFailed, '连接配置暂时不可用。'),
+    (ZolnitBundleStatus.refreshFailed, '暂时无法获取连接配置，请稍后重试。'),
     (ZolnitBundleStatus.ready, '加载中'),
   ]) {
     testWidgets('missing bundle $status does not claim empty entitlement', (
@@ -395,7 +395,7 @@ void main() {
           find.text(
             code == 'entitlement_unavailable'
                 ? '当前账号暂时无法获取连接配置，请检查套餐与流量。'
-                : '连接配置暂时不可用。',
+                : '暂时无法获取连接配置，请稍后重试。',
           ),
           findsWidgets,
         );
@@ -648,7 +648,7 @@ void main() {
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('1\u00d7 \u8ba1\u91cf'), findsNothing);
-    expect(find.text('1.5\u00d7 \u8ba1\u91cf'), findsOneWidget);
+    expect(find.text('流量按 1.5× 计'), findsOneWidget);
   });
 
   testWidgets(

@@ -49,3 +49,15 @@ part 'actions/geo_resource.dart';
 part 'actions/resources.dart';
 part 'actions/updating.dart';
 part 'generated/action.g.dart';
+
+class AppUpdateStatusNotifier extends Notifier<AppUpdateStatus> {
+  @override
+  AppUpdateStatus build() => const AppUpdateStatus();
+
+  void set(AppUpdateStatus value) => state = value;
+}
+
+final appUpdateStatusProvider =
+    NotifierProvider<AppUpdateStatusNotifier, AppUpdateStatus>(
+      AppUpdateStatusNotifier.new,
+    );

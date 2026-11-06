@@ -29,7 +29,22 @@ class SystemAction extends _$SystemAction {
       closeCore: closeCore,
       exitApplication: exitApplication,
     );
-    return coordinator.exit(cleanup: () => cleanupExitResources(needSave));
+    return coordinator.exit(
+      prepare: () async {
+        try {
+          await ref
+              .read(commonActionProvider.notifier)
+              .applyStagedAppUpdateOnExit()
+              .timeout(const Duration(minutes: 3));
+        } catch (error) {
+          commonPrint.log(
+            'staged update could not be applied on exit: ${compactError(error)}',
+            logLevel: LogLevel.warning,
+          );
+        }
+      },
+      cleanup: () => cleanupExitResources(needSave),
+    );
   }
 
   @protected

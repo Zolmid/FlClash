@@ -55,3 +55,4 @@ export 'backup_file_name.dart';
 export 'app_update.dart';
 export 'app_update_client.dart';
 export 'app_installer.dart';
+export 'app_update_status.dart';

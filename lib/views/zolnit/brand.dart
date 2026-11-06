@@ -66,20 +66,17 @@ class ZolnitBrandRegion extends StatelessWidget {
             const Spacer(),
             const _OrbitArt(),
             const Spacer(),
-            Row(
+            Wrap(
+              spacing: 24,
+              runSpacing: 12,
               children: [
-                Expanded(
-                  child: _FeatureItem(
-                    glyph: AppGlyphs.proxies,
-                    title: text.zolnitGlobalRoutes,
-                  ),
+                _FeatureItem(
+                  glyph: AppGlyphs.proxies,
+                  title: text.zolnitGlobalRoutes,
                 ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: _FeatureItem(
-                    glyph: AppGlyphs.devices,
-                    title: text.zolnitEveryScreen,
-                  ),
+                _FeatureItem(
+                  glyph: AppGlyphs.devices,
+                  title: text.zolnitEveryScreen,
                 ),
               ],
             ),
@@ -116,6 +113,7 @@ class _FeatureItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         GlyphIcon(glyph, size: 18, color: _BrandColors.muted),
         const SizedBox(width: 8),
@@ -125,8 +123,6 @@ class _FeatureItem extends StatelessWidget {
             style: AppTextStyle.footnote
                 .of(context, emphasized: true)
                 .copyWith(color: _BrandColors.ink),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

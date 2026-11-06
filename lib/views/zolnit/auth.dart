@@ -15,6 +15,7 @@ class ZolnitLoginPage extends StatefulWidget {
     required this.openWebsite,
     this.openRegistration,
     this.openRecovery,
+    this.banner,
   });
 
   final ZolnitSessionController session;
@@ -22,6 +23,7 @@ class ZolnitLoginPage extends StatefulWidget {
   final VoidCallback openWebsite;
   final VoidCallback? openRegistration;
   final VoidCallback? openRecovery;
+  final Widget? banner;
 
   @override
   State<ZolnitLoginPage> createState() => _ZolnitLoginPageState();
@@ -105,152 +107,169 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
                     ),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 420),
-                      child: ZolnitCard(
-                        padding: EdgeInsets.all(skin.desktop ? 30 : 20),
-                        child: AutofillGroup(
-                          onDisposeAction: AutofillContextAction.cancel,
-                          child: Form(
-                            key: _form,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (!wide) ...[
-                                  Align(
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: ZolnitBrand(
-                                      width: skin.desktop ? 227 : 180,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 28),
-                                ],
-                                Text(
-                                  text.zolnitLoginEyebrow.toUpperCase(),
-                                  style: AppTextStyle.caption2
-                                      .of(context, emphasized: true)
-                                      .copyWith(
-                                        color: colors.accent,
-                                        letterSpacing: 1.4,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ?widget.banner,
+                          ZolnitCard(
+                            padding: EdgeInsets.all(skin.desktop ? 30 : 20),
+                            child: AutofillGroup(
+                              onDisposeAction: AutofillContextAction.cancel,
+                              child: Form(
+                                key: _form,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (!wide) ...[
+                                      Align(
+                                        alignment:
+                                            AlignmentDirectional.centerStart,
+                                        child: ZolnitBrand(
+                                          width: skin.desktop ? 227 : 180,
+                                        ),
                                       ),
-                                ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  text.zolnitWelcome,
-                                  style:
-                                      (skin.desktop
-                                              ? AppTextStyle.title1
-                                              : AppTextStyle.largeTitle)
-                                          .of(context, emphasized: true),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  text.zolnitLoginSubtitle,
-                                  style: AppTextStyle.footnote
-                                      .of(context)
-                                      .copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
+                                      const SizedBox(height: 28),
+                                      Text(
+                                        text.zolnitLoginEyebrow.toUpperCase(),
+                                        style: AppTextStyle.caption2
+                                            .of(context, emphasized: true)
+                                            .copyWith(
+                                              color: colors.accent,
+                                              letterSpacing: 1.4,
+                                            ),
                                       ),
-                                ),
-                                const SizedBox(height: 28),
-                                TextFormField(
-                                  key: const ValueKey('zolnit-email'),
-                                  controller: _email,
-                                  enabled: !busy,
-                                  autocorrect: false,
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.next,
-                                  autofillHints: const [AutofillHints.username],
-                                  onFieldSubmitted: (_) =>
-                                      _passwordFocus.requestFocus(),
-                                  decoration: InputDecoration(
-                                    labelText: text.zolnitEmail,
-                                  ),
-                                  validator: (value) =>
-                                      value?.trim().contains('@') == true
-                                      ? null
-                                      : text.zolnitCredentialsInvalid,
-                                ),
-                                const SizedBox(height: 16),
-                                SecretTextFormField(
-                                  key: const ValueKey('zolnit-password'),
-                                  controller: _password,
-                                  focusNode: _passwordFocus,
-                                  enabled: !busy,
-                                  textInputAction: TextInputAction.done,
-                                  autofillHints: const [AutofillHints.password],
-                                  decoration: InputDecoration(
-                                    labelText: text.password,
-                                  ),
-                                  validator: (value) =>
-                                      (value?.length ?? 0) >= 8
-                                      ? null
-                                      : text.zolnitCredentialsInvalid,
-                                  onFieldSubmitted: (_) => _login(),
-                                ),
-                                Align(
-                                  alignment: AlignmentDirectional.centerEnd,
-                                  child: TextButton(
-                                    onPressed:
-                                        widget.openRecovery ??
-                                        widget.openWebsite,
-                                    child: Text(text.zolnitForgotPassword),
-                                  ),
-                                ),
-                                ZolnitFailureMessage(
-                                  code:
-                                      session.failure == 'unauthenticated' &&
-                                          session.restoreState !=
-                                              ZolnitRestoreState.expired
-                                      ? 'invalid_credentials'
-                                      : session.failure,
-                                  serverMessage: session.failureMessage,
-                                ),
-                                if (session.restoreState ==
-                                    ZolnitRestoreState.offline)
-                                  Align(
-                                    alignment: AlignmentDirectional.centerEnd,
-                                    child: TextButton(
-                                      onPressed: busy ? null : _restore,
-                                      child: Text(text.retry),
+                                      const SizedBox(height: 14),
+                                    ],
+                                    Text(
+                                      text.zolnitWelcome,
+                                      style:
+                                          (skin.desktop
+                                                  ? AppTextStyle.title1
+                                                  : AppTextStyle.largeTitle)
+                                              .of(context, emphasized: true),
                                     ),
-                                  ),
-                                const SizedBox(height: 16),
-                                FilledButton(
-                                  key: const ValueKey('zolnit-sign-in'),
-                                  onPressed: busy ? null : _login,
-                                  child: busy
-                                      ? const SizedBox.square(
-                                          dimension: 20,
-                                          child: CommonCircleLoading(size: 20),
-                                        )
-                                      : Text(text.zolnitSignIn),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      text.zolnitLoginSubtitle,
+                                      style: AppTextStyle.footnote
+                                          .of(context)
+                                          .copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 28),
+                                    TextFormField(
+                                      key: const ValueKey('zolnit-email'),
+                                      controller: _email,
+                                      enabled: !busy,
+                                      autocorrect: false,
+                                      keyboardType: TextInputType.emailAddress,
+                                      textInputAction: TextInputAction.next,
+                                      autofillHints: const [
+                                        AutofillHints.username,
+                                      ],
+                                      onFieldSubmitted: (_) =>
+                                          _passwordFocus.requestFocus(),
+                                      decoration: InputDecoration(
+                                        labelText: text.zolnitEmail,
+                                      ),
+                                      validator: (value) =>
+                                          value?.trim().contains('@') == true
+                                          ? null
+                                          : text.zolnitEmailInvalid,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SecretTextFormField(
+                                      key: const ValueKey('zolnit-password'),
+                                      controller: _password,
+                                      focusNode: _passwordFocus,
+                                      enabled: !busy,
+                                      textInputAction: TextInputAction.done,
+                                      autofillHints: const [
+                                        AutofillHints.password,
+                                      ],
+                                      decoration: InputDecoration(
+                                        labelText: text.password,
+                                      ),
+                                      validator: (value) =>
+                                          (value?.length ?? 0) >= 8
+                                          ? null
+                                          : text.zolnitPasswordTooShort,
+                                      onFieldSubmitted: (_) => _login(),
+                                    ),
+                                    Align(
+                                      alignment: AlignmentDirectional.centerEnd,
+                                      child: TextButton(
+                                        onPressed:
+                                            widget.openRecovery ??
+                                            widget.openWebsite,
+                                        child: Text(text.zolnitForgotPassword),
+                                      ),
+                                    ),
+                                    ZolnitFailureMessage(
+                                      code:
+                                          session.failure ==
+                                                  'unauthenticated' &&
+                                              session.restoreState !=
+                                                  ZolnitRestoreState.expired
+                                          ? 'invalid_credentials'
+                                          : session.failure,
+                                      serverMessage: session.failureMessage,
+                                    ),
+                                    if (session.restoreState ==
+                                        ZolnitRestoreState.offline)
+                                      Align(
+                                        alignment:
+                                            AlignmentDirectional.centerEnd,
+                                        child: TextButton(
+                                          onPressed: busy ? null : _restore,
+                                          child: Text(text.retry),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 16),
+                                    FilledButton(
+                                      key: const ValueKey('zolnit-sign-in'),
+                                      onPressed: busy ? null : _login,
+                                      child: busy
+                                          ? const SizedBox.square(
+                                              dimension: 20,
+                                              child: CommonCircleLoading(
+                                                size: 20,
+                                              ),
+                                            )
+                                          : Text(text.zolnitSignIn),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Center(
+                                      child: TextButton(
+                                        onPressed:
+                                            widget.openRegistration ??
+                                            widget.openWebsite,
+                                        child: Text(text.zolnitRegister),
+                                      ),
+                                    ),
+                                    Text(
+                                      text.zolnitRegistrationWebsiteHint,
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyle.caption1
+                                          .of(context)
+                                          .copyWith(color: colors.muted),
+                                    ),
+                                    TextButton(
+                                      onPressed: widget.openWebsite,
+                                      child: Text(text.zolnitWebsite),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                Center(
-                                  child: TextButton(
-                                    onPressed:
-                                        widget.openRegistration ??
-                                        widget.openWebsite,
-                                    child: Text(text.zolnitRegister),
-                                  ),
-                                ),
-                                Text(
-                                  text.zolnitRegistrationWebsiteHint,
-                                  textAlign: TextAlign.center,
-                                  style: AppTextStyle.caption1
-                                      .of(context)
-                                      .copyWith(color: colors.muted),
-                                ),
-                                TextButton(
-                                  onPressed: widget.openWebsite,
-                                  child: Text(text.zolnitWebsite),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ),

@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/system.dart';
+import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
 
 enum ZolnitLayout {
@@ -186,6 +187,93 @@ class ZolnitColors {
   final bool isDark;
 
   Color line([double alpha = 0.13]) => ink.withValues(alpha: alpha);
+
+  Color get onAccent => isDark ? paper : const Color(0xffffffff);
+
+  Color get disabledFill => soft;
+
+  /// The brand on Material's roles at the levels of `.agents/surfaces.md`.
+  ColorScheme scheme(ColorScheme base) {
+    Color mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
+    final other = isDark ? light : dark;
+    return base.copyWith(
+      primary: accent,
+      onPrimary: onAccent,
+      primaryContainer: blue,
+      onPrimaryContainer: ink,
+      secondary: muted,
+      onSecondary: onAccent,
+      secondaryContainer: blue,
+      onSecondaryContainer: ink,
+      tertiary: accentStrong,
+      onTertiary: onAccent,
+      tertiaryContainer: lavender,
+      onTertiaryContainer: ink,
+      surface: isDark ? paper : solid,
+      surfaceDim: isDark ? mix(paper, const Color(0xff000000), 0.2) : paper,
+      surfaceBright: isDark ? soft : solid,
+      surfaceContainerLowest: isDark
+          ? mix(paper, const Color(0xff000000), 0.2)
+          : solid,
+      surfaceContainerLow: mix(paper, solid, 0.5),
+      surfaceContainer: isDark ? solid : paper,
+      surfaceContainerHigh: soft,
+      surfaceContainerHighest: mix(soft, ink, 0.08),
+      onSurface: ink,
+      onSurfaceVariant: muted,
+      outline: mix(muted, paper, 0.3),
+      outlineVariant: Color.alphaBlend(line(0.14), paper),
+      inverseSurface: ink,
+      onInverseSurface: paper,
+      inversePrimary: other.accent,
+      surfaceTint: const Color(0x00000000),
+    );
+  }
+
+  ThemeData theme(ThemeData base) {
+    final colors = scheme(base.colorScheme);
+    final disabled = ButtonStyle(
+      backgroundColor: WidgetStateProperty.fromMap({
+        WidgetState.disabled: disabledFill,
+      }),
+      foregroundColor: WidgetStateProperty.fromMap({
+        WidgetState.disabled: muted,
+      }),
+    );
+    final themed = base.copyWith(
+      colorScheme: colors,
+      canvasColor: paper,
+      cardColor: solid,
+      hintColor: muted,
+      disabledColor: muted,
+      unselectedWidgetColor: muted,
+      dividerColor: line(0.14),
+      focusColor: ink.withValues(alpha: 0.1),
+      hoverColor: ink.withValues(alpha: 0.05),
+      highlightColor: ink.withValues(alpha: 0.06),
+      splashColor: ink.withValues(alpha: 0.08),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: accent,
+        selectionColor: accent.withValues(alpha: 0.3),
+        selectionHandleColor: accent,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: disabled.merge(base.filledButtonTheme.style),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.fromMap({
+            WidgetState.disabled: muted,
+          }),
+        ).merge(base.textButtonTheme.style),
+      ),
+      extensions: [
+        ...base.extensions.values.where((e) => e is! ElevatedColorScheme),
+        if (isDark) ElevatedColorScheme(colors.elevated),
+      ],
+    );
+    return themed.withAppSurfaces.copyWith(scaffoldBackgroundColor: paper);
+  }
 
   static ZolnitColors of(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? dark : light;

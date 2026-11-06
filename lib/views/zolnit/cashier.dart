@@ -9,6 +9,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 
 import 'brand.dart';
 import 'data.dart';
+import 'motion.dart';
 import 'skin.dart';
 import 'kit.dart';
 
@@ -65,21 +66,14 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
     setState(() => _cancelling = true);
     final text = context.appLocalizations;
     try {
-      final approved = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(text.zolnitCancelOrder),
-          content: Text(text.zolnitCancelOrderTip),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(text.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(text.confirm),
-            ),
-          ],
+      final approved = await showZolnitDialog<bool>(
+        context,
+        (_) => ZolnitAlert(
+          title: text.zolnitCancelOrder,
+          message: text.zolnitCancelOrderTip,
+          cancelLabel: text.zolnitNotNow,
+          confirmLabel: text.zolnitCancelOrder,
+          destructive: true,
         ),
       );
       if (approved == true) {

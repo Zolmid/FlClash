@@ -1,14 +1,41 @@
 part of '../action.dart';
 
+const appUpdateDiscoveryInterval = Duration(hours: 12);
+
 @Riverpod(keepAlive: true)
 class CommonAction extends _$CommonAction {
   CoreController get _core => ref.read(coreHandlerProvider);
   bool _isUpdatingTraffic = false;
   Future<void>? _appUpdateOperation;
+  Future<void>? _appUpdateCheckOperation;
+  File? _stagedUpdate;
+  CancelToken? _stagingCancelToken;
+  bool _restartFailureDetected = false;
+  Timer? _updateDiscoveryTimer;
+  bool _realtimeUpdateHintsHealthy = false;
+  ReleaseManifest? _pendingUpdateHint;
+  DateTime? _lastUpdateDiscovery;
+
+  void _setUpdateStatus(AppUpdateStatus value) =>
+      ref.read(appUpdateStatusProvider.notifier).set(value);
 
   @override
   void build() {
     appUpdateClient.attach(ref.read);
+    ref.onDispose(() => _updateDiscoveryTimer?.cancel());
+    ref.listen(appVisibleProvider, (_, visible) {
+      if (visible &&
+          _updateDiscoveryTimer != null &&
+          !_realtimeUpdateHintsHealthy) {
+        unawaited(checkForAppUpdate());
+      }
+    });
+  }
+
+  void startUpdateDiscovery() {
+    _updateDiscoveryTimer ??= Timer.periodic(appUpdateDiscoveryInterval, (_) {
+      if (!_realtimeUpdateHintsHealthy) unawaited(checkForAppUpdate());
+    });
   }
 
   void toggleRunning() {
@@ -76,24 +103,236 @@ class CommonAction extends _$CommonAction {
     }
   }
 
-  Future<bool> autoCheckUpdate() async {
-    if (system.isIOS) return false;
-    if (!ref.read(appSettingProvider).autoCheckUpdate) return false;
-    final ReleaseManifest? res;
+  Future<bool> autoCheckUpdate() => checkForAppUpdate();
+
+  Future<void> restoreAppUpdateResult() async {
+    final String? failedTag;
     try {
-      res = await appUpdateClient.checkForUpdate(
+      failedTag = await appInstaller.consumeRestartFailure(
+        globalState.packageInfo.version,
+      );
+    } catch (error) {
+      commonPrint.log(
+        'unable to read the previous update result: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      if (!ref.mounted) return;
+      _restartFailureDetected = true;
+      _setUpdateStatus(
+        AppUpdateStatus(phase: AppUpdatePhase.failed, failure: error),
+      );
+      return;
+    }
+    if (failedTag == null || !ref.mounted) return;
+    _restartFailureDetected = true;
+    _setUpdateStatus(
+      AppUpdateStatus(
+        phase: AppUpdatePhase.failed,
+        release: failedTag == 'unknown'
+            ? null
+            : ReleaseManifest(tag: failedTag, notes: ''),
+        failure: StateError(
+          'The previous update did not start the new version',
+        ),
+      ),
+    );
+  }
+
+  /// Re-checks the first-party manifest after a server hint. The hint never
+  /// supplies a URL, checksum, or package to trust.
+  Future<bool> notifyAppUpdateHint({String? version}) {
+    final validVersion =
+        version != null &&
+        RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version) &&
+        version.length <= 32;
+    if (validVersion) {
+      _pendingUpdateHint = ReleaseManifest(tag: 'v$version', notes: '');
+    }
+    return checkForAppUpdate(force: true);
+  }
+
+  void setAppUpdateRealtimeHintsHealthy(bool healthy) {
+    _realtimeUpdateHintsHealthy = healthy;
+    if (!healthy) unawaited(checkForAppUpdate());
+  }
+
+  void cancelAppUpdateStaging() => _stagingCancelToken?.cancel();
+
+  Future<bool> checkForAppUpdate({bool isUser = false, bool force = false}) {
+    if (!isUser && !force && !_updateDiscoveryDue) {
+      return Future<bool>.value(_hasStagedOrAnnouncement);
+    }
+    final active = _appUpdateCheckOperation;
+    if (active != null) return active.then((_) => _hasStagedOrAnnouncement);
+    late final Future<void> operation;
+    _lastUpdateDiscovery = DateTime.now();
+    operation = _checkForAppUpdate(isUser: isUser).whenComplete(() {
+      if (identical(_appUpdateCheckOperation, operation)) {
+        _appUpdateCheckOperation = null;
+      }
+    });
+    _appUpdateCheckOperation = operation;
+    return operation.then((_) => _hasStagedOrAnnouncement);
+  }
+
+  bool get _hasStagedOrAnnouncement =>
+      switch (ref.read(appUpdateStatusProvider).phase) {
+        AppUpdatePhase.announcement || AppUpdatePhase.staged => true,
+        _ => false,
+      };
+
+  bool get _updateDiscoveryDue {
+    final last = _lastUpdateDiscovery;
+    return last == null ||
+        DateTime.now().difference(last) >= appUpdateDiscoveryInterval;
+  }
+
+  Future<void> _checkForAppUpdate({required bool isUser}) async {
+    final previousStatus = ref.read(appUpdateStatusProvider);
+    if (!isUser && !ref.read(appSettingProvider).autoCheckUpdate) return;
+    if (!isUser && _restartFailureDetected) return;
+    if (isUser) _restartFailureDetected = false;
+    _setUpdateStatus(const AppUpdateStatus(phase: AppUpdatePhase.checking));
+    final UpdateTarget target;
+    try {
+      target = await detectAppUpdateTarget();
+    } catch (error) {
+      commonPrint.log(
+        'update target detection failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      _setUpdateStatus(
+        AppUpdateStatus(phase: AppUpdatePhase.failed, failure: error),
+      );
+      return;
+    }
+    final ReleaseManifest? release;
+    try {
+      release = await appUpdateClient.latestRelease(
         currentVersion: globalState.packageInfo.version,
-        target: await detectAppUpdateTarget(),
+        target: target == UpdateTarget.unsupported && isUser ? null : target,
       );
     } catch (error) {
       commonPrint.log(
         'checkForUpdate failed: ${compactError(error)}',
         logLevel: LogLevel.warning,
       );
+      _setUpdateStatus(
+        AppUpdateStatus(phase: AppUpdatePhase.failed, failure: error),
+      );
+      return;
+    }
+    if (release == null) {
+      final hint = _pendingUpdateHint;
+      if (hint != null && _isNewerHint(hint)) {
+        _setUpdateStatus(
+          AppUpdateStatus(phase: AppUpdatePhase.announcement, release: hint),
+        );
+      } else {
+        _setUpdateStatus(const AppUpdateStatus());
+      }
+      return;
+    }
+    final comparison = compareVersions(
+      release.tag,
+      globalState.packageInfo.version,
+    );
+    if (comparison <= 0) {
+      final hint = _pendingUpdateHint;
+      _setUpdateStatus(
+        hint != null && _isNewerHint(hint)
+            ? AppUpdateStatus(phase: AppUpdatePhase.announcement, release: hint)
+            : const AppUpdateStatus(),
+      );
+      return;
+    }
+    final plan = await _planAppUpdate(release);
+    if (plan == null || !canStageAppUpdate(plan)) {
+      _setUpdateStatus(
+        AppUpdateStatus(
+          phase: AppUpdatePhase.announcement,
+          release: release,
+          plan: plan,
+        ),
+      );
+      return;
+    }
+    if (previousStatus.phase == AppUpdatePhase.staged &&
+        _sameUpdatePlan(previousStatus.plan, plan) &&
+        _stagedUpdate != null) {
+      _setUpdateStatus(previousStatus);
+      return;
+    }
+    _setUpdateStatus(
+      AppUpdateStatus(
+        phase: AppUpdatePhase.staging,
+        release: release,
+        plan: plan,
+      ),
+    );
+    final cancelToken = CancelToken();
+    _stagingCancelToken = cancelToken;
+    try {
+      final staged = await appInstaller.download(
+        plan,
+        cancelToken: cancelToken,
+      );
+      if (!ref.mounted) return;
+      _stagedUpdate = staged;
+      _setUpdateStatus(
+        AppUpdateStatus(
+          phase: AppUpdatePhase.staged,
+          release: release,
+          plan: plan,
+        ),
+      );
+    } catch (error) {
+      if (error is DioException && error.type == DioExceptionType.cancel) {
+        if (ref.mounted) {
+          _setUpdateStatus(
+            AppUpdateStatus(
+              phase: AppUpdatePhase.announcement,
+              release: release,
+              plan: plan,
+            ),
+          );
+        }
+        return;
+      }
+      commonPrint.log(
+        'update staging failed: ${compactError(error)}',
+        logLevel: LogLevel.warning,
+      );
+      if (ref.mounted) {
+        _setUpdateStatus(
+          AppUpdateStatus(
+            phase: AppUpdatePhase.failed,
+            release: release,
+            plan: plan,
+            failure: error,
+          ),
+        );
+      }
+    } finally {
+      if (identical(_stagingCancelToken, cancelToken)) {
+        _stagingCancelToken = null;
+      }
+    }
+  }
+
+  bool _sameUpdatePlan(AppUpdatePlan? left, AppUpdatePlan right) =>
+      left != null &&
+      left.target == right.target &&
+      left.asset.url == right.asset.url &&
+      left.asset.sha256 == right.asset.sha256 &&
+      left.asset.size == right.asset.size;
+
+  bool _isNewerHint(ReleaseManifest hint) {
+    try {
+      return compareVersions(hint.tag, globalState.packageInfo.version) > 0;
+    } on FormatException {
       return false;
     }
-    await checkUpdateResultHandle(data: res);
-    return res != null;
   }
 
   TextSpan _releaseSpan(BuildContext context, String tagName, String? body) {
@@ -248,18 +487,96 @@ class CommonAction extends _$CommonAction {
     if (file == null) {
       return;
     }
+    await _installWithRestartJournal(plan, file, exitAfterInstall: true);
+  }
+
+  Future<void> applyStagedAppUpdate() =>
+      _applyStagedAppUpdate(allowRestart: false);
+
+  /// Called only from the normal application exit path. It never stops the
+  /// Core or VPN; the existing exit coordinator performs that work afterwards.
+  Future<void> applyStagedAppUpdateOnExit() =>
+      _applyStagedAppUpdate(allowRestart: true);
+
+  Future<void> _applyStagedAppUpdate({required bool allowRestart}) async {
+    final status = ref.read(appUpdateStatusProvider);
+    final plan = status.plan;
+    final file = _stagedUpdate;
+    if (status.phase != AppUpdatePhase.staged || plan == null || file == null) {
+      return;
+    }
+    if (!canApplyStagedAppUpdate(plan, allowRestart: allowRestart)) {
+      return;
+    }
+    _setUpdateStatus(
+      AppUpdateStatus(
+        phase: AppUpdatePhase.applying,
+        release: status.release,
+        plan: plan,
+      ),
+    );
+    try {
+      await _installWithRestartJournal(
+        plan,
+        file,
+        exitAfterInstall: false,
+        markRestart: allowRestart,
+      );
+    } catch (error) {
+      if (ref.mounted) {
+        _setUpdateStatus(
+          AppUpdateStatus(
+            phase: AppUpdatePhase.failed,
+            release: status.release,
+            plan: plan,
+            failure: error,
+          ),
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _installWithRestartJournal(
+    AppUpdatePlan plan,
+    File file, {
+    required bool exitAfterInstall,
+    bool markRestart = true,
+  }) async {
+    final restart = appUpdateApplyModeFor(plan) == AppUpdateApplyMode.onRestart;
+    if (restart && markRestart) await appInstaller.markRestartPending(plan);
+    try {
+      await _installDownloadedAppUpdate(
+        plan,
+        file,
+        exitAfterInstall: exitAfterInstall,
+      );
+    } catch (_) {
+      if (restart && markRestart) await appInstaller.clearRestartPending();
+      rethrow;
+    }
+  }
+
+  Future<void> _installDownloadedAppUpdate(
+    AppUpdatePlan plan,
+    File file, {
+    required bool exitAfterInstall,
+  }) async {
     final package = plan.target.package;
     switch (package) {
       case UpdatePackage.windowsInstaller:
-        await appInstaller.startWindowsInstaller(file);
-        await _exitForUpdate();
+        await appInstaller.startWindowsInstaller(
+          file,
+          relaunch: exitAfterInstall,
+        );
+        if (exitAfterInstall) await _exitForUpdate();
       case UpdatePackage.macosDmg:
-        await appInstaller.startMacosInstall(file);
-        await _exitForUpdate();
+        await appInstaller.startMacosInstall(file, relaunch: exitAfterInstall);
+        if (exitAfterInstall) await _exitForUpdate();
       case UpdatePackage.linuxAppImage:
         await appInstaller.replaceAppImage(file);
-        await appInstaller.startAppImageRelaunch();
-        await _exitForUpdate();
+        if (exitAfterInstall) await appInstaller.startAppImageRelaunch();
+        if (exitAfterInstall) await _exitForUpdate();
       case UpdatePackage.androidApk:
         await _installApk(file);
       case UpdatePackage.linuxDeb ||
@@ -267,7 +584,7 @@ class CommonAction extends _$CommonAction {
           UpdatePackage.linuxPacman:
         if (await installPackageUpdate(plan, file)) {
           await appInstaller.startRelaunch();
-          await _exitForUpdate();
+          if (exitAfterInstall) await _exitForUpdate();
         }
       case UpdatePackage.windowsPortable ||
           UpdatePackage.linuxPortable ||

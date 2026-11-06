@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/common/app_localizations.dart';
@@ -57,6 +58,7 @@ void main() {
 
   late ProviderContainer container;
   late List<String> windowCalls;
+  late List<String> trayCalls;
 
   setUpAll(() async {
     await AppLocalizations.load(const Locale('en'));
@@ -66,9 +68,13 @@ void main() {
     _RecordingSystemAction.updateTrayCount = 0;
     _RecordingSystemAction.updateTrayLocales.clear();
     windowCalls = <String>[];
+    trayCalls = <String>[];
     Tray.instance.resetForTesting();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_trayChannel, (call) async => true);
+        .setMockMethodCallHandler(_trayChannel, (call) async {
+          trayCalls.add(call.method);
+          return true;
+        });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_windowChannel, (call) async {
           windowCalls.add(call.method);
@@ -144,18 +150,44 @@ void main() {
     expect(find.byType(SizedBox), findsOneWidget);
   });
 
-  testWidgets('activating the icon brings the window back', (tester) async {
-    await pumpTrayManager(tester);
-    windowCalls.clear();
+  testWidgets(
+    'activating the icon uses the platform tray action',
+    (tester) async {
+      await pumpTrayManager(tester);
+      if (Platform.isMacOS) {
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMessageHandler(
+          'flutter/assets',
+          (_) async => ByteData(1),
+        );
+        await tester.runAsync(() async {
+          Tray.instance.resetForTesting();
+          await Tray.instance.show(
+            const TraySpec(icon: TrayIcon.asset('assets/images/icon.png')),
+          );
+        });
+        messenger.setMockMessageHandler('flutter/assets', null);
+        expect(Tray.instance.isVisible, isTrue);
+        trayCalls.clear();
+      }
+      windowCalls.clear();
 
-    await emitTrayEvent('onIconActivated');
-    await tester.pumpAndSettle();
-    // A macOS host arms the Dock settle timer on show; drain it so the binding
-    // ends the test with no pending timer.
-    await tester.pump(const Duration(seconds: 1));
-
-    expect(windowCalls, containsAll(<String>['show', 'focus']));
-  });
+      await emitTrayEvent('onIconActivated');
+      await tester.pumpAndSettle();
+      if (Platform.isMacOS) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump();
+        expect(trayCalls, contains('openMenu'));
+        expect(windowCalls, isEmpty);
+      } else {
+        expect(windowCalls, containsAll(<String>['show', 'focus']));
+      }
+    },
+    variant: TargetPlatformVariant.only(
+      Platform.isMacOS ? TargetPlatform.macOS : TargetPlatform.windows,
+    ),
+  );
 
   testWidgets('a menu request is forwarded to the tray', (tester) async {
     await pumpTrayManager(tester);

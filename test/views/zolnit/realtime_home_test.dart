@@ -38,15 +38,34 @@ class _Wire implements ZolnitRealtimeSocket {
   }
 }
 
+class _Updater extends CommonAction {
+  final hints = <String?>[];
+  final health = <bool>[];
+
+  @override
+  void build() {}
+
+  @override
+  Future<bool> notifyAppUpdateHint({String? version}) async {
+    hints.add(version);
+    return false;
+  }
+
+  @override
+  void setAppUpdateRealtimeHintsHealthy(bool healthy) => health.add(healthy);
+}
+
 void main() {
   late _Wire wire;
   late DateTime now;
+  late _Updater updater;
   final h = ZolnitHarness.register(
     clientPlatform: 'android',
     distribution: 'direct',
     overrides: [
       zolnitRealtimeConnectorProvider.overrideWithValue((_) async => wire),
       zolnitBundleClockProvider.overrideWithValue(() => now),
+      commonActionProvider.overrideWith(() => updater = _Updater()),
     ],
   );
   setUp(() {
@@ -161,7 +180,7 @@ void main() {
       await h.mount(tester, ZolnitSkin.android);
       await tester.pumpAndSettle();
       expect(find.text('Fixture popup'), findsOneWidget);
-      await tester.tap(find.text('确定').last);
+      await tester.tap(find.text('知道了').last);
       await tester.pumpAndSettle();
       wire.receive({'op': 'event', ...note, 'seq': 1});
       wire.receive({'op': 'ready'});
@@ -196,6 +215,11 @@ void main() {
         items.any((e) => e.body == 'Build 200' || e.body == 'Build 202'),
         isFalse,
       );
+      expect(updater.hints, ['1.1.0']);
+      expect(updater.health.first, isTrue);
+      for (var i = 1; i < updater.health.length; i++) {
+        expect(updater.health[i], isNot(updater.health[i - 1]));
+      }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },

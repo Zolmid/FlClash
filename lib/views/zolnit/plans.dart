@@ -10,6 +10,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 import 'brand.dart';
 import 'data.dart';
 import 'kit.dart';
+import 'motion.dart';
 import 'skin.dart';
 import 'apple_plans.dart';
 
@@ -312,17 +313,17 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
     final text = context.appLocalizations;
     final session = widget.session;
     final generation = session.api.generation;
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(text.zolnitBuy),
+    final approved = await showZolnitDialog<bool>(
+      context,
+      (context) => ZolnitAlert(
+        title: '${plan.name} · ${zolnitMoney(plan.prices[period])}',
+        cancelLabel: text.cancel,
+        confirmLabel: text.zolnitBuy,
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${plan.name} · ${zolnitMoney(plan.prices[period])}'),
-              const SizedBox(height: 8),
               Text(
                 '${_periodLabel(context, period)} · ${text.zolnitManualPayment}',
               ),
@@ -333,16 +334,6 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(text.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(text.confirm),
-          ),
-        ],
       ),
     );
     if (approved != true || !mounted || session.api.generation != generation) {

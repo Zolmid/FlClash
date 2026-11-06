@@ -53,6 +53,20 @@ class _PersistenceSystemAction extends SystemAction {
   Future<void> persist() => savePreferences();
 }
 
+class _StagedUpdateAction extends CommonAction {
+  _StagedUpdateAction(this.calls, {this.failure});
+
+  final List<String> calls;
+  final Error? failure;
+
+  @override
+  Future<void> applyStagedAppUpdateOnExit() async {
+    calls.add('staged-update');
+    final error = failure;
+    if (error != null) throw error;
+  }
+}
+
 class _GeometryWindowPort implements WindowPort {
   final WindowProps geometry;
   final Error? error;
@@ -250,6 +264,57 @@ void main() {
       await expectLater(notifier().handleExit(), throwsStateError);
 
       expect(action.calls, ['cleanup', 'window', 'core', 'exit']);
+    });
+
+    test(
+      'applies a staged update before normal shutdown without blocking exit',
+      () async {
+        final updates = <String>[];
+        final stagedSystem = TestSystemAction();
+        final scoped = ProviderContainer(
+          overrides: [
+            systemActionProvider.overrideWith(() => stagedSystem),
+            commonActionProvider.overrideWith(
+              () => _StagedUpdateAction(updates),
+            ),
+          ],
+        );
+        addTearDown(() {
+          scoped.dispose();
+          globalState.container = container;
+        });
+        globalState.container = scoped;
+        scoped.read(systemActionProvider.notifier);
+
+        await scoped.read(systemActionProvider.notifier).handleExit();
+
+        expect(updates, ['staged-update']);
+        expect(stagedSystem.calls, ['cleanup', 'window', 'core', 'exit']);
+      },
+    );
+
+    test('a staged update failure still permits normal shutdown', () async {
+      final updates = <String>[];
+      final stagedSystem = TestSystemAction();
+      final scoped = ProviderContainer(
+        overrides: [
+          systemActionProvider.overrideWith(() => stagedSystem),
+          commonActionProvider.overrideWith(
+            () => _StagedUpdateAction(updates, failure: StateError('failed')),
+          ),
+        ],
+      );
+      addTearDown(() {
+        scoped.dispose();
+        globalState.container = container;
+      });
+      globalState.container = scoped;
+      scoped.read(systemActionProvider.notifier);
+
+      await scoped.read(systemActionProvider.notifier).handleExit();
+
+      expect(updates, ['staged-update']);
+      expect(stagedSystem.calls, ['cleanup', 'window', 'core', 'exit']);
     });
   });
 

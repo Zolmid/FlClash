@@ -544,7 +544,7 @@ void main() {
     await tester.tap(find.text('All servers').first);
     await tester.pumpAndSettle();
     expect(
-      find.text('Connection configuration is temporarily unavailable.'),
+      find.text("Connection settings couldn't be loaded. Try again shortly."),
       findsWidgets,
     );
     expect(
@@ -615,7 +615,7 @@ void main() {
         requests.where((request) => request.url.path.endsWith('/order/save')),
         isEmpty,
       );
-      await tester.tap(find.text('Confirm'));
+      await tester.tap(find.text('Create order').last);
       await tester.pumpAndSettle();
       final request = requests.singleWhere(
         (request) => request.url.path.endsWith('/order/save'),
@@ -638,7 +638,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('选择套餐').first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('确定').last);
+      await tester.tap(find.text('创建订单').last);
       await tester.pumpAndSettle();
       expect(find.byType(ZolnitCashierPage), findsOneWidget);
       expect(find.text('收银台'), findsOneWidget);
@@ -675,7 +675,7 @@ void main() {
       await tester.tap(find.text('Cancel automatic renewal'));
       await tester.pumpAndSettle();
       expect(requests.where((r) => r.url.path.endsWith('/cancel')), isEmpty);
-      await tester.tap(find.text('Confirm'));
+      await tester.tap(find.text('Cancel automatic renewal').last);
       await tester.pumpAndSettle();
       expect(
         requests.where((r) => r.url.path.endsWith('/subscriptions/1/cancel')),

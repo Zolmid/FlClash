@@ -258,7 +258,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(id) => "Login session #${id}";
 
-  static String m98(rate) => "${rate}× metering";
+  static String m98(rate) => "Data counts ${rate}×";
 
   static String m99(count) => "Servers: ${count}";
 
@@ -269,6 +269,13 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m102(node) => "Current route: ${node}";
 
   static String m103(percent) => "Save ${percent}%";
+
+  static String m104(version) => "ZolNit ${version} is available";
+
+  static String m105(version) =>
+      "The automatic update didn\'t finish. Download ZolNit ${version} from the website.";
+
+  static String m106(version) => "ZolNit ${version} is ready to install";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -2618,7 +2625,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Login password",
     ),
     "zolnitAccountPreferencesHint": MessageLookupByLibrary.simpleMessage(
-      "Connection settings",
+      "Startup, appearance and language",
     ),
     "zolnitAccountSubtitle": MessageLookupByLibrary.simpleMessage(
       "View account details and orders.",
@@ -2640,7 +2647,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Manage App Store subscriptions",
     ),
     "zolnitApplePending": MessageLookupByLibrary.simpleMessage(
-      "Waiting for App Store or server verification.",
+      "Confirming your App Store purchase. This can take a moment.",
     ),
     "zolnitAppleRestore": MessageLookupByLibrary.simpleMessage(
       "Restore App Store purchases",
@@ -2660,13 +2667,13 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitBilledOnce": m88,
     "zolnitBillingUnavailable": MessageLookupByLibrary.simpleMessage(
-      "Renewal details are temporarily unavailable.",
+      "Renewal details couldn\'t be loaded. Try again shortly.",
     ),
     "zolnitBundleAutomaticPending": MessageLookupByLibrary.simpleMessage(
       "Automatic routing is still being validated. Manual and direct choices are available.",
     ),
     "zolnitBundleExpired": MessageLookupByLibrary.simpleMessage(
-      "Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.",
+      "Automatic server choice is out of date. Refresh to update it; manual and direct choices remain available.",
     ),
     "zolnitBundleFetchHint": MessageLookupByLibrary.simpleMessage(
       "Fetch connection configuration",
@@ -2681,13 +2688,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "The VPN configuration could not be verified. Select Connect to fetch it again.",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.",
+      "No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "Could not refresh the connection configuration. Manual and direct choices remain available.",
     ),
     "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
-      "Connection configuration is temporarily unavailable.",
+      "Connection settings couldn\'t be loaded. Try again shortly.",
     ),
     "zolnitBuy": MessageLookupByLibrary.simpleMessage("Create order"),
     "zolnitCancelOrder": MessageLookupByLibrary.simpleMessage("Cancel order"),
@@ -2698,7 +2705,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Cancel automatic renewal",
     ),
     "zolnitCancelRenewalTip": MessageLookupByLibrary.simpleMessage(
-      "Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.",
+      "Future automatic charges stop. An unpaid first order is also canceled. Access you have paid for stays as ZolNit confirms it.",
     ),
     "zolnitCanceled": MessageLookupByLibrary.simpleMessage("Canceled"),
     "zolnitCashierTitle": MessageLookupByLibrary.simpleMessage("Checkout"),
@@ -2720,6 +2727,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Confirming payment",
     ),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("Connect"),
+    "zolnitConnectFailed": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t connect. Check your network and try again.",
+    ),
     "zolnitConnectHeadline": MessageLookupByLibrary.simpleMessage(
       "Ready to connect",
     ),
@@ -2740,9 +2750,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitCopyCode": MessageLookupByLibrary.simpleMessage("Copy code"),
     "zolnitCopyLink": MessageLookupByLibrary.simpleMessage("Copy link"),
-    "zolnitCredentialsInvalid": MessageLookupByLibrary.simpleMessage(
-      "Enter a valid email and a password of at least eight characters.",
-    ),
     "zolnitCredited": MessageLookupByLibrary.simpleMessage("Credited"),
     "zolnitCurrentBadge": MessageLookupByLibrary.simpleMessage("Current plan"),
     "zolnitCurrentPlanHint": m89,
@@ -2776,6 +2783,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Disconnecting…",
     ),
     "zolnitEmail": MessageLookupByLibrary.simpleMessage("Email"),
+    "zolnitEmailInvalid": MessageLookupByLibrary.simpleMessage(
+      "Enter a valid email address.",
+    ),
     "zolnitEveryScreen": MessageLookupByLibrary.simpleMessage(
       "Familiar on every screen",
     ),
@@ -2803,12 +2813,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitGlobalRoutes": MessageLookupByLibrary.simpleMessage(
       "Selected global routes",
     ),
+    "zolnitGotIt": MessageLookupByLibrary.simpleMessage("Got it"),
     "zolnitGreeting": m96,
     "zolnitGreetingSub": MessageLookupByLibrary.simpleMessage(
       "View your plan and available servers.",
     ),
     "zolnitHalfYearly": MessageLookupByLibrary.simpleMessage(
       "Every six months",
+    ),
+    "zolnitHelpLoadFailed": MessageLookupByLibrary.simpleMessage(
+      "Help couldn\'t load. Check your connection and try again.",
     ),
     "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage(
       "No help articles are available yet.",
@@ -2933,24 +2947,24 @@ class MessageLookup extends MessageLookupByLibrary {
       "Your available servers update automatically with your plan.",
     ),
     "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
-      "The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies.",
+      "This group picks its server automatically, so it can\'t be changed here. A default server you choose doesn\'t change the routes of AI, streaming or other services.",
     ),
     "zolnitNodesCount": m99,
     "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
-      "Checkmark: current group choice, not a live traffic indicator.",
+      "The check marks the selected server. It doesn\'t show live traffic.",
     ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Servers"),
     "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
-      "Checkmark: saved preference; connection is not active here.",
+      "The check marks your saved choice. It takes effect when you connect.",
     ),
     "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
       "Direct: traffic does not use the server selected here.",
     ),
     "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
-      "Global: rows choose the global group’s server. An automatic policy may choose its own server.",
+      "Global: all traffic uses the server chosen here. If the group picks automatically, it chooses the server itself.",
     ),
     "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
-      "Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.",
+      "Smart routing: the server chosen here carries traffic that no specific rule covers. AI, streaming and other services keep their own routes.",
     ),
     "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
       "Sorted by measured latency; untested last",
@@ -2961,6 +2975,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNotConnected": MessageLookupByLibrary.simpleMessage(
       "Not connected yet",
     ),
+    "zolnitNotNow": MessageLookupByLibrary.simpleMessage("Not now"),
     "zolnitNotices": MessageLookupByLibrary.simpleMessage("Notices"),
     "zolnitOldPassword": MessageLookupByLibrary.simpleMessage(
       "Current password",
@@ -2980,6 +2995,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitPaidThrough": MessageLookupByLibrary.simpleMessage("Paid through"),
     "zolnitPasswordInvalid": MessageLookupByLibrary.simpleMessage(
       "Enter your current password and a different new password of at least eight characters.",
+    ),
+    "zolnitPasswordTooShort": MessageLookupByLibrary.simpleMessage(
+      "Use at least 8 characters.",
     ),
     "zolnitPasswordUpdated": MessageLookupByLibrary.simpleMessage(
       "Password updated.",
@@ -3001,7 +3019,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Payment status",
     ),
     "zolnitPaymentUnavailable": MessageLookupByLibrary.simpleMessage(
-      "This payment option is not ready.",
+      "This payment method can\'t be used right now. Choose another method or try again later.",
     ),
     "zolnitPending": MessageLookupByLibrary.simpleMessage("Awaiting payment"),
     "zolnitPendingOrder": MessageLookupByLibrary.simpleMessage(
@@ -3019,14 +3037,11 @@ class MessageLookup extends MessageLookupByLibrary {
       "From everyday browsing to smooth streaming, pick the connection that fits you.",
     ),
     "zolnitPreferences": MessageLookupByLibrary.simpleMessage("Preferences"),
-    "zolnitPreferencesHeadline": MessageLookupByLibrary.simpleMessage(
-      "Settings",
-    ),
     "zolnitPreferencesSafeHint": MessageLookupByLibrary.simpleMessage(
       "Safe mode keeps your preferences but won\'t connect automatically or change system network settings.",
     ),
     "zolnitPreferencesSubtitle": MessageLookupByLibrary.simpleMessage(
-      "Manage startup and connection settings.",
+      "Startup, connection, appearance and language.",
     ),
     "zolnitProfileSource": MessageLookupByLibrary.simpleMessage(
       "Your servers update automatically from your account.",
@@ -3061,7 +3076,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Monthly billing is not available for this plan right now.",
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
-      "Reference total (CNY)",
+      "Reference total (RMB)",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Refresh"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Sign up"),
@@ -3135,12 +3150,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRevokeDeviceTip": MessageLookupByLibrary.simpleMessage(
       "Sign out of this session? It may be your current session. You will need to sign in again to use it.",
     ),
+    "zolnitRouteChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t switch the route. Try again.",
+    ),
     "zolnitRouteCurrent": m102,
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
       "Checking automatic routes. You can select a server below.",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
-      "Unavailable",
+      "No route available",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Smart routing options",
@@ -3165,7 +3183,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Last active",
     ),
     "zolnitSessionStorageUnavailable": MessageLookupByLibrary.simpleMessage(
-      "Saved sign-in information is temporarily unavailable. Please try again.",
+      "ZolNit couldn\'t use your system keychain to keep you signed in. Unlock the keychain (on Linux, the login keyring), then try again.",
     ),
     "zolnitSettlementTotal": MessageLookupByLibrary.simpleMessage(
       "Settlement total",
@@ -3184,6 +3202,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitStatusActive": MessageLookupByLibrary.simpleMessage("Active"),
     "zolnitStatusExpired": MessageLookupByLibrary.simpleMessage("Expired"),
     "zolnitStatusNoPlan": MessageLookupByLibrary.simpleMessage("No plan"),
+    "zolnitStatusUnconfirmed": MessageLookupByLibrary.simpleMessage(
+      "Status not confirmed",
+    ),
     "zolnitSubscribePlan": MessageLookupByLibrary.simpleMessage(
       "Choose a plan",
     ),
@@ -3216,6 +3237,18 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitTwoYearly": MessageLookupByLibrary.simpleMessage("Every two years"),
     "zolnitUnknownDevice": MessageLookupByLibrary.simpleMessage(
       "Login session",
+    ),
+    "zolnitUpdateAvailable": m104,
+    "zolnitUpdateInstall": MessageLookupByLibrary.simpleMessage(
+      "Install update",
+    ),
+    "zolnitUpdateInstalling": MessageLookupByLibrary.simpleMessage(
+      "Opening the installer…",
+    ),
+    "zolnitUpdateManual": m105,
+    "zolnitUpdateReadyInstall": m106,
+    "zolnitUpdateReadyRestart": MessageLookupByLibrary.simpleMessage(
+      "Update ready. It takes effect after you restart ZolNit",
     ),
     "zolnitViewMonthlyQuote": MessageLookupByLibrary.simpleMessage(
       "View monthly quote",

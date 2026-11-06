@@ -208,7 +208,7 @@ class _ZolnitNativeHomeState extends ConsumerState<ZolnitNativeHome> {
         'connecting': text.connecting,
         'connected': text.connected,
         'disconnecting': text.zolnitDisconnecting,
-        'connectionFailed': text.zolnitFailure,
+        'connectionFailed': text.zolnitConnectFailed,
         'smartMode': text.zolnitModeSmart,
         'globalMode': text.zolnitModeGlobal,
         'servers': text.zolnitAllNodes,

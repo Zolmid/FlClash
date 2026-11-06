@@ -574,6 +574,54 @@ void main() {
     );
 
     test(
+      'reuses a verified staged package after a process interruption',
+      () async {
+        var requests = 0;
+        final client = _client((_) {
+          requests++;
+          return ResponseBody.fromBytes(
+            utf8.encode('abc'),
+            200,
+            headers: {
+              HttpHeaders.contentLengthHeader: ['3'],
+            },
+          );
+        });
+        final first = AppInstaller(
+          client: client,
+          tempDirectory: () async => directory,
+        );
+        final staged = await first.download(plan());
+        final restarted = AppInstaller(
+          client: client,
+          tempDirectory: () async => directory,
+        );
+
+        final reused = await restarted.download(plan());
+
+        expect(reused.path, staged.path);
+        expect(requests, 1);
+      },
+    );
+
+    test(
+      'records a detached restart and reports only a version mismatch',
+      () async {
+        final journal = File('${directory.path}/restart.json');
+        final installer = AppInstaller(restartJournal: () async => journal);
+        final update = plan();
+
+        await installer.markRestartPending(update);
+        expect(await installer.consumeRestartFailure('0.9.4'), isNull);
+        expect(await journal.exists(), isFalse);
+
+        await installer.markRestartPending(update);
+        expect(await installer.consumeRestartFailure('0.9.3'), 'v0.9.4');
+        expect(await journal.exists(), isFalse);
+      },
+    );
+
+    test(
       'never promotes a wrong size or hash and deletes only its own partial',
       () async {
         final client = _client(

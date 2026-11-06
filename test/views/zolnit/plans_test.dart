@@ -214,7 +214,7 @@ void main() {
     expect(find.text('创建订单'), findsOneWidget);
     expect(find.text('畅享 · ¥48.00'), findsOneWidget);
     expect(saved(), 0);
-    await tester.tap(find.text('确定'));
+    await tester.tap(find.text('创建订单').last);
     await tester.pumpAndSettle();
     final request = harness.requests.singleWhere(
       (request) => request.url.path.endsWith('/order/save'),

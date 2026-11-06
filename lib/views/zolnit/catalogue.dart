@@ -1,10 +1,14 @@
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'brand.dart';
 import 'data.dart';
+import 'kit.dart';
+import 'motion.dart';
+import 'skin.dart';
 
 export 'nodes.dart' show ZolnitNodesPage;
 
@@ -52,21 +56,14 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
     final session = widget.session;
     final generation = session.api.generation;
     try {
-      final approved = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(text.zolnitCancelOrder),
-          content: Text(text.zolnitCancelOrderTip),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(text.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(text.confirm),
-            ),
-          ],
+      final approved = await showZolnitDialog<bool>(
+        context,
+        (_) => ZolnitAlert(
+          title: text.zolnitCancelOrder,
+          message: text.zolnitCancelOrderTip,
+          cancelLabel: text.zolnitNotNow,
+          confirmLabel: text.zolnitCancelOrder,
+          destructive: true,
         ),
       );
       if (approved == true &&
@@ -106,35 +103,83 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
                       : (methods.isNotEmpty
                             ? methods.first['id'] as int
                             : null);
+                  final pending = order['status'] == 0;
+                  final muted = Theme.of(context).colorScheme.onSurfaceVariant;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        typedOrder?.planName ?? text.zolnitOrderDetails,
-                        style: AppTextStyle.headline.of(context),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              typedOrder?.planName ?? text.zolnitOrderDetails,
+                              style: AppTextStyle.headline.of(
+                                context,
+                                emphasized: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          _OrderStatus(status: order['status']),
+                        ],
                       ),
-                      Text(
-                        zolnitOrderDateTime(order['created_at']),
-                        style: AppTextStyle.caption1.of(context),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${zolnitOrderDateTime(order['created_at'])}\n'
+                              '${text.zolnitOrderNumber} · $tradeNo',
+                              style: AppTextStyle.caption1
+                                  .of(context)
+                                  .copyWith(color: muted),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (pending)
+                                Text(
+                                  text.zolnitReferenceAmount,
+                                  style: AppTextStyle.caption2
+                                      .of(context)
+                                      .copyWith(color: muted),
+                                ),
+                              Text(
+                                zolnitMoney(order['total_amount']),
+                                style: AppTextStyle.title3.of(
+                                  context,
+                                  emphasized: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${text.zolnitOrderNumber} · $tradeNo',
-                        style: AppTextStyle.caption2.of(context),
-                      ),
-                      Text(zolnitOrderStatus(context, order['status'])),
-                      ZolnitValue(
-                        label: text.zolnitReferenceAmount,
-                        value: zolnitMoney(order['total_amount']),
-                      ),
-                      Text(
-                        text.zolnitChargeCurrencyNotice,
-                        style: AppTextStyle.caption1.of(context),
-                      ),
-                      if (order['status'] == 0) ...[
+                      if (pending) ...[
+                        if (session.billingSettlementCurrency == 'SGD')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              text.zolnitChargeCurrencyNotice,
+                              style: AppTextStyle.caption1
+                                  .of(context)
+                                  .copyWith(color: muted),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
                         if (methods.isNotEmpty)
                           DropdownButton<int>(
                             value: selected,
                             isExpanded: true,
+                            icon: const GlyphIcon(
+                              AppGlyphs.chevronDown,
+                              size: 16,
+                            ),
+                            underline: const SizedBox.shrink(),
                             items: [
                               for (final method in methods)
                                 DropdownMenuItem<int>(
@@ -205,6 +250,29 @@ class _ZolnitOrdersPageState extends State<ZolnitOrdersPage> {
           serverMessage: session.failureMessage,
         ),
       ],
+    );
+  }
+}
+
+class _OrderStatus extends StatelessWidget {
+  const _OrderStatus({required this.status});
+
+  final dynamic status;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = ZolnitColors.of(context);
+    final (fill, ink) = switch (status) {
+      0 => (scheme.warningContainer, scheme.onWarningContainer),
+      3 || 4 => (scheme.successContainer, scheme.onSuccessContainer),
+      1 => (colors.blue, colors.ink),
+      _ => (colors.soft, colors.muted),
+    };
+    return ZolnitPill(
+      label: zolnitOrderStatus(context, status),
+      background: fill,
+      foreground: ink,
     );
   }
 }

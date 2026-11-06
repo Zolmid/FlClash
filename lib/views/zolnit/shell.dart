@@ -82,43 +82,46 @@ class _RailItem extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
-        child: InkWell(
-          customBorder: AppShape.sm,
-          onTap: onTap,
-          child: SizedBox(
-            width: 64,
-            height: 56,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: selected
-                        ? colors.accent.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    shape: AppShape.full,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+        child: FocusRing(
+          shape: AppShape.sm,
+          child: InkWell(
+            customBorder: AppShape.sm,
+            onTap: onTap,
+            child: SizedBox(
+              width: 64,
+              height: 56,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: selected
+                          ? colors.accent.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      shape: AppShape.full,
                     ),
-                    child: GlyphIcon(glyph, size: 20, color: color),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: GlyphIcon(glyph, size: 20, color: color),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: zolnitText(
-                    context,
-                    10,
-                    weight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: color,
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: zolnitText(
+                      context,
+                      10,
+                      weight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: color,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -248,51 +251,54 @@ class _NavItem extends StatelessWidget {
       child: Material(
         color: selected ? fill : Colors.transparent,
         shape: shape,
-        child: InkWell(
-          customBorder: shape,
-          onTap: onTap,
-          child: SizedBox(
-            height: height,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (skin == ZolnitSkin.windows && selected)
-                  PositionedDirectional(
-                    start: 0,
-                    top: (height - 16) / 2,
-                    child: DecoratedBox(
-                      decoration: ShapeDecoration(
-                        color: colors.accent,
-                        shape: AppShape.full,
+        child: FocusRing(
+          shape: shape,
+          child: InkWell(
+            customBorder: shape,
+            onTap: onTap,
+            child: SizedBox(
+              height: height,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (skin == ZolnitSkin.windows && selected)
+                    PositionedDirectional(
+                      start: 0,
+                      top: (height - 16) / 2,
+                      child: DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: colors.accent,
+                          shape: AppShape.full,
+                        ),
+                        child: const SizedBox(width: 3, height: 16),
                       ),
-                      child: const SizedBox(width: 3, height: 16),
                     ),
-                  ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: inset),
-                  child: Row(
-                    children: [
-                      GlyphIcon(glyph, size: 18, color: color),
-                      const SizedBox(width: 13),
-                      Flexible(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: zolnitText(
-                            context,
-                            13,
-                            weight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: color,
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: inset),
+                    child: Row(
+                      children: [
+                        GlyphIcon(glyph, size: 18, color: color),
+                        const SizedBox(width: 13),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: zolnitText(
+                              context,
+                              13,
+                              weight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: color,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -317,26 +323,29 @@ class _SidebarLink extends StatelessWidget {
     final colors = ZolnitColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 13),
-      child: InkWell(
-        customBorder: AppShape.sm,
-        onTap: onTap,
-        child: SizedBox(
-          height: 38,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                GlyphIcon(glyph, size: 18, color: colors.muted),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: zolnitText(context, 13, color: colors.muted),
+      child: FocusRing(
+        shape: AppShape.sm,
+        child: InkWell(
+          customBorder: AppShape.sm,
+          onTap: onTap,
+          child: SizedBox(
+            height: 38,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  GlyphIcon(glyph, size: 18, color: colors.muted),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: zolnitText(context, 13, color: colors.muted),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -578,19 +587,22 @@ class _Avatar extends StatelessWidget {
         child: Material(
           color: skin.desktop ? colors.blue : Colors.transparent,
           shape: shape,
-          child: InkWell(
-            customBorder: shape,
-            onTap: onTap,
-            child: SizedBox.square(
-              dimension: size,
-              child: Center(
-                child: Text(
-                  initial,
-                  style: zolnitText(
-                    context,
-                    skin == ZolnitSkin.macos ? 11 : 13,
-                    weight: FontWeight.w600,
-                    color: colors.muted,
+          child: FocusRing(
+            shape: shape,
+            child: InkWell(
+              customBorder: shape,
+              onTap: onTap,
+              child: SizedBox.square(
+                dimension: size,
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: zolnitText(
+                      context,
+                      skin == ZolnitSkin.macos ? 11 : 13,
+                      weight: FontWeight.w600,
+                      color: colors.muted,
+                    ),
                   ),
                 ),
               ),

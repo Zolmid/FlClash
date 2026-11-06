@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'kit.dart';
 import 'skin.dart';
+import 'update.dart';
 
 class ZolnitPreferencesPage extends ConsumerWidget {
   const ZolnitPreferencesPage({
@@ -29,10 +30,14 @@ class ZolnitPreferencesPage extends ConsumerWidget {
       padding: zolnitPagePadding(skin, compact: compact),
       children: [
         ZolnitPageHeading(
-          title: text.zolnitPreferencesHeadline,
+          title: text.zolnitPreferences,
           subtitle: text.zolnitPreferencesSubtitle,
         ),
         const SizedBox(height: 24),
+        const ZolnitUpdateBanner(
+          dismissible: false,
+          padding: EdgeInsets.only(bottom: 20),
+        ),
         ZolnitCard(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           child: generateSection(

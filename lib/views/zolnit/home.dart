@@ -28,6 +28,8 @@ import 'shell.dart';
 import 'skin.dart';
 import 'help.dart';
 import 'kit.dart';
+import 'motion.dart';
+import 'update.dart';
 
 class ZolnitHomePage extends ConsumerStatefulWidget {
   const ZolnitHomePage({super.key, this.skin});
@@ -66,10 +68,15 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   String? _realtimeSubject;
   Future<void>? _inboxFlight;
   int? _inboxGeneration;
-  DialogRoute<void>? _popupRoute;
+  RawDialogRoute<void>? _popupRoute;
   final _popups = Queue<ZolnitRealtimeInboxItem>();
   Future<int?>? _buildNumber;
   int _unread = 0;
+  CommonAction? _cachedActions;
+  bool _updateHintsHealthy = false;
+  final _brandKey = GlobalKey();
+
+  BuildContext get _brandContext => _brandKey.currentContext ?? context;
 
   @override
   void initState() {
@@ -86,6 +93,21 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   DateTime get _now => ref.read(zolnitBundleClockProvider)();
 
+  CommonAction get _updateActions {
+    if (_cachedActions case final cached?) return cached;
+    final CommonAction actions = ref.read(commonActionProvider.notifier);
+    _cachedActions = actions;
+    return actions;
+  }
+
+  /// Tells the updater whether server update hints can arrive, only when that
+  /// changes: an unhealthy report makes it check on its own at once.
+  void _reportUpdateHints(bool healthy) {
+    if (_updateHintsHealthy == healthy) return;
+    _updateHintsHealthy = healthy;
+    _updateActions.setAppUpdateRealtimeHintsHealthy(healthy);
+  }
+
   void _armRefresh() {
     _refreshTimer?.cancel();
     if (_foreground) {
@@ -97,6 +119,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _sessionChanged() {
     if (!_session.authenticated) {
+      _reportUpdateHints(false);
       if (_observedGeneration != null) _nextRefresh = null;
       _observedGeneration = null;
       _clearPopups();
@@ -107,6 +130,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       return;
     }
     if (_observedGeneration != _session.api.generation) {
+      _reportUpdateHints(false);
       _clearPopups();
       _realtimeSubject = null;
       _unread = 0;
@@ -248,6 +272,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) _reportUpdateHints(false);
     _armRefresh();
     _realtime?.setForeground(_foreground);
     if (_foreground) unawaited(_refreshData(force: true));
@@ -256,6 +281,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _reportUpdateHints(false);
     unawaited(_realtime?.dispose() ?? Future<void>.value());
     _clearPopups();
     _registration.cancel();
@@ -281,11 +307,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       store: _realtimeStore,
       connect: ref.read(zolnitRealtimeConnectorProvider),
       onHealthChanged: () {
-        if (!_currentRealtime(gen) ||
-            !identical(channel, _realtime) ||
-            !_foreground) {
-          return;
-        }
+        if (!_currentRealtime(gen) || !identical(channel, _realtime)) return;
+        _reportUpdateHints(channel.healthy && _foreground);
+        if (!_foreground) return;
         if (!channel.healthy) {
           scheduleMicrotask(() {
             if (_currentRealtime(gen) && !channel.healthy) {
@@ -348,6 +372,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         return;
     }
     final String title, body;
+    String? updateVersion;
     if (type == 'client.update') {
       final target = data['platform'],
           build = data['build'],
@@ -370,6 +395,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       }
       if (!_currentRealtime(gen) || build <= current) return;
       if (!mounted) return;
+      updateVersion = version;
       title = '${context.appLocalizations.discoverNewVersion} · $version';
       body = data['body'] is String
           ? data['body'] as String
@@ -400,6 +426,13 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       read: read,
     );
     final fresh = await _realtimeStore.appendInbox(scope, item);
+    if (fresh && updateVersion != null && _currentRealtime(gen)) {
+      unawaited(
+        _updateActions
+            .notifyAppUpdateHint(version: updateVersion)
+            .catchError((Object _) => false),
+      );
+    }
     if (fresh && _currentRealtime(gen)) await _updateUnread(scope, gen);
     if (fresh && !read && _currentRealtime(gen) && _foreground && item.popup) {
       if (_popups.length < 8) _popups.add(item);
@@ -435,18 +468,19 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         _popups.addFirst(item);
         return;
       }
-      final route = DialogRoute<void>(
-        context: context,
-        builder: (dialog) => AlertDialog(
+      final route = zolnitDialogRoute<void>(
+        _brandContext,
+        (dialog) => AlertDialog(
           title: Text(item.title),
           content: SingleChildScrollView(child: Text(item.body)),
           actions: [
-            TextButton(
+            FilledButton(
               onPressed: () {
-                Navigator.pop(dialog);
+                if (ModalRoute.of(dialog)?.isCurrent != true) return;
+                zolnitCloseDialog<void>(dialog);
                 unawaited(_markRead(item, scope, gen));
               },
-              child: Text(dialog.appLocalizations.confirm),
+              child: Text(dialog.appLocalizations.zolnitGotIt),
             ),
           ],
         ),
@@ -557,7 +591,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     if (!_currentRealtime(gen)) return;
     if (!mounted) return;
     await showZolnitNotices(
-      context,
+      _brandContext,
       _session.noticeList,
       inbox,
       session: _session,
@@ -751,36 +785,36 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(zolnitSessionProvider);
-    final brightness = Theme.of(context).brightness;
-    final colors =
-        seededColorScheme(
-          seedColor: const Color(0xff506a7a),
-          brightness: brightness,
+    final base = Theme.of(context);
+    final brand = base.brightness == Brightness.dark
+        ? ZolnitColors.dark
+        : ZolnitColors.light;
+    final theme = brand.theme(
+      base.copyWith(
+        colorScheme: seededColorScheme(
+          seedColor: ZolnitColors.light.accent,
+          brightness: base.brightness,
           style: ColorStyle.soft,
-        ).copyWith(
-          surface: brightness == Brightness.dark
-              ? const Color(0xff151e24)
-              : const Color(0xfff3f1eb),
-        );
+        ),
+      ),
+    );
     return ZolnitSkinScope(
       skin: widget.skin ?? ZolnitSkin.host,
       child: Theme(
-        data: Theme.of(context)
-            .copyWith(
-              colorScheme: colors,
-              scaffoldBackgroundColor: colors.surface,
-            )
-            .withAppSurfaces
-            .copyWith(scaffoldBackgroundColor: colors.surface),
+        data: theme,
         child: Builder(
           builder: (context) => Material(
-            color: colors.surface,
+            key: _brandKey,
+            color: brand.paper,
             child: ListenableBuilder(
               listenable: session,
               builder: (context, _) {
                 if (!session.authenticated) {
                   return ZolnitLoginPage(
                     session: session,
+                    banner: const ZolnitUpdateBanner(
+                      padding: EdgeInsets.only(bottom: 12),
+                    ),
                     onSignedIn: _signedIn,
                     openWebsite: () => unawaited(_website()),
                     openRegistration: () => unawaited(_register()),
@@ -873,6 +907,10 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
                         final layout = ZolnitLayout.fromWidth(width);
+                        final gutter = zolnitPagePadding(
+                          ZolnitSkin.of(context),
+                          compact: !layout.useSidebar,
+                        );
                         final body = ZolnitLayoutScope(
                           layout: layout,
                           width: width,
@@ -901,7 +939,30 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                                     constraints: const BoxConstraints(
                                       maxWidth: 1200,
                                     ),
-                                    child: page,
+                                    child: Column(
+                                      children: [
+                                        if (!_showingPreferences)
+                                          ZolnitUpdateBanner(
+                                            padding: EdgeInsets.fromLTRB(
+                                              gutter.left,
+                                              14,
+                                              gutter.right,
+                                              0,
+                                            ),
+                                          ),
+                                        Expanded(
+                                          child: ZolnitSwitcher(
+                                            switchKey: (
+                                              _selected,
+                                              _showingPreferences,
+                                              _cashierTradeNo,
+                                            ),
+                                            rise: 8,
+                                            child: page,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

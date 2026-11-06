@@ -48,6 +48,22 @@ void main() {
     await harness.capture(tester, 'connect-macos-empty');
   });
 
+  testWidgets(
+    'a wide home shows servers and the latest notice; phones do not',
+    (tester) async {
+      await harness.mount(tester, ZolnitSkin.ios);
+      expect(find.text('线路：3'), findsNothing);
+      expect(find.text('一份更轻盈的连接体验'), findsNothing);
+      await harness.mount(tester, ZolnitSkin.macos);
+      expect(find.text('线路：3'), findsOneWidget);
+      expect(find.text('一份更轻盈的连接体验'), findsOneWidget);
+      expect(find.text('新加坡 · 狮城 01'), findsOneWidget);
+      await tester.tap(find.text('线路：3'));
+      await tester.pumpAndSettle();
+      expect(find.text('搜索线路或地区'), findsOneWidget);
+    },
+  );
+
   testWidgets('a narrow desktop window stacks the dashboard without overflow', (
     tester,
   ) async {

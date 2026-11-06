@@ -82,7 +82,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('在连接页选择线路。'), findsOneWidget);
     expect(find.textContaining('DO_NOT_RENDER_SCRIPT'), findsNothing);
-    await tester.tap(find.text('新建工单'));
+    await tester.tap(find.text('发起咨询'));
     await tester.pumpAndSettle();
     expect(submitted, isFalse);
     await tester.enterText(find.byType(TextField), '请帮我检查线路');

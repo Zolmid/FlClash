@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'skin.dart';
+import 'motion.dart';
 
 TextStyle zolnitText(
   BuildContext context,
@@ -353,55 +354,60 @@ class ZolnitSegmented<T> extends StatelessWidget {
               child: Semantics(
                 button: true,
                 selected: option == value,
-                child: Material(
+                child: _EasedFill(
                   color: !underlined && option == value
                       ? selectedFill
-                      : Colors.transparent,
+                      : selectedFill.withValues(alpha: 0),
                   shape: AppShape.all(selectedCorner),
-                  child: InkWell(
-                    customBorder: AppShape.all(selectedCorner),
-                    onTap: onChanged == null ? null : () => onChanged!(option),
-                    child: Container(
-                      height: phone
-                          ? (skin == ZolnitSkin.ios ? 44 : 48)
-                          : (underlined ? 38 : 28),
-                      decoration: underlined
-                          ? BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: option == value
-                                      ? colors.accent
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            )
-                          : null,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: phone ? 14 : 11,
-                        ),
-                        child: Center(
-                          widthFactor: 1,
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: zolnitText(
-                              context,
-                              phone ? 12 : 11,
-                              weight: option == value
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: underlined
-                                  ? (option == value
+                  child: FocusRing(
+                    shape: AppShape.all(selectedCorner),
+                    child: InkWell(
+                      customBorder: AppShape.all(selectedCorner),
+                      onTap: onChanged == null
+                          ? null
+                          : () => onChanged!(option),
+                      child: Container(
+                        height: phone
+                            ? (skin == ZolnitSkin.ios ? 44 : 48)
+                            : (underlined ? 38 : 28),
+                        decoration: underlined
+                            ? BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: option == value
                                         ? colors.accent
-                                        : colors.muted)
-                                  : option == value && onAccent
-                                  ? Colors.white
-                                  : onChanged == null
-                                  ? colors.muted
-                                  : colors.ink,
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: phone ? 14 : 11,
+                          ),
+                          child: Center(
+                            widthFactor: 1,
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: zolnitText(
+                                context,
+                                phone ? 12 : 11,
+                                weight: option == value
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: underlined
+                                    ? (option == value
+                                          ? colors.accent
+                                          : colors.muted)
+                                    : option == value && onAccent
+                                    ? Colors.white
+                                    : onChanged == null
+                                    ? colors.muted
+                                    : colors.ink,
+                              ),
                             ),
                           ),
                         ),
@@ -439,17 +445,23 @@ class ZolnitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = onPressed != null;
     final Color fill;
     final Color foreground;
     final BorderSide side;
     if (onDark) {
       fill = Colors.white.withValues(alpha: 0.082);
-      foreground = ZolnitColors.onMembership;
+      foreground = enabled
+          ? ZolnitColors.onMembership
+          : ZolnitColors.mutedOnMembership;
       side = BorderSide(color: Colors.white.withValues(alpha: 0.1));
+    } else if (!enabled) {
+      fill = colors.disabledFill;
+      foreground = colors.muted;
+      side = BorderSide.none;
     } else if (primary) {
       fill = colors.accent;
-      foreground = dark ? colors.paper : Colors.white;
+      foreground = colors.onAccent;
       side = BorderSide.none;
     } else {
       fill = colors.solid;
@@ -460,41 +472,46 @@ class ZolnitButton extends StatelessWidget {
       borderRadius: AppRadius.all(skin.controlCorner),
       side: side,
     );
-    return Opacity(
-      opacity: onPressed == null ? 0.5 : 1,
-      child: Material(
-        color: fill,
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      child: FocusRing(
         shape: shape,
-        child: InkWell(
-          customBorder: shape,
-          onTap: onPressed,
-          child: SizedBox(
-            height: skin.desktop ? 38 : 48,
-            width: expand ? double.infinity : null,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: zolnitText(
-                        context,
-                        skin.desktop ? 12 : 14,
-                        weight: FontWeight.w600,
-                        color: foreground,
+        standsOff: primary && enabled,
+        child: _EasedFill(
+          color: fill,
+          shape: shape,
+          child: InkWell(
+            customBorder: shape,
+            onTap: onPressed,
+            child: SizedBox(
+              height: skin.desktop ? 38 : 48,
+              width: expand ? double.infinity : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: zolnitText(
+                          context,
+                          skin.desktop ? 12 : 14,
+                          weight: FontWeight.w600,
+                          color: foreground,
+                        ),
                       ),
                     ),
-                  ),
-                  if (glyph != null) ...[
-                    const SizedBox(width: 8),
-                    GlyphIcon(glyph!, size: 16, color: foreground),
+                    if (glyph != null) ...[
+                      const SizedBox(width: 8),
+                      GlyphIcon(glyph!, size: 16, color: foreground),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -518,16 +535,21 @@ class ZolnitUsageBar extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.11),
         shape: AppShape.full,
       ),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: FractionallySizedBox(
-          widthFactor: fraction.clamp(0.0, 1.0),
-          child: const DecoratedBox(
-            decoration: ShapeDecoration(
-              color: ZolnitColors.accentOnMembership,
-              shape: AppShape.full,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: fraction.clamp(0.0, 1.0)),
+        duration: context.motionDuration(zolnitStandard),
+        curve: zolnitEase,
+        builder: (context, value, _) => Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: FractionallySizedBox(
+            widthFactor: value,
+            child: const DecoratedBox(
+              decoration: ShapeDecoration(
+                color: ZolnitColors.accentOnMembership,
+                shape: AppShape.full,
+              ),
+              child: SizedBox.expand(),
             ),
-            child: SizedBox.expand(),
           ),
         ),
       ),
@@ -585,32 +607,35 @@ class ZolnitSectionHeading extends StatelessWidget {
           ),
         ),
         if (onAction != null)
-          InkWell(
-            customBorder: AppShape.sm,
-            onTap: onAction,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (actionLabel != null) ...[
-                    Text(
-                      actionLabel!,
-                      style: zolnitText(
-                        context,
-                        12,
-                        leading: 17,
-                        color: colors.muted,
+          FocusRing(
+            shape: AppShape.sm,
+            child: InkWell(
+              customBorder: AppShape.sm,
+              onTap: onAction,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (actionLabel != null) ...[
+                      Text(
+                        actionLabel!,
+                        style: zolnitText(
+                          context,
+                          12,
+                          leading: 17,
+                          color: colors.muted,
+                        ),
                       ),
+                      const SizedBox(width: 4),
+                    ],
+                    GlyphIcon(
+                      AppGlyphs.chevronForward,
+                      size: 16,
+                      color: colors.muted,
                     ),
-                    const SizedBox(width: 4),
                   ],
-                  GlyphIcon(
-                    AppGlyphs.chevronForward,
-                    size: 16,
-                    color: colors.muted,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -741,4 +766,26 @@ Future<T?> openZolnitPage<T>(BuildContext context, Widget page) {
   return Navigator.of(
     context,
   ).push(MaterialPageRoute<T>(builder: (_) => themed));
+}
+
+class _EasedFill extends StatelessWidget {
+  const _EasedFill({
+    required this.color,
+    required this.shape,
+    required this.child,
+  });
+
+  final Color color;
+  final ShapeBorder shape;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<Color?>(
+    tween: ColorTween(end: color),
+    duration: context.motionDuration(zolnitQuick),
+    curve: zolnitEase,
+    builder: (context, value, child) =>
+        Material(color: value, shape: shape, child: child),
+    child: child,
+  );
 }

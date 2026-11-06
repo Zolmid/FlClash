@@ -16,7 +16,10 @@ import 'package:zolnit_client/zolnit_client.dart';
 import 'connect_art.dart';
 import 'data.dart';
 import 'kit.dart';
+import 'motion.dart';
 import 'node_groups.dart';
+import 'nodes.dart' show zolnitProfileIsCurrent;
+import 'notices.dart' show showZolnitNotice;
 import 'skin.dart';
 
 String zolnitDisplayName(Json? account, ZolnitUsage? usage) {
@@ -96,26 +99,213 @@ class ZolnitConnectPage extends ConsumerWidget {
       openNodes: openNodes,
     );
     final plan = _PlanStrip(usage: usage, onPlans: openPlans);
+    if (!stacked) {
+      final notice = session.noticeList.firstOrNull;
+      return ListView(
+        padding: padding,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  children: [
+                    connection,
+                    if (session.nodeList.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _DashboardServers(session: session, openNodes: openNodes),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    options,
+                    const SizedBox(height: 12),
+                    plan,
+                    if (notice != null) ...[
+                      const SizedBox(height: 12),
+                      _LatestNotice(notice: notice),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
     return ListView(
       padding: padding,
       children: [
-        Flex(
-          direction: stacked ? Axis.vertical : Axis.horizontal,
-          crossAxisAlignment: stacked
-              ? CrossAxisAlignment.stretch
-              : CrossAxisAlignment.start,
+        connection,
+        const SizedBox(height: 12),
+        options,
+        const SizedBox(height: 12),
+        plan,
+      ],
+    );
+  }
+}
+
+/// The plan's servers by measured latency, so a wide window shows where the
+/// connection can go without opening the server list.
+class _DashboardServers extends ConsumerWidget {
+  const _DashboardServers({required this.session, required this.openNodes});
+
+  final ZolnitSessionController session;
+  final VoidCallback openNodes;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = context.appLocalizations;
+    final colors = ZolnitColors.of(context);
+    final nodes = session.nodeList;
+    final current = zolnitProfileIsCurrent(ref, session, watch: true);
+    final delays = current
+        ? ref.watch(delayDataSourceProvider)[ref.watch(realTestUrlProvider())]
+        : null;
+    int rank(ZolnitNode node) => switch (delays?[node.proxyName]) {
+      final int delay when delay > 0 => delay,
+      _ => 1 << 30,
+    };
+    final shown = [...nodes]..sort((a, b) => rank(a).compareTo(rank(b)));
+    return ZolnitCard(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ZolnitSectionHeading(
+            title: text.zolnitAllNodes,
+            subtitle: text.zolnitNodesSortedByLatency,
+            actionLabel: text.zolnitNodesCount(nodes.length),
+            onAction: openNodes,
+          ),
+          const SizedBox(height: 8),
+          for (final node in shown.take(4))
+            _ServerRow(
+              node: node,
+              delay: delays?[node.proxyName],
+              onTap: openNodes,
+              colors: colors,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServerRow extends StatelessWidget {
+  const _ServerRow({
+    required this.node,
+    required this.delay,
+    required this.onTap,
+    required this.colors,
+  });
+
+  final ZolnitNode node;
+  final int? delay;
+  final VoidCallback onTap;
+  final ZolnitColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = zolnitNodePresentation(node);
+    final delay = this.delay;
+    final label = delay == null || delay == 0
+        ? '—'
+        : delay > 0
+        ? '$delay ms'
+        : delayFailureText(delay, context.appLocalizations);
+    final tint = delay == null || delay == 0
+        ? colors.muted
+        : context.colorScheme.delayColor(delay) ?? colors.muted;
+    return InkWell(
+      customBorder: AppShape.sm,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
           children: [
-            Flexible(flex: stacked ? 0 : 3, child: connection),
-            SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
-            Flexible(
-              flex: stacked ? 0 : 2,
+            ZolnitFlagBadge(flag: shown.flag, label: shown.region, size: 30),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
-                children: [options, const SizedBox(height: 12), plan],
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    shown.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: zolnitText(context, 13, weight: FontWeight.w600),
+                  ),
+                  if (shown.region.isNotEmpty)
+                    Text(
+                      shown.region,
+                      style: zolnitText(context, 11, color: colors.muted),
+                    ),
+                ],
+              ),
+            ),
+            Text(
+              label,
+              style: zolnitText(
+                context,
+                12,
+                weight: FontWeight.w600,
+                color: tint,
               ),
             ),
           ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _LatestNotice extends StatelessWidget {
+  const _LatestNotice({required this.notice});
+
+  final ZolnitNotice notice;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.appLocalizations;
+    final colors = ZolnitColors.of(context);
+    return ZolnitCard(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ZolnitSectionHeading(
+            title: text.zolnitNotices,
+            subtitle: notice.createdAt == null
+                ? null
+                : zolnitDotDate(notice.createdAt!),
+            onAction: () => unawaited(showZolnitNotice(context, notice)),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            notice.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: zolnitText(context, 14, weight: FontWeight.w600),
+          ),
+          if (notice.body.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              notice.body,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: zolnitText(context, 12, color: colors.muted),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -255,8 +445,10 @@ class _ConnectPanel extends ConsumerWidget {
         : text.zolnitConnectAction;
     final failureMessage =
         configMessage ??
-        (syncFailed || phase == ZolnitConnectionPhase.unavailable
-            ? text.zolnitFailure
+        (syncFailed
+            ? text.zolnitBundleUnavailable
+            : phase == ZolnitConnectionPhase.unavailable
+            ? text.zolnitConnectFailed
             : session.failure == null
             ? null
             : zolnitFailureText(context, session.failure, null));
@@ -279,14 +471,24 @@ class _ConnectPanel extends ConsumerWidget {
           : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          textAlign: centered ? TextAlign.center : TextAlign.start,
-          style: zolnitText(
-            context,
-            headline,
-            leading: headline * 1.4,
-            weight: android ? FontWeight.w500 : FontWeight.w600,
+        ZolnitSwitcher(
+          switchKey: label,
+          duration: zolnitQuick,
+          alignment: centered
+              ? Alignment.center
+              : AlignmentDirectional.centerStart,
+          child: Semantics(
+            liveRegion: true,
+            child: Text(
+              label,
+              textAlign: centered ? TextAlign.center : TextAlign.start,
+              style: zolnitText(
+                context,
+                headline,
+                leading: headline * 1.4,
+                weight: android ? FontWeight.w500 : FontWeight.w600,
+              ),
+            ),
           ),
         ),
         if (phase == ZolnitConnectionPhase.connected && elapsed != null) ...[

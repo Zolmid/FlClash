@@ -128,6 +128,11 @@ begin
   Result := ExpandConstant('{param:UPDATE|0}') = '1';
 end;
 
+function ShouldRelaunchUpdate: Boolean;
+begin
+  Result := IsAppUpdate and (ExpandConstant('{param:UPDATERELAUNCH|1}') = '1');
+end;
+
 function SignalUpdateReady: Boolean;
 var
   ReadyFile, TemporaryReadyFile, Nonce, ProcessIdText, ProcessPath: String;
@@ -300,4 +305,4 @@ Name: "{autoprograms}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"
 Name: "{autodesktop}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"; Tasks: desktopicon
 [Run]
 Filename: "{app}\\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {% if PRIVILEGES_REQUIRED == 'admin' %}runascurrentuser{% endif %} nowait postinstall skipifsilent
-Filename: "{app}\\{{EXECUTABLE_NAME}}"; Flags: runasoriginaluser nowait; Check: IsAppUpdate
+Filename: "{app}\\{{EXECUTABLE_NAME}}"; Flags: runasoriginaluser nowait; Check: ShouldRelaunchUpdate

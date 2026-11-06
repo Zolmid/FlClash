@@ -324,7 +324,9 @@ class _ReturnControlsState extends ConsumerState<_ReturnControls> {
           isExpanded: true,
           value: route.selectedId,
           hint: Text(
-            route.options.isEmpty ? text.zolnitRouteUnavailable : text.unknown,
+            route.options.isEmpty
+                ? text.zolnitRouteUnavailable
+                : text.zolnitSelectServer,
           ),
           icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
           underline: const SizedBox.shrink(),
@@ -345,7 +347,7 @@ class _ReturnControlsState extends ConsumerState<_ReturnControls> {
         ),
         if (_failed)
           Text(
-            text.zolnitRouteUnavailable,
+            text.zolnitRouteChangeFailed,
             key: const ValueKey('bundle-return-error'),
             style: zolnitText(context, 12),
           ),

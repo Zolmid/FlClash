@@ -6,6 +6,7 @@ import 'package:fl_clash/views/zolnit/data.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:fl_clash/providers/zolnit_registration.dart';
 import 'package:fl_clash/ui/ui.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
@@ -119,6 +120,37 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    'a 1024 dp desktop keeps the brand panel whole and says it once',
+    (tester) async {
+      await harness.session.logout();
+      await harness.mount(
+        tester,
+        ZolnitSkin.linux,
+        locale: const Locale('en'),
+        size: const Size(1024, 768),
+      );
+      expect(find.byKey(const ValueKey('zolnit-brand-panel')), findsOneWidget);
+      for (final label in [
+        'Selected global routes',
+        'Familiar on every screen',
+      ]) {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.text(label),
+        );
+        expect(paragraph.didExceedMaxLines, isFalse, reason: label);
+        expect(
+          paragraph.getMaxIntrinsicWidth(double.infinity),
+          lessThanOrEqualTo(paragraph.size.width + 0.5),
+          reason: label,
+        );
+      }
+      expect(find.text('A LITTLE CLOSER TO YOUR WORLD'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await harness.capture(tester, 'login-linux-1024');
+    },
+  );
 
   testWidgets('website entries use their own callbacks and legacy fallback', (
     tester,
@@ -345,7 +377,10 @@ void main() {
       ),
     );
 
-    expect(find.text('暂时无法读取或保存登录信息，请稍后重试。'), findsOneWidget);
+    expect(
+      find.text('ZolNit 无法使用系统钥匙串保存登录信息。请解锁系统钥匙串（Linux 上为登录密钥环）后重试。'),
+      findsOneWidget,
+    );
     expect(find.text('网络异常，请检查连接后重试'), findsNothing);
   });
 

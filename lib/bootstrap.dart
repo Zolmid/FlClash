@@ -206,6 +206,9 @@ class Bootstrap {
     _container.read(initProvider.notifier).value = true;
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
+    final updates = _container.read(commonActionProvider.notifier);
+    updates.startUpdateDiscovery();
+    await updates.restoreAppUpdateResult();
     unawaited(_container.read(commonActionProvider.notifier).autoCheckUpdate());
     unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
   }

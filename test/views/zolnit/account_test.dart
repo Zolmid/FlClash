@@ -174,7 +174,12 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('zolnit-revoke-41')));
       await tester.pumpAndSettle();
       expect(revoked, isFalse);
-      await tester.tap(find.text('确定'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('退出登录'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(revoked, isTrue);
       expect(find.text('登录会话 #41'), findsNothing);
@@ -218,7 +223,12 @@ void main() {
       await openAccount(tester, ZolnitSkin.macos);
       await tester.tap(find.byKey(const ValueKey('zolnit-revoke-41')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('确定'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('退出登录'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(revoked, isTrue);
       expect(find.text('欢迎回来'), findsOneWidget);
@@ -310,7 +320,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('zolnit-revoke-41')));
     await tester.pumpAndSettle();
     expect(find.text('退出此登录会话？这可能是当前会话，退出后需要重新登录。'), findsOneWidget);
-    await tester.tap(find.text('确定'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('退出登录'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(harness.session.authenticated, isTrue);
     expect(find.text('lin@example.com'), findsOneWidget);
@@ -367,7 +382,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(preferences);
       await tester.pumpAndSettle();
-      expect(find.text('设置'), findsOneWidget);
+      expect(find.text('启动、连接、外观与语言。'), findsOneWidget);
       expect(find.text('启动后自动连接'), findsOneWidget);
       expect(find.text('重新连接'), findsNothing);
       expect(harness.container.read(appSettingProvider).autoRun, isFalse);
@@ -398,6 +413,52 @@ void main() {
     await tester.tap(find.text('订单记录'));
     await tester.pumpAndSettle();
     expect(find.text('暂无订单'), findsOneWidget);
+  });
+
+  testWidgets('only an order awaiting payment carries the charge notice', (
+    tester,
+  ) async {
+    harness.panel = (request) {
+      final path = request.url.path;
+      if (path.endsWith('/order/fetch')) {
+        return zolnitJson([
+          {
+            'trade_no': 'trade-pending',
+            'status': 0,
+            'plan_id': 2,
+            'total_amount': 4800,
+            'created_at': 1795000000,
+          },
+          {
+            'trade_no': 'trade-cancelled',
+            'status': 2,
+            'plan_id': 1,
+            'total_amount': 2800,
+            'created_at': 1790000000,
+          },
+        ]);
+      }
+      if (path.endsWith('/zolnit-stripe/config')) {
+        return zolnitJson({
+          'enabled': true,
+          'configured': true,
+          'settlement_currency': 'sgd',
+        });
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await harness.session.refreshBilling();
+    await harness.session.refreshRecurringOptions();
+    await openAccount(tester, ZolnitSkin.macos);
+    await tester.tap(find.text('订单记录'));
+    await tester.pumpAndSettle();
+    expect(find.text('待付款'), findsOneWidget);
+    expect(find.text('已取消'), findsOneWidget);
+    expect(find.text('¥48.00'), findsOneWidget);
+    expect(find.text('¥28.00'), findsOneWidget);
+    expect(find.text('参考总额（人民币）'), findsOneWidget);
+    expect(find.textContaining('SGD'), findsOneWidget);
   });
 
   testWidgets('switching to invite tab shows invite data', (tester) async {

@@ -11094,10 +11094,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Saved sign-in information is temporarily unavailable. Please try again.`
+  /// `ZolNit couldn't use your system keychain to keep you signed in. Unlock the keychain (on Linux, the login keyring), then try again.`
   String get zolnitSessionStorageUnavailable {
     return Intl.message(
-      'Saved sign-in information is temporarily unavailable. Please try again.',
+      'ZolNit couldn\'t use your system keychain to keep you signed in. Unlock the keychain (on Linux, the login keyring), then try again.',
       name: 'zolnitSessionStorageUnavailable',
       desc: '',
       args: [],
@@ -11259,10 +11259,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.`
+  /// `Future automatic charges stop. An unpaid first order is also canceled. Access you have paid for stays as ZolNit confirms it.`
   String get zolnitCancelRenewalTip {
     return Intl.message(
-      'Stop future automatic charges. An unpaid first order will also be canceled. Paid access follows the server result.',
+      'Future automatic charges stop. An unpaid first order is also canceled. Access you have paid for stays as ZolNit confirms it.',
       name: 'zolnitCancelRenewalTip',
       desc: '',
       args: [],
@@ -11289,10 +11289,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Renewal details are temporarily unavailable.`
+  /// `Renewal details couldn't be loaded. Try again shortly.`
   String get zolnitBillingUnavailable {
     return Intl.message(
-      'Renewal details are temporarily unavailable.',
+      'Renewal details couldn\'t be loaded. Try again shortly.',
       name: 'zolnitBillingUnavailable',
       desc: '',
       args: [],
@@ -11374,10 +11374,10 @@ class AppLocalizations {
     );
   }
 
-  /// `This payment option is not ready.`
+  /// `This payment method can't be used right now. Choose another method or try again later.`
   String get zolnitPaymentUnavailable {
     return Intl.message(
-      'This payment option is not ready.',
+      'This payment method can\'t be used right now. Choose another method or try again later.',
       name: 'zolnitPaymentUnavailable',
       desc: '',
       args: [],
@@ -11519,16 +11519,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Enter a valid email and a password of at least eight characters.`
-  String get zolnitCredentialsInvalid {
-    return Intl.message(
-      'Enter a valid email and a password of at least eight characters.',
-      name: 'zolnitCredentialsInvalid',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Your servers update automatically from your account.`
   String get zolnitProfileSource {
     return Intl.message(
@@ -11549,10 +11539,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Reference total (CNY)`
+  /// `Reference total (RMB)`
   String get zolnitReferenceAmount {
     return Intl.message(
-      'Reference total (CNY)',
+      'Reference total (RMB)',
       name: 'zolnitReferenceAmount',
       desc: '',
       args: [],
@@ -12349,10 +12339,10 @@ class AppLocalizations {
     );
   }
 
-  /// `{rate}× metering`
+  /// `Data counts {rate}×`
   String zolnitNodeMultiplier(Object rate) {
     return Intl.message(
-      '$rate× metering',
+      'Data counts $rate×',
       name: 'zolnitNodeMultiplier',
       desc: '',
       args: [rate],
@@ -12609,30 +12599,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Connection settings`
+  /// `Startup, appearance and language`
   String get zolnitAccountPreferencesHint {
     return Intl.message(
-      'Connection settings',
+      'Startup, appearance and language',
       name: 'zolnitAccountPreferencesHint',
       desc: '',
       args: [],
     );
   }
 
-  /// `Settings`
-  String get zolnitPreferencesHeadline {
-    return Intl.message(
-      'Settings',
-      name: 'zolnitPreferencesHeadline',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Manage startup and connection settings.`
+  /// `Startup, connection, appearance and language.`
   String get zolnitPreferencesSubtitle {
     return Intl.message(
-      'Manage startup and connection settings.',
+      'Startup, connection, appearance and language.',
       name: 'zolnitPreferencesSubtitle',
       desc: '',
       args: [],
@@ -13044,10 +13024,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.`
+  /// `Automatic server choice is out of date. Refresh to update it; manual and direct choices remain available.`
   String get zolnitBundleExpired {
     return Intl.message(
-      'Automatic selection information has expired. Refresh the configuration; manual and direct choices remain available.',
+      'Automatic server choice is out of date. Refresh to update it; manual and direct choices remain available.',
       name: 'zolnitBundleExpired',
       desc: '',
       args: [],
@@ -13094,20 +13074,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Connection configuration is temporarily unavailable.`
+  /// `Connection settings couldn't be loaded. Try again shortly.`
   String get zolnitBundleUnavailable {
     return Intl.message(
-      'Connection configuration is temporarily unavailable.',
+      'Connection settings couldn\'t be loaded. Try again shortly.',
       name: 'zolnitBundleUnavailable',
       desc: '',
       args: [],
     );
   }
 
-  /// `No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.`
+  /// `No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.`
   String get zolnitBundleNoCandidates {
     return Intl.message(
-      'No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.',
+      'No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.',
       name: 'zolnitBundleNoCandidates',
       desc: '',
       args: [],
@@ -13144,10 +13124,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Unavailable`
+  /// `No route available`
   String get zolnitRouteUnavailable {
     return Intl.message(
-      'Unavailable',
+      'No route available',
       name: 'zolnitRouteUnavailable',
       desc: '',
       args: [],
@@ -13224,10 +13204,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Waiting for App Store or server verification.`
+  /// `Confirming your App Store purchase. This can take a moment.`
   String get zolnitApplePending {
     return Intl.message(
-      'Waiting for App Store or server verification.',
+      'Confirming your App Store purchase. This can take a moment.',
       name: 'zolnitApplePending',
       desc: '',
       args: [],
@@ -13494,20 +13474,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.`
+  /// `Smart routing: the server chosen here carries traffic that no specific rule covers. AI, streaming and other services keep their own routes.`
   String get zolnitNodesScopeRule {
     return Intl.message(
-      'Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.',
+      'Smart routing: the server chosen here carries traffic that no specific rule covers. AI, streaming and other services keep their own routes.',
       name: 'zolnitNodesScopeRule',
       desc: '',
       args: [],
     );
   }
 
-  /// `Global: rows choose the global group’s server. An automatic policy may choose its own server.`
+  /// `Global: all traffic uses the server chosen here. If the group picks automatically, it chooses the server itself.`
   String get zolnitNodesScopeGlobal {
     return Intl.message(
-      'Global: rows choose the global group’s server. An automatic policy may choose its own server.',
+      'Global: all traffic uses the server chosen here. If the group picks automatically, it chooses the server itself.',
       name: 'zolnitNodesScopeGlobal',
       desc: '',
       args: [],
@@ -13524,33 +13504,163 @@ class AppLocalizations {
     );
   }
 
-  /// `Checkmark: current group choice, not a live traffic indicator.`
+  /// `The check marks the selected server. It doesn't show live traffic.`
   String get zolnitNodesCurrentChoice {
     return Intl.message(
-      'Checkmark: current group choice, not a live traffic indicator.',
+      'The check marks the selected server. It doesn\'t show live traffic.',
       name: 'zolnitNodesCurrentChoice',
       desc: '',
       args: [],
     );
   }
 
-  /// `Checkmark: saved preference; connection is not active here.`
+  /// `The check marks your saved choice. It takes effect when you connect.`
   String get zolnitNodesSavedChoice {
     return Intl.message(
-      'Checkmark: saved preference; connection is not active here.',
+      'The check marks your saved choice. It takes effect when you connect.',
       name: 'zolnitNodesSavedChoice',
       desc: '',
       args: [],
     );
   }
 
-  /// `The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies.`
+  /// `This group picks its server automatically, so it can't be changed here. A default server you choose doesn't change the routes of AI, streaming or other services.`
   String get zolnitNodesAutomaticPolicy {
     return Intl.message(
-      'The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies.',
+      'This group picks its server automatically, so it can\'t be changed here. A default server you choose doesn\'t change the routes of AI, streaming or other services.',
       name: 'zolnitNodesAutomaticPolicy',
       desc: '',
       args: [],
+    );
+  }
+
+  /// `Not now`
+  String get zolnitNotNow {
+    return Intl.message('Not now', name: 'zolnitNotNow', desc: '', args: []);
+  }
+
+  /// `Got it`
+  String get zolnitGotIt {
+    return Intl.message('Got it', name: 'zolnitGotIt', desc: '', args: []);
+  }
+
+  /// `Enter a valid email address.`
+  String get zolnitEmailInvalid {
+    return Intl.message(
+      'Enter a valid email address.',
+      name: 'zolnitEmailInvalid',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Use at least 8 characters.`
+  String get zolnitPasswordTooShort {
+    return Intl.message(
+      'Use at least 8 characters.',
+      name: 'zolnitPasswordTooShort',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Help couldn't load. Check your connection and try again.`
+  String get zolnitHelpLoadFailed {
+    return Intl.message(
+      'Help couldn\'t load. Check your connection and try again.',
+      name: 'zolnitHelpLoadFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Status not confirmed`
+  String get zolnitStatusUnconfirmed {
+    return Intl.message(
+      'Status not confirmed',
+      name: 'zolnitStatusUnconfirmed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't switch the route. Try again.`
+  String get zolnitRouteChangeFailed {
+    return Intl.message(
+      'Couldn\'t switch the route. Try again.',
+      name: 'zolnitRouteChangeFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't connect. Check your network and try again.`
+  String get zolnitConnectFailed {
+    return Intl.message(
+      'Couldn\'t connect. Check your network and try again.',
+      name: 'zolnitConnectFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Update ready. It takes effect after you restart ZolNit`
+  String get zolnitUpdateReadyRestart {
+    return Intl.message(
+      'Update ready. It takes effect after you restart ZolNit',
+      name: 'zolnitUpdateReadyRestart',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `ZolNit {version} is ready to install`
+  String zolnitUpdateReadyInstall(Object version) {
+    return Intl.message(
+      'ZolNit $version is ready to install',
+      name: 'zolnitUpdateReadyInstall',
+      desc: '',
+      args: [version],
+    );
+  }
+
+  /// `Install update`
+  String get zolnitUpdateInstall {
+    return Intl.message(
+      'Install update',
+      name: 'zolnitUpdateInstall',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Opening the installer…`
+  String get zolnitUpdateInstalling {
+    return Intl.message(
+      'Opening the installer…',
+      name: 'zolnitUpdateInstalling',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `ZolNit {version} is available`
+  String zolnitUpdateAvailable(Object version) {
+    return Intl.message(
+      'ZolNit $version is available',
+      name: 'zolnitUpdateAvailable',
+      desc: '',
+      args: [version],
+    );
+  }
+
+  /// `The automatic update didn't finish. Download ZolNit {version} from the website.`
+  String zolnitUpdateManual(Object version) {
+    return Intl.message(
+      'The automatic update didn\'t finish. Download ZolNit $version from the website.',
+      name: 'zolnitUpdateManual',
+      desc: '',
+      args: [version],
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
@@ -12,6 +13,7 @@ import 'package:path/path.dart' as path;
 import 'app_update.dart';
 import 'app_update_client.dart';
 import 'constant.dart' show packageName;
+import 'package.dart' show compareVersions;
 import 'path.dart';
 import 'print.dart';
 import 'system.dart' show ProcessRunner;
@@ -53,7 +55,7 @@ rmdir "$mnt" 2>/dev/null
 rm -rf "$staging" "$dmg"
 [ "$installed" -eq 1 ] && rm -rf "$backup"
 rmdir "$work" 2>/dev/null
-open "$app"
+if [ "${5:-1}" = 1 ]; then open "$app"; fi
 ''';
 
 const _relaunchScript = r'''
@@ -92,11 +94,15 @@ class UpdaterException implements Exception {
 }
 
 class AppInstaller {
-  const AppInstaller({AppUpdateClient? client, this.tempDirectory})
-    : _client = client;
+  const AppInstaller({
+    AppUpdateClient? client,
+    this.tempDirectory,
+    this.restartJournal,
+  }) : _client = client;
 
   final AppUpdateClient? _client;
   final Future<Directory> Function()? tempDirectory;
+  final Future<File> Function()? restartJournal;
   static bool _busy = false;
   static final _verifiedDownloads = <String, ReleaseAsset>{};
 
@@ -154,6 +160,14 @@ class AppInstaller {
       }
     }
     final file = File(path.join(directory.path, plan.asset.name));
+    if (await file.exists()) {
+      if (await file.length() == plan.asset.size &&
+          await sha256OfFile(file) == plan.asset.sha256) {
+        _verifiedDownloads[path.normalize(file.absolute.path)] = plan.asset;
+        return file;
+      }
+      await file.delete();
+    }
     try {
       await (_client ?? appUpdateClient).downloadFile(
         plan.asset.url,
@@ -186,6 +200,46 @@ class AppInstaller {
         await sha256OfFile(file) != asset.sha256) {
       throw const UpdaterException(UpdaterFailureReason.checksumMismatch);
     }
+  }
+
+  Future<void> markRestartPending(AppUpdatePlan plan) async {
+    final tag = Uri.parse(plan.asset.url).pathSegments[2];
+    final file = await _restartJournalFile();
+    await file.parent.create(recursive: true);
+    await file.writeAsString(jsonEncode({'tag': tag}), flush: true);
+  }
+
+  Future<String?> consumeRestartFailure(String currentVersion) async {
+    final file = await _restartJournalFile();
+    if (!await file.exists()) return null;
+    String? tag;
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded case {'tag': final String value}) tag = value;
+    } on FormatException {
+      // A malformed journal cannot authorize another install attempt.
+    } finally {
+      await file.delete();
+    }
+    if (tag == null) return 'unknown';
+    try {
+      return compareVersions(currentVersion, tag) >= 0 ? null : tag;
+    } on FormatException {
+      return 'unknown';
+    }
+  }
+
+  Future<void> clearRestartPending() async {
+    final file = await _restartJournalFile();
+    if (await file.exists()) await file.delete();
+  }
+
+  Future<File> _restartJournalFile() async {
+    final custom = restartJournal;
+    if (custom != null) return custom();
+    return File(
+      path.join(await appPath.homeDirPath, 'app-update-pending.json'),
+    );
   }
 
   Future<String> _downloadDirectory(UpdateTarget target) async {
@@ -226,16 +280,18 @@ class AppInstaller {
 
   Future<void> startWindowsInstaller(
     File setup, {
+    bool relaunch = true,
     Duration pollInterval = const Duration(milliseconds: 200),
     Duration timeout = const Duration(minutes: 2),
   }) => _withOperation(
-    () => _startWindowsInstaller(setup, pollInterval, timeout),
+    () => _startWindowsInstaller(setup, pollInterval, timeout, relaunch),
   );
 
   Future<void> _startWindowsInstaller(
     File setup,
     Duration pollInterval,
     Duration timeout,
+    bool relaunch,
   ) async {
     await _verifyDownloadedFile(setup);
     final nonce = List.generate(
@@ -246,7 +302,12 @@ class AppInstaller {
     final elapsed = Stopwatch()..start();
     final process = await Process.start(
       setup.path,
-      windowsInstallerArguments(setup, nonce: nonce, processId: pid),
+      windowsInstallerArguments(
+        setup,
+        nonce: nonce,
+        processId: pid,
+        relaunch: relaunch,
+      ),
     );
     unawaited(process.stdout.drain<void>());
     unawaited(process.stderr.drain<void>());
@@ -262,18 +323,20 @@ class AppInstaller {
     );
   }
 
-  Future<void> startMacosInstall(File dmg) => _withOperation(() async {
-    await _verifyDownloadedFile(dmg);
-    await Process.start('/bin/sh', [
-      '-c',
-      macosInstallScript,
-      'flclash-update',
-      '$pid',
-      dmg.path,
-      macosAppBundle,
-      Abi.current() == Abi.macosArm64 ? 'arm64' : 'x86_64',
-    ], mode: ProcessStartMode.detached);
-  });
+  Future<void> startMacosInstall(File dmg, {bool relaunch = true}) =>
+      _withOperation(() async {
+        await _verifyDownloadedFile(dmg);
+        await Process.start('/bin/sh', [
+          '-c',
+          macosInstallScript,
+          'flclash-update',
+          '$pid',
+          dmg.path,
+          macosAppBundle,
+          Abi.current() == Abi.macosArm64 ? 'arm64' : 'x86_64',
+          relaunch ? '1' : '0',
+        ], mode: ProcessStartMode.detached);
+      });
 
   Future<void> replaceAppImage(File downloaded) => _withOperation(() async {
     await _verifyDownloadedFile(downloaded);
@@ -446,6 +509,7 @@ List<String> windowsInstallerArguments(
   File setup, {
   required String nonce,
   required int processId,
+  bool relaunch = true,
 }) {
   if (processId <= 0 || !RegExp(r'^[0-9a-f]{64}$').hasMatch(nonce)) {
     throw ArgumentError('Expected this process PID and a 32-byte nonce');
@@ -455,6 +519,7 @@ List<String> windowsInstallerArguments(
     '/SUPPRESSMSGBOXES',
     '/NORESTART',
     '/UPDATE=1',
+    if (!relaunch) '/UPDATERELAUNCH=0',
     '/UPDATEPID=$processId',
     '/UPDATENONCE=$nonce',
     '/UPDATEREADY=${_windowsInstallerReadyPath(setup, nonce)}',

@@ -421,7 +421,9 @@ hooks:
         expect(script, contains("TemporaryReadyFile := ReadyFile + '.tmp';"));
         expect(
           script,
-          contains('Flags: runasoriginaluser nowait; Check: IsAppUpdate'),
+          contains(
+            'Flags: runasoriginaluser nowait; Check: ShouldRelaunchUpdate',
+          ),
         );
         expect(script, contains("ExpandConstant('{param:UPDATENONCE|}')"));
         expect(script, contains("ExpandConstant('{param:UPDATEPID|}')"));
