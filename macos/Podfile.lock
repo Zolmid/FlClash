@@ -1,0 +1,23 @@
+PODS:
+  - FlutterMacOS (1.0.0)
+  - zolnit_native_ui (0.1.0):
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - zolnit_native_ui (from `Flutter/ephemeral/.symlinks/plugins/zolnit_native_ui/darwin`)
+
+EXTERNAL SOURCES:
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  zolnit_native_ui:
+    :path: Flutter/ephemeral/.symlinks/plugins/zolnit_native_ui/darwin
+
+SPEC CHECKSUMS:
+  FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
+  zolnit_native_ui: 6a7ce316c98b3f38cbd7c6d034028dc2676af51f
+
+PODFILE CHECKSUM: 1e95c36afbfd1cb6423ceca4de7a8e1b256fb6ac
+
+COCOAPODS: 1.17.0

@@ -55,6 +55,26 @@ class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
+  /// `The registration page could not open. Please try again.`
+  String get zolnitRegistrationBrowserUnavailable {
+    return Intl.message(
+      'The registration page could not open. Please try again.',
+      name: 'zolnitRegistrationBrowserUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your account was created, but automatic sign-in expired. You can now sign in.`
+  String get zolnitRegistrationReturnExpired {
+    return Intl.message(
+      'Your account was created, but automatic sign-in expired. You can now sign in.',
+      name: 'zolnitRegistrationReturnExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Rule`
   String get rule {
     return Intl.message('Rule', name: 'rule', desc: '', args: []);
@@ -12564,10 +12584,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Sign-up and password recovery open the ZolNit website for email and security verification.`
+  /// `Register on the website in the app. You’ll be signed in automatically when you finish.`
   String get zolnitRegistrationWebsiteHint {
     return Intl.message(
-      'Sign-up and password recovery open the ZolNit website for email and security verification.',
+      'Register on the website in the app. You’ll be signed in automatically when you finish.',
       name: 'zolnitRegistrationWebsiteHint',
       desc: '',
       args: [],
@@ -13342,6 +13362,76 @@ class AppLocalizations {
   /// `Send`
   String get zolnitSendRequest {
     return Intl.message('Send', name: 'zolnitSendRequest', desc: '', args: []);
+  }
+
+  /// `Sorted by measured latency; untested last`
+  String get zolnitNodesSortedByLatency {
+    return Intl.message(
+      'Sorted by measured latency; untested last',
+      name: 'zolnitNodesSortedByLatency',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.`
+  String get zolnitNodesScopeRule {
+    return Intl.message(
+      'Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.',
+      name: 'zolnitNodesScopeRule',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Global: rows choose the global group’s server. An automatic policy may choose its own server.`
+  String get zolnitNodesScopeGlobal {
+    return Intl.message(
+      'Global: rows choose the global group’s server. An automatic policy may choose its own server.',
+      name: 'zolnitNodesScopeGlobal',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Direct: traffic does not use the server selected here.`
+  String get zolnitNodesScopeDirect {
+    return Intl.message(
+      'Direct: traffic does not use the server selected here.',
+      name: 'zolnitNodesScopeDirect',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Checkmark: current group choice, not a live traffic indicator.`
+  String get zolnitNodesCurrentChoice {
+    return Intl.message(
+      'Checkmark: current group choice, not a live traffic indicator.',
+      name: 'zolnitNodesCurrentChoice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Checkmark: saved preference; connection is not active here.`
+  String get zolnitNodesSavedChoice {
+    return Intl.message(
+      'Checkmark: saved preference; connection is not active here.',
+      name: 'zolnitNodesSavedChoice',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies.`
+  String get zolnitNodesAutomaticPolicy {
+    return Intl.message(
+      'The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies.',
+      name: 'zolnitNodesAutomaticPolicy',
+      desc: '',
+      args: [],
+    );
   }
 }
 

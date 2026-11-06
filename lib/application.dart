@@ -12,6 +12,7 @@ import 'package:fl_clash/manager/manager.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
+import 'package:fl_clash/providers/zolnit_registration.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';
@@ -135,6 +136,8 @@ class ApplicationState extends ConsumerState<Application>
         final session = ref.read(zolnitSessionProvider);
         if (session.authenticated) unawaited(session.refreshPayment());
       },
+      onRegistrationReturn: (uri) =>
+          unawaited(ref.read(zolnitRegistrationProvider).accept(uri)),
     );
   }
 

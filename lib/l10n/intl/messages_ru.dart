@@ -3092,8 +3092,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "Доступные серверы автоматически обновляются вместе с тарифом.",
     ),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "Группа использует автополитику. Её выбор доступен только для чтения; ручной выбор не меняет политики сервисов.",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "Галочка — текущий выбор группы, а не индикатор трафика.",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Серверы"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "Галочка — сохранённое предпочтение; подключение здесь не активно.",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "Напрямую: трафик не идёт через выбранный здесь сервер.",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "Глобальный режим: выбор сервера глобальной группы. Автополитика выбирает сервер сама.",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "Умная маршрутизация: выбор сервера по умолчанию для правил. Политики ИИ, медиа и других сервисов независимы.",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "По измеренной задержке; непроверенные в конце",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "Доступные серверы обновляются из аккаунта.",
     ),
@@ -3194,8 +3215,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Обновить"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Регистрация"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage(
+          "Не удалось открыть страницу регистрации. Попробуйте ещё раз.",
+        ),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "Аккаунт создан, но ссылка для автоматического входа истекла. Войдите в новый аккаунт.",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "Регистрация и восстановление пароля выполняются на сайте ZolNit с проверкой почты и безопасности.",
+      "Зарегистрируйтесь на сайте внутри приложения. После регистрации вход произойдёт автоматически.",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
       "Продлить текущий тариф",

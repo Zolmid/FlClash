@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:fl_clash/common/app_localizations.dart';
 import 'package:fl_clash/common/context.dart';
-import 'package:fl_clash/common/zolnit_main_group.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -17,6 +16,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 
 import 'kit.dart';
 import 'data.dart';
+import 'node_groups.dart';
 import 'bundle_routing.dart';
 import 'skin.dart';
 
@@ -44,6 +44,10 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
   late int _generation = widget.session.api.generation;
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+  String? _hostsKey;
+  ZolnitRouteMetadata? _hosts;
+  (List<ZolnitNode>, ZolnitRouteMetadata, Map<String, String>)? _entriesSource;
+  List<ZolnitRouteEntry> _entries = const [];
 
   @override
   void didUpdateWidget(covariant ZolnitNodesPage oldWidget) {
@@ -101,29 +105,86 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     _handleDelayTest(group);
   }
 
-  List<String> _regions(List<ZolnitNode> nodes) {
-    final seen = <String>{};
-    final result = <String>[];
-    for (final node in nodes) {
-      final region = zolnitNodePresentation(node).region;
-      if (region.isNotEmpty && seen.add(region)) {
-        result.add(region);
-      }
+  ZolnitRouteMetadata? _serverHosts(ZolnitClientBundle bundle) {
+    final key = bundle.connectionSha256;
+    if (_hostsKey == key) return _hosts;
+    _hostsKey = key;
+    _hosts = cachedZolnitRouteMetadata(bundle);
+    if (_hosts == null) {
+      unawaited(
+        loadZolnitRouteMetadata(bundle).then((hosts) {
+          if (mounted && _hostsKey == key) {
+            setState(() => _hosts = hosts);
+            _autoMeasure();
+          }
+        }, onError: (Object _) {}),
+      );
     }
-    return result;
+    return _hosts;
   }
 
-  List<ZolnitNode> _filtered(List<ZolnitNode> nodes) {
+  List<ZolnitRouteEntry> _routeEntries(
+    List<ZolnitNode> nodes,
+    ZolnitRouteMetadata metadata,
+    Map<String, String> exitIds,
+  ) {
+    final source = _entriesSource;
+    if (source == null ||
+        !identical(source.$1, nodes) ||
+        !identical(source.$2, metadata) ||
+        !identical(source.$3, exitIds)) {
+      _entriesSource = (nodes, metadata, exitIds);
+      _entries = groupZolnitRoutes(
+        nodes,
+        hosts: metadata.hosts,
+        exitIds: exitIds,
+        paths: metadata.paths,
+      );
+    }
+    return _entries;
+  }
+
+  List<String> _regions(List<ZolnitRouteEntry> entries) {
+    final seen = <String>{};
+    return [
+      for (final entry in entries)
+        if (entry.region.isNotEmpty && seen.add(entry.region)) entry.region,
+    ];
+  }
+
+  List<ZolnitRouteEntry> _filtered(List<ZolnitRouteEntry> entries) {
     final lower = _query.trim().toLowerCase();
-    return nodes.where((node) {
-      final region = zolnitNodePresentation(node).region;
-      if (_region.isNotEmpty && region != _region) return false;
+    return entries.where((entry) {
+      if (_region.isNotEmpty && entry.region != _region) return false;
       if (lower.isEmpty) return true;
-      return node.name.toLowerCase().contains(lower) ||
-          node.title.toLowerCase().contains(lower) ||
-          region.toLowerCase().contains(lower) ||
-          node.tags.any((tag) => tag.toLowerCase().contains(lower));
+      return entry.title.toLowerCase().contains(lower) ||
+          entry.region.toLowerCase().contains(lower) ||
+          entry.members.any(
+            (node) =>
+                node.name.toLowerCase().contains(lower) ||
+                node.tags.any((tag) => tag.toLowerCase().contains(lower)),
+          );
     }).toList();
+  }
+
+  String? _activeProxy(_SelectorMatch match, {bool watch = true}) {
+    final group = match.groupName;
+    if (group == null) return null;
+    final live = watch
+        ? ref.watch(coreStatusProvider)
+        : ref.read(coreStatusProvider);
+    final safe = watch
+        ? ref.watch(safeModeProvider)
+        : ref.read(safeModeProvider);
+    if (live == CoreStatus.connected && !safe) {
+      final provider = groupsProvider.select(
+        (groups) => groups.getGroup(group)?.realNow,
+      );
+      return watch ? ref.watch(provider) : ref.read(provider);
+    }
+    final provider = selectedMapProvider.select((map) => map[group]);
+    final saved = watch ? ref.watch(provider) : ref.read(provider);
+    return match.members.contains(saved) ? saved : null;
   }
 
   _SelectorMatch _findSelector(WidgetRef ref, {bool watch = true}) {
@@ -153,8 +214,10 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
           !bundle.isFresh(ref.read(zolnitBundleClockProvider)())) {
         return const _SelectorMatch(null, null);
       }
-      final group = zolnitMainGroup(
-        bundle,
+      final metadata = _serverHosts(bundle);
+      if (metadata == null) return const _SelectorMatch(null, null);
+      final group = zolnitNodesGroup(
+        metadata,
         watch ? ref.watch(groupsProvider) : ref.read(groupsProvider),
         (watch
                 ? ref.watch(patchClashConfigProvider)
@@ -166,8 +229,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         group.name,
         group.testUrl,
         group.all.map((proxy) => proxy.name).toSet(),
-        true,
-        true,
+        group.type == GroupType.Selector,
       );
     }
     final names = widget.session.nodeList.map((node) => node.proxyName).toSet();
@@ -201,6 +263,20 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     );
   }
 
+  void _selectEntry(String groupName, ZolnitRouteEntry entry) {
+    final match = _findSelector(ref, watch: false);
+    if (!match.manual || match.groupName != groupName) return;
+    if (entry.contains(_activeProxy(match, watch: false))) return;
+    final target = zolnitPreferredMember(
+      entry,
+      (node) => ref.read(
+        delayProvider(proxyName: node.proxyName, testUrl: match.testUrl),
+      ),
+      eligible: (node) => match.members.contains(node.proxyName),
+    );
+    if (target != null) _selectNode(groupName, target.proxyName);
+  }
+
   void _handleDelayTest(String groupName) {
     final safe = ref.read(safeModeProvider);
     final core = ref.read(coreStatusProvider);
@@ -219,15 +295,66 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     final colors = ZolnitColors.of(context);
     final privateTransport = ref.watch(zolnitClientBundleTransportProvider);
     final bundleStatus = ref.watch(zolnitBundleStatusProvider);
-    final nodes = privateTransport && widget.session.clientBundle == null
+    final bundle = widget.session.clientBundle;
+    final nodes = privateTransport && bundle == null
         ? const <ZolnitNode>[]
         : widget.session.nodeList;
-    final regions = _regions(nodes);
-    final filtered = _filtered(nodes);
+    final metadata = bundle == null
+        ? const ZolnitRouteMetadata({}, null)
+        : _serverHosts(bundle);
+    final hosts = metadata?.hosts;
+    final entries = hosts == null
+        ? const <ZolnitRouteEntry>[]
+        : _routeEntries(
+            nodes,
+            metadata!,
+            bundle?.exitIds ?? const <String, String>{},
+          );
+    final regions = _regions(entries);
     final selector = _findSelector(ref);
     final selectorReady = selector.groupName != null;
+    final active = _activeProxy(selector);
+    final delays = <String, int?>{};
+    int? delayOf(ZolnitNode node) => selector.members.contains(node.proxyName)
+        ? delays.putIfAbsent(
+            node.proxyName,
+            () => ref.watch(
+              delayProvider(
+                proxyName: node.proxyName,
+                testUrl: selector.testUrl,
+              ),
+            ),
+          )
+        : null;
+    final shown = {
+      for (final entry in entries)
+        entry.key:
+            zolnitPreferredMember(
+              entry,
+              delayOf,
+              active: active,
+              eligible: (node) => selector.members.contains(node.proxyName),
+            ) ??
+            entry.primary,
+    };
+    final filtered = sortZolnitRoutesByLatency(
+      _filtered(entries),
+      (entry) => shown[entry.key]!,
+      delayOf,
+    );
+    final mode = ref.watch(patchClashConfigProvider).mode;
     final safe = ref.watch(safeModeProvider);
     final core = ref.watch(coreStatusProvider);
+    final liveChoice = !safe && core == CoreStatus.connected;
+    final automatic =
+        !selector.manual ||
+        (active != null &&
+            ref
+                    .watch(groupsProvider)
+                    .getGroup(active)
+                    ?.type
+                    .isComputedSelected ==
+                true);
     final canTest =
         selectorReady &&
         selector.manual &&
@@ -266,11 +393,17 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (!privateTransport || widget.session.clientBundle != null)
+            if (!privateTransport || bundle != null) ...[
               Text(
                 l10n.zolnitNodesCount(filtered.length),
                 style: zolnitText(context, 11, color: colors.muted),
               ),
+              if (filtered.length > 1)
+                Text(
+                  l10n.zolnitNodesSortedByLatency,
+                  style: zolnitText(context, 11, color: colors.muted),
+                ),
+            ],
             if (canTest)
               _DelayTestButton(
                 groupName: selector.groupName!,
@@ -278,8 +411,29 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
               ),
           ],
         ),
+        if (selectorReady) ...[
+          SizedBox(height: skin.desktop ? 6 : 8),
+          Text(switch (mode) {
+            Mode.global => l10n.zolnitNodesScopeGlobal,
+            Mode.direct => l10n.zolnitNodesScopeDirect,
+            Mode.rule => l10n.zolnitNodesScopeRule,
+          }, style: zolnitText(context, 11, color: colors.muted)),
+        ],
+        if (selectorReady) ...[
+          const SizedBox(height: 6),
+          Text(
+            automatic
+                ? l10n.zolnitNodesAutomaticPolicy
+                : liveChoice
+                ? l10n.zolnitNodesCurrentChoice
+                : l10n.zolnitNodesSavedChoice,
+            style: zolnitText(context, 11, color: colors.muted),
+          ),
+        ],
         SizedBox(height: skin.desktop ? 12 : 14),
-        if (filtered.isEmpty)
+        if (hosts == null)
+          _EmptyState(message: l10n.loading, colors: colors)
+        else if (filtered.isEmpty)
           _EmptyState(
             message: nodes.isEmpty
                 ? bundleMessage ?? l10n.zolnitNoNodes
@@ -287,25 +441,29 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
             colors: colors,
           )
         else
-          _NodeGrid(
-            nodes: filtered,
-            skin: skin,
-            compact: widget.compact,
-            selectorGroup: selector.groupName,
-            testUrl: selector.testUrl,
-            members: selector.members,
-            coreSelection: selector.coreSelection,
-            onSelect:
-                selectorReady &&
-                    selector.manual &&
-                    !safe &&
-                    core == CoreStatus.connected
-                ? (name) => _selectNode(selector.groupName!, name)
-                : null,
+          Column(
+            children: [
+              for (final entry in filtered)
+                _RouteTile(
+                  key: ValueKey('zolnit-route-${entry.key}'),
+                  entry: entry,
+                  shown: shown[entry.key]!,
+                  delay: delayOf(shown[entry.key]!),
+                  selected: entry.contains(active),
+                  skin: skin,
+                  onSelect:
+                      canTest &&
+                          entry.members.any(
+                            (node) => selector.members.contains(node.proxyName),
+                          )
+                      ? () => _selectEntry(selector.groupName!, entry)
+                      : null,
+                ),
+            ],
           ),
         const SizedBox(height: 12),
         if (privateTransport &&
-            ref.watch(patchClashConfigProvider).mode == Mode.rule &&
+            mode == Mode.rule &&
             widget.session.clientBundle?.routingManifest.services.isNotEmpty ==
                 true)
           ExpansionTile(
@@ -340,10 +498,8 @@ class _SelectorMatch {
     this.testUrl, [
     this.members = const {},
     this.manual = true,
-    this.coreSelection = false,
   ]);
   final bool manual;
-  final bool coreSelection;
 
   final String? groupName;
   final String? testUrl;
@@ -604,91 +760,30 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _NodeGrid extends StatelessWidget {
-  const _NodeGrid({
-    required this.nodes,
+class _RouteTile extends StatelessWidget {
+  const _RouteTile({
+    super.key,
+    required this.entry,
+    required this.shown,
+    required this.delay,
+    required this.selected,
     required this.skin,
-    required this.compact,
-    required this.selectorGroup,
-    required this.coreSelection,
-    required this.testUrl,
-    required this.members,
-    required this.onSelect,
-  });
-
-  final List<ZolnitNode> nodes;
-  final ZolnitSkin skin;
-  final bool compact;
-  final String? selectorGroup;
-  final bool coreSelection;
-  final String? testUrl;
-  final Set<String> members;
-  final ValueChanged<String>? onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final node in nodes)
-          _NodeListTile(
-            node: node,
-            skin: skin,
-            coreSelection: coreSelection,
-            selectorGroup: members.contains(node.proxyName)
-                ? selectorGroup
-                : null,
-            testUrl: testUrl,
-            onSelect: onSelect != null && members.contains(node.proxyName)
-                ? () => onSelect!(node.proxyName)
-                : null,
-          ),
-      ],
-    );
-  }
-}
-
-class _NodeListTile extends ConsumerWidget {
-  const _NodeListTile({
-    required this.node,
-    required this.skin,
-    required this.selectorGroup,
-    required this.coreSelection,
-    required this.testUrl,
     this.onSelect,
   });
 
-  final ZolnitNode node;
+  final ZolnitRouteEntry entry;
+  final ZolnitNode shown;
+  final int? delay;
+  final bool selected;
   final ZolnitSkin skin;
-  final String? selectorGroup;
-  final bool coreSelection;
-  final String? testUrl;
   final VoidCallback? onSelect;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.appLocalizations;
     final colors = ZolnitColors.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-
-    final selected =
-        selectorGroup != null &&
-        (coreSelection
-            ? ref.watch(
-                groupsProvider.select(
-                  (groups) =>
-                      groups.getGroup(selectorGroup!)?.realNow ==
-                      node.proxyName,
-                ),
-              )
-            : ref.watch(
-                selectedProxyNameProvider(
-                  selectorGroup!,
-                ).select((name) => name == node.proxyName),
-              ));
-
-    final delay = selectorGroup != null
-        ? ref.watch(delayProvider(proxyName: node.proxyName, testUrl: testUrl))
-        : null;
+    final delay = this.delay;
 
     final delayLabel = delay == null || delay == 0
         ? '—'
@@ -700,85 +795,88 @@ class _NodeListTile extends ConsumerWidget {
         ? colors.muted
         : context.colorScheme.delayColor(delay) ?? colors.muted;
 
-    final presentation = zolnitNodePresentation(node);
-    final regionLabel = presentation.region.isEmpty
-        ? l10n.unknown
-        : presentation.region;
+    final regionLabel = entry.region.isEmpty ? l10n.unknown : entry.region;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.line(0.06))),
-      ),
-      child: Material(
-        color: selected
-            ? colors.accent.withValues(alpha: dark ? 0.12 : 0.06)
-            : Colors.transparent,
-        child: InkWell(
-          onTap: onSelect,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: skin.desktop ? 4 : 2,
-              vertical: skin.desktop ? 10 : 12,
-            ),
-            child: Row(
-              children: [
-                ZolnitFlagBadge(
-                  flag: presentation.flag,
-                  label: regionLabel,
-                  size: 30,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        presentation.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: zolnitText(
-                          context,
-                          skin.desktop ? 12 : 13,
-                          weight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        regionLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: zolnitText(
-                          context,
-                          skin.desktop ? 10 : 11,
-                          color: colors.muted,
-                        ),
-                      ),
-                    ],
+    return Semantics(
+      selected: selected,
+      button: onSelect != null,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: colors.line(0.06))),
+        ),
+        child: Material(
+          color: selected
+              ? colors.accent.withValues(alpha: dark ? 0.12 : 0.06)
+              : Colors.transparent,
+          child: InkWell(
+            onTap: onSelect,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: skin.desktop ? 4 : 2,
+                vertical: skin.desktop ? 10 : 12,
+              ),
+              child: Row(
+                children: [
+                  ZolnitFlagBadge(
+                    flag: entry.flag,
+                    label: regionLabel,
+                    size: 30,
                   ),
-                ),
-                if (node.rateKnown && node.rate != 1) ...[
-                  ZolnitPill(label: l10n.zolnitNodeMultiplier(node.rateText)),
-                  const SizedBox(width: 8),
-                ],
-                SizedBox(
-                  width: 56,
-                  child: Text(
-                    delayLabel,
-                    textAlign: TextAlign.end,
-                    style: zolnitText(
-                      context,
-                      11,
-                      weight: FontWeight.w500,
-                      color: delayColor,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          entry.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: zolnitText(
+                            context,
+                            skin.desktop ? 12 : 13,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          regionLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: zolnitText(
+                            context,
+                            skin.desktop ? 10 : 11,
+                            color: colors.muted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                if (selected) ...[
-                  const SizedBox(width: 8),
-                  GlyphIcon(AppGlyphs.check, size: 16, color: colors.accent),
+                  if (shown.rateKnown && shown.rate != 1) ...[
+                    ZolnitPill(
+                      label: l10n.zolnitNodeMultiplier(shown.rateText),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  SizedBox(
+                    width: 56,
+                    child: Text(
+                      delayLabel,
+                      textAlign: TextAlign.end,
+                      style: zolnitText(
+                        context,
+                        11,
+                        weight: FontWeight.w500,
+                        color: delayColor,
+                      ),
+                    ),
+                  ),
+                  if (selected) ...[
+                    const SizedBox(width: 8),
+                    GlyphIcon(AppGlyphs.check, size: 16, color: colors.accent),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

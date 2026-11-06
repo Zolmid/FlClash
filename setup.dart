@@ -539,6 +539,7 @@ Future<int> _ensureLinuxDependencies() async {
     ['ninja-build', 'libgtk-3-dev'],
     ['libayatana-appindicator3-dev'],
     ['libsecret-1-dev'],
+    ['libwebkit2gtk-4.1-dev', 'libsoup-3.0-dev'],
     ['locate'],
     ['rpm', 'patchelf'],
     ['libfuse2'],

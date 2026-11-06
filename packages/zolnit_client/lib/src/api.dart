@@ -223,6 +223,10 @@ class XboardClient {
     required int statusCode,
     required List<int> bodyBytes,
   }) {
+    if (path == '/api/v1/passport/zolnit-registration/exchange' &&
+        statusCode == 400) {
+      return const ClientFailure('registration_return_expired');
+    }
     final isPlugin = path.startsWith(_pluginPrefix);
     if (path.startsWith('/api/v1/zolnit/client/')) {
       String? code;
@@ -321,6 +325,20 @@ class XboardClient {
             authenticated: false,
           )
           as Json;
+
+  Future<Json> exchangeRegistration(String code, String codeVerifier) async {
+    if (!RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(code) ||
+        !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(codeVerifier)) {
+      throw const ClientFailure('invalid_registration_callback');
+    }
+    return await request(
+          '/api/v1/passport/zolnit-registration/exchange',
+          method: 'POST',
+          body: {'code': code, 'code_verifier': codeVerifier},
+          authenticated: false,
+        )
+        as Json;
+  }
 
   Future<dynamic> register(Json fields) => request(
     '/api/v1/passport/auth/register',

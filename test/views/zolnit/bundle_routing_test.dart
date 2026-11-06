@@ -11,6 +11,7 @@ import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/bundle_routing.dart';
+import 'package:fl_clash/views/zolnit/node_groups.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -169,6 +170,9 @@ void main() {
     WidgetTester tester, {
     ZolnitSkin skin = ZolnitSkin.macos,
   }) async {
+    await tester.runAsync(
+      () => loadZolnitRouteMetadata(fixture.session.clientBundle!),
+    );
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -505,6 +509,41 @@ void main() {
       final owner =
           container.read(proxiesActionProvider.notifier) as _Recording;
       expect(owner.selections, [('zn.service.ai', 'zn.service.ai.manual')]);
+    },
+  );
+
+  testWidgets(
+    'current service route uses the same protocol-free distinct server identity as All Routes',
+    (tester) async {
+      final raw = clientBundleFixture();
+      for (final outbound in raw['outbounds'] as List) {
+        if (outbound['id'] == 'vless:7') {
+          outbound['display_name'] = '香港 Lite A · HY2 · 1×';
+        }
+        if (outbound['id'] == 'hysteria:8') {
+          outbound['display_name'] = '香港 Lite A · REALITY · 1×';
+        }
+      }
+      for (final node in raw['routing']['nodes'] as List) {
+        if (node['id'] == 'vless:7') {
+          node['final_egress']['country'] = 'HK';
+        }
+      }
+      fixture.onBundle = (_) async => clientBundleResponse(raw);
+      await tester.runAsync(
+        () => fixture.session.refreshClientBundle(
+          coreVersion: 'v1.19.32',
+          clock: () => now,
+        ),
+      );
+      await mount(tester);
+      expect(find.text('Current route: 香港 Lite A · 2'), findsOneWidget);
+      expect(find.textContaining('HY2'), findsNothing);
+      expect(find.textContaining('REALITY'), findsNothing);
+      final owner =
+          container.read(proxiesActionProvider.notifier) as _Recording;
+      expect(owner.selections, isEmpty);
+      expect(tester.takeException(), isNull);
     },
   );
 

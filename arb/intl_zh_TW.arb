@@ -1,4 +1,6 @@
 {
+  "zolnitRegistrationBrowserUnavailable": "無法開啟註冊頁，請重試。",
+  "zolnitRegistrationReturnExpired": "帳號已建立，但自動登入連結已失效。請使用新帳號登入。",
   "rule": "規則",
   "rules": "規則",
   "global": "全域",
@@ -1463,7 +1465,7 @@
   "zolnitPreferencesSafeHint": "安全模式會保留你的偏好，但不會自動連線或變更系統網路。",
   "zolnitRegister": "註冊",
   "zolnitForgotPassword": "忘記密碼？",
-  "zolnitRegistrationWebsiteHint": "註冊和找回密碼將在 ZolNit 官網完成電郵與安全驗證。",
+  "zolnitRegistrationWebsiteHint": "在 App 內完成官網註冊後，將自動登入 ZolNit。",
   "zolnitTabAccount": "帳戶資訊",
   "zolnitTabOrders": "訂單記錄",
   "zolnitTabInvite": "邀請有禮",
@@ -1549,5 +1551,12 @@
   "zolnitNewTicket": "新增工單",
   "zolnitTicketMessage": "請描述你的問題",
   "zolnitTicketReply": "回覆",
-  "zolnitSendRequest": "傳送"
+  "zolnitSendRequest": "傳送",
+  "zolnitNodesSortedByLatency": "依實測延遲排序，未檢測的排在最後",
+  "zolnitNodesScopeRule": "智慧分流：此處選擇預設／規則回退線路，AI、影音等服務策略獨立生效。",
+  "zolnitNodesScopeGlobal": "全域模式：此處選擇全域群組的線路；自動策略會自行選擇線路。",
+  "zolnitNodesScopeDirect": "直連模式：流量不經過這裡選擇的線路。",
+  "zolnitNodesCurrentChoice": "勾選表示目前群組選擇，不代表即時流量狀態。",
+  "zolnitNodesSavedChoice": "勾選表示已儲存偏好，此處連線尚未生效。",
+  "zolnitNodesAutomaticPolicy": "此群組使用自動策略，其自動選路在此唯讀；手動預設線路不改變服務策略。"
 }

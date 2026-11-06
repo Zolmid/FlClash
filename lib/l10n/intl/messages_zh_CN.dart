@@ -2192,8 +2192,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("线路"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用线路会随套餐自动更新。"),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "该分组使用自动策略，其自动选路在此只读；手动默认线路不改变服务策略。",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "勾选表示当前分组选择，不代表实时流量状态。",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("线路"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "勾选表示已保存偏好，此处连接尚未生效。",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "直连模式：流量不经过这里选择的线路。",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "全局模式：此处选择全局组的线路；自动策略会自行选择线路。",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "智能分流：此处选择默认／规则回退线路，AI、影音等服务策略独立生效。",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "按实测延迟排序，未检测的排在最后",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "线路会随账号套餐自动更新。",
     ),
@@ -2268,8 +2289,13 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("刷新"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("注册"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage("无法打开注册页，请重试。"),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "账号已创建，但自动登录链接已失效。请使用新账号登录。",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "注册和找回密码将在 ZolNit 官网完成邮箱与安全验证。",
+      "在应用内完成官网注册后，将自动登录 ZolNit。",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("续费当前套餐"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("续费套餐"),

@@ -1,4 +1,6 @@
 {
+  "zolnitRegistrationBrowserUnavailable": "No se pudo abrir la página de registro. Inténtalo de nuevo.",
+  "zolnitRegistrationReturnExpired": "Tu cuenta se ha creado, pero el enlace de acceso automático ha caducado. Ya puedes iniciar sesión.",
   "rule": "Regla",
   "rules": "Reglas",
   "global": "Global",
@@ -1463,7 +1465,7 @@
   "zolnitPreferencesSafeHint": "El modo seguro conserva tus preferencias, pero no se conecta automáticamente ni cambia la red del sistema.",
   "zolnitRegister": "Registrarse",
   "zolnitForgotPassword": "¿Olvidaste tu contraseña?",
-  "zolnitRegistrationWebsiteHint": "El registro y la recuperación de contraseña se completan en la web de ZolNit con verificación de correo y seguridad.",
+  "zolnitRegistrationWebsiteHint": "Regístrate en el sitio web desde la aplicación. Al terminar, se iniciará sesión automáticamente.",
   "zolnitTabAccount": "Cuenta",
   "zolnitTabOrders": "Pedidos",
   "zolnitTabInvite": "Invitaciones",
@@ -1549,5 +1551,12 @@
   "zolnitNewTicket": "Nueva solicitud",
   "zolnitTicketMessage": "Describe tu consulta",
   "zolnitTicketReply": "Responder",
-  "zolnitSendRequest": "Enviar"
+  "zolnitSendRequest": "Enviar",
+  "zolnitNodesSortedByLatency": "Por latencia medida; sin medir al final",
+  "zolnitNodesScopeRule": "Enrutamiento inteligente: elige el servidor predeterminado de las reglas. Las políticas de IA, streaming y otros servicios son independientes.",
+  "zolnitNodesScopeGlobal": "Global: elige el servidor del grupo global. Una política automática elige su propio servidor.",
+  "zolnitNodesScopeDirect": "Directo: el tráfico no usa el servidor elegido aquí.",
+  "zolnitNodesCurrentChoice": "Marca: selección actual del grupo, sin indicar tráfico en tiempo real.",
+  "zolnitNodesSavedChoice": "Marca: preferencia guardada; la conexión no está activa aquí.",
+  "zolnitNodesAutomaticPolicy": "El grupo usa una política automática, de solo lectura aquí. La selección manual no cambia las políticas de los servicios."
 }

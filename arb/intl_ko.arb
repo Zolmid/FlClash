@@ -1,4 +1,6 @@
 {
+  "zolnitRegistrationBrowserUnavailable": "가입 페이지를 열 수 없습니다. 다시 시도해 주세요.",
+  "zolnitRegistrationReturnExpired": "계정이 생성되었으나 자동 로그인 링크가 만료되었습니다. 새 계정으로 로그인해 주세요.",
   "rule": "규칙",
   "rules": "규칙",
   "global": "전역",
@@ -1463,7 +1465,7 @@
   "zolnitPreferencesSafeHint": "안전 모드는 설정을 유지하지만 자동으로 연결하거나 시스템 네트워크를 변경하지 않습니다.",
   "zolnitRegister": "회원가입",
   "zolnitForgotPassword": "비밀번호를 잊으셨나요?",
-  "zolnitRegistrationWebsiteHint": "회원가입 및 비밀번호 복구는 ZolNit 웹사이트에서 이메일 및 보안 인증을 진행합니다.",
+  "zolnitRegistrationWebsiteHint": "앱에서 공식 웹사이트 가입을 마치면 자동으로 로그인됩니다.",
   "zolnitTabAccount": "계정 정보",
   "zolnitTabOrders": "주문 내역",
   "zolnitTabInvite": "친구 초대",
@@ -1549,5 +1551,12 @@
   "zolnitNewTicket": "새 요청",
   "zolnitTicketMessage": "문제를 설명해 주세요",
   "zolnitTicketReply": "답장",
-  "zolnitSendRequest": "전송"
+  "zolnitSendRequest": "전송",
+  "zolnitNodesSortedByLatency": "실측 지연 순, 미측정은 마지막",
+  "zolnitNodesScopeRule": "스마트 라우팅: 기본/규칙 대체 서버를 선택합니다. AI·미디어 등의 서비스 정책은 별도입니다.",
+  "zolnitNodesScopeGlobal": "전체 모드: 전체 그룹의 서버를 선택합니다. 자동 정책은 서버를 별도로 선택합니다.",
+  "zolnitNodesScopeDirect": "직접 연결: 트래픽이 여기서 고른 서버를 거치지 않습니다.",
+  "zolnitNodesCurrentChoice": "체크는 현재 그룹 선택이며 실시간 트래픽 상태가 아닙니다.",
+  "zolnitNodesSavedChoice": "체크는 저장된 기본 설정이며 현재 연결은 활성화되지 않았습니다.",
+  "zolnitNodesAutomaticPolicy": "그룹이 자동 정책을 사용합니다. 자동 선택은 읽기 전용이며 수동 기본 선택은 서비스 정책을 바꾸지 않습니다."
 }

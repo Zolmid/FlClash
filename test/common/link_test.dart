@@ -108,6 +108,40 @@ void main() {
     },
   );
 
+  test('registration returns stay out of subscription handling', () async {
+    Uri? registration;
+    await linkManager.initAppLinksListen(
+      received.add,
+      onRegistrationReturn: (uri) => registration = uri,
+    );
+
+    await emit(
+      'zolnit://auth/register#code=registration-code&state=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    );
+
+    expect(registration?.host, 'auth');
+    expect(received, isEmpty);
+  });
+
+  test('only the registration callback route is recognized', () {
+    expect(
+      isRegistrationReturnLink(
+        Uri.parse(
+          'zolnit://auth/register#code=registration-code&state=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      isRegistrationReturnLink(
+        Uri.parse(
+          'zolnit://auth/register?code=registration-code&state=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        ),
+      ),
+      isFalse,
+    );
+  });
+
   test(
     'seeded payment returns notify once and never become subscriptions',
     () async {

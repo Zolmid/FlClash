@@ -2210,8 +2210,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("線路"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用線路會隨套餐自動更新。"),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "此群組使用自動策略，其自動選路在此唯讀；手動預設線路不改變服務策略。",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "勾選表示目前群組選擇，不代表即時流量狀態。",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("線路"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "勾選表示已儲存偏好，此處連線尚未生效。",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "直連模式：流量不經過這裡選擇的線路。",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "全域模式：此處選擇全域群組的線路；自動策略會自行選擇線路。",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "智慧分流：此處選擇預設／規則回退線路，AI、影音等服務策略獨立生效。",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "依實測延遲排序，未檢測的排在最後",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "線路會隨帳號套餐自動更新。",
     ),
@@ -2288,8 +2309,13 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("重新整理"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("註冊"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage("無法開啟註冊頁，請重試。"),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "帳號已建立，但自動登入連結已失效。請使用新帳號登入。",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "註冊和找回密碼將在 ZolNit 官網完成電郵與安全驗證。",
+      "在 App 內完成官網註冊後，將自動登入 ZolNit。",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("續約目前方案"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("續約方案"),

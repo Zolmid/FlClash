@@ -257,6 +257,37 @@ void main() {
     },
   );
 
+  test(
+    'registration exchange signs in with one unauthenticated request',
+    () async {
+      const code = 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
+      const verifier = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+      fixture.override = (request) async {
+        if (!request.url.path.endsWith('/zolnit-registration/exchange')) {
+          return null;
+        }
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(jsonDecode(request.body), {
+          'code': code,
+          'code_verifier': verifier,
+        });
+        return _data({'auth_data': 'Bearer exchanged'});
+      };
+
+      await fixture.session.exchangeRegistration(code, verifier);
+
+      expect(fixture.count('/zolnit-registration/exchange'), 1);
+      expect(fixture.session.authenticated, isTrue);
+      expect(
+        fixture.requests
+            .where((request) => request.url.path.endsWith('/info'))
+            .single
+            .headers['Authorization'],
+        'Bearer exchanged',
+      );
+    },
+  );
+
   test('restore queues behind pending logout deletion', () async {
     final gate = Completer<void>();
     final vault = _Vault()

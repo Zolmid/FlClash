@@ -2475,8 +2475,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "利用可能なサーバーはプランに合わせて自動更新されます。",
     ),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "自動ポリシーの選択はここでは読み取り専用です。手動の既定値はサービスのポリシーを変更しません。",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "チェックは現在のグループ選択で、通信状態の表示ではありません。",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("サーバー"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "チェックは保存済みの設定で、ここでは接続は有効ではありません。",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "直接接続：通信はここで選んだサーバーを経由しません。",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "グローバル：グローバルグループのサーバーを選択。自動ポリシーは独自に選びます。",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "スマート分流：既定／ルールのフォールバックを選択。AI・動画などのポリシーは独立しています。",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "実測遅延順（未測定は最後）",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "利用可能なサーバーはアカウントから自動更新されます。",
     ),
@@ -2557,8 +2578,13 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("更新"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("新規登録"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage("登録ページを開けませんでした。再度お試しください。"),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "アカウントは作成されましたが、自動ログインの期限が切れました。新しいアカウントでログインしてください。",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "新規登録とパスワードの再設定は、ZolNit 公式サイトでメールとセキュリティの確認を行います。",
+      "アプリ内の公式サイトで登録を完了すると、自動的にログインします。",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("現在のプランを更新"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("プランを更新"),

@@ -4,6 +4,7 @@ import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
+import 'package:fl_clash/providers/zolnit_registration.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,12 +49,14 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   int? _observedGeneration;
   bool _foreground = true;
   late final ZolnitSessionController _session;
+  late final ZolnitRegistrationCoordinator _registration;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _session = ref.read(zolnitSessionProvider)..addListener(_sessionChanged);
+    _registration = ref.read(zolnitRegistrationProvider);
     ref.listenManual(initProvider, (_, ready) {
       if (ready) unawaited(_refreshData(force: true));
     });
@@ -152,6 +155,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _registration.cancel();
     _session.removeListener(_sessionChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -165,6 +169,10 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       Uri.parse('https://link.zolmid.com').replace(fragment: path),
       mode: mode,
     );
+  }
+
+  Future<void> _register() async {
+    await _registration.start();
   }
 
   void _openHelp(BuildContext from) {
@@ -348,7 +356,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                     session: session,
                     onSignedIn: _signedIn,
                     openWebsite: () => unawaited(_website()),
-                    openRegistration: () => unawaited(_website('/register')),
+                    openRegistration: () => unawaited(_register()),
                     openRecovery: () => unawaited(_website('/forgetpassword')),
                   );
                 }

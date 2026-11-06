@@ -3185,8 +3185,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "Les serveurs disponibles se mettent automatiquement à jour avec votre forfait.",
     ),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "Le groupe utilise une politique automatique, consultable ici. Un choix manuel par défaut ne modifie pas les politiques des services.",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "Coche : choix actuel du groupe, sans indication de trafic en direct.",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Serveurs"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "Coche : préférence enregistrée ; connexion inactive ici.",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "Direct : le trafic n’utilise pas le serveur choisi ici.",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "Global : choix du serveur du groupe global. Une politique automatique choisit son propre serveur.",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "Routage intelligent : choix du serveur par défaut des règles. Les politiques IA, streaming et autres restent indépendantes.",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "Par latence mesurée ; non testés en dernier",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "Les serveurs disponibles se mettent à jour depuis votre compte.",
     ),
@@ -3291,8 +3312,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualiser"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Créer un compte"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage(
+          "Impossible d’ouvrir la page d’inscription. Réessayez.",
+        ),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "Votre compte a été créé, mais le lien de connexion automatique a expiré. Vous pouvez vous connecter.",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "La création du compte et la récupération du mot de passe se font sur le site ZolNit avec vérification de l’adresse e-mail et de sécurité.",
+      "Inscrivez-vous sur le site depuis l’application. Vous serez ensuite connecté automatiquement.",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
       "Renouveler le forfait actuel",

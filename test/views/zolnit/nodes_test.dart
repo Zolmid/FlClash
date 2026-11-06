@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:fl_clash/common/yaml.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -5,6 +9,7 @@ import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/zolnit/nodes.dart';
+import 'package:fl_clash/views/zolnit/node_groups.dart';
 import 'package:fl_clash/views/zolnit/kit.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +19,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'harness.dart';
+import '../../../packages/zolnit_client/test/client_bundle_fixture.dart';
 import '../../helpers/test_profiles.dart';
 
 class _RecordingProxies extends ProxiesAction {
@@ -43,6 +49,234 @@ void main() {
       proxiesActionProvider.overrideWith(_RecordingProxies.new),
     ],
   );
+
+  var bundleNow = bundleTime(1001);
+
+  Future<String> preparePrivateBundle(
+    WidgetTester tester, {
+    Mode mode = Mode.rule,
+    bool automatic = false,
+    bool merged = false,
+    ZolnitSkin skin = ZolnitSkin.macos,
+  }) async {
+    bundleNow = bundleTime(1001);
+    final fixture = ClientBundleSessionFixture();
+    if (merged) {
+      final raw = clientBundleFixture();
+      final document =
+          loadPlainYaml(raw['connection']['document'] as String) as Map;
+      final proxies = document['proxies'] as List;
+      proxies.first['server'] = 'hk.example';
+      proxies.first.remove('dialer-proxy');
+      final encoded = jsonEncode(document);
+      raw['connection']['document'] = encoded;
+      raw['connection']['sha256'] = sha256
+          .convert(utf8.encode(encoded))
+          .toString();
+      for (final outbound in raw['outbounds'] as List) {
+        if (outbound['id'] == 'vless:7') {
+          outbound['display_name'] = '香港 Lite A · VLESS · 1×';
+        }
+        if (outbound['id'] == 'hysteria:8') {
+          outbound['display_name'] = '香港 Lite A · HY2 · 1×';
+        }
+      }
+      for (final node in raw['routing']['nodes'] as List) {
+        if (node['id'] == 'vless:7') {
+          node['final_egress']['country'] = 'HK';
+          node['exit_id'] = 'exit-hk-1';
+        }
+      }
+      fixture.onBundle = (_) async => clientBundleResponse(raw);
+    }
+    addTearDown(fixture.session.dispose);
+    await tester.runAsync(() async {
+      await fixture.login();
+      await fixture.session.refreshClientBundle(
+        coreVersion: 'v1.19.32',
+        clock: () => bundleTime(1001),
+      );
+    });
+    final bundle = fixture.session.clientBundle!;
+    await tester.runAsync(() => loadZolnitRouteMetadata(bundle));
+    final group = cachedZolnitRouteMetadata(bundle)!.defaultGroup!;
+    final nodes = fixture.session.nodeList;
+    final profile = Profile.normal(label: 'private').copyWith(
+      zolnitAccountId: bundle.accountId,
+      zolnitBundleId: bundle.bundleId,
+      zolnitOrigin: fixture.api.origin.origin,
+      selectedMap: {group: nodes.last.proxyName},
+    );
+    harness.container.dispose();
+    harness.container = ProviderContainer(
+      overrides: [
+        zolnitSessionProvider.overrideWithValue(fixture.session),
+        zolnitClientBundleTransportProvider.overrideWithValue(true),
+        zolnitBundleClockProvider.overrideWithValue(() => bundleNow),
+        safeModeProvider.overrideWithValue(false),
+        profilesProvider.overrideWith(() => TestProfiles([profile])),
+        currentProfileIdProvider.overrideWithBuild((_, _) => profile.id),
+        proxiesActionProvider.overrideWith(_RecordingProxies.new),
+      ],
+    );
+    globalState.container = harness.container;
+    harness.container.read(patchClashConfigProvider.notifier).value = harness
+        .container
+        .read(patchClashConfigProvider)
+        .copyWith(mode: mode);
+    harness.container.read(coreStatusProvider.notifier).value =
+        CoreStatus.connected;
+    harness.container.read(groupsProvider.notifier).value = [
+      Group(
+        name: 'unrelated-return',
+        type: GroupType.Selector,
+        all: [for (final n in nodes) Proxy(name: n.proxyName, type: 'ss')],
+      ),
+      Group(
+        name: 'zn.service.ai',
+        type: GroupType.URLTest,
+        now: nodes.last.proxyName,
+        all: [for (final n in nodes) Proxy(name: n.proxyName, type: 'ss')],
+      ),
+      Group(
+        name: group,
+        type: automatic ? GroupType.URLTest : GroupType.Selector,
+        now: merged ? nodes[1].proxyName : nodes.last.proxyName,
+        all: [
+          for (final n in nodes.take(2)) Proxy(name: n.proxyName, type: 'ss'),
+          Proxy(name: nodes.last.proxyName, type: 'ss'),
+        ],
+      ),
+      Group(
+        name: 'GLOBAL',
+        type: GroupType.Selector,
+        now: nodes.first.proxyName,
+        all: [for (final n in nodes) Proxy(name: n.proxyName, type: 'ss')],
+      ),
+    ];
+    for (final (i, delay) in [(0, 45), (2, 286)]) {
+      harness.container
+          .read(delayDataSourceProvider.notifier)
+          .setDelay(
+            Delay(
+              name: nodes[i].proxyName,
+              url: harness.container.read(realTestUrlProvider()),
+              value: delay,
+            ),
+          );
+    }
+    await harness.mount(
+      tester,
+      skin,
+      child: ZolnitNodesPage(session: fixture.session, sync: () async => null),
+    );
+    return group;
+  }
+
+  for (final skin in [ZolnitSkin.macos, ZolnitSkin.ios]) {
+    testWidgets(
+      'merged physical server on ${skin.name} chooses a real protocol internally',
+      (tester) async {
+        final group = await preparePrivateBundle(
+          tester,
+          merged: true,
+          skin: skin,
+        );
+        expect(find.text('香港 Lite A'), findsOneWidget);
+        expect(find.textContaining('VLESS'), findsNothing);
+        expect(find.textContaining('HY2'), findsNothing);
+        expect(find.text('线路：2'), findsOneWidget);
+        expect(find.text('45 ms'), findsOneWidget);
+        final action =
+            harness.container.read(proxiesActionProvider.notifier)
+                as _RecordingProxies;
+        await tester.tap(find.text('香港 Lite A'));
+        expect(action.selections, [(group, 'zn.node.hysteria.8')]);
+        harness.container.read(groupsProvider.notifier).value = [
+          for (final g in harness.container.read(groupsProvider))
+            g.name == group ? g.copyWith(now: 'zn.node.vless.7') : g,
+        ];
+        await tester.pump();
+        expect(find.text('286 ms'), findsOneWidget);
+        expect(
+          tester
+              .widgetList<Semantics>(find.byType(Semantics))
+              .where((widget) => widget.properties.selected == true),
+          hasLength(1),
+        );
+        await tester.tap(find.text('香港 Lite A'));
+        expect(action.selections, hasLength(1));
+        expect(tester.takeException(), isNull);
+        await harness.capture(tester, 'nodes-grouped-${skin.name}');
+      },
+    );
+  }
+
+  for (final mode in [Mode.rule, Mode.global, Mode.direct]) {
+    testWidgets(
+      'private $mode selects the actual default or global group only',
+      (tester) async {
+        final group = await preparePrivateBundle(tester, mode: mode);
+        final expected = mode == Mode.global ? 'GLOBAL' : group;
+        final action =
+            harness.container.read(proxiesActionProvider.notifier)
+                as _RecordingProxies;
+        expect(
+          tester.getTopLeft(find.text('45 ms')).dy,
+          lessThan(tester.getTopLeft(find.text('286 ms')).dy),
+        );
+        await tester.tap(find.text(mode == Mode.global ? '美国 原名' : '香港').first);
+        await tester.pump();
+        expect(action.selections.single.$1, expected);
+        expect(
+          action.selections.single.$2,
+          mode == Mode.global ? 'zn.node.vless.7' : 'zn.node.hysteria.8',
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'automatic default is read-only and does not claim manual selection',
+    (tester) async {
+      await preparePrivateBundle(tester, automatic: true);
+      final action =
+          harness.container.read(proxiesActionProvider.notifier)
+              as _RecordingProxies;
+      await tester.tap(find.text('香港').first);
+      expect(action.selections, isEmpty);
+      expect(find.textContaining('自动选路在此只读'), findsOneWidget);
+    },
+  );
+
+  testWidgets('stale taps recheck connection, profile and bundle freshness', (
+    tester,
+  ) async {
+    await preparePrivateBundle(tester);
+    final action =
+        harness.container.read(proxiesActionProvider.notifier)
+            as _RecordingProxies;
+    harness.container.read(coreStatusProvider.notifier).value =
+        CoreStatus.disconnected;
+    await tester.tap(find.text('香港').first);
+    expect(action.selections, isEmpty);
+    await tester.pump();
+    expect(find.textContaining('已保存偏好'), findsOneWidget);
+    harness.container.read(coreStatusProvider.notifier).value =
+        CoreStatus.connected;
+    await tester.pump();
+    bundleNow = bundleTime(9999);
+    await tester.tap(find.text('香港').first);
+    expect(action.selections, isEmpty);
+    bundleNow = bundleTime(1001);
+    (harness.container.read(profilesProvider.notifier) as TestProfiles).replace(
+      [],
+    );
+    await tester.tap(find.text('香港').first);
+    expect(action.selections, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final (status, message) in [
     (ZolnitBundleStatus.unloaded, '加载中'),

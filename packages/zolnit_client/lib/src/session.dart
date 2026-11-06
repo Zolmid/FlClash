@@ -286,15 +286,28 @@ class ZolnitSessionController extends ChangeNotifier {
   }
 
   Future<void> login(String email, String password) {
+    return _authenticate(() => api.login(email, password));
+  }
+
+  Future<void> exchangeRegistration(String code, String codeVerifier) {
+    return _authenticate(() => api.exchangeRegistration(code, codeVerifier));
+  }
+
+  void reportSignInFailure(String code) {
+    if (_disposed || _authenticated) return;
+    _failure = code;
+    _failureMessage = null;
+    notifyListeners();
+  }
+
+  Future<void> _authenticate(Future<Json> Function() authenticate) {
     if (_disposed) return Future.value();
     final active = _flights['login'];
     if (active != null) return active as Future<void>;
     _invalidate(deleteAuthorization: false);
     return _run<void>('login', null, (work) async {
       try {
-        final result = await api
-            .login(email, password)
-            .timeout(authenticationTimeout);
+        final result = await authenticate().timeout(authenticationTimeout);
         if (!_current(work)) return;
         final authorization = result['auth_data'];
         if (authorization is! String || authorization.isEmpty) {

@@ -1,4 +1,6 @@
 {
+  "zolnitRegistrationBrowserUnavailable": "The registration page could not open. Please try again.",
+  "zolnitRegistrationReturnExpired": "Your account was created, but automatic sign-in expired. You can now sign in.",
   "rule": "Rule",
   "rules": "Rules",
   "global": "Global",
@@ -1463,7 +1465,7 @@
   "zolnitPreferencesSafeHint": "Safe mode keeps your preferences but won't connect automatically or change system network settings.",
   "zolnitRegister": "Sign up",
   "zolnitForgotPassword": "Forgot password?",
-  "zolnitRegistrationWebsiteHint": "Sign-up and password recovery open the ZolNit website for email and security verification.",
+  "zolnitRegistrationWebsiteHint": "Register on the website in the app. You’ll be signed in automatically when you finish.",
   "zolnitTabAccount": "Account info",
   "zolnitTabOrders": "Orders",
   "zolnitTabInvite": "Invite & earn",
@@ -1549,5 +1551,12 @@
   "zolnitNewTicket": "New request",
   "zolnitTicketMessage": "Describe your question",
   "zolnitTicketReply": "Reply",
-  "zolnitSendRequest": "Send"
+  "zolnitSendRequest": "Send",
+  "zolnitNodesSortedByLatency": "Sorted by measured latency; untested last",
+  "zolnitNodesScopeRule": "Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.",
+  "zolnitNodesScopeGlobal": "Global: rows choose the global group’s server. An automatic policy may choose its own server.",
+  "zolnitNodesScopeDirect": "Direct: traffic does not use the server selected here.",
+  "zolnitNodesCurrentChoice": "Checkmark: current group choice, not a live traffic indicator.",
+  "zolnitNodesSavedChoice": "Checkmark: saved preference; connection is not active here.",
+  "zolnitNodesAutomaticPolicy": "The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies."
 }

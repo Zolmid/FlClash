@@ -4,12 +4,61 @@ import 'package:fl_clash/views/zolnit/auth.dart';
 import 'package:fl_clash/views/zolnit/brand.dart';
 import 'package:fl_clash/views/zolnit/data.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
+import 'package:fl_clash/providers/zolnit_registration.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 
 import 'harness.dart';
+
+class _RegistrationBrowser implements ZolnitRegistrationBrowser {
+  _RegistrationBrowser({this.launches = true});
+
+  final bool launches;
+  Uri? registration;
+  ValueChanged<Uri>? onReturn;
+  VoidCallback? onClosed;
+  int closes = 0;
+
+  @override
+  Future<void> close() async {
+    closes++;
+  }
+
+  @override
+  Future<bool> open(
+    Uri registration, {
+    required ValueChanged<Uri> onReturn,
+    required VoidCallback onClosed,
+  }) async {
+    this.registration = registration;
+    this.onReturn = onReturn;
+    this.onClosed = onClosed;
+    return launches;
+  }
+}
+
+class _RegistrationAttemptStore implements ZolnitRegistrationAttemptStore {
+  ZolnitRegistrationAttempt? value;
+  int reads = 0;
+
+  @override
+  Future<void> clear() async {
+    value = null;
+  }
+
+  @override
+  Future<ZolnitRegistrationAttempt?> read() async {
+    reads++;
+    return value;
+  }
+
+  @override
+  Future<void> write(ZolnitRegistrationAttempt attempt) async {
+    value = attempt;
+  }
+}
 
 void main() {
   final harness = ZolnitHarness.register();
@@ -93,6 +142,174 @@ void main() {
     await tester.tap(find.text('注册'));
     await tester.tap(find.text('忘记密码？'));
     expect(website, 3);
+  });
+
+  test('registration callback exchanges a single matching PKCE return', () async {
+    await harness.session.logout();
+    harness.requests.clear();
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-registration/exchange')) {
+        return zolnitJson({'auth_data': 'Bearer exchanged'});
+      }
+      return zolnitPanelFixture(request);
+    };
+    final browser = _RegistrationBrowser();
+    final store = _RegistrationAttemptStore();
+    final coordinator = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: browser,
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    final registration = await coordinator.begin();
+    final parameters = Uri.parse(
+      'https://link.zolmid.com${registration.fragment}',
+    ).queryParameters;
+    final state = parameters['sso_state'];
+
+    expect(registration.path, isEmpty);
+    expect(parameters['sso_challenge']?.length, 43);
+    expect(state, 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+    expect(
+      await coordinator.accept(
+        Uri.parse(
+          'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=wrong',
+        ),
+      ),
+      isFalse,
+    );
+    expect(store.reads, 0);
+    expect(
+      await coordinator.accept(
+        Uri.parse(
+          'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      harness.requests
+          .where(
+            (request) =>
+                request.url.path.endsWith('/zolnit-registration/exchange'),
+          )
+          .length,
+      1,
+    );
+    expect(browser.closes, 1);
+    expect(
+      await coordinator.accept(
+        Uri.parse(
+          'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+        ),
+      ),
+      isFalse,
+    );
+    coordinator.dispose();
+  });
+
+  test('only the first-party registration site can navigate in-app', () {
+    expect(
+      isZolnitRegistrationWebsiteNavigation(
+        Uri.parse('https://link.zolmid.com/#/register'),
+      ),
+      isTrue,
+    );
+    for (final url in [
+      'http://link.zolmid.com/#/register',
+      'https://link.zolmid.com:444/#/register',
+      'https://user@link.zolmid.com/#/register',
+      'https://link.zolmid.com.evil.example/#/register',
+    ]) {
+      expect(isZolnitRegistrationWebsiteNavigation(Uri.parse(url)), isFalse);
+    }
+  });
+
+  test('a persisted ceremony survives replacement before its callback', () async {
+    await harness.session.logout();
+    harness.requests.clear();
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-registration/exchange')) {
+        return zolnitJson({'auth_data': 'Bearer exchanged'});
+      }
+      return zolnitPanelFixture(request);
+    };
+    final store = _RegistrationAttemptStore();
+    final first = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    final registration = await first.begin();
+    final state = Uri.parse(
+      'https://link.zolmid.com${registration.fragment}',
+    ).queryParameters['sso_state'];
+    first.dispose();
+    final restored = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 1),
+    );
+
+    expect(
+      await restored.accept(
+        Uri.parse(
+          'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+        ),
+      ),
+      isTrue,
+    );
+    expect(store.value, isNull);
+    restored.dispose();
+  });
+
+  test('manual login cancels a pending registration callback', () async {
+    await harness.session.logout();
+    harness.requests.clear();
+    final browser = _RegistrationBrowser();
+    final coordinator = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: browser,
+      store: _RegistrationAttemptStore(),
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+
+    expect(await coordinator.start(), isTrue);
+    final state = Uri.parse(
+      'https://link.zolmid.com${browser.registration!.fragment}',
+    ).queryParameters['sso_state'];
+    await harness.session.login('manual@example.com', 'password123');
+    browser.onReturn!(
+      Uri.parse(
+        'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      harness.requests.where(
+        (request) => request.url.path.endsWith('/zolnit-registration/exchange'),
+      ),
+      isEmpty,
+    );
+    coordinator.dispose();
+  });
+
+  test('a failed in-app launch leaves manual login actionable', () async {
+    await harness.session.logout();
+    final coordinator = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(launches: false),
+      store: _RegistrationAttemptStore(),
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+
+    expect(await coordinator.start(), isFalse);
+    expect(harness.session.authenticated, isFalse);
+    expect(harness.session.failure, 'registration_browser_unavailable');
+    coordinator.dispose();
   });
 
   testWidgets('invalid inputs never start login', (tester) async {

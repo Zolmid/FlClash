@@ -1,4 +1,6 @@
 {
+  "zolnitRegistrationBrowserUnavailable": "Impossible d’ouvrir la page d’inscription. Réessayez.",
+  "zolnitRegistrationReturnExpired": "Votre compte a été créé, mais le lien de connexion automatique a expiré. Vous pouvez vous connecter.",
   "rule": "Règle",
   "rules": "Règles",
   "global": "Global",
@@ -1463,7 +1465,7 @@
   "zolnitPreferencesSafeHint": "Le mode sécurisé conserve vos préférences, mais ne se connecte pas automatiquement et ne modifie pas le réseau du système.",
   "zolnitRegister": "Créer un compte",
   "zolnitForgotPassword": "Mot de passe oublié ?",
-  "zolnitRegistrationWebsiteHint": "La création du compte et la récupération du mot de passe se font sur le site ZolNit avec vérification de l’adresse e-mail et de sécurité.",
+  "zolnitRegistrationWebsiteHint": "Inscrivez-vous sur le site depuis l’application. Vous serez ensuite connecté automatiquement.",
   "zolnitTabAccount": "Compte",
   "zolnitTabOrders": "Commandes",
   "zolnitTabInvite": "Parrainage",
@@ -1549,5 +1551,12 @@
   "zolnitNewTicket": "Nouvelle demande",
   "zolnitTicketMessage": "Décrivez votre question",
   "zolnitTicketReply": "Répondre",
-  "zolnitSendRequest": "Envoyer"
+  "zolnitSendRequest": "Envoyer",
+  "zolnitNodesSortedByLatency": "Par latence mesurée ; non testés en dernier",
+  "zolnitNodesScopeRule": "Routage intelligent : choix du serveur par défaut des règles. Les politiques IA, streaming et autres restent indépendantes.",
+  "zolnitNodesScopeGlobal": "Global : choix du serveur du groupe global. Une politique automatique choisit son propre serveur.",
+  "zolnitNodesScopeDirect": "Direct : le trafic n’utilise pas le serveur choisi ici.",
+  "zolnitNodesCurrentChoice": "Coche : choix actuel du groupe, sans indication de trafic en direct.",
+  "zolnitNodesSavedChoice": "Coche : préférence enregistrée ; connexion inactive ici.",
+  "zolnitNodesAutomaticPolicy": "Le groupe utilise une politique automatique, consultable ici. Un choix manuel par défaut ne modifie pas les politiques des services."
 }

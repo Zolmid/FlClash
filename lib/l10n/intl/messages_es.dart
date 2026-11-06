@@ -3181,8 +3181,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "Los servidores disponibles se actualizan automáticamente con tu plan.",
     ),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "El grupo usa una política automática, de solo lectura aquí. La selección manual no cambia las políticas de los servicios.",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "Marca: selección actual del grupo, sin indicar tráfico en tiempo real.",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Servidores"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "Marca: preferencia guardada; la conexión no está activa aquí.",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "Directo: el tráfico no usa el servidor elegido aquí.",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "Global: elige el servidor del grupo global. Una política automática elige su propio servidor.",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "Enrutamiento inteligente: elige el servidor predeterminado de las reglas. Las políticas de IA, streaming y otros servicios son independientes.",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "Por latencia medida; sin medir al final",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "Los servidores disponibles se actualizan desde tu cuenta.",
     ),
@@ -3285,8 +3306,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualizar"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Registrarse"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage(
+          "No se pudo abrir la página de registro. Inténtalo de nuevo.",
+        ),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "Tu cuenta se ha creado, pero el enlace de acceso automático ha caducado. Ya puedes iniciar sesión.",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "El registro y la recuperación de contraseña se completan en la web de ZolNit con verificación de correo y seguridad.",
+      "Regístrate en el sitio web desde la aplicación. Al terminar, se iniciará sesión automáticamente.",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
       "Renovar el plan actual",

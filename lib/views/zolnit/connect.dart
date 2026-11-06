@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/common/zolnit_main_group.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
@@ -17,6 +16,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 import 'connect_art.dart';
 import 'data.dart';
 import 'kit.dart';
+import 'node_groups.dart';
 import 'skin.dart';
 
 String zolnitDisplayName(Json? account, ZolnitUsage? usage) {
@@ -120,32 +120,68 @@ class ZolnitConnectPage extends ConsumerWidget {
   }
 }
 
+final _routeMetadataProvider = FutureProvider.autoDispose
+    .family<ZolnitRouteMetadata, ZolnitClientBundle>(
+      (ref, bundle) => loadZolnitRouteMetadata(bundle),
+    );
+
 class _Selection {
-  const _Selection(this.node, {required this.chosen});
+  const _Selection(this.node, {required this.chosen, this.title});
 
   final ZolnitNode? node;
   final bool chosen;
+  final String? title;
 }
 
-_Selection _selectionOf(WidgetRef ref, List<ZolnitNode> nodes) {
-  final groups = ref.watch(currentGroupsStateProvider).value;
-  final bundle = ref.watch(zolnitSessionProvider).clientBundle;
-  final group = bundle == null
-      ? groups.firstOrNull?.name
-      : zolnitMainGroup(
-          bundle,
-          ref.watch(groupsProvider),
-          ref.watch(patchClashConfigProvider).mode,
-        )?.name;
-  var chosen = group == null
-      ? null
-      : ref.watch(selectedProxyNameProvider(group));
+_Selection _selectionOf(
+  WidgetRef ref,
+  ZolnitSessionController session,
+  List<ZolnitNode> nodes,
+) {
+  final bundle = session.clientBundle;
+  final profile = ref.watch(currentProfileProvider);
+  if (bundle != null &&
+      (profile == null ||
+          !isCurrentZolnitBundleProfile(profile, session) ||
+          profile.zolnitBundleId != bundle.bundleId)) {
+    return _Selection(nodes.firstOrNull, chosen: false);
+  }
   final allGroups = ref.watch(groupsProvider);
+  final metadata = bundle == null
+      ? null
+      : ref.watch(_routeMetadataProvider(bundle)).value;
+  final mode = ref.watch(patchClashConfigProvider).mode;
+  if (mode == Mode.direct) return const _Selection(null, chosen: false);
+  final group = bundle == null
+      ? ref.watch(currentGroupsStateProvider).value.firstOrNull?.name
+      : metadata == null ||
+            !bundle.isFresh(ref.read(zolnitBundleClockProvider)())
+      ? null
+      : zolnitNodesGroup(metadata, allGroups, mode)?.name;
+  final live =
+      !ref.watch(safeModeProvider) &&
+      ref.watch(coreStatusProvider) == CoreStatus.connected;
+  String? choice(String name) => bundle == null
+      ? ref.watch(selectedProxyNameProvider(name))
+      : live
+      ? allGroups.where((g) => g.name == name).firstOrNull?.now
+      : ref.watch(selectedMapProvider.select((map) => map[name]));
+  var selected = group == null ? null : choice(group);
   final visited = <String>{};
-  while (chosen != null && chosen.isNotEmpty && visited.add(chosen)) {
-    final known = nodes.where((node) => node.proxyName == chosen).firstOrNull;
-    if (known != null) return _Selection(known, chosen: true);
-    chosen = allGroups.where((entry) => entry.name == chosen).firstOrNull?.now;
+  while (selected != null && selected.isNotEmpty && visited.add(selected)) {
+    final node = nodes.where((n) => n.proxyName == selected).firstOrNull;
+    if (node != null) {
+      final title = metadata == null
+          ? null
+          : groupZolnitRoutes(
+              nodes,
+              hosts: metadata.hosts,
+              paths: metadata.paths,
+              exitIds: bundle!.exitIds,
+            ).where((entry) => entry.contains(selected)).firstOrNull?.title;
+      return _Selection(node, chosen: true, title: title);
+    }
+    selected = choice(selected);
   }
   return _Selection(nodes.firstOrNull, chosen: false);
 }
@@ -363,7 +399,7 @@ class _ConnectionOptions extends ConsumerWidget {
         : session.nodeList;
     final location = _SelectedRow(
       emptyMessage: context.appLocalizations.zolnitSelectServer,
-      selection: _selectionOf(ref, nodes),
+      selection: _selectionOf(ref, session, nodes),
       connected:
           ref.watch(zolnitConnectionPhaseProvider) ==
           ZolnitConnectionPhase.connected,
@@ -540,7 +576,7 @@ class _SelectedRow extends ConsumerWidget {
     final skin = ZolnitSkin.of(context);
     final colors = ZolnitColors.of(context);
     final node = selection.node;
-    final latency = node == null
+    final latency = node == null || !selection.chosen
         ? null
         : ref.watch(delayProvider(proxyName: node.proxyName));
     final traffic = connected
@@ -602,7 +638,8 @@ class _SelectedRow extends ConsumerWidget {
                           children: [
                             Text(
                               selection.chosen
-                                  ? zolnitDisplayTitle(node.title)
+                                  ? selection.title ??
+                                        zolnitDisplayTitle(node.title)
                                   : text.auto,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

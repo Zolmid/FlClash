@@ -120,6 +120,9 @@ String zolnitFailureText(
     'payment_disallowed' ||
     'stripe_disabled_for_distribution' => text.zolnitPaymentUnavailable,
     'network' || 'timeout' => text.networkException,
+    'registration_browser_unavailable' =>
+      text.zolnitRegistrationBrowserUnavailable,
+    'registration_return_expired' => text.zolnitRegistrationReturnExpired,
     'storage_unavailable' => text.zolnitSessionStorageUnavailable,
     'invalid_credentials' => text.zolnitSignInRejected,
     'unauthenticated' => text.zolnitSessionExpired,

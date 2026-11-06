@@ -1,4 +1,6 @@
 {
+  "zolnitRegistrationBrowserUnavailable": "登録ページを開けませんでした。再度お試しください。",
+  "zolnitRegistrationReturnExpired": "アカウントは作成されましたが、自動ログインの期限が切れました。新しいアカウントでログインしてください。",
   "rule": "ルール",
   "rules": "ルール",
   "global": "グローバル",
@@ -1463,7 +1465,7 @@
   "zolnitPreferencesSafeHint": "セーフモードでは設定は保持されますが、自動接続やシステムネットワークの変更は行われません。",
   "zolnitRegister": "新規登録",
   "zolnitForgotPassword": "パスワードをお忘れですか？",
-  "zolnitRegistrationWebsiteHint": "新規登録とパスワードの再設定は、ZolNit 公式サイトでメールとセキュリティの確認を行います。",
+  "zolnitRegistrationWebsiteHint": "アプリ内の公式サイトで登録を完了すると、自動的にログインします。",
   "zolnitTabAccount": "アカウント情報",
   "zolnitTabOrders": "注文履歴",
   "zolnitTabInvite": "友達紹介",
@@ -1549,5 +1551,12 @@
   "zolnitNewTicket": "新規依頼",
   "zolnitTicketMessage": "問題を入力してください",
   "zolnitTicketReply": "返信",
-  "zolnitSendRequest": "送信"
+  "zolnitSendRequest": "送信",
+  "zolnitNodesSortedByLatency": "実測遅延順（未測定は最後）",
+  "zolnitNodesScopeRule": "スマート分流：既定／ルールのフォールバックを選択。AI・動画などのポリシーは独立しています。",
+  "zolnitNodesScopeGlobal": "グローバル：グローバルグループのサーバーを選択。自動ポリシーは独自に選びます。",
+  "zolnitNodesScopeDirect": "直接接続：通信はここで選んだサーバーを経由しません。",
+  "zolnitNodesCurrentChoice": "チェックは現在のグループ選択で、通信状態の表示ではありません。",
+  "zolnitNodesSavedChoice": "チェックは保存済みの設定で、ここでは接続は有効ではありません。",
+  "zolnitNodesAutomaticPolicy": "自動ポリシーの選択はここでは読み取り専用です。手動の既定値はサービスのポリシーを変更しません。"
 }

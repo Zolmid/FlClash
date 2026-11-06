@@ -2922,8 +2922,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "Your available servers update automatically with your plan.",
     ),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "The group uses an automatic policy. Its server choice is read-only here; a manual default does not change service policies.",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "Checkmark: current group choice, not a live traffic indicator.",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("Servers"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "Checkmark: saved preference; connection is not active here.",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "Direct: traffic does not use the server selected here.",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "Global: rows choose the global group’s server. An automatic policy may choose its own server.",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "Smart routing: rows choose the default / rule fallback. AI, streaming and other service policies remain independent.",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "Sorted by measured latency; untested last",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "Servers are managed and updated from your account.",
     ),
@@ -3020,8 +3041,15 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Refresh"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Sign up"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage(
+          "The registration page could not open. Please try again.",
+        ),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "Your account was created, but automatic sign-in expired. You can now sign in.",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "Sign-up and password recovery open the ZolNit website for email and security verification.",
+      "Register on the website in the app. You’ll be signed in automatically when you finish.",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage(
       "Renew current plan",

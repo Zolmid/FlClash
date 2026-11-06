@@ -23,8 +23,11 @@ void main() {
       Group(name: 'automatic', type: GroupType.URLTest, all: nodes),
       Group(name: 'ordinary', type: GroupType.Selector, all: nodes),
     ];
-    expect(zolnitMainGroup(bundle, groups, Mode.rule)?.name, 'ordinary');
-    expect(zolnitMainGroup(bundle, groups, Mode.global)?.name, 'GLOBAL');
-    expect(zolnitMainGroup(bundle, groups.take(4), Mode.rule), isNull);
+    expect(zolnitMainGroup('ordinary', groups, Mode.rule)?.name, 'ordinary');
+    expect(zolnitMainGroup('ordinary', groups, Mode.global)?.name, 'GLOBAL');
+    expect(
+      zolnitMainGroup('ordinary', groups.take(4).toList(), Mode.rule),
+      isNull,
+    );
   });
 }

@@ -2437,8 +2437,29 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 서버는 요금제에 맞춰 자동으로 업데이트됩니다.",
     ),
+    "zolnitNodesAutomaticPolicy": MessageLookupByLibrary.simpleMessage(
+      "그룹이 자동 정책을 사용합니다. 자동 선택은 읽기 전용이며 수동 기본 선택은 서비스 정책을 바꾸지 않습니다.",
+    ),
     "zolnitNodesCount": m99,
+    "zolnitNodesCurrentChoice": MessageLookupByLibrary.simpleMessage(
+      "체크는 현재 그룹 선택이며 실시간 트래픽 상태가 아닙니다.",
+    ),
     "zolnitNodesHeadline": MessageLookupByLibrary.simpleMessage("서버"),
+    "zolnitNodesSavedChoice": MessageLookupByLibrary.simpleMessage(
+      "체크는 저장된 기본 설정이며 현재 연결은 활성화되지 않았습니다.",
+    ),
+    "zolnitNodesScopeDirect": MessageLookupByLibrary.simpleMessage(
+      "직접 연결: 트래픽이 여기서 고른 서버를 거치지 않습니다.",
+    ),
+    "zolnitNodesScopeGlobal": MessageLookupByLibrary.simpleMessage(
+      "전체 모드: 전체 그룹의 서버를 선택합니다. 자동 정책은 서버를 별도로 선택합니다.",
+    ),
+    "zolnitNodesScopeRule": MessageLookupByLibrary.simpleMessage(
+      "스마트 라우팅: 기본/규칙 대체 서버를 선택합니다. AI·미디어 등의 서비스 정책은 별도입니다.",
+    ),
+    "zolnitNodesSortedByLatency": MessageLookupByLibrary.simpleMessage(
+      "실측 지연 순, 미측정은 마지막",
+    ),
     "zolnitNodesSubtitle": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 서버는 계정에서 자동으로 업데이트됩니다.",
     ),
@@ -2519,8 +2540,13 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("새로고침"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("회원가입"),
+    "zolnitRegistrationBrowserUnavailable":
+        MessageLookupByLibrary.simpleMessage("가입 페이지를 열 수 없습니다. 다시 시도해 주세요."),
+    "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
+      "계정이 생성되었으나 자동 로그인 링크가 만료되었습니다. 새 계정으로 로그인해 주세요.",
+    ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
-      "회원가입 및 비밀번호 복구는 ZolNit 웹사이트에서 이메일 및 보안 인증을 진행합니다.",
+      "앱에서 공식 웹사이트 가입을 마치면 자동으로 로그인됩니다.",
     ),
     "zolnitRenewCurrent": MessageLookupByLibrary.simpleMessage("현재 요금제 갱신"),
     "zolnitRenewPlan": MessageLookupByLibrary.simpleMessage("요금제 갱신"),

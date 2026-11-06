@@ -15,6 +15,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'kit.dart';
+import 'node_groups.dart';
 import 'skin.dart';
 
 class ZolnitBundleRoutingPanel extends ConsumerWidget {
@@ -127,11 +128,18 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         ? (!leaseReady
               ? l10n.zolnitRoutePreparing
               : l10n.zolnitRouteUnavailable)
-        : bundle?.outbounds
-                  .where((o) => o.proxyName == target)
-                  .firstOrNull
-                  ?.displayName ??
-              l10n.unknown;
+        : zolnitDisplayTitle(
+            bundle?.outbounds
+                    .where((o) => o.proxyName == target)
+                    .firstOrNull
+                    ?.displayName ??
+                l10n.unknown,
+          );
+    Widget currentLabel(String name) => Text(
+      connected ? l10n.zolnitRouteCurrent(name) : l10n.disconnected,
+      key: const ValueKey('bundle-current-route'),
+      style: zolnitText(context, 11, color: ZolnitColors.of(context).muted),
+    );
     if (message == null &&
         (!managed || service == null) &&
         returnRoute == null) {
@@ -220,13 +228,26 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                   ),
                 ],
               ),
-              Text(
-                connected
-                    ? l10n.zolnitRouteCurrent(current)
-                    : l10n.disconnected,
-                key: const ValueKey('bundle-current-route'),
-                style: zolnitText(context, 11, color: colors.muted),
-              ),
+              if (bundle != null &&
+                  bundle.outbounds.any((node) => node.proxyName == target))
+                FutureBuilder<ZolnitRouteMetadata>(
+                  future: loadZolnitRouteMetadata(bundle),
+                  initialData: cachedZolnitRouteMetadata(bundle),
+                  builder: (context, snapshot) {
+                    final metadata = snapshot.data;
+                    final entry = metadata == null
+                        ? null
+                        : groupZolnitRoutes(
+                            session.nodeList,
+                            hosts: metadata.hosts,
+                            paths: metadata.paths,
+                            exitIds: bundle.exitIds,
+                          ).where((row) => row.contains(target)).firstOrNull;
+                    return currentLabel(entry?.title ?? current);
+                  },
+                )
+              else
+                currentLabel(current),
             ],
           ],
         ),
