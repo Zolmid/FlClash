@@ -4,6 +4,147 @@ import XCTest
 @testable import Runner
 
 final class RunnerTests: XCTestCase {
+  func testPrivateRenewalOnlyAcceptsBoundedStructured401AsAuthoritative() {
+    XCTAssertTrue(
+      ClientBundleRenewalOwner.isAuthoritativeUnauthorized(
+        Data(#"{\"error\":{\"code\":\"unauthenticated\"}}"#.utf8)
+      )
+    )
+    for body in ["", "<html>unauthorized</html>", #"{\"error\":{\"code\":\"edge_blocked\"}}"#] {
+      XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(Data(body.utf8)))
+    }
+    XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(Data(repeating: 65, count: 8 * 1024 + 1)))
+  }
+
+  func testFailedRenewalInstallKeepsHealthyLeaseAndBacksOff() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let binding = ClientBundleRenewalState.Binding(
+      session: .init(1), owner: .init(1)
+    )
+    var state = ClientBundleRenewalState()
+    _ = state.activate(binding, now: now)
+
+    let initial = request(&state, at: now)
+    let installed = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: now, expiresAt: now.addingTimeInterval(180)
+    )
+    let initialInstall = install(&state, initial, bundle: installed, at: now)
+    XCTAssertTrue(state.acknowledgeInstall(initialInstall, succeeded: true, now: now).isEmpty)
+
+    let renewalAt = now.addingTimeInterval(60)
+    let renewal = request(&state, at: renewalAt)
+    let replacement = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: renewalAt, expiresAt: renewalAt.addingTimeInterval(180)
+    )
+    let failedInstall = install(&state, renewal, bundle: replacement, at: renewalAt)
+
+    XCTAssertTrue(state.acknowledgeInstall(failedInstall, succeeded: false, now: renewalAt).isEmpty)
+    XCTAssertEqual(state.phase, .ready)
+    XCTAssertEqual(state.usableLease(at: renewalAt), installed)
+    XCTAssertGreaterThan(state.nextRequestAt!, renewalAt)
+  }
+
+  func testFailedInitialInstallAndHardDenyRemainFailClosed() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let binding = ClientBundleRenewalState.Binding(
+      session: .init(1), owner: .init(1)
+    )
+    let bundle = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: now, expiresAt: now.addingTimeInterval(180)
+    )
+
+    var initial = ClientBundleRenewalState()
+    _ = initial.activate(binding, now: now)
+    let initialTicket = request(&initial, at: now)
+    let initialInstall = install(&initial, initialTicket, bundle: bundle, at: now)
+    XCTAssertFalse(initial.acknowledgeInstall(initialInstall, succeeded: false, now: now).isEmpty)
+    XCTAssertEqual(initial.phase, .terminating)
+
+    var active = ClientBundleRenewalState()
+    _ = active.activate(binding, now: now)
+    let activeTicket = request(&active, at: now)
+    let activeInstall = install(&active, activeTicket, bundle: bundle, at: now)
+    _ = active.acknowledgeInstall(activeInstall, succeeded: true, now: now)
+    let denied = request(&active, at: now.addingTimeInterval(60))
+    XCTAssertFalse(
+      active.completeRequest(denied, result: .unauthorized, now: now.addingTimeInterval(60)).isEmpty
+    )
+    XCTAssertEqual(active.phase, .terminating)
+  }
+
+  func testFailedReplacementAfterLeaseExpiryRemainsFailClosed() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let binding = ClientBundleRenewalState.Binding(
+      session: .init(1), owner: .init(1)
+    )
+    var state = ClientBundleRenewalState()
+    _ = state.activate(binding, now: now)
+    let initialTicket = request(&state, at: now)
+    let initialBundle = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: now, expiresAt: now.addingTimeInterval(60)
+    )
+    let initialInstall = install(&state, initialTicket, bundle: initialBundle, at: now)
+    _ = state.acknowledgeInstall(initialInstall, succeeded: true, now: now)
+
+    let expiredAt = now.addingTimeInterval(61)
+    XCTAssertNil(state.usableLease(at: expiredAt))
+    let renewal = request(&state, at: expiredAt)
+    let replacement = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: expiredAt, expiresAt: expiredAt.addingTimeInterval(60)
+    )
+    let failedInstall = install(&state, renewal, bundle: replacement, at: expiredAt)
+    XCTAssertFalse(state.acknowledgeInstall(failedInstall, succeeded: false, now: expiredAt).isEmpty)
+    XCTAssertEqual(state.phase, .terminating)
+  }
+
+  func testTransientRenewalRetriesBeforeShortLeaseExpiryAndRecovers() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let binding = ClientBundleRenewalState.Binding(
+      session: .init(1), owner: .init(1)
+    )
+    var state = ClientBundleRenewalState()
+    _ = state.activate(binding, now: now)
+    let initialTicket = request(&state, at: now)
+    let shortLease = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: now, expiresAt: now.addingTimeInterval(25)
+    )
+    let initialInstall = install(&state, initialTicket, bundle: shortLease, at: now)
+    _ = state.acknowledgeInstall(initialInstall, succeeded: true, now: now)
+
+    let failureAt = now.addingTimeInterval(12.5)
+    let failedTicket = request(&state, at: failureAt)
+    XCTAssertTrue(state.completeRequest(failedTicket, result: .transportFailure, now: failureAt).isEmpty)
+    let retryAt = try! XCTUnwrap(state.nextRequestAt)
+    XCTAssertEqual(retryAt, failureAt.addingTimeInterval(6.25))
+    XCTAssertLessThan(retryAt, shortLease.expiresAt)
+
+    let retryTicket = request(&state, at: retryAt)
+    let replacement = ClientBundleRenewalState.BundleDescriptor(
+      issuedAt: retryAt, expiresAt: retryAt.addingTimeInterval(180)
+    )
+    let replacementInstall = install(&state, retryTicket, bundle: replacement, at: retryAt)
+    XCTAssertTrue(state.acknowledgeInstall(replacementInstall, succeeded: true, now: retryAt).isEmpty)
+    XCTAssertEqual(state.usableLease(at: retryAt), replacement)
+  }
+
+  private func request(
+    _ state: inout ClientBundleRenewalState, at now: Date
+  ) -> ClientBundleRenewalState.Ticket {
+    guard case .requestBundle(let ticket) = state.beginRequest(now: now, credentials: .available).first
+    else { fatalError("expected renewal request") }
+    return ticket
+  }
+
+  private func install(
+    _ state: inout ClientBundleRenewalState, _ ticket: ClientBundleRenewalState.Ticket,
+    bundle: ClientBundleRenewalState.BundleDescriptor, at now: Date
+  ) -> ClientBundleRenewalState.Ticket {
+    guard case .installBundle(let installTicket, _) = state.completeRequest(
+      ticket, result: .validatedBundle(bundle), now: now
+    ).first else { fatalError("expected install") }
+    return installTicket
+  }
+
   func testQuickActionsKeepTheLatestIntentBeforeEngineStartup() {
     XCTAssertEqual(QuickAction.start.folded(onto: .stop), .start)
     XCTAssertEqual(QuickAction.stop.folded(onto: .start), .stop)

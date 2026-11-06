@@ -70,6 +70,18 @@ typedef _RoutingPlan = ({
 
 typedef _LeaseIdentity = (int, int, DateTime, String?);
 
+Duration zolnitBundleRefreshInterval(
+  Duration remaining, {
+  required bool rateLimited,
+}) {
+  if (rateLimited) return const Duration(seconds: 60);
+  if (remaining <= Duration.zero) return const Duration(seconds: 60);
+  final half = Duration(microseconds: remaining.inMicroseconds ~/ 2);
+  if (half < const Duration(seconds: 1)) return const Duration(seconds: 1);
+  if (half > const Duration(seconds: 60)) return const Duration(seconds: 60);
+  return half;
+}
+
 class ZolnitRouting with WidgetsBindingObserver {
   ZolnitRouting(this.ref)
     : _probeScheduler = ref.read(zolnitRoutingProbeSchedulerProvider),
@@ -398,11 +410,23 @@ class ZolnitRouting with WidgetsBindingObserver {
     if (invalidated != null) {
       unawaited(_invalidateAutomatic(invalidated));
     }
-    if (!ref.read(safeModeProvider)) {
-      _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-        unawaited(refreshBundle());
-      });
+    _scheduleRefresh();
+  }
+
+  void _scheduleRefresh() {
+    _refreshTimer?.cancel();
+    final expiry = _active?.expiresAt;
+    if (expiry == null ||
+        !expiry.isAfter(_now) ||
+        _nativeOwned ||
+        ref.read(safeModeProvider)) {
+      return;
     }
+    final delay = zolnitBundleRefreshInterval(
+      expiry.difference(_now),
+      rateLimited: _session?.clientBundleFailure == 'rate_limited',
+    );
+    _refreshTimer = Timer(delay, () => unawaited(refreshBundle()));
   }
 
   Future<void> refreshBundle() async {
@@ -437,6 +461,9 @@ class ZolnitRouting with WidgetsBindingObserver {
       }
     } finally {
       _refreshing = false;
+      if (!_disposed && _active?.expiresAt != null && !_nativeOwned) {
+        _scheduleRefresh();
+      }
     }
   }
 

@@ -70,11 +70,12 @@ internal class ClientBundleHttpTransport(
                     val result = runCatching {
                         response.use {
                             check(continuation.isActive && !call.isCanceled())
-                            if (it.code == 401 || it.code == 429) {
+                            if (it.code == 429) {
                                 return@use BundleHttpResponse(it.code, "", retryAfter(it.header("Retry-After")))
                             }
                             val body = checkNotNull(it.body)
-                            require(body.contentLength() <= MAX_BYTES)
+                            val maximumBytes = if (it.code == 401) AUTH_ERROR_MAX_BYTES else MAX_BYTES
+                            require(body.contentLength() <= maximumBytes)
                             val bytes = ByteArrayOutputStream()
                             body.byteStream().use { stream ->
                                 val buffer = ByteArray(8_192)
@@ -82,7 +83,7 @@ internal class ClientBundleHttpTransport(
                                     check(continuation.isActive && !call.isCanceled())
                                     val count = stream.read(buffer)
                                     if (count < 0) break
-                                    require(bytes.size() + count <= MAX_BYTES)
+                                    require(bytes.size() + count <= maximumBytes)
                                     bytes.write(buffer, 0, count)
                                 }
                             }
@@ -121,6 +122,7 @@ internal class ClientBundleHttpTransport(
 
         const val ENDPOINT = "https://link.zolmid.com/api/v1/zolnit/client/bundle"
         const val MAX_BYTES = 8 * 1_024 * 1_024
+        const val AUTH_ERROR_MAX_BYTES = 8 * 1_024
 
         fun retryAfter(value: String?, now: Long = System.currentTimeMillis()): Long {
             val seconds = value?.trim()?.toLongOrNull()

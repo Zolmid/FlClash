@@ -219,6 +219,7 @@ void main() {
 
   for (final entry in [
     (403, 'entitlement_unavailable'),
+    (429, 'rate_limited'),
     (503, 'client_api_unavailable'),
     (503, 'bundle_unavailable'),
     (400, 'core_version_required'),

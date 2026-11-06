@@ -241,6 +241,7 @@ class XboardClient {
       final classified = switch ((statusCode, code)) {
         (401, 'unauthenticated') => 'unauthenticated',
         (403, 'entitlement_unavailable') => 'entitlement_unavailable',
+        (429, _) => 'rate_limited',
         (400 || 426, 'core_version_required') => 'core_version_required',
         (503, 'bundle_unavailable') => 'bundle_unavailable',
         _ => 'client_api_unavailable',

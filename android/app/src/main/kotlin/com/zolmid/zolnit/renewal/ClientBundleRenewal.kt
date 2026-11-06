@@ -175,7 +175,7 @@ internal class ClientBundleRenewal(
                     throw cancelled
                 } catch (_: Exception) {
                     lock.withLock { if (isCurrent(session)) publish(session, "retrying") }
-                    60_000L
+                    retryDelay(60_000L)
                 }
                 if (wait == null) break
                 delay(wait)
@@ -271,23 +271,26 @@ internal class ClientBundleRenewal(
                         publish(session, "installed")
                         minOf(60_000, maxOf(1_000, (deadline - monotonicMillis()) / 2))
                     }
-                    401 -> {
+                    401 -> if (unauthenticated(response.body)) {
                         mainBarrier { check(store.invalidate(session.epoch)) }
                         transport.cancel()
                         drain(invalidatingSession = true)
                         store.deleteAuthorization(session.epoch)
                         publish(session, "logged_out")
                         null
+                    } else {
+                        publish(session, "retrying")
+                        retryDelay(60_000L)
                     }
                     403 -> {
                         if (entitlementUnavailable(response.body)) {
                             drain()
                             publish(session, "entitlement_unavailable")
                         } else publish(session, "retrying")
-                        60_000L
+                        retryDelay(60_000L)
                     }
                     429 -> { publish(session, "rate_limited"); maxOf(60_000, response.retryAfterMillis) }
-                    else -> { publish(session, "retrying"); 60_000L }
+                    else -> { publish(session, "retrying"); retryDelay(60_000L) }
                 }
             }
         }
@@ -310,6 +313,11 @@ internal class ClientBundleRenewal(
         }
     }
 
+    private fun retryDelay(preferred: Long): Long {
+        val remaining = deadline - monotonicMillis()
+        return if (remaining > 1_000) minOf(preferred, maxOf(1_000, remaining / 2)) else preferred
+    }
+
     private fun publish(session: BundleSession, state: String) {
         val owns = running && establishedEpoch == session.epoch &&
             state != "revoking" && state != "logged_out"
@@ -320,6 +328,10 @@ internal class ClientBundleRenewal(
     }
 
     companion object {
+        fun unauthenticated(body: String): Boolean = body.toByteArray(Charsets.UTF_8).size <= 8 * 1_024 && runCatching {
+            JSONObject(body).getJSONObject("error").getString("code") == "unauthenticated"
+        }.getOrDefault(false)
+
         fun entitlementUnavailable(body: String): Boolean = runCatching {
             JSONObject(body).getJSONObject("error").getString("code") == "entitlement_unavailable"
         }.getOrDefault(false)

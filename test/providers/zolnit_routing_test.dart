@@ -32,6 +32,37 @@ class _Session extends Mock implements ZolnitSessionController {}
 class _Api extends Mock implements XboardClient {}
 
 void main() {
+  test(
+    'short leases retry before expiry while rate limits retain their backoff',
+    () {
+      expect(
+        zolnitBundleRefreshInterval(
+          const Duration(seconds: 25),
+          rateLimited: false,
+        ),
+        const Duration(milliseconds: 12500),
+      );
+      expect(
+        zolnitBundleRefreshInterval(
+          const Duration(milliseconds: 1500),
+          rateLimited: false,
+        ),
+        const Duration(seconds: 1),
+      );
+      expect(
+        zolnitBundleRefreshInterval(
+          const Duration(seconds: 25),
+          rateLimited: true,
+        ),
+        const Duration(seconds: 60),
+      );
+      expect(
+        zolnitBundleRefreshInterval(Duration.zero, rateLimited: false),
+        const Duration(seconds: 60),
+      );
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
   late ProviderContainer container;
   late _Core core;

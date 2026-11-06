@@ -168,6 +168,11 @@ public struct ClientBundleRenewalState: Sendable {
     guard phase == .staged, matches(token), let bundle = stagedBundle,
       now.timeIntervalSince1970.isFinite else { return [] }
     guard succeeded, bundle.valid(at: now) else {
+      stagedBundle = nil
+      if usableLease(at: now) != nil {
+        finishFailure(now: now)
+        return []
+      }
       nextRequestAt = now.addingTimeInterval(60)
       return terminate(deleteAuthorization: false, resume: true)
     }
@@ -246,7 +251,17 @@ public struct ClientBundleRenewalState: Sendable {
   private mutating func finishFailure(now: Date) {
     failures = min(failures + 1, 4)
     let backoff: TimeInterval = [60, 120, 240, 300][failures - 1]
-    nextRequestAt = max(nextRequestAt ?? now, now.addingTimeInterval(backoff))
+    var retryAt = now.addingTimeInterval(backoff)
+    if let expiresAt = installedBundle?.expiresAt, expiresAt > now {
+      let remaining = expiresAt.timeIntervalSince(now)
+      if remaining > 1 {
+        let retryDelay = min(60, max(1, remaining / 2))
+        retryAt = min(retryAt, now.addingTimeInterval(retryDelay))
+      } else {
+        retryAt = expiresAt
+      }
+    }
+    nextRequestAt = retryAt
     ticket = nil
     phase = .ready
   }

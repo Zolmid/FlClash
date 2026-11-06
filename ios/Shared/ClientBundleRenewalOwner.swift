@@ -234,7 +234,7 @@ public actor ClientBundleRenewalOwner {
       guard accepts(ticket), !stopped else { return }
     } catch { receiveFailure(ticket); return }
     let result: ClientBundleRenewalState.NetworkResult
-    if response.status == 401 {
+    if response.status == 401, Self.isAuthoritativeUnauthorized(response.body) {
       invalidatingSession = true
       timer?.cancel()
       timer = nil
@@ -310,8 +310,12 @@ public actor ClientBundleRenewalOwner {
     scheduleNext()
   }
 
-  private static func errorCode(_ data: Data) -> String? {
-    guard data.count <= 8 * 1024 * 1024,
+  public static func isAuthoritativeUnauthorized(_ data: Data) -> Bool {
+    errorCode(data, maximumBytes: 8 * 1024) == "unauthenticated"
+  }
+
+  private static func errorCode(_ data: Data, maximumBytes: Int = 8 * 1024 * 1024) -> String? {
+    guard data.count <= maximumBytes,
       let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
       let error = root["error"] as? [String: Any] else { return nil }
     return error["code"] as? String

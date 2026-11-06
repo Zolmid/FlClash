@@ -146,7 +146,8 @@ private struct RenewalOwnerChecks {
   static func authenticationAndEntitlement() async {
     for status in [401, 403] {
       let h = Harness()
-      await h.configure(status: status, body: #"{"error":{"code":"entitlement_unavailable"}}"#)
+      let code = status == 401 ? "unauthenticated" : "entitlement_unavailable"
+      await h.configure(status: status, body: #"{"error":{"code":"\#(code)"}}"#)
       let o = owner(h)
       await o.start(first, automaticScheduling: false)
       await wait { await h.snapshot().contains("clear") }
@@ -155,13 +156,27 @@ private struct RenewalOwnerChecks {
       check(await o.phase() == (status == 401 ? .inactive : .ready))
       await o.stop()
     }
-    let h = Harness()
-    await h.configure(status: 403, body: "<html>edge unavailable</html>")
-    let o = owner(h)
-    await o.start(first, automaticScheduling: false)
-    await wait { await o.phase() == .ready }
-    check(!(await h.snapshot()).contains("revoke"))
-    await o.stop()
+    for status in [401, 403] {
+      let h = Harness()
+      let clock = Clock()
+      let o = owner(h, clock)
+      await o.start(first, automaticScheduling: false)
+      await wait { await o.usableLease() != nil }
+      let original = await o.usableLease()
+      await h.configure(status: status, body: "<html>edge unavailable</html>")
+      clock.set(1061)
+      await o.tick()
+      await wait { await h.snapshot().filter { $0 == "request" }.count == 2 }
+      await wait { await o.phase() == .ready }
+      check(await o.usableLease() == original)
+      check(!(await h.snapshot()).contains("revoke"))
+      check(!(await h.snapshot()).contains("delete-10"))
+      await h.configure(body: #"{"data":{"schema_version":1,"account_id":"fixture-account","issued_at":1200,"expires_at":1500}}"#)
+      clock.set(1200)
+      await o.tick()
+      await wait { await h.snapshot().filter { $0 == "install-end" }.count == 2 }
+      await o.stop()
+    }
   }
 
   static func replacedOwnerPreservesAuthorization() async {

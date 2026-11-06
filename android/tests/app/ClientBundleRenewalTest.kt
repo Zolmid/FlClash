@@ -233,14 +233,18 @@ class ClientBundleRenewalTest {
         f.owner.stop()
     }
 
-    @Test fun any401LogsOutEvenWithoutStructuredBody() = runTest {
-        val f = Fixture(this)
-        f.response(status = 401, body = "edge unauthorized")
-        f.start()
-        runCurrent()
-        assertEquals("logged_out", f.owner.status()["state"])
-        assertFalse(f.store.session!!.active)
-        assertTrue(f.store.auth.isEmpty())
+    @Test fun onlyStructured401InvalidatesTheBundleSession() = runTest {
+        for (body in listOf("edge unauthorized", "", "{\"error\":{\"code\":\"edge_blocked\"}}", "{\"error\":{\"code\":\"unauthenticated\"}}")) {
+            val f = Fixture(this)
+            f.response(status = 401, body = body)
+            f.start()
+            runCurrent()
+            val authoritative = body.contains("unauthenticated")
+            assertEquals(if (authoritative) "logged_out" else "retrying", f.owner.status()["state"])
+            assertEquals(!authoritative, f.store.session!!.active)
+            assertEquals(!authoritative, f.store.auth.containsKey(1))
+            f.owner.stop()
+        }
     }
 
     @Test fun onlyStructured403RevokesAndKeepsLogin() = runTest {
@@ -347,6 +351,28 @@ class ClientBundleRenewalTest {
             assertTrue(failure, f.store.session!!.active)
             f.owner.stop()
         }
+    }
+
+    @Test fun transientRenewalNearExpiryRetriesBeforeTheExistingLeaseExpires() = runTest {
+        val f = Fixture(this)
+        f.response(ttl = 90)
+        f.start()
+        runCurrent()
+        f.response(status = 503, body = "renderer unavailable")
+        advanceTimeBy(45_000)
+        runCurrent()
+        assertEquals("retrying", f.owner.status()["state"])
+        assertEquals(1_090_000L, f.owner.status()["deadline"])
+        advanceTimeBy(22_499)
+        runCurrent()
+        assertEquals(2, f.http.requests)
+        f.response()
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(3, f.http.requests)
+        assertEquals(true, f.owner.status()["ready"])
+        assertFalse(f.events.contains("end"))
+        f.owner.stop()
     }
 
     @Test fun retryAfterDoesNotExtendOriginalLeasePastExpiry() = runTest {

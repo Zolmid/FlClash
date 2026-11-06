@@ -119,6 +119,27 @@ class ClientBundleHttpTransportTest {
         }
     }
 
+    @Test fun bounded401BodyIsAvailableForPrivateAuthorizationClassification() = runTest {
+        val accepted = """{"error":{"code":"unauthenticated"}}"""
+        val response = ClientBundleHttpTransport(Call.Factory { request ->
+            FixtureCall(request, response(401, accepted.toResponseBody()))
+        }).get("Bearer fixture", "v")
+        assertEquals(401, response.status)
+        assertEquals(accepted, response.body)
+        assertTrue(ClientBundleRenewal.unauthenticated(response.body))
+
+        for (body in listOf("", "<html>unauthorized</html>")) {
+            val transport = ClientBundleHttpTransport(Call.Factory { request ->
+                FixtureCall(request, response(401, body.toResponseBody()))
+            })
+            assertFalse(ClientBundleRenewal.unauthenticated(transport.get("Bearer fixture", "v").body))
+        }
+        val oversized = ClientBundleHttpTransport(Call.Factory { request ->
+            FixtureCall(request, response(401, ByteArray(ClientBundleHttpTransport.AUTH_ERROR_MAX_BYTES + 1).toResponseBody()))
+        })
+        assertTrue(runCatching { oversized.get("Bearer fixture", "v") }.isFailure)
+    }
+
     @Test fun cancellationCancelsPhysicalCall() = runTest {
         lateinit var call: FixtureCall
         val transport = ClientBundleHttpTransport(Call.Factory { request -> FixtureCall(request, null).also { call = it } })
