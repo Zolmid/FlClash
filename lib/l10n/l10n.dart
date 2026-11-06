@@ -12944,6 +12944,16 @@ class AppLocalizations {
     );
   }
 
+  /// `The VPN configuration could not be verified. Select Connect to fetch it again.`
+  String get zolnitBundleInvalidWhenStopped {
+    return Intl.message(
+      'The VPN configuration could not be verified. Select Connect to fetch it again.',
+      name: 'zolnitBundleInvalidWhenStopped',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Connection configuration is temporarily unavailable.`
   String get zolnitBundleUnavailable {
     return Intl.message(

@@ -1502,6 +1502,7 @@
   "zolnitBundleRefreshFailed": "接続設定を更新できませんでした。手動・直接接続は利用できます。",
   "zolnitBundleForbidden": "このアカウントの接続設定を取得できません。プランと通信量を確認してください。",
   "zolnitBundleInvalid": "接続設定の検証に失敗したため、自動選択を一時停止しました。",
+  "zolnitBundleInvalidWhenStopped": "VPN 設定を検証できませんでした。「接続」を選ぶと再取得します。",
   "zolnitBundleUnavailable": "接続設定は一時的に利用できません。",
   "zolnitBundleNoCandidates": "利用資格が確認された出口がありません。自動選択は利用できませんが、手動・直接接続は選べます。",
   "zolnitAiService": "AI サービス",

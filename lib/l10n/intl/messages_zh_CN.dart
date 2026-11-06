@@ -2025,6 +2025,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
       "连接配置校验失败，自动选择已暂停。",
     ),
+    "zolnitBundleInvalidWhenStopped": MessageLookupByLibrary.simpleMessage(
+      "VPN 配置未通过校验，点「连接」会重新获取。",
+    ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
       "尚无已确认的出口资格。自动选择不可用，仍可手动或直连。",
     ),

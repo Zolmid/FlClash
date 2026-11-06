@@ -1502,6 +1502,7 @@
   "zolnitBundleRefreshFailed": "Impossible d’actualiser la configuration. Les choix manuel et direct restent disponibles.",
   "zolnitBundleForbidden": "La configuration n’est pas disponible pour ce compte. Vérifiez le forfait et le trafic restant.",
   "zolnitBundleInvalid": "La validation de la configuration a échoué. La sélection automatique est suspendue.",
+  "zolnitBundleInvalidWhenStopped": "La configuration VPN n’a pas pu être vérifiée. Sélectionnez « Se connecter » pour la récupérer à nouveau.",
   "zolnitBundleUnavailable": "La configuration de connexion est temporairement indisponible.",
   "zolnitBundleNoCandidates": "Aucune sortie n’a une admissibilité confirmée. La sélection automatique est indisponible ; choisissez manuellement ou une connexion directe.",
   "zolnitAiService": "Services IA",

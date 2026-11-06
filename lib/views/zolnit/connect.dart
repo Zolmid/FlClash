@@ -183,13 +183,14 @@ class _ConnectPanel extends ConsumerWidget {
     final nodes = privateTransport && session.clientBundle == null
         ? const <ZolnitNode>[]
         : session.nodeList;
+    final running = ref.watch(isStartProvider);
     final configMessage = zolnitConfigurationMessage(
       context,
       session,
       ref.watch(zolnitBundleStatusProvider),
       privateTransport: privateTransport,
+      stopped: !running,
     );
-    final running = ref.watch(isStartProvider);
     final elapsed = ref.watch(runTimeProvider);
     final duration = Duration(milliseconds: elapsed ?? 0);
     final elapsedText = [
@@ -203,14 +204,12 @@ class _ConnectPanel extends ConsumerWidget {
             (syncing ||
                 phase == ZolnitConnectionPhase.connecting ||
                 (nodes.isEmpty && !privateTransport)));
-    final label = syncing && !running
-        ? text.zolnitSyncing
-        : switch (phase) {
-            ZolnitConnectionPhase.connected => text.connected,
-            ZolnitConnectionPhase.connecting => text.connecting,
-            ZolnitConnectionPhase.unavailable => text.zolnitConnectionIssue,
-            _ => text.zolnitNotConnected,
-          };
+    final label = switch (phase) {
+      ZolnitConnectionPhase.connected => text.connected,
+      ZolnitConnectionPhase.connecting => text.connecting,
+      ZolnitConnectionPhase.unavailable => text.zolnitConnectionIssue,
+      _ => text.zolnitNotConnected,
+    };
     final actionLabel = running
         ? text.zolnitDisconnectAction
         : phase == ZolnitConnectionPhase.unavailable
@@ -233,6 +232,8 @@ class _ConnectPanel extends ConsumerWidget {
     };
     final statusLine = safe && nodes.isNotEmpty
         ? text.zolnitSafeModeConnect
+        : syncing && !running
+        ? text.zolnitSyncing
         : failureMessage ??
               (nodes.isEmpty ? text.zolnitNoNodes : text.zolnitConnectSub);
     final centered = ZolnitLayoutScope.of(context) == ZolnitLayout.compact;
@@ -425,6 +426,7 @@ class _ModeControlState extends ConsumerState<_ModeControl> {
     final phase = read(zolnitConnectionPhaseProvider);
     final session = widget.session;
     return !safe &&
+        zolnitConnectionConfigReady(read) &&
         phase != ZolnitConnectionPhase.unavailable &&
         phase != ZolnitConnectionPhase.connecting &&
         (!widget.syncing || read(isStartProvider)) &&

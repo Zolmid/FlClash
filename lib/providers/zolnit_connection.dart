@@ -5,6 +5,7 @@ import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/misc.dart' show ProviderListenable;
 import 'package:zolnit_client/zolnit_client.dart';
 
 enum ZolnitConnectionPhase { disconnected, connecting, connected, unavailable }
@@ -78,6 +79,23 @@ final zolnitStoredBundleProvider = FutureProvider<bool>((ref) async {
   return stored.bundleId == bundle?.bundleId;
 });
 
+bool zolnitConnectionConfigReady(
+  T Function<T>(ProviderListenable<T> provider) read,
+) {
+  read(_zolnitSessionRevisionProvider);
+  final profile = read(currentProfileProvider);
+  if (profile == null) return false;
+  if (!isZolnitBundleProfile(profile)) return true;
+  final session = read(zolnitSessionProvider);
+  final bundle = read(_connectionBundleProvider);
+  return session.authenticated &&
+      read(zolnitBundleStatusProvider) == ZolnitBundleStatus.ready &&
+      bundle != null &&
+      bundle.isFresh(read(zolnitBundleClockProvider)()) &&
+      isCurrentZolnitBundleProfile(profile, session) &&
+      profile.zolnitBundleId == bundle.bundleId;
+}
+
 final zolnitConnectionPhaseProvider = Provider<ZolnitConnectionPhase>((ref) {
   ref.watch(_zolnitSessionRevisionProvider);
   final profile = ref.watch(currentProfileProvider);
@@ -85,26 +103,14 @@ final zolnitConnectionPhaseProvider = Provider<ZolnitConnectionPhase>((ref) {
     return ZolnitConnectionPhase.disconnected;
   }
 
-  final session = ref.watch(zolnitSessionProvider);
-  if (!session.authenticated) {
+  if (!ref.watch(zolnitSessionProvider).authenticated) {
     return ZolnitConnectionPhase.unavailable;
   }
-  final bundleStatus = ref.watch(zolnitBundleStatusProvider);
-  final bundle = ref.watch(_connectionBundleProvider);
-  final currentBundle =
-      bundleStatus == ZolnitBundleStatus.ready &&
-      bundle != null &&
-      bundle.isFresh(ref.read(zolnitBundleClockProvider)()) &&
-      isCurrentZolnitBundleProfile(profile, session) &&
-      profile.zolnitBundleId == bundle.bundleId;
-  if (!currentBundle) {
-    return bundleStatus == ZolnitBundleStatus.loading
+  if (!ref.watch(isStartProvider)) return ZolnitConnectionPhase.disconnected;
+  if (!zolnitConnectionConfigReady(ref.watch)) {
+    return ref.watch(zolnitBundleStatusProvider) == ZolnitBundleStatus.loading
         ? ZolnitConnectionPhase.connecting
         : ZolnitConnectionPhase.unavailable;
-  }
-
-  if (!ref.watch(isStartProvider)) {
-    return ZolnitConnectionPhase.disconnected;
   }
 
   final storedBundle = ref.watch(zolnitStoredBundleProvider);

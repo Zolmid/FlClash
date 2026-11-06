@@ -10,6 +10,7 @@ String? zolnitConfigurationMessage(
   ZolnitSessionController session,
   ZolnitBundleStatus status, {
   required bool privateTransport,
+  bool stopped = false,
 }) {
   final text = context.appLocalizations;
   if (!privateTransport) {
@@ -28,7 +29,8 @@ String? zolnitConfigurationMessage(
   return switch (status) {
     ZolnitBundleStatus.loading => text.loading,
     ZolnitBundleStatus.forbidden => text.zolnitBundleForbidden,
-    ZolnitBundleStatus.invalid => text.zolnitBundleInvalid,
+    ZolnitBundleStatus.invalid =>
+      stopped ? text.zolnitBundleInvalidWhenStopped : text.zolnitBundleInvalid,
     ZolnitBundleStatus.expired =>
       session.clientBundle == null
           ? text.zolnitBundleUnavailable

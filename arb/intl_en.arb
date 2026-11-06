@@ -1502,6 +1502,7 @@
   "zolnitBundleRefreshFailed": "Could not refresh the connection configuration. Manual and direct choices remain available.",
   "zolnitBundleForbidden": "Connection configuration is unavailable for this account. Check the plan and traffic allowance.",
   "zolnitBundleInvalid": "Connection configuration validation failed. Automatic selection is paused.",
+  "zolnitBundleInvalidWhenStopped": "The VPN configuration could not be verified. Select Connect to fetch it again.",
   "zolnitBundleUnavailable": "Connection configuration is temporarily unavailable.",
   "zolnitBundleNoCandidates": "No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.",
   "zolnitAiService": "AI services",

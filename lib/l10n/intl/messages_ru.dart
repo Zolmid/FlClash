@@ -2841,6 +2841,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
       "Проверка настроек подключения не пройдена. Автовыбор приостановлен.",
     ),
+    "zolnitBundleInvalidWhenStopped": MessageLookupByLibrary.simpleMessage(
+      "Не удалось проверить конфигурацию VPN. Нажмите «Подключиться», чтобы загрузить её снова.",
+    ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
       "Нет выходного узла с подтверждённым допуском. Автовыбор недоступен; используйте ручной выбор или прямое подключение.",
     ),

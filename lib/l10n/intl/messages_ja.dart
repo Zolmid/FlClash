@@ -2278,6 +2278,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
       "接続設定の検証に失敗したため、自動選択を一時停止しました。",
     ),
+    "zolnitBundleInvalidWhenStopped": MessageLookupByLibrary.simpleMessage(
+      "VPN 設定を検証できませんでした。「接続」を選ぶと再取得します。",
+    ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
       "利用資格が確認された出口がありません。自動選択は利用できませんが、手動・直接接続は選べます。",
     ),

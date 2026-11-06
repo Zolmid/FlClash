@@ -1502,6 +1502,7 @@
   "zolnitBundleRefreshFailed": "連線設定更新失敗。手動或直連仍可使用。",
   "zolnitBundleForbidden": "目前帳號暫時無法取得連線設定，請檢查方案與流量。",
   "zolnitBundleInvalid": "連線設定驗證失敗，自動選擇已暫停。",
+  "zolnitBundleInvalidWhenStopped": "VPN 設定未通過驗證，點選「連線」會重新取得。",
   "zolnitBundleUnavailable": "連線設定暫時無法使用。",
   "zolnitBundleNoCandidates": "尚無已確認的出口資格。無法自動選擇，仍可手動或直連。",
   "zolnitAiService": "AI 服務",

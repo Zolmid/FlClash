@@ -32,6 +32,7 @@ void main() {
   var openedNodes = 0;
   var connectionRequests = 0;
   var phase = ZolnitConnectionPhase.disconnected;
+  var transport = false;
 
   setUpAll(() {
     registerFallbackValue(
@@ -42,26 +43,15 @@ void main() {
     );
   });
 
-  setUp(() {
-    core = _ModeCore();
-    calls.clear();
-    openedNodes = 0;
-    connectionRequests = 0;
-    phase = ZolnitConnectionPhase.disconnected;
-    when(core.startLog).thenAnswer((_) {});
-    when(core.stopLog).thenAnswer((_) {});
-    when(() => core.updateConfig(any())).thenAnswer((invocation) {
-      calls.add(invocation.positionalArguments.single as UpdateParams);
-      return reply.future;
-    });
-    final profile = Profile.normal(label: zolnitProfileLabel(harness.session));
+  void installProfile(Profile profile, {bool realPhase = false}) {
     harness.container.dispose();
     container = harness.container = ProviderContainer(
       overrides: [
         zolnitSessionProvider.overrideWithValue(harness.session),
         zolnitSyncProfileProvider.overrideWithValue(() async => null),
-        zolnitClientBundleTransportProvider.overrideWithValue(false),
-        zolnitConnectionPhaseProvider.overrideWith((ref) => phase),
+        zolnitClientBundleTransportProvider.overrideWith((ref) => transport),
+        if (!realPhase)
+          zolnitConnectionPhaseProvider.overrideWith((ref) => phase),
         safeModeProvider.overrideWithValue(false),
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
         profilesProvider.overrideWith(() => TestProfiles([profile])),
@@ -77,17 +67,37 @@ void main() {
         all: [Proxy(name: harness.session.nodeList.first.name, type: 'ss')],
       ),
     ];
+  }
+
+  setUp(() {
+    core = _ModeCore();
+    calls.clear();
+    openedNodes = 0;
+    connectionRequests = 0;
+    phase = ZolnitConnectionPhase.disconnected;
+    transport = false;
+    when(core.startLog).thenAnswer((_) {});
+    when(core.stopLog).thenAnswer((_) {});
+    when(() => core.updateConfig(any())).thenAnswer((invocation) {
+      calls.add(invocation.positionalArguments.single as UpdateParams);
+      return reply.future;
+    });
+    installProfile(Profile.normal(label: zolnitProfileLabel(harness.session)));
   });
 
   tearDown(() {
     if (!reply.isCompleted) reply.complete('config is not applied');
   });
 
-  Future<void> mount(WidgetTester tester, {bool syncing = false}) async {
+  Future<void> mount(
+    WidgetTester tester, {
+    bool syncing = false,
+    ZolnitSkin skin = ZolnitSkin.macos,
+  }) async {
     reply = Completer<String>();
     await harness.mount(
       tester,
-      ZolnitSkin.macos,
+      skin,
       child: CoreManager(
         child: ZolnitConnectPage(
           session: harness.session,
@@ -146,6 +156,52 @@ void main() {
       '断开连接',
     );
   });
+
+  for (final skin in ZolnitSkin.values) {
+    testWidgets(
+      'stopped VPN with a rejected bundle shows a separate warning on ${skin.name}',
+      (tester) async {
+        transport = true;
+        installProfile(
+          Profile.normal(label: 'ZolNit').copyWith(
+            zolnitAccountId: 'fixture',
+            zolnitBundleId: 'fixture',
+            zolnitOrigin: harness.session.api.origin.origin,
+          ),
+          realPhase: true,
+        );
+        container
+            .read(zolnitBundleStatusProvider.notifier)
+            .set(ZolnitBundleStatus.invalid);
+        await mount(tester, skin: skin);
+        expect(find.text('当前尚未连接'), findsOneWidget);
+        expect(find.text('连接异常'), findsNothing);
+        expect(find.text('VPN 配置未通过校验，点「连接」会重新获取。'), findsOneWidget);
+        final power = tester.widget<ZolnitButton>(
+          find.widgetWithText(ZolnitButton, '连接'),
+        );
+        expect(power.primary, isTrue);
+        await tester.tap(find.widgetWithText(ZolnitButton, '连接'));
+        await tester.pump();
+        expect(connectionRequests, 1);
+      },
+    );
+  }
+
+  testWidgets(
+    'stopped VPN with a rejected bundle keeps mode switching closed',
+    (tester) async {
+      final profile = container.read(currentProfileProvider)!;
+      container
+          .read(profilesProvider.notifier)
+          .put(profile.copyWith(zolnitBundleId: 'rejected'));
+      await mount(tester);
+      await tester.tap(find.text('全局模式'));
+      await tester.pump();
+      expect(calls, isEmpty);
+      expect(displayed(tester), isNull);
+    },
+  );
 
   for (final throwsError in [false, true]) {
     testWidgets(

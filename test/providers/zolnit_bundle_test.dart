@@ -866,6 +866,40 @@ void main() {
   );
 
   test(
+    'a rejected bundle reads as stopped until the VPN runs, then as an issue',
+    () async {
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      final status = container.read(zolnitBundleStatusProvider.notifier);
+      expect(zolnitConnectionConfigReady(container.read), isTrue);
+      for (final failed in [
+        ZolnitBundleStatus.invalid,
+        ZolnitBundleStatus.refreshFailed,
+      ]) {
+        status.set(failed);
+        container.read(runTimeProvider.notifier).value = null;
+        expect(
+          container.read(zolnitConnectionPhaseProvider),
+          ZolnitConnectionPhase.disconnected,
+        );
+        expect(zolnitConnectionConfigReady(container.read), isFalse);
+        container.read(runTimeProvider.notifier).value = 1;
+        expect(
+          container.read(zolnitConnectionPhaseProvider),
+          ZolnitConnectionPhase.unavailable,
+        );
+      }
+      status.set(ZolnitBundleStatus.loading);
+      container.read(runTimeProvider.notifier).value = null;
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.disconnected,
+      );
+    },
+  );
+
+  test(
     'cached expiry removes automatic candidates while retaining manual credentials and paid snapshot',
     () async {
       final profile = await sync();

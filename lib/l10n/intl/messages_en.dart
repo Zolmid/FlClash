@@ -2677,6 +2677,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitBundleInvalid": MessageLookupByLibrary.simpleMessage(
       "Connection configuration validation failed. Automatic selection is paused.",
     ),
+    "zolnitBundleInvalidWhenStopped": MessageLookupByLibrary.simpleMessage(
+      "The VPN configuration could not be verified. Select Connect to fetch it again.",
+    ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
       "No exit is confirmed eligible. Automatic selection is unavailable; choose manually or direct.",
     ),
