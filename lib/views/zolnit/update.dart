@@ -146,6 +146,33 @@ class _UpdateCard extends StatelessWidget {
   final VoidCallback onInstall;
   final VoidCallback? onDismiss;
 
+  Future<void> _openDownload(BuildContext context) async {
+    for (final mode in [
+      LaunchMode.inAppBrowserView,
+      LaunchMode.externalApplication,
+    ]) {
+      try {
+        if (await supportsLaunchMode(mode) &&
+            await launchUrl(zolnitDownloadsPage, mode: mode))
+          return;
+      } catch (_) {}
+    }
+    if (!context.mounted) return;
+    await showZolnitDialog<void>(
+      context,
+      (dialog) => AlertDialog(
+        title: Text(dialog.appLocalizations.goDownload),
+        content: SelectableText(zolnitDownloadsPage.toString()),
+        actions: [
+          TextButton(
+            onPressed: () => zolnitCloseDialog(dialog),
+            child: Text(dialog.appLocalizations.close),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = context.appLocalizations;
@@ -170,9 +197,7 @@ class _UpdateCard extends StatelessWidget {
       ZolnitUpdateKind.available || ZolnitUpdateKind.manual => ZolnitButton(
         key: const ValueKey('zolnit-update-download'),
         label: text.goDownload,
-        onPressed: () => unawaited(
-          launchUrl(zolnitDownloadsPage, mode: LaunchMode.externalApplication),
-        ),
+        onPressed: () => unawaited(_openDownload(context)),
       ),
       _ => null,
     };

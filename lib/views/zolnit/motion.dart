@@ -85,11 +85,7 @@ RawDialogRoute<T> zolnitDialogRoute<T>(
     pageBuilder: (dialogContext, _, _) =>
         SafeArea(child: themes.wrap(Builder(builder: builder))),
     transitionBuilder: (_, animation, _, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: zolnitEase,
-        reverseCurve: Curves.easeOut,
-      );
+      final curved = animation.drive(CurveTween(curve: zolnitEase));
       return FadeTransition(
         opacity: curved,
         child: ScaleTransition(

@@ -293,7 +293,10 @@ class GeneralView extends ConsumerWidget {
       ),
       ListItem.open(
         title: Text(appLocalizations.onDemand),
-        widget: const OnDemandView(),
+        widget: OnDemandView(
+          isAndroid: _isAndroid,
+          isMacOS: _platform == SupportPlatform.MacOS,
+        ),
       ),
       if (!_isIOS)
         _appSettingToggle(

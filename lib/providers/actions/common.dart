@@ -32,10 +32,13 @@ class CommonAction extends _$CommonAction {
     });
   }
 
-  void startUpdateDiscovery() {
+  Future<void> startUpdateDiscovery() async {
+    if (_updateDiscoveryTimer != null || ref.read(safeModeProvider)) return;
     _updateDiscoveryTimer ??= Timer.periodic(appUpdateDiscoveryInterval, (_) {
       if (!_realtimeUpdateHintsHealthy) unawaited(checkForAppUpdate());
     });
+    await restoreAppUpdateResult();
+    if (ref.mounted) await autoCheckUpdate();
   }
 
   void toggleRunning() {
@@ -159,6 +162,7 @@ class CommonAction extends _$CommonAction {
   void cancelAppUpdateStaging() => _stagingCancelToken?.cancel();
 
   Future<bool> checkForAppUpdate({bool isUser = false, bool force = false}) {
+    if (ref.read(safeModeProvider)) return Future.value(false);
     if (!isUser && !force && !_updateDiscoveryDue) {
       return Future<bool>.value(_hasStagedOrAnnouncement);
     }
