@@ -75,6 +75,7 @@ class ZolnitSessionController extends ChangeNotifier {
   String? _billingFailureMessage;
   Json? _account;
   Json? _subscription;
+  Json? _displayUsage;
   List<Json> _nodes = const [];
   List<Json> _plans = const [];
   List<Json> _notices = const [];
@@ -148,7 +149,7 @@ class ZolnitSessionController extends ChangeNotifier {
   }
 
   ZolnitUsage? get usage {
-    final source = _subscription;
+    final source = _displayUsage ?? _subscription;
     if (!identical(_usageSource, source)) {
       _usageSource = source;
       _usageModel = source == null
@@ -534,6 +535,7 @@ class ZolnitSessionController extends ChangeNotifier {
     _clientBundleFailure = null;
     _account = null;
     _subscription = null;
+    _displayUsage = null;
     _nodes = const [];
     _plans = const [];
     _notices = const [];
@@ -632,6 +634,7 @@ class ZolnitSessionController extends ChangeNotifier {
           load(api.subscription(), (value) {
             if (value is Json) {
               _subscription = Map<String, dynamic>.unmodifiable(value);
+              _displayUsage = null;
             }
           }),
           load(api.nodes(), (value) {
@@ -714,6 +717,32 @@ class ZolnitSessionController extends ChangeNotifier {
 
   Future<void> refreshBilling() =>
       _run<void>('billing', null, _loadBilling, billing: true);
+
+  Future<void> refreshRealtimeNotices() async {
+    final generation = api.generation;
+    final value = await api.notices();
+    if (_disposed || !_authenticated || generation != api.generation) return;
+    if (value is! List || !value.every((v) => v is Json)) {
+      throw const ClientFailure('invalid_response');
+    }
+    _notices = List.unmodifiable(value.cast<Json>());
+    notifyListeners();
+  }
+
+  void applyRealtimeUsage(Json data) {
+    if (_disposed || !_authenticated || _subscription == null) return;
+    const fields = ['u', 'd', 'transfer_enable'];
+    if (fields.any(
+      (field) => data[field] is! int || (data[field] as int) < 0,
+    )) {
+      return;
+    }
+    _displayUsage = Map<String, dynamic>.unmodifiable({
+      ..._subscription!,
+      for (final field in fields) field: data[field],
+    });
+    notifyListeners();
+  }
 
   Future<void> refreshRecurringOptions() =>
       _run<void>('recurringOptions', null, (work) async {

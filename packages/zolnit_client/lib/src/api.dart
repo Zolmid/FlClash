@@ -27,6 +27,18 @@ class ClientFailure implements Exception {
   String toString() => 'ClientFailure($code)';
 }
 
+final class ZolnitRealtimeTicket {
+  const ZolnitRealtimeTicket({required this.ticket, required this.subject});
+  final String ticket;
+  final String subject;
+}
+
+final class ZolnitRealtimeInbox {
+  const ZolnitRealtimeInbox({required this.subject, required this.events});
+  final String subject;
+  final List<Json> events;
+}
+
 class XboardClient {
   XboardClient({
     required Uri origin,
@@ -184,6 +196,55 @@ class XboardClient {
     );
     if (value is! Json) throw const ClientFailure('invalid_client_bundle');
     return value;
+  }
+
+  Future<ZolnitRealtimeTicket> realtimeTicket() async {
+    final value = await request(
+      '/api/v1/zolnit/client/realtime/ticket',
+      method: 'POST',
+      body: const {},
+    );
+    if (value is! Json ||
+        value['ticket'] is! String ||
+        value['subject'] is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(value['ticket'] as String) ||
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(value['subject'] as String)) {
+      throw const ClientFailure('invalid_realtime_ticket');
+    }
+    return ZolnitRealtimeTicket(
+      ticket: value['ticket'] as String,
+      subject: value['subject'] as String,
+    );
+  }
+
+  Future<ZolnitRealtimeInbox> realtimeInbox() async {
+    final value = await request('/api/v1/zolnit/client/realtime/inbox');
+    if (value is! Json ||
+        value['subject'] is! String ||
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(value['subject'] as String) ||
+        value['events'] is! List) {
+      throw const ClientFailure('invalid_realtime_inbox');
+    }
+    return ZolnitRealtimeInbox(
+      subject: value['subject'] as String,
+      events: List<Json>.unmodifiable(value['events'].whereType<Json>()),
+    );
+  }
+
+  Future<void> markRealtimeInboxRead(String eventId) async {
+    if (!RegExp(r'^[0-9a-f]{32}$').hasMatch(eventId)) {
+      throw const ClientFailure('invalid_realtime_event');
+    }
+    final value = await request(
+      '/api/v1/zolnit/client/realtime/read',
+      method: 'POST',
+      body: {'event_id': eventId},
+    );
+    if (value is! Json ||
+        value['event_id'] != eventId ||
+        value['read'] != true) {
+      throw const ClientFailure('invalid_realtime_receipt');
+    }
   }
 
   static final _validLang = RegExp(r'^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$');

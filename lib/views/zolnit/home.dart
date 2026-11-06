@@ -1,10 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:collection';
+
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_registration.dart';
+import 'package:fl_clash/providers/zolnit_realtime.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +57,16 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   bool _foreground = true;
   late final ZolnitSessionController _session;
   late final ZolnitRegistrationCoordinator _registration;
+  final ZolnitRealtimePreferencesStore _realtimeStore =
+      ZolnitRealtimePreferencesStore();
+  ZolnitRealtimeChannel? _realtime;
+  String? _realtimeSubject;
+  Future<void>? _inboxFlight;
+  int? _inboxGeneration;
+  DialogRoute<void>? _popupRoute;
+  final _popups = Queue<ZolnitRealtimeInboxItem>();
+  Future<int?>? _buildNumber;
+  int _unread = 0;
 
   @override
   void initState() {
@@ -81,9 +96,20 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     if (!_session.authenticated) {
       if (_observedGeneration != null) _nextRefresh = null;
       _observedGeneration = null;
+      _clearPopups();
+      _realtimeSubject = null;
+      _unread = 0;
+      unawaited(_realtime?.dispose() ?? Future<void>.value());
+      _realtime = null;
       return;
     }
     if (_observedGeneration != _session.api.generation) {
+      _clearPopups();
+      _realtimeSubject = null;
+      _unread = 0;
+      final old = _realtime;
+      _realtime = null;
+      unawaited(old?.dispose() ?? Future.value());
       _observedGeneration = _session.api.generation;
       _nextRefresh = null;
       _refreshFailures = 0;
@@ -106,6 +132,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     }
     if (!ref.read(initProvider)) return Future.value();
     if (_refreshFlight case final pending?) return pending;
+    if (!force && _realtime?.healthy == true) return Future.value();
     if (!force && _nextRefresh?.isAfter(_now) == true) {
       return Future.value();
     }
@@ -113,6 +140,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     late final Future<void> work;
     work = () async {
       try {
+        if (_realtime?.healthy != true) {
+          unawaited(
+            _refreshRealtimeInbox(generation).catchError((Object _) {}),
+          );
+        }
         await _session.refresh();
         if (!mounted ||
             !_foreground ||
@@ -120,6 +152,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
             _session.api.generation != generation) {
           return;
         }
+
         await Future.wait([_session.refreshBilling(), _sync()]);
         if (!mounted || _session.api.generation != generation) return;
         if (_syncFailed ||
@@ -151,16 +184,319 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     _armRefresh();
+    _realtime?.setForeground(_foreground);
     if (_foreground) unawaited(_refreshData(force: true));
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    unawaited(_realtime?.dispose() ?? Future<void>.value());
+    _clearPopups();
     _registration.cancel();
     _session.removeListener(_sessionChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  String? _realtimeScope() {
+    final subject = _realtimeSubject;
+    return subject == null ? null : '${_session.api.origin.origin}:$subject';
+  }
+
+  bool _currentRealtime(int gen) =>
+      mounted && _session.authenticated && _session.api.generation == gen;
+
+  void _connectRealtime(String scope, int gen) {
+    if (_realtime != null || !_currentRealtime(gen) || !_foreground) return;
+    late final ZolnitRealtimeChannel channel;
+    channel = ZolnitRealtimeChannel(
+      api: _session.api,
+      scopeKey: () => scope,
+      store: _realtimeStore,
+      connect: ref.read(zolnitRealtimeConnectorProvider),
+      onHealthChanged: () {
+        if (!_currentRealtime(gen) ||
+            !identical(channel, _realtime) ||
+            !_foreground) {
+          return;
+        }
+        if (!channel.healthy) {
+          scheduleMicrotask(() {
+            if (_currentRealtime(gen) && !channel.healthy) {
+              unawaited(_refreshData(force: true));
+            }
+          });
+        }
+      },
+      onResync: () async {
+        if (!_currentRealtime(gen)) return;
+        await Future.wait([
+          _refreshData(force: true),
+          _refreshRealtimeInbox(gen),
+        ]);
+        if (_session.failure != null ||
+            _session.billingFailure != null ||
+            _syncFailed) {
+          throw StateError('snapshot unavailable');
+        }
+      },
+      onEvent: (e) =>
+          _applyEvent(e.id, e.type, e.data, scope, gen, DateTime.now(), false),
+    );
+    _realtime = channel;
+    unawaited(channel.start());
+  }
+
+  Future<void> _applyEvent(
+    String id,
+    String type,
+    Json data,
+    String scope,
+    int gen,
+    DateTime at,
+    bool read,
+  ) async {
+    if (!_currentRealtime(gen) || scope != _realtimeScope()) return;
+    switch (type) {
+      case 'config.changed':
+        await _sync();
+        if (_syncFailed) throw StateError('config refresh failed');
+        return;
+      case 'notice.changed':
+        await _session.refreshRealtimeNotices();
+        return;
+      case 'account.changed':
+        await _session.refresh();
+        if (_currentRealtime(gen)) {
+          await Future.wait([_session.refreshBilling(), _sync()]);
+        }
+        if (_session.failure != null || _session.billingFailure != null) {
+          throw StateError('account refresh failed');
+        }
+        return;
+      case 'account.usage':
+        _session.applyRealtimeUsage(data);
+        return;
+    }
+    final String title, body;
+    if (type == 'client.update') {
+      final target = data['platform'],
+          build = data['build'],
+          version = data['version'];
+      if ((target != 'all' && target != _session.api.clientPlatform) ||
+          build is! int ||
+          build <= 0 ||
+          version is! String ||
+          !RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version) ||
+          version.length > 32) {
+        return;
+      }
+      _buildNumber ??= PackageInfo.fromPlatform()
+          .then((i) => int.tryParse(i.buildNumber))
+          .catchError((Object _) => null);
+      final current = await _buildNumber;
+      if (current == null) {
+        _buildNumber = null;
+        return;
+      }
+      if (!_currentRealtime(gen) || build <= current) return;
+      if (!mounted) return;
+      title = '${context.appLocalizations.discoverNewVersion} · $version';
+      body = data['body'] is String
+          ? data['body'] as String
+          : 'ZolNit $version ($build)';
+    } else if ({
+      'notice.published',
+      'notice.popup',
+      'account.notice',
+    }.contains(type)) {
+      if (data['title'] is! String || data['body'] is! String) return;
+      title = data['title'] as String;
+      body = data['body'] as String;
+    } else {
+      return;
+    }
+    if (title.trim().isEmpty ||
+        body.trim().isEmpty ||
+        utf8.encode(title).length > 200 ||
+        utf8.encode(body).length > 2048) {
+      return;
+    }
+    final item = ZolnitRealtimeInboxItem(
+      id: id,
+      title: title,
+      body: body,
+      createdAt: at,
+      popup: type == 'notice.popup',
+      read: read,
+    );
+    final fresh = await _realtimeStore.appendInbox(scope, item);
+    if (fresh && _currentRealtime(gen)) await _updateUnread(scope, gen);
+    if (fresh && !read && _currentRealtime(gen) && _foreground && item.popup) {
+      if (_popups.length < 8) _popups.add(item);
+      _showNextPopup(scope, gen);
+    }
+  }
+
+  void _clearPopups() {
+    _popups.clear();
+    final route = _popupRoute;
+    _popupRoute = null;
+    if (route != null && route.isActive) {
+      scheduleMicrotask(() {
+        if (route.isActive) route.navigator?.removeRoute(route);
+      });
+    }
+  }
+
+  void _showNextPopup(String scope, int gen) {
+    if (!_currentRealtime(gen) ||
+        !_foreground ||
+        scope != _realtimeScope() ||
+        _popupRoute != null ||
+        _popups.isEmpty) {
+      return;
+    }
+    final item = _popups.removeFirst();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_currentRealtime(gen) || !_foreground || scope != _realtimeScope()) {
+        return;
+      }
+      if (_popupRoute != null) {
+        _popups.addFirst(item);
+        return;
+      }
+      final route = DialogRoute<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: Text(item.title),
+          content: SingleChildScrollView(child: Text(item.body)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialog);
+                unawaited(_markRead(item, scope, gen));
+              },
+              child: Text(dialog.appLocalizations.confirm),
+            ),
+          ],
+        ),
+      );
+      _popupRoute = route;
+      unawaited(
+        Navigator.of(context, rootNavigator: true).push(route).whenComplete(() {
+          if (identical(_popupRoute, route)) {
+            _popupRoute = null;
+            _showNextPopup(scope, gen);
+          }
+        }),
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _updateUnread(String scope, int gen) async {
+    final inbox = await _realtimeStore.readInbox(scope);
+    final count = inbox.where((item) => !item.read).length;
+    if (_currentRealtime(gen) &&
+        scope == _realtimeScope() &&
+        _unread != count) {
+      setState(() => _unread = count);
+    }
+  }
+
+  Future<bool> _markRead(
+    ZolnitRealtimeInboxItem item,
+    String scope,
+    int gen,
+  ) async {
+    if (item.read || !_currentRealtime(gen) || scope != _realtimeScope()) {
+      return false;
+    }
+    try {
+      final live = await _realtime?.markInboxRead(item.id) ?? false;
+      if (!_currentRealtime(gen)) return false;
+      if (!live) await _session.api.markRealtimeInboxRead(item.id);
+      if (_currentRealtime(gen)) {
+        await _realtimeStore.appendInbox(scope, item.asRead());
+      }
+      if (_currentRealtime(gen)) await _updateUnread(scope, gen);
+      return _currentRealtime(gen);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _refreshRealtimeInbox(int gen) {
+    if (_inboxGeneration == gen && _inboxFlight != null) return _inboxFlight!;
+    _inboxGeneration = gen;
+    late final Future<void> job;
+    job =
+        Future<void>.microtask(() async {
+          final inbox = await _session.api.realtimeInbox();
+          if (!_currentRealtime(gen)) return;
+          final scope = '${_session.api.origin.origin}:${inbox.subject}';
+          if (_realtimeSubject != null && _realtimeSubject != inbox.subject) {
+            throw StateError('account binding changed');
+          }
+          _realtimeSubject = inbox.subject;
+          for (final e in inbox.events.take(100)) {
+            if (!_currentRealtime(gen)) return;
+            final id = e['id'],
+                type = e['type'],
+                data = e['data'],
+                seconds = e['created_at'];
+            if (id is! String ||
+                !RegExp(r'^[a-f0-9]{32}$').hasMatch(id) ||
+                type is! String ||
+                !{
+                  'notice.published',
+                  'notice.popup',
+                  'client.update',
+                  'account.notice',
+                }.contains(type) ||
+                data is! Json ||
+                seconds is! int ||
+                seconds < 0 ||
+                seconds > 253402300799) {
+              continue;
+            }
+            await _applyEvent(
+              id,
+              type,
+              data,
+              scope,
+              gen,
+              DateTime.fromMillisecondsSinceEpoch(seconds * 1000),
+              e['read'] == true,
+            );
+          }
+          await _updateUnread(scope, gen);
+          _connectRealtime(scope, gen);
+        }).whenComplete(() {
+          if (identical(_inboxFlight, job)) _inboxFlight = null;
+        });
+    return _inboxFlight = job;
+  }
+
+  Future<void> _openNotices() async {
+    final scope = _realtimeScope(), gen = _session.api.generation;
+    List<ZolnitRealtimeInboxItem> inbox = [];
+    try {
+      if (scope != null) inbox = await _realtimeStore.readInbox(scope);
+    } catch (_) {}
+    if (!_currentRealtime(gen)) return;
+    if (!mounted) return;
+    await showZolnitNotices(
+      context,
+      _session.noticeList,
+      inbox,
+      session: _session,
+      isCurrent: () => _currentRealtime(gen),
+      onOpen: (item) async =>
+          scope != null && await _markRead(item, scope, gen),
+    );
   }
 
   Future<void> _website([String path = '/']) async {
@@ -480,12 +816,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                                 showBrand:
                                     _selected == 0 && !_showingPreferences,
                                 initial: name.characters.first,
-                                onNotices: () => unawaited(
-                                  showZolnitNotices(
-                                    context,
-                                    session.noticeList,
-                                  ),
-                                ),
+                                unread: _unread,
+                                onNotices: () => unawaited(_openNotices()),
                                 onHelp: () => _openHelp(context),
                                 onAccount: () => _select(3),
                                 onBack: _showingPreferences

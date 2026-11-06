@@ -356,9 +356,11 @@ class ZolnitTopBar extends StatelessWidget {
     required this.onHelp,
     required this.onAccount,
     this.onBack,
+    this.unread = 0,
   });
 
   final bool compact;
+  final int unread;
   final String title;
   final bool showBrand;
   final String initial;
@@ -451,11 +453,16 @@ class ZolnitTopBar extends StatelessWidget {
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _BarButton(
-          tooltip: text.zolnitNotices,
-          glyph: AppGlyphs.bell,
-          onPressed: onNotices,
+        Badge.count(
+          count: unread,
+          isLabelVisible: unread > 0,
+          child: _BarButton(
+            tooltip: text.zolnitNotices,
+            glyph: AppGlyphs.bell,
+            onPressed: onNotices,
+          ),
         ),
+
         if (!phone)
           _BarButton(
             tooltip: text.zolnitHelpSupport,
