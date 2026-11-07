@@ -17,7 +17,9 @@ private class MemoryEpochStore(private val events: MutableList<String>) : Bundle
     var session: BundleSession? = null
     val auth = mutableMapOf<Long, String>()
     override suspend fun current() = session
-    override suspend fun configure(accountId: String, authorization: String, accountGeneration: Long): BundleSession {
+    override suspend fun device(epoch: Long): SignedDevice? = null
+    override suspend fun configure(accountId: String, authorization: String, accountGeneration: Long,
+        device: SignedDevice?): BundleSession {
         val epoch = (session?.epoch ?: 0) + 1
         return BundleSession(epoch, epoch, accountId, accountGeneration, true).also {
             session = it
@@ -46,6 +48,8 @@ private class FixtureTransport(private val events: MutableList<String>) : Bundle
         if (failNext) { failNext = false; error("fixture_network_failure") }
         return if (ignoreCancellation) withContext(NonCancellable) { responses.receive() } else responses.receive()
     }
+    override suspend fun signed(authorization: String, coreVersion: String, device: SignedDevice, state: Boolean) =
+        error("legacy renewal must not use signed endpoints")
     override fun cancel() { if (events.lastOrNull() != "cancel") events += "cancel" }
 }
 

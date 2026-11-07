@@ -27,6 +27,21 @@ class ClientFailure implements Exception {
   String toString() => 'ClientFailure($code)';
 }
 
+class ZolnitClientDevice {
+  const ZolnitClientDevice({
+    required this.deviceId,
+    required this.installationId,
+  });
+
+  final String deviceId;
+  final String installationId;
+
+  Map<String, String> get headers => {
+    'X-ZolNit-Device-Id': deviceId,
+    'X-ZolNit-Installation': installationId,
+  };
+}
+
 final class ZolnitRealtimeTicket {
   const ZolnitRealtimeTicket({required this.ticket, required this.subject});
   final String ticket;
@@ -185,6 +200,7 @@ class XboardClient {
     bool authenticated = true,
     bool unwrap = true,
     String? coreVersion,
+    Map<String, String> extraHeaders = const {},
   }) async {
     if (_closed) throw const ClientFailure('closed');
     if (!RegExp(r'^/api/v1/[A-Za-z0-9_/-]+$').hasMatch(path) ||
@@ -218,6 +234,7 @@ class XboardClient {
       if (body != null) 'Content-Type': 'application/json',
       if (lang.isNotEmpty && _validLang.hasMatch(lang))
         'Content-Language': lang,
+      ...extraHeaders,
     });
     if (body != null) request.body = jsonEncode(body);
     int? statusCode;
@@ -273,6 +290,90 @@ class XboardClient {
     );
     if (value is! Json) throw const ClientFailure('invalid_client_bundle');
     return value;
+  }
+
+  Future<ZolnitClientDevice> registerClientDevice({
+    required String installationId,
+    required String platform,
+    String? label,
+  }) async {
+    if (!RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(installationId) ||
+        !const {
+          'android',
+          'ios',
+          'macos',
+          'windows',
+          'linux',
+        }.contains(platform) ||
+        (label?.length ?? 0) > 40) {
+      throw const ClientFailure('invalid_device_registration');
+    }
+    final value = await request(
+      '/api/v1/zolnit/client/devices/register',
+      method: 'POST',
+      body: {
+        'installation_id': installationId,
+        'platform': platform,
+        'label': ?label,
+      },
+    );
+    if (value is! Json ||
+        value['device_id'] is! String ||
+        !RegExp(r'^[a-f0-9]{32}$').hasMatch(value['device_id'] as String) ||
+        value['platform'] != platform) {
+      throw const ClientFailure('invalid_device_registration');
+    }
+    return ZolnitClientDevice(
+      deviceId: value['device_id'] as String,
+      installationId: installationId,
+    );
+  }
+
+  Future<Json> fetchSignedClientBundle({
+    required String coreVersion,
+    required ZolnitClientDevice device,
+  }) async {
+    final value = await request(
+      '/api/v1/zolnit/client/bundle',
+      coreVersion: coreVersion,
+      extraHeaders: {
+        ...device.headers,
+        'X-ZolNit-Subscription-Format': 'signed-v2',
+      },
+    );
+    if (value is! Json) {
+      throw const ClientFailure('invalid_signed_subscription');
+    }
+    return value;
+  }
+
+  Future<Json> fetchSignedSubscriptionState(ZolnitClientDevice device) async {
+    return _preferLive<Json>(
+      'subscription.state',
+      {'device_id': device.deviceId},
+      (value) => value is Json ? value : null,
+      () async {
+        final value = await request(
+          '/api/v1/zolnit/client/subscription/state',
+          extraHeaders: device.headers,
+        );
+        if (value is! Json) {
+          throw const ClientFailure('invalid_signed_subscription');
+        }
+        return value;
+      },
+    );
+  }
+
+  Future<Json?> fetchOnlineClientDevices() {
+    if (clientPlatform == null || distribution == null) {
+      return Future.value();
+    }
+    Json? parse(Object? value) =>
+        value is Json && value.containsKey('online') ? value : null;
+    return _preferLive<Json?>('device.status', const {}, parse, () async {
+      return parse(await request('/api/v1/zolnit/client/devices/online'));
+    });
   }
 
   Future<ZolnitRealtimeTicket> realtimeTicket() async {

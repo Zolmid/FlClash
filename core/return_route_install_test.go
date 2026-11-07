@@ -200,11 +200,16 @@ func TestReturnRouteInitialAndNativeRenewalInstall(t *testing.T) {
 	if code != "" {
 		t.Fatal(code)
 	}
+	intent := uint64(11)
+	clientBundleSetup.RoutingLease.SignedIntent = &intent
 	configMu.Lock()
 	reused, err := applyPreparedClientBundleLocked(next, clientBundleSetup)
 	configMu.Unlock()
 	if err != nil || !reused || selector.Now() != lite {
 		t.Fatal("same-config renewal reset manual selection")
+	}
+	if clientBundleSetup.RoutingLease.SignedIntent == nil || *clientBundleSetup.RoutingLease.SignedIntent != intent {
+		t.Fatal("native renewal dropped signed session intent")
 	}
 	if currentConfig == nil || currentConfig.General.MixedPort != 0 || currentConfig.DNS.Enable || currentConfig.General.Tun.Enable {
 		t.Fatal("synthetic installation enabled host networking")

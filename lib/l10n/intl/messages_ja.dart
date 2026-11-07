@@ -2384,6 +2384,30 @@ class MessageLookup extends MessageLookupByLibrary {
       "パスワードをお忘れですか？",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("ギフト利用権"),
+    "zolnitGiftActual": MessageLookupByLibrary.simpleMessage("獲得した特典"),
+    "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("贈呈残高"),
+    "zolnitGiftCard": MessageLookupByLibrary.simpleMessage("ギフトカード"),
+    "zolnitGiftCheck": MessageLookupByLibrary.simpleMessage("内容を確認"),
+    "zolnitGiftCode": MessageLookupByLibrary.simpleMessage("ギフトコード"),
+    "zolnitGiftConfirm": MessageLookupByLibrary.simpleMessage("交換する"),
+    "zolnitGiftContinue": MessageLookupByLibrary.simpleMessage("続けて交換"),
+    "zolnitGiftEmpty": MessageLookupByLibrary.simpleMessage("交換履歴はありません"),
+    "zolnitGiftFailure": MessageLookupByLibrary.simpleMessage(
+      "操作を完了できませんでした。再試行してください。",
+    ),
+    "zolnitGiftHistory": MessageLookupByLibrary.simpleMessage("交換履歴"),
+    "zolnitGiftIncluded": MessageLookupByLibrary.simpleMessage("確定特典"),
+    "zolnitGiftNext": MessageLookupByLibrary.simpleMessage("次へ"),
+    "zolnitGiftPossible": MessageLookupByLibrary.simpleMessage("獲得できる可能性"),
+    "zolnitGiftPrevious": MessageLookupByLibrary.simpleMessage("前へ"),
+    "zolnitGiftPrompt": MessageLookupByLibrary.simpleMessage("ギフトコードを入力"),
+    "zolnitGiftRandomTip": MessageLookupByLibrary.simpleMessage(
+      "ランダム特典は交換時に決まります。",
+    ),
+    "zolnitGiftRedeemed": MessageLookupByLibrary.simpleMessage("交換しました"),
+    "zolnitGiftRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "アカウントを更新できませんでした。再試行してください。",
+    ),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "初回支払いの確認後に有料期間が始まり、残りの無料期間が置き換わります。",
     ),
@@ -2609,6 +2633,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "現在、このプランでは毎月の自動支払いをご利用いただけません。",
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage("参考合計（人民元）"),
+    "zolnitReferralReference": MessageLookupByLibrary.simpleMessage(
+      "初回購入の参考価格",
+    ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("更新"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("新規登録"),
     "zolnitRegistrationBrowserUnavailable":

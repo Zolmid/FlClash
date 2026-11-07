@@ -40,6 +40,8 @@ var firstPartyHTTPHeaders = map[string]struct{}{
 	"accept": {}, "authorization": {}, "content-language": {},
 	"content-type": {}, "user-agent": {}, "x-zolnit-core-version": {},
 	"x-zolnit-distribution": {}, "x-zolnit-platform": {},
+	"x-zolnit-device-id": {}, "x-zolnit-installation": {}, "x-zolnit-subscription-format": {},
+	"idempotency-key": {},
 }
 
 type firstPartyHTTPKey struct{ client, request string }

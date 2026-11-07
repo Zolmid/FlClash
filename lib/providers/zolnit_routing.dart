@@ -242,10 +242,16 @@ class ZolnitRouting with WidgetsBindingObserver {
         _invalidatedLeases.containsKey(_leaseIdentity(plan))) {
       return null;
     }
+    final signed = _session?.signedSubscriptions?.active;
     return {
       'accountId': plan.accountId,
       'accountGeneration': plan.accountGeneration,
       'bundleId': plan.bundleId,
+      if (signed != null && signed.accountId == plan.accountId) ...{
+        'signedDeviceId': signed.device.deviceId,
+        'signedSerial': signed.serial,
+        'signedIntent': signed.intent,
+      },
       'configurationDigest': plan.digest,
       if (plan.connectionDigest != null)
         'connectionDigest': plan.connectionDigest,
@@ -450,6 +456,8 @@ class ZolnitRouting with WidgetsBindingObserver {
           _active?.expiresAt != null &&
           (!_active!.expiresAt!.isAfter(_now) ||
               _session?.clientBundleFailure == 'entitlement_unavailable' ||
+              _session?.clientBundleFailure == 'subscription_tombstone' ||
+              _session?.clientBundleFailure == 'subscription_expired' ||
               _session?.clientBundleFailure == 'invalid_client_bundle' ||
               _session?.clientBundleFailure ==
                   'client_bundle_binding_mismatch')) {
@@ -619,6 +627,8 @@ class ZolnitRouting with WidgetsBindingObserver {
     } else if (_active?.expiresAt != null &&
         const {
           'entitlement_unavailable',
+          'subscription_tombstone',
+          'subscription_expired',
           'invalid_client_bundle',
           'client_bundle_binding_mismatch',
         }.contains(_session?.clientBundleFailure)) {
@@ -729,11 +739,15 @@ class ZolnitRouting with WidgetsBindingObserver {
           _session?.api.generation != plan.accountGeneration) {
         return;
       }
+      final signed = _session!.signedSubscriptions?.active;
       final status = await _nativeClient.configure(
         accountId: plan.accountId!,
         accountGeneration: plan.accountGeneration,
         authorization: authorization,
         distribution: _session!.api.distribution ?? 'direct',
+        signedDevice: signed?.accountId == plan.accountId
+            ? signed?.device
+            : null,
       );
       if (_disposed ||
           !identical(plan, _active) ||
@@ -811,7 +825,7 @@ class ZolnitRouting with WidgetsBindingObserver {
   Future<void> _invalidateNativeSession() async {
     final session = _session;
     if (session == null || !session.authenticated) return;
-    final deletion = session.logout();
+    final deletion = session.logout(clearSignedCredentials: false);
     try {
       if (!ref.read(safeModeProvider)) {
         await ref.read(setupActionProvider.notifier).setRunning(false);

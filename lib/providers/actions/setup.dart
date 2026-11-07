@@ -679,7 +679,11 @@ class SetupAction extends _$SetupAction {
     }
     final clock = ref.read(zolnitBundleClockProvider);
     final bundle = privateBundle
-        ? await readZolnitClientBundle(sourceProfile, clock())
+        ? await readActiveZolnitClientBundle(
+            sourceProfile,
+            clock(),
+            ref.read(zolnitSessionProvider),
+          )
         : null;
     final privatePrepared = bundle == null
         ? null
@@ -1013,11 +1017,15 @@ class SetupAction extends _$SetupAction {
               if (selected == null) {
                 throw const ClientFailure('client_bundle_binding_mismatch');
               }
+              final lease = routing.preparedLease(profile.id, realProfile.md5);
+              final session = ref.read(zolnitSessionProvider);
+              if (session.signedSubscriptions?.active?.accountId ==
+                      profile.zolnitAccountId &&
+                  lease?['signedDeviceId'] == null) {
+                throw const ClientFailure('signed_subscription_required');
+              }
               return rawSetupParams.copyWith(
-                routingLease: routing.preparedLease(
-                  profile.id,
-                  realProfile.md5,
-                ),
+                routingLease: lease,
                 selectedMap: selected,
               );
             }()
@@ -1062,14 +1070,6 @@ class SetupAction extends _$SetupAction {
       await globalState.loadingRun(
         () async {
           try {
-            if (setupParams.base == null) {
-              final configFilePath = await appPath.configFilePath;
-              await File(configFilePath).writeAsStringAtomically(yamlString);
-            }
-            final profileId = profile?.id;
-            if (profileId != null) {
-              await appPath.ensureProviderDirs(profileId);
-            }
             if (profile != null &&
                 isZolnitBundleProfile(profile) &&
                 !ref
@@ -1077,6 +1077,16 @@ class SetupAction extends _$SetupAction {
                     .acceptsPrepared(profile.id, yamlMd5)) {
               throw const ClientFailure('superseded');
             }
+            if (setupParams.base == null &&
+                setupParams.routingLease?['signedDeviceId'] == null) {
+              final configFilePath = await appPath.configFilePath;
+              await File(configFilePath).writeAsStringAtomically(yamlString);
+            }
+            final profileId = profile?.id;
+            if (profileId != null) {
+              await appPath.ensureProviderDirs(profileId);
+            }
+
             final message = await _core.setupConfig(
               params: setupParams,
               preloadInvoke: listenerManagedByService ? null : preloadInvoke,

@@ -7,6 +7,56 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
   test(
+    'canonical edit preserves read, rejects stale and replay, honors tombstone',
+    () async {
+      final store = ZolnitRealtimePreferencesStore();
+      const scope = 'https://panel.invalid:account-a';
+      final old = ZolnitRealtimeInboxItem(
+        id: 'c' * 32,
+        title: 'Old',
+        body: 'Old body',
+        createdAt: DateTime.now(),
+        popup: true,
+        read: true,
+      );
+      final edit = ZolnitRealtimeInboxItem(
+        id: old.id,
+        title: 'New',
+        body: 'New body',
+        createdAt: old.createdAt,
+        popup: false,
+      );
+      expect(await store.appendInbox(scope, old), isTrue);
+      expect(
+        await store.applyCanonicalInbox(scope, edit, isCurrent: () => true),
+        ZolnitInboxMerge.updated,
+      );
+      expect(await store.appendInbox(scope, old), isFalse);
+      final item = (await store.readInbox(scope)).single;
+      expect(
+        (item.title, item.body, item.popup, item.read),
+        ('New', 'New body', false, true),
+      );
+      var epochChecks = 0;
+      expect(
+        await store.applyCanonicalInbox(
+          scope,
+          old,
+          isCurrent: () => ++epochChecks == 1,
+        ),
+        ZolnitInboxMerge.unchanged,
+      );
+      expect(epochChecks, greaterThan(1));
+      expect((await store.readInbox(scope)).single.title, 'New');
+      await store.withdrawInbox(scope, [old.id]);
+      expect(
+        await store.applyCanonicalInbox(scope, old, isCurrent: () => true),
+        ZolnitInboxMerge.unchanged,
+      );
+      expect(await store.readInbox(scope), isEmpty);
+    },
+  );
+  test(
     'withdrawal removes cached messages and rejects late replay across restart, scoped to account',
     () async {
       final store = ZolnitRealtimePreferencesStore(), id = 'a' * 32;

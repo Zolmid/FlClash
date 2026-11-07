@@ -89,6 +89,28 @@ func TestFirstPartyHTTPPostResponseAndNoRedirectReplay(t *testing.T) {
 	}
 }
 
+func TestFirstPartyHTTPSignedSubscriptionHeaders(t *testing.T) {
+	var calls atomic.Int32
+	service := firstPartyTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != http.MethodPost || r.Header.Get("X-ZolNit-Device-Id") != "fixture-device" || r.Header.Get("X-ZolNit-Installation") != "fixture-installation" || r.Header.Get("X-ZolNit-Subscription-Format") != "signed-v2" || r.Header.Get("Idempotency-Key") != "fixture-idempotency-key" {
+			t.Error("signed headers were not delivered")
+		}
+		w.WriteHeader(http.StatusOK)
+	}, true)
+	p := firstPartyParams()
+	p.Method = "POST"
+	p.URL = "https://link.zolmid.com/api/v1/zolnit/client/bundle"
+	p.Headers = map[string]string{"X-ZolNit-Device-Id": "fixture-device", "X-ZolNit-Installation": "fixture-installation", "X-ZolNit-Subscription-Format": "signed-v2", "Idempotency-Key": "fixture-idempotency-key"}
+	if result, err := service.send(p); err != nil || result.Status != http.StatusOK || calls.Load() != 1 {
+		t.Fatal("signed request failed", result, err)
+	}
+	p.Headers["X-Not-Allowed"] = "fixture"
+	if _, err := service.send(p); methodCode(err) != "invalid_request" || calls.Load() != 1 {
+		t.Fatal("arbitrary header was accepted", err)
+	}
+}
+
 func TestFirstPartyHTTPStrictTLS(t *testing.T) {
 	transport := newFirstPartyHTTPTransport()
 	if transport.TLSClientConfig.InsecureSkipVerify || transport.Proxy != nil {

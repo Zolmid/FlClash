@@ -274,6 +274,11 @@ class CoreController {
   Future<Map<String, dynamic>?> getClientBundleOwner() =>
       _interface.getClientBundleOwner();
 
+  Future<Object?> signedSubscription(
+    CoreMethod method,
+    Map<String, Object?>? arguments,
+  ) => _interface.signedSubscription(method, arguments);
+
   Future<Map<String, dynamic>?> setClientReturnRoute(
     Map<String, dynamic> parameters,
   ) => _interface.setClientReturnRoute(parameters);

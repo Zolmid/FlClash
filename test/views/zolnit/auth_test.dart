@@ -496,6 +496,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('phone keyboard leaves registration and login actionable', (
+    tester,
+  ) async {
+    final previousHitTestWarning = WidgetController.hitTestWarningShouldBeFatal;
+    WidgetController.hitTestWarningShouldBeFatal = true;
+    addTearDown(
+      () =>
+          WidgetController.hitTestWarningShouldBeFatal = previousHitTestWarning,
+    );
+    var registrations = 0;
+    var signedIn = 0;
+    await mountLogin(
+      tester,
+      ZolnitSkin.android,
+      size: const Size(390, 844),
+      openRegistration: () => registrations++,
+      onSignedIn: () async => signedIn++,
+    );
+    await fill(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+
+    final register = find.text('注册');
+    await tester.ensureVisible(register);
+    await tester.pumpAndSettle();
+    expect(register.hitTestable(), findsOneWidget);
+    expect(tester.getBottomRight(register).dy, lessThanOrEqualTo(544));
+    await tester.tap(register);
+    expect(registrations, 1);
+
+    final login = find.byKey(const ValueKey('zolnit-sign-in'));
+    await tester.ensureVisible(login);
+    await tester.pumpAndSettle();
+    expect(login.hitTestable(), findsOneWidget);
+    expect(tester.getBottomRight(login).dy, lessThanOrEqualTo(544));
+    await tester.tap(login);
+    await tester.pumpAndSettle();
+    expect(
+      harness.requests.where((r) => r.url.path.endsWith('/login')),
+      hasLength(1),
+    );
+    expect(signedIn, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('320 dp large text and short viewport scroll without overflow', (
     tester,
   ) async {

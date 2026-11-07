@@ -3050,6 +3050,46 @@ class MessageLookup extends MessageLookupByLibrary {
       "¿Olvidaste tu contraseña?",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Acceso de regalo"),
+    "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
+      "Recompensas recibidas",
+    ),
+    "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage(
+      "Saldo de regalo",
+    ),
+    "zolnitGiftCard": MessageLookupByLibrary.simpleMessage("Tarjeta regalo"),
+    "zolnitGiftCheck": MessageLookupByLibrary.simpleMessage("Vista previa"),
+    "zolnitGiftCode": MessageLookupByLibrary.simpleMessage("Código de regalo"),
+    "zolnitGiftConfirm": MessageLookupByLibrary.simpleMessage("Canjear"),
+    "zolnitGiftContinue": MessageLookupByLibrary.simpleMessage(
+      "Canjear otra tarjeta",
+    ),
+    "zolnitGiftEmpty": MessageLookupByLibrary.simpleMessage(
+      "Sin canjes todavía",
+    ),
+    "zolnitGiftFailure": MessageLookupByLibrary.simpleMessage(
+      "No se pudo completar. Inténtalo de nuevo.",
+    ),
+    "zolnitGiftHistory": MessageLookupByLibrary.simpleMessage("Historial"),
+    "zolnitGiftIncluded": MessageLookupByLibrary.simpleMessage(
+      "Recompensas incluidas",
+    ),
+    "zolnitGiftNext": MessageLookupByLibrary.simpleMessage("Siguiente"),
+    "zolnitGiftPossible": MessageLookupByLibrary.simpleMessage(
+      "Posibles recompensas",
+    ),
+    "zolnitGiftPrevious": MessageLookupByLibrary.simpleMessage("Anterior"),
+    "zolnitGiftPrompt": MessageLookupByLibrary.simpleMessage(
+      "Introduce el código de regalo",
+    ),
+    "zolnitGiftRandomTip": MessageLookupByLibrary.simpleMessage(
+      "La recompensa aleatoria se determina al canjear.",
+    ),
+    "zolnitGiftRedeemed": MessageLookupByLibrary.simpleMessage(
+      "Canje realizado",
+    ),
+    "zolnitGiftRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "No se pudo actualizar la cuenta. Inténtalo de nuevo.",
+    ),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "El periodo de pago comienza al confirmar el primer pago y sustituye el tiempo gratuito restante.",
     ),
@@ -3346,6 +3386,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
       "Total de referencia (yuanes)",
+    ),
+    "zolnitReferralReference": MessageLookupByLibrary.simpleMessage(
+      "Precio orientativo del primer pedido",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualizar"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Registrarse"),

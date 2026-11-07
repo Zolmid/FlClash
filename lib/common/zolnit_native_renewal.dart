@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:zolnit_client/zolnit_client.dart' show ZolnitClientDevice;
 
 import 'constant.dart' show packageName;
 
@@ -104,6 +105,7 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
     required int accountGeneration,
     required String authorization,
     required String distribution,
+    ZolnitClientDevice? signedDevice,
   }) {
     if (accountId.isEmpty ||
         accountGeneration <= 0 ||
@@ -120,6 +122,10 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
         'accountGeneration': accountGeneration,
         'authorization': authorization,
         'distribution': distribution,
+        if (signedDevice != null) ...{
+          'deviceId': signedDevice.deviceId,
+          'installationId': signedDevice.installationId,
+        },
       }).timeout(operationTimeout);
       if (result is! Map) {
         throw StateError('Native renewal returned an invalid receipt');

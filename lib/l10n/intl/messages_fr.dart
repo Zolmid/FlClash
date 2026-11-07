@@ -3056,6 +3056,44 @@ class MessageLookup extends MessageLookupByLibrary {
       "Mot de passe oublié ?",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Accès offert"),
+    "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
+      "Récompenses reçues",
+    ),
+    "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("Solde offert"),
+    "zolnitGiftCard": MessageLookupByLibrary.simpleMessage("Carte cadeau"),
+    "zolnitGiftCheck": MessageLookupByLibrary.simpleMessage("Aperçu"),
+    "zolnitGiftCode": MessageLookupByLibrary.simpleMessage("Code cadeau"),
+    "zolnitGiftConfirm": MessageLookupByLibrary.simpleMessage("Utiliser"),
+    "zolnitGiftContinue": MessageLookupByLibrary.simpleMessage(
+      "Utiliser une autre carte",
+    ),
+    "zolnitGiftEmpty": MessageLookupByLibrary.simpleMessage(
+      "Aucune utilisation",
+    ),
+    "zolnitGiftFailure": MessageLookupByLibrary.simpleMessage(
+      "Impossible de terminer. Réessayez.",
+    ),
+    "zolnitGiftHistory": MessageLookupByLibrary.simpleMessage("Historique"),
+    "zolnitGiftIncluded": MessageLookupByLibrary.simpleMessage(
+      "Récompenses incluses",
+    ),
+    "zolnitGiftNext": MessageLookupByLibrary.simpleMessage("Suivant"),
+    "zolnitGiftPossible": MessageLookupByLibrary.simpleMessage(
+      "Récompenses possibles",
+    ),
+    "zolnitGiftPrevious": MessageLookupByLibrary.simpleMessage("Précédent"),
+    "zolnitGiftPrompt": MessageLookupByLibrary.simpleMessage(
+      "Saisissez le code cadeau",
+    ),
+    "zolnitGiftRandomTip": MessageLookupByLibrary.simpleMessage(
+      "La récompense aléatoire est déterminée lors de l’utilisation.",
+    ),
+    "zolnitGiftRedeemed": MessageLookupByLibrary.simpleMessage(
+      "Carte utilisée",
+    ),
+    "zolnitGiftRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Actualisation du compte impossible. Réessayez.",
+    ),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "La période payante commence après confirmation du premier paiement et remplace le temps offert restant.",
     ),
@@ -3352,6 +3390,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
       "Total indicatif (yuans)",
+    ),
+    "zolnitReferralReference": MessageLookupByLibrary.simpleMessage(
+      "Prix indicatif de la première commande",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Actualiser"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Créer un compte"),

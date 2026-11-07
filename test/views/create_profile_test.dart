@@ -322,8 +322,20 @@ void main() {
       await nameProfile(tester);
       await write(tester, 'mode: rule\n');
       final profilesPath = await tester.runAsync(() => appPath.profilesPath);
-      final blockedDirectory = File(profilesPath!)
-        ..writeAsStringSync('blocked');
+      final profilesDirectory = Directory(profilesPath!);
+      expect(
+        profilesDirectory.parent.resolveSymbolicLinksSync(),
+        root.resolveSymbolicLinksSync(),
+      );
+      final type = FileSystemEntity.typeSync(profilesPath, followLinks: false);
+      if (type == FileSystemEntityType.notFound) {
+        profilesDirectory.createSync();
+      } else {
+        expect(type, FileSystemEntityType.directory);
+      }
+      expect(profilesDirectory.listSync(), isEmpty);
+      profilesDirectory.deleteSync();
+      final blockedDirectory = File(profilesPath)..writeAsStringSync('blocked');
 
       await save(tester);
       expect(container.read(profilesProvider), isEmpty);

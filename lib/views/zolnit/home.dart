@@ -23,6 +23,7 @@ import 'catalogue.dart';
 import 'connect.dart';
 import 'notices.dart';
 import 'preferences.dart';
+import 'rewards.dart';
 import 'plans.dart';
 import 'shell.dart';
 import 'skin.dart';
@@ -48,6 +49,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   ZolnitPageDirection _pageDirection = ZolnitPageDirection.forward;
   ZolnitAccountTab _accountTab = ZolnitAccountTab.info;
   bool _showingPreferences = false;
+  bool _showingRewards = false;
   int _preferencesOrigin = 3;
   String? _cashierTradeNo;
   bool _syncing = false;
@@ -71,8 +73,14 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   String? _realtimeSubject;
   Future<void>? _inboxFlight;
   int? _inboxGeneration;
+  int? _inboxFlightEpoch;
+  int _inboxEpoch = 0;
   RawDialogRoute<void>? _popupRoute;
   String? _popupItemId;
+  final _popupContent = ValueNotifier<ZolnitRealtimeInboxItem?>(null);
+  final _canonicalNotices = ValueNotifier<Map<String, ZolnitRealtimeInboxItem>>(
+    {},
+  );
   final _noticeRevision = ValueNotifier<int>(0);
   final _withdrawn = <String>{};
   final _popups = Queue<ZolnitRealtimeInboxItem>();
@@ -125,22 +133,26 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _sessionChanged() {
     if (!_session.authenticated) {
+      if (_observedGeneration != null) _inboxEpoch++;
       _reportUpdateHints(false);
       if (_observedGeneration != null) _nextRefresh = null;
       _observedGeneration = null;
       _clearPopups();
       _realtimeSubject = null;
       _withdrawn.clear();
+      _canonicalNotices.value = {};
       _unread = 0;
       unawaited(_realtime?.dispose() ?? Future<void>.value());
       _realtime = null;
       return;
     }
     if (_observedGeneration != _session.api.generation) {
+      _inboxEpoch++;
       _reportUpdateHints(false);
       _clearPopups();
       _realtimeSubject = null;
       _withdrawn.clear();
+      _canonicalNotices.value = {};
       _unread = 0;
       final old = _realtime;
       _realtime = null;
@@ -293,6 +305,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     unawaited(_realtime?.dispose() ?? Future<void>.value());
     _clearPopups();
     _noticeRevision.dispose();
+    _popupContent.dispose();
+    _canonicalNotices.dispose();
     _registration.cancel();
     _session.removeListener(_sessionChanged);
     WidgetsBinding.instance.removeObserver(this);
@@ -331,6 +345,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       },
       onResync: () async {
         if (!_currentRealtime(gen)) return;
+        _inboxEpoch++;
         await Future.wait([
           _refreshData(force: true),
           _refreshRealtimeInbox(gen),
@@ -355,8 +370,10 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     String scope,
     int gen,
     DateTime at,
-    bool read,
-  ) async {
+    bool read, {
+    bool canonical = false,
+    bool Function()? isCurrentSnapshot,
+  }) async {
     if (!_currentRealtime(gen) || scope != _realtimeScope()) return;
     switch (type) {
       case 'config.changed':
@@ -434,7 +451,33 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       popup: type == 'notice.popup',
       read: read,
     );
-    final fresh = await _realtimeStore.appendInbox(scope, item);
+    final merge = canonical
+        ? await _realtimeStore.applyCanonicalInbox(
+            scope,
+            item,
+            isCurrent: () =>
+                _currentRealtime(gen) &&
+                scope == _realtimeScope() &&
+                (isCurrentSnapshot?.call() ?? false),
+          )
+        : (await _realtimeStore.appendInbox(scope, item)
+              ? ZolnitInboxMerge.inserted
+              : ZolnitInboxMerge.unchanged);
+    final fresh = merge == ZolnitInboxMerge.inserted;
+    if (merge == ZolnitInboxMerge.updated && _currentRealtime(gen)) {
+      _canonicalNotices.value = {..._canonicalNotices.value, item.id: item};
+      if (_popupItemId == item.id) _popupContent.value = item;
+      final queued = _popups.toList();
+      _popups.clear();
+      for (final pending in queued) {
+        if (pending.id != item.id) {
+          _popups.add(pending);
+        } else if (item.popup) {
+          _popups.add(item);
+        }
+      }
+      await _updateUnread(scope, gen);
+    }
     if (fresh && updateVersion != null && _currentRealtime(gen)) {
       unawaited(
         _updateActions
@@ -451,6 +494,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _clearPopups() {
     _popupItemId = null;
+    _popupContent.value = null;
     _popups.clear();
     final route = _popupRoute;
     _popupRoute = null;
@@ -482,30 +526,42 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         _popups.addFirst(item);
         return;
       }
+      final latest = _canonicalNotices.value[item.id] ?? item;
+      if (!latest.popup) {
+        _showNextPopup(scope, gen);
+        return;
+      }
       final route = zolnitDialogRoute<void>(
         _brandContext,
-        (dialog) => AlertDialog(
-          title: Text(item.title),
-          content: SingleChildScrollView(child: Text(item.body)),
-          actions: [
-            FilledButton(
-              onPressed: () {
-                if (ModalRoute.of(dialog)?.isCurrent != true) return;
-                zolnitCloseDialog<void>(dialog);
-                unawaited(_markRead(item, scope, gen));
-              },
-              child: Text(dialog.appLocalizations.zolnitGotIt),
+        (dialog) => ValueListenableBuilder<ZolnitRealtimeInboxItem?>(
+          valueListenable: _popupContent,
+          builder: (dialog, current, _) => AlertDialog(
+            title: Text(current?.title ?? item.title),
+            content: SingleChildScrollView(
+              child: Text(current?.body ?? item.body),
             ),
-          ],
+            actions: [
+              FilledButton(
+                onPressed: () {
+                  if (ModalRoute.of(dialog)?.isCurrent != true) return;
+                  zolnitCloseDialog<void>(dialog);
+                  unawaited(_markRead(item, scope, gen));
+                },
+                child: Text(dialog.appLocalizations.zolnitGotIt),
+              ),
+            ],
+          ),
         ),
       );
       _popupRoute = route;
       _popupItemId = item.id;
+      _popupContent.value = latest;
       unawaited(
         Navigator.of(context, rootNavigator: true).push(route).whenComplete(() {
           if (identical(_popupRoute, route)) {
             _popupRoute = null;
             _popupItemId = null;
+            _popupContent.value = null;
             _showNextPopup(scope, gen);
           }
         }),
@@ -560,6 +616,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       final route = _popupRoute;
       _popupRoute = null;
       _popupItemId = null;
+      _popupContent.value = null;
       if (route?.isActive == true) route?.navigator?.removeRoute(route);
     }
     _noticeRevision.value++;
@@ -567,13 +624,23 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   }
 
   Future<void> _refreshRealtimeInbox(int gen) {
-    if (_inboxGeneration == gen && _inboxFlight != null) return _inboxFlight!;
+    if (_inboxGeneration == gen && _inboxFlight != null) {
+      final activeEpoch = _inboxFlightEpoch;
+      return _inboxFlight!.then((_) {
+        if (_currentRealtime(gen) && activeEpoch != _inboxEpoch) {
+          return _refreshRealtimeInbox(gen);
+        }
+      });
+    }
     _inboxGeneration = gen;
+    final epoch = _inboxEpoch;
+    _inboxFlightEpoch = epoch;
+    bool currentSnapshot() => _currentRealtime(gen) && epoch == _inboxEpoch;
     late final Future<void> job;
     job =
         Future<void>.microtask(() async {
           final inbox = await _session.api.realtimeInbox();
-          if (!_currentRealtime(gen)) return;
+          if (!currentSnapshot()) return;
           final scope = '${_session.api.origin.origin}:${inbox.subject}';
           if (_realtimeSubject != null && _realtimeSubject != inbox.subject) {
             throw StateError('account binding changed');
@@ -581,7 +648,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
           _realtimeSubject = inbox.subject;
           await _withdrawMessages(scope, gen, inbox.withdrawn);
           for (final e in inbox.events.take(100)) {
-            if (!_currentRealtime(gen)) return;
+            if (!currentSnapshot()) return;
             final id = e['id'],
                 type = e['type'],
                 data = e['data'],
@@ -609,6 +676,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
               gen,
               DateTime.fromMillisecondsSinceEpoch(seconds * 1000),
               e['read'] == true,
+              canonical: true,
+              isCurrentSnapshot: currentSnapshot,
             );
           }
           await _updateUnread(scope, gen);
@@ -636,6 +705,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       isCurrent: () =>
           _currentRealtime(gen) && _noticeRevision.value == noticeRevision,
       invalidation: _noticeRevision,
+      canonicalNotices: _canonicalNotices,
       onOpen: (item) async =>
           scope != null && await _markRead(item, scope, gen),
     );
@@ -703,6 +773,38 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     await Future.wait([session.refreshBilling(), _sync()]);
   }
 
+  Future<void> _refreshAfterRedemption() async {
+    final session = _session;
+    final generation = session.api.generation;
+    final pendingSync = _syncGeneration == generation ? _syncFlight : null;
+    await session.refresh();
+    if (!mounted ||
+        !session.authenticated ||
+        session.api.generation != generation) {
+      throw const ClientFailure('superseded');
+    }
+    await session.refresh();
+    if (!mounted ||
+        !session.authenticated ||
+        session.api.generation != generation) {
+      throw const ClientFailure('superseded');
+    }
+    if (pendingSync != null) await pendingSync;
+    if (!mounted ||
+        !session.authenticated ||
+        session.api.generation != generation) {
+      throw const ClientFailure('superseded');
+    }
+    await Future.wait([session.refreshBilling(), _sync()]);
+    if (!mounted ||
+        session.api.generation != generation ||
+        session.failure != null ||
+        session.billingFailure != null ||
+        _syncFailed) {
+      throw const ClientFailure('refresh_failed');
+    }
+  }
+
   Future<void> _connect() async {
     final session = ref.read(zolnitSessionProvider);
     final generation = session.api.generation;
@@ -753,6 +855,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = index;
       _accountTab = ZolnitAccountTab.info;
       _showingPreferences = false;
+      _showingRewards = false;
       _cashierTradeNo = null;
     });
     unawaited(_refreshData());
@@ -772,6 +875,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = 3;
       _accountTab = ZolnitAccountTab.orders;
       _showingPreferences = false;
+      _showingRewards = false;
       _cashierTradeNo = null;
     });
   }
@@ -782,6 +886,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = 3;
       _accountTab = ZolnitAccountTab.orders;
       _showingPreferences = false;
+      _showingRewards = false;
       _cashierTradeNo = tradeNo;
     });
   }
@@ -792,13 +897,34 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _movePage(4);
       _selected = 3;
       _showingPreferences = true;
+      _showingRewards = false;
       _cashierTradeNo = null;
+    });
+  }
+
+  void _showRewards() {
+    setState(() {
+      _movePage(4);
+      _selected = 3;
+      _showingPreferences = false;
+      _showingRewards = true;
+      _cashierTradeNo = null;
+    });
+  }
+
+  void _returnFromRewards() {
+    setState(() {
+      _showingRewards = false;
+      _selected = 3;
+      _accountTab = ZolnitAccountTab.info;
+      _movePage(3);
     });
   }
 
   void _returnToAccount() {
     setState(() {
       _showingPreferences = false;
+      _showingRewards = false;
       _selected = _preferencesOrigin;
       _movePage(_preferencesOrigin);
     });
@@ -821,6 +947,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _selected = 0;
       _accountTab = ZolnitAccountTab.info;
       _showingPreferences = false;
+      _showingRewards = false;
       _cashierTradeNo = null;
       _syncFailed = false;
       _syncing = false;
@@ -887,13 +1014,22 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                   AppGlyphs.layers,
                   AppGlyphs.account,
                 ];
-                final title = _showingPreferences
+                final title = _showingRewards
+                    ? text.zolnitGiftCard
+                    : _showingPreferences
                     ? text.zolnitPreferences
                     : _cashierTradeNo != null
                     ? text.zolnitCashierTitle
                     : labels[_selected];
                 final name = zolnitDisplayName(session.account, session.usage);
-                final page = _showingPreferences
+                final page = _showingRewards
+                    ? ZolnitRewardsPage(
+                        key: const ValueKey('zolnit-rewards'),
+                        session: session,
+                        onRedeemed: _refreshAfterRedemption,
+                        embedded: true,
+                      )
+                    : _showingPreferences
                     ? ZolnitPreferencesPage(
                         key: const ValueKey('zolnit-preferences'),
                         compact: false,
@@ -944,12 +1080,18 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                           compact: false,
                           logout: _logout,
                           onCheckout: _showCashier,
+                          showRewards: _showRewards,
                         ),
                       };
                 return PopScope(
-                  canPop: !_showingPreferences && _cashierTradeNo == null,
+                  canPop:
+                      !_showingRewards &&
+                      !_showingPreferences &&
+                      _cashierTradeNo == null,
                   onPopInvokedWithResult: (didPop, _) {
-                    if (!didPop && _showingPreferences) {
+                    if (!didPop && _showingRewards) {
+                      _returnFromRewards();
+                    } else if (!didPop && _showingPreferences) {
                       _returnToAccount();
                     } else if (!didPop && _cashierTradeNo != null) {
                       _showOrders();
@@ -979,7 +1121,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                                 onNotices: () => unawaited(_openNotices()),
                                 onHelp: () => _openHelp(context),
                                 onAccount: () => _select(3),
-                                onBack: _showingPreferences
+                                onBack: _showingRewards
+                                    ? _returnFromRewards
+                                    : _showingPreferences
                                     ? _returnToAccount
                                     : _cashierTradeNo != null
                                     ? _showOrders

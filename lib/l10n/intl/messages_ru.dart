@@ -2965,6 +2965,46 @@ class MessageLookup extends MessageLookupByLibrary {
       "Забыли пароль?",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Подарочный доступ"),
+    "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
+      "Полученные награды",
+    ),
+    "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage(
+      "Подарочный баланс",
+    ),
+    "zolnitGiftCard": MessageLookupByLibrary.simpleMessage("Подарочная карта"),
+    "zolnitGiftCheck": MessageLookupByLibrary.simpleMessage("Посмотреть"),
+    "zolnitGiftCode": MessageLookupByLibrary.simpleMessage("Код карты"),
+    "zolnitGiftConfirm": MessageLookupByLibrary.simpleMessage("Активировать"),
+    "zolnitGiftContinue": MessageLookupByLibrary.simpleMessage(
+      "Активировать ещё",
+    ),
+    "zolnitGiftEmpty": MessageLookupByLibrary.simpleMessage(
+      "Активаций пока нет",
+    ),
+    "zolnitGiftFailure": MessageLookupByLibrary.simpleMessage(
+      "Не удалось выполнить запрос. Повторите попытку.",
+    ),
+    "zolnitGiftHistory": MessageLookupByLibrary.simpleMessage("История"),
+    "zolnitGiftIncluded": MessageLookupByLibrary.simpleMessage(
+      "Гарантированные награды",
+    ),
+    "zolnitGiftNext": MessageLookupByLibrary.simpleMessage("Далее"),
+    "zolnitGiftPossible": MessageLookupByLibrary.simpleMessage(
+      "Возможные награды",
+    ),
+    "zolnitGiftPrevious": MessageLookupByLibrary.simpleMessage("Назад"),
+    "zolnitGiftPrompt": MessageLookupByLibrary.simpleMessage(
+      "Введите код карты",
+    ),
+    "zolnitGiftRandomTip": MessageLookupByLibrary.simpleMessage(
+      "Случайная награда определяется при активации.",
+    ),
+    "zolnitGiftRedeemed": MessageLookupByLibrary.simpleMessage(
+      "Карта активирована",
+    ),
+    "zolnitGiftRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось обновить аккаунт. Повторите попытку.",
+    ),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "Платный период начинается после подтверждения первого платежа и заменяет оставшееся подарочное время.",
     ),
@@ -3251,6 +3291,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
       "Ориентировочная сумма (юани)",
+    ),
+    "zolnitReferralReference": MessageLookupByLibrary.simpleMessage(
+      "Ориентировочная цена первого заказа",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Обновить"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Регистрация"),

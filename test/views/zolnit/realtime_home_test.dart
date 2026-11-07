@@ -7,6 +7,7 @@ import 'package:fl_clash/providers/zolnit_realtime.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -86,6 +87,113 @@ void main() {
       return zolnitPanelFixture(req);
     };
     h.container.read(initProvider.notifier).value = true;
+  });
+  testWidgets(
+    'an inbox snapshot arriving after logout cannot update the account',
+    (tester) async {
+      final previous = h.panel;
+      final response = Completer<http.Response>();
+      h.panel = (request) => request.url.path.endsWith('/realtime/inbox')
+          ? response.future
+          : previous(request);
+      await h.mount(tester, ZolnitSkin.android);
+      await h.session.logout();
+      response.complete(
+        zolnitJson({
+          'subject': 'b' * 64,
+          'events': [
+            {
+              'id': 'd' * 32,
+              'scope': 'global',
+              'type': 'notice.popup',
+              'data': {'title': 'Late old notice', 'body': 'old'},
+              'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'read': false,
+            },
+          ],
+        }),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Late old notice'), findsNothing);
+      final entries = await ZolnitRealtimePreferencesStore().readInbox(
+        'https://panel.example:${'b' * 64}',
+      );
+      expect(entries, isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets('canonical edit updates an open popup without replaying it', (
+    tester,
+  ) async {
+    final previous = h.panel;
+    var title = 'Original notice';
+    var body = 'Original body';
+    final id = 'f' * 32;
+    h.panel = (request) {
+      if (request.url.path.endsWith('/realtime/read')) {
+        return zolnitJson({'event_id': id, 'read': true});
+      }
+      return request.url.path.endsWith('/realtime/inbox')
+          ? zolnitJson({
+              'subject': 'b' * 64,
+              'events': [
+                {
+                  'id': id,
+                  'scope': 'global',
+                  'type': 'notice.popup',
+                  'data': {'title': title, 'body': body},
+                  'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                  'read': false,
+                },
+              ],
+            })
+          : previous(request);
+    };
+    await h.mount(tester, ZolnitSkin.android);
+    await tester.pumpAndSettle();
+    expect(find.text('Original notice'), findsOneWidget);
+    wire.receive({'op': 'ready'});
+    wire.receive({'op': 'pulse'});
+    await tester.pumpAndSettle();
+    title = 'Edited notice';
+    body = 'Edited body';
+    wire.receive({
+      'op': 'resync',
+      'cursor': {'global': 1, 'account': 0},
+    });
+    wire.receive({'op': 'ready'});
+    await tester.pumpAndSettle();
+    expect(find.text('Edited notice'), findsOneWidget);
+    expect(find.text('Edited body'), findsOneWidget);
+    expect(find.text('Original notice'), findsNothing);
+    final inbox = await ZolnitRealtimePreferencesStore().readInbox(
+      'https://panel.example:${'b' * 64}',
+    );
+    expect(inbox.single.title, 'Edited notice');
+    wire.answer = (method, data) => method == 'inbox.read'
+        ? {
+            'data': {'event_id': id, 'read': true},
+          }
+        : null;
+    await tester.tap(find.text('知道了'));
+    await tester.pumpAndSettle();
+    wire.receive({
+      'op': 'event',
+      'scope': 'global',
+      'seq': 2,
+      'id': id,
+      'type': 'notice.popup',
+      'data': {'title': 'Original notice', 'body': 'Original body'},
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Original notice'), findsNothing);
+    expect(find.text('Edited notice'), findsNothing);
+    final after = await ZolnitRealtimePreferencesStore().readInbox(
+      'https://panel.example:${'b' * 64}',
+    );
+    expect(after.single.title, 'Edited notice');
+    expect(after.single.read, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
   testWidgets('withdrawal closes a shown popup and blocks its late replay', (
     tester,

@@ -72,9 +72,10 @@ final zolnitStoredBundleProvider = FutureProvider<bool>((ref) async {
       profile.zolnitBundleId != bundle?.bundleId) {
     return false;
   }
-  final stored = await readZolnitClientBundle(
+  final stored = await readActiveZolnitClientBundle(
     profile,
     ref.read(zolnitBundleClockProvider)(),
+    session,
   );
   return stored.bundleId == bundle?.bundleId;
 });

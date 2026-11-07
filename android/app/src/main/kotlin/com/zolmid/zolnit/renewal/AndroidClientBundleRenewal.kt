@@ -27,8 +27,8 @@ internal object AndroidClientBundleRenewal {
         )
     }
 
-    suspend fun configure(accountId: String, authorization: String, accountGeneration: Long) =
-        coordinator.configure(accountId, authorization, accountGeneration)
+    suspend fun configure(accountId: String, authorization: String, accountGeneration: Long, device: SignedDevice?) =
+        coordinator.configure(accountId, authorization, accountGeneration, device)
 
     suspend fun logout(epoch: Long) = coordinator.logout(epoch)
     suspend fun status() = coordinator.authoritativeStatus()

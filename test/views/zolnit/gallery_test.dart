@@ -15,6 +15,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'contrast.dart';
 import 'harness.dart';
@@ -39,10 +40,17 @@ void main() {
     'windows-wide': (ZolnitSkin.windows, Size(1280, 800)),
   };
 
-  setUp(() => WidgetsApp.debugAllowBannerOverride = false);
+  setUp(() {
+    WidgetsApp.debugAllowBannerOverride = false;
+    SharedPreferences.setMockInitialValues({});
+  });
   tearDown(() => WidgetsApp.debugAllowBannerOverride = true);
 
   for (final MapEntry(key: form, value: (skin, size)) in forms.entries) {
+    final selectedForms = Platform.environment['ZOLNIT_GALLERY_FORMS']?.split(
+      ',',
+    );
+    if (selectedForms != null && !selectedForms.contains(form)) continue;
     for (final dark in [false, true]) {
       final mode = dark ? 'dark' : 'light';
       testWidgets('gallery $form $mode stays legible', (tester) async {
@@ -57,8 +65,58 @@ void main() {
           buildNumber: '120',
         );
         var ordered = false;
+        final giftName = locale.languageCode == 'zh' ? '流量礼品' : 'Traffic gift';
+        final giftDescription = locale.languageCode == 'zh'
+            ? '活动赠送'
+            : 'A gift for you';
         harness.panel = (request) {
           final path = request.url.path;
+          if (path.endsWith('/user/info')) {
+            return zolnitJson({
+              'email': 'lin@example.com',
+              'balance': 0,
+              'uuid': 'gallery-fixture-account',
+            });
+          }
+          if (path.endsWith('/zolnit-rewards/config')) {
+            return zolnitJson({'enabled': true, 'gift_card_enabled': true});
+          }
+          if (path.endsWith('/gift-card/check')) {
+            return zolnitJson({
+              'template': {
+                'name': giftName,
+                'description': giftDescription,
+                'type': 3,
+              },
+              'can_redeem': true,
+              'rewards': {'balance': 500},
+              'possible_rewards': [
+                {'weight': 1, 'transfer_enable': 1073741824},
+                {'weight': 1, 'expire_days': 7},
+              ],
+            });
+          }
+          if (path.endsWith('/gift-card/redeem')) {
+            return zolnitJson({
+              'template_name': giftName,
+              'rewards': {'transfer_enable': 1073741824},
+            });
+          }
+          if (path.endsWith('/gift-card/history')) {
+            return zolnitJson({
+              'records': [
+                {
+                  'id': 1,
+                  'template_name': giftName,
+                  'rewards': {'transfer_enable': 1073741824},
+                  'created_at': 1794000000,
+                },
+              ],
+              'total': 1,
+              'current_page': 1,
+              'last_page': 1,
+            });
+          }
           if (path.endsWith('/order/save')) ordered = true;
           if (ordered && path.endsWith('/order/fetch')) {
             return zolnitJson([
@@ -84,6 +142,7 @@ void main() {
           }
           return zolnitPanelFixture(request);
         };
+        await harness.relogin();
         await harness.mount(
           tester,
           skin,
@@ -163,6 +222,39 @@ void main() {
               .first,
         );
 
+        Future<void> giftShots() async {
+          await tester.ensureVisible(find.text(t.zolnitGiftCard).first);
+          await shot('20-gift-entry');
+          await tap(find.text(t.zolnitGiftCard).first);
+          if (size.width >= 1200) {
+            expect(find.byType(ZolnitSidebar), findsOneWidget);
+          } else if (size.width < 600) {
+            expect(find.byType(NavigationDock), findsOneWidget);
+          }
+          expect(find.byTooltip(t.back), findsOneWidget);
+          final secret = tester.widget<SecretTextFormField>(
+            find.byType(SecretTextFormField),
+          );
+          expect(secret.showVisibilityToggle, isFalse);
+          expect(secret.keyboardType, TextInputType.text);
+          await shot('21-gift-available');
+          await tester.enterText(find.byType(TextField), 'GALLERY123');
+          await tap(find.text(t.zolnitGiftCheck));
+          await shot('22-gift-preview');
+          await tap(find.text(t.zolnitGiftConfirm));
+          await shot('23-gift-result');
+          await tester.ensureVisible(find.text(t.zolnitGiftHistory));
+          await shot('24-gift-history');
+          await tap(find.byTooltip(t.back));
+        }
+
+        if (Platform.environment['ZOLNIT_GALLERY_GIFT_ONLY'] == '1') {
+          await go(t.account);
+          await giftShots();
+          expect(issues, isEmpty, reason: issues.join('\n'));
+          return;
+        }
+
         await shot('01-connect');
         await scrolled('02-connect-scrolled');
         await go(t.zolnitAllNodes);
@@ -179,6 +271,7 @@ void main() {
         await tap(find.text(t.zolnitTabAccount).first);
         await shot('08-account');
         await scrolled('09-account-scrolled');
+        await giftShots();
         await tap(find.text(t.zolnitTabOrders).first);
         await shot('10-orders');
         await tap(find.text(t.zolnitTabInvite).first);

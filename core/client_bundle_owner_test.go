@@ -13,7 +13,12 @@ func bundleOwnerFixture(t *testing.T) (*BeginClientBundleOwnerParams, string) {
 	oldSerial, oldEpoch, oldFloor, oldGeneration, oldAttempt :=
 		clientBundleSerial, clientBundleEpochFloor, clientBundleOwnerFloor, clientBundleGenFloor, clientBundleAttempt
 	oldInit, oldNow := isInit.Load(), routingLeaseNow
+	oldTrust := signedSubscriptionTrust
+	signedSubscriptionTrust = func() (*clientbundle.Trust, error) {
+		return clientbundle.ParseTrust([]byte(`{"public_key_map":{}}`))
+	}
 	oldRetired := clientBundleRetiredEpoch
+	oldSignedIntent := clientBundleSignedIntent
 	clientBundleRetiredEpoch = 0
 	isInit.Store(true)
 	routingLeaseNow = func() time.Time { return time.Unix(1001, 0) }
@@ -29,8 +34,10 @@ func bundleOwnerFixture(t *testing.T) (*BeginClientBundleOwnerParams, string) {
 		clientBundleSerial, clientBundleEpochFloor, clientBundleOwnerFloor, clientBundleGenFloor, clientBundleAttempt =
 			oldSerial, oldEpoch, oldFloor, oldGeneration, oldAttempt
 		isInit.Store(oldInit)
+		signedSubscriptionTrust = oldTrust
 		routingLeaseNow = oldNow
 		clientBundleRetiredEpoch = oldRetired
+		clientBundleSignedIntent = oldSignedIntent
 	})
 	body, err := os.ReadFile("../packages/zolnit_client/test/fixtures/client-bundle-v1.json")
 	if err != nil {

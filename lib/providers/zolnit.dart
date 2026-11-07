@@ -14,6 +14,7 @@ import 'package:zolnit_client/zolnit_client.dart';
 
 import '../core/first_party_http.dart';
 
+import 'zolnit_signed_subscription.dart';
 import 'zolnit_vault.dart';
 import 'zolnit_bundle.dart';
 
@@ -55,6 +56,10 @@ final zolnitSessionProvider = Provider<ZolnitSessionController>((ref) {
     checkout: checkout,
     confirmRecurring: _confirmRecurring,
     vault: ref.read(zolnitSessionVaultProvider),
+    signedSubscriptions: createZolnitSignedSubscriptions(
+      ref,
+      platform: policy.platformHeader,
+    ),
     onAuthenticationInvalidated: () async {
       if (!ref.read(safeModeProvider)) {
         await ref.read(setupActionProvider.notifier).setRunning(false);

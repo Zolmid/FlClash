@@ -236,7 +236,14 @@ void main() {
       expect(usage.expiresAt, expires);
       expect(usage.daysLeftAt(DateTime.utc(2025, 11, 18, 12)), 2);
       expect(usage.deviceLimit, 2);
-      expect(usage.onlineDevices, 1);
+      expect(usage.onlineDevices, isNull);
+      expect(
+        ZolnitUsage.fromSubscription(
+          subscription,
+          verifiedOnlineDevices: 0,
+        ).onlineDevices,
+        0,
+      );
       expect(usage.planName, '轻享');
       expect(usage.hasPlan, isTrue);
     });

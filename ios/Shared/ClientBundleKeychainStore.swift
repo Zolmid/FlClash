@@ -11,6 +11,8 @@ public actor ClientBundleKeychainStore: ClientBundleWritableCredentialStore {
     let sessionEpoch: UInt64
     let accountID: String
     let authorization: String
+    let deviceID: String?
+    let installationID: String?
   }
 
   private let group: String
@@ -40,17 +42,26 @@ public actor ClientBundleKeychainStore: ClientBundleWritableCredentialStore {
       record.sessionEpoch == binding.session.rawValue, !record.accountID.isEmpty,
       Self.validAuthorization(record.authorization)
     else { throw ClientBundleCredentialError.unavailable }
-    return .init(accountID: record.accountID, binding: binding, value: record.authorization)
+    var device: ClientBundleSignedDevice?
+    if let deviceID = record.deviceID, let installationID = record.installationID {
+      guard let parsed = ClientBundleSignedDevice(deviceID: deviceID, installationID: installationID) else {
+        throw ClientBundleCredentialError.unavailable
+      }
+      device = parsed
+    }
+    return .init(accountID: record.accountID, binding: binding, value: record.authorization, device: device)
   }
 
   public func publish(
-    accountID: String, authorization: String, binding: ClientBundleRenewalState.Binding
+    accountID: String, authorization: String, device: ClientBundleSignedDevice?,
+    binding: ClientBundleRenewalState.Binding
   ) async throws {
     guard !accountID.isEmpty, accountID.utf8.count <= 256,
       Self.validAuthorization(authorization)
     else { throw ClientBundleCredentialError.bindingMismatch }
     let record = Record(sessionEpoch: binding.session.rawValue,
-      accountID: accountID, authorization: authorization)
+      accountID: accountID, authorization: authorization,
+      deviceID: device?.deviceID, installationID: device?.installationID)
     let data = try JSONEncoder().encode(record)
     var attributes: [CFString: Any] = [
       kSecValueData: data,
@@ -66,7 +77,7 @@ public actor ClientBundleKeychainStore: ClientBundleWritableCredentialStore {
     if status == errSecInteractionNotAllowed { throw ClientBundleCredentialError.locked }
     guard status == errSecSuccess else { throw ClientBundleCredentialError.unavailable }
     let verified = try await read(for: binding)
-    guard verified.accountID == accountID, verified.value == authorization else {
+    guard verified.accountID == accountID, verified.value == authorization, verified.device == device else {
       throw ClientBundleCredentialError.bindingMismatch
     }
   }

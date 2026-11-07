@@ -181,6 +181,34 @@ Future<ZolnitClientBundle> readZolnitClientBundle(
   bundleId: profile.zolnitBundleId ?? '',
 ));
 
+Future<ZolnitClientBundle> readActiveZolnitClientBundle(
+  Profile profile,
+  DateTime now,
+  ZolnitSessionController session,
+) async {
+  final signed = session.signedSubscriptions?.active;
+  if (signed != null && signed.accountId == profile.zolnitAccountId) {
+    final bundle = session.clientBundle;
+    if (!isCurrentZolnitBundleProfile(profile, session) ||
+        bundle == null ||
+        bundle.bundleId != profile.zolnitBundleId ||
+        !bundle.isFresh(now)) {
+      throw const ClientFailure('signed_subscription_required');
+    }
+    return bundle;
+  }
+  final account = profile.zolnitAccountId;
+  if (account != null &&
+      await session.signedSubscriptions?.refusesUnsigned(
+            session.api,
+            account,
+          ) ==
+          true) {
+    throw const ClientFailure('signed_subscription_required');
+  }
+  return readZolnitClientBundle(profile, now);
+}
+
 PreparedZolnitRouting prepareClientBundleConfiguration(
   ({ZolnitClientBundle bundle, DateTime now, bool automaticAllowed}) input,
 ) {
@@ -311,7 +339,9 @@ Future<void> _saveClientBundle(
 }
 
 ZolnitBundleStatus bundleFailureStatus(String? code) => switch (code) {
-  'entitlement_unavailable' => ZolnitBundleStatus.forbidden,
+  'entitlement_unavailable' ||
+  'subscription_tombstone' => ZolnitBundleStatus.forbidden,
+  'subscription_expired' => ZolnitBundleStatus.expired,
   'client_bundle_expired' => ZolnitBundleStatus.expired,
   'invalid_client_bundle' ||
   'client_bundle_binding_mismatch' => ZolnitBundleStatus.invalid,
@@ -391,22 +421,26 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
       final parent = Directory(path.dirname(await zolnitBundlePath(profile)));
       await parent.create(recursive: true);
       await _privateMode(parent.path, '700');
-      staging = await parent.createTemp('validate-');
-      final config = File(path.join(staging.path, 'config.yaml'));
-      await config.writeAsString(yaml.encode(prepared.config), flush: true);
-      await _privateMode(config.path, '600');
-      final message = await core.validateProfile(config.path, '');
-      if (!current()) throw const ClientFailure('superseded');
-      if (message.isNotEmpty) {
-        throw const ClientFailure('invalid_client_bundle');
+      final signed =
+          session.signedSubscriptions?.active?.accountId == bundle.accountId;
+      if (!signed) {
+        staging = await parent.createTemp('validate-');
+        final config = File(path.join(staging.path, 'config.yaml'));
+        await config.writeAsString(yaml.encode(prepared.config), flush: true);
+        await _privateMode(config.path, '600');
+        final message = await core.validateProfile(config.path, '');
+        if (!current()) throw const ClientFailure('superseded');
+        if (message.isNotEmpty) {
+          throw const ClientFailure('invalid_client_bundle');
+        }
       }
-      await _saveClientBundle(profile, bundle, clock());
+      if (!signed) await _saveClientBundle(profile, bundle, clock());
       if (!current()) throw const ClientFailure('superseded');
       ref
           .read(profilesActionProvider.notifier)
           .putProfile(profile.copyWith(lastUpdateDate: clock()));
-      final keep = <String>{await zolnitBundlePath(profile)};
-      if (existing?.zolnitBundleId != null) {
+      final keep = <String>{if (!signed) await zolnitBundlePath(profile)};
+      if (!signed && existing?.zolnitBundleId != null) {
         keep.add(await zolnitBundlePath(existing!));
       }
       await for (final entry in parent.list(followLinks: false)) {

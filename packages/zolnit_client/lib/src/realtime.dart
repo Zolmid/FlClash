@@ -150,7 +150,13 @@ Future<ZolnitRealtimeSocket> connectZolnitRealtimeSocket(String ticket) async {
   }
 }
 
-const zolnitLiveReadMethods = {'order.status', 'inbox.list', 'notice.list'};
+const zolnitLiveReadMethods = {
+  'order.status',
+  'inbox.list',
+  'notice.list',
+  'subscription.state',
+  'device.status',
+};
 
 final class ZolnitRealtimeChannel implements ZolnitLiveReads {
   ZolnitRealtimeChannel({

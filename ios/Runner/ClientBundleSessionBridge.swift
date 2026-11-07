@@ -15,10 +15,19 @@ final class ClientBundleSessionBridge {
     guard let object = arguments as? [String: Any],
       let data = try? JSONSerialization.data(withJSONObject: object),
       let request = try? JSONDecoder().decode(ConfigurationRequest.self, from: data),
-      request.accountGeneration > 0, request.distribution == configuration.distribution
+      request.accountGeneration > 0, request.distribution == configuration.distribution,
+      (request.deviceId == nil) == (request.installationId == nil)
     else { throw ClientBundleEpochError.unavailable }
+    var device: ClientBundleSignedDevice?
+    if let deviceID = request.deviceId, let installationID = request.installationId {
+      guard let parsed = ClientBundleSignedDevice(deviceID: deviceID, installationID: installationID) else {
+        throw ClientBundleEpochError.unavailable
+      }
+      device = parsed
+    }
     let publisher = try makePublisher(configuration)
-    let binding = try await publisher.configure(accountID: request.accountId, authorization: request.authorization)
+    let binding = try await publisher.configure(
+      accountID: request.accountId, authorization: request.authorization, device: device)
     if await tunnel.getRunTime() > 0 {
       return try await control("restartClientBundleRenewal", epoch: binding.session.rawValue)
     }
@@ -84,6 +93,8 @@ final class ClientBundleSessionBridge {
     let authorization: String
     let accountGeneration: Int
     let distribution: String
+    let deviceId: String?
+    let installationId: String?
   }
   private struct Epoch: Codable { let sessionEpoch: UInt64 }
   private struct Control: Encodable { let id: String; let method: String; let arguments: Epoch? }

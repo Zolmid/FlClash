@@ -2,6 +2,7 @@ package com.zolmid.zolnit.plugins
 
 import com.zolmid.zolnit.common.GlobalState
 import com.zolmid.zolnit.renewal.AndroidClientBundleRenewal
+import com.zolmid.zolnit.renewal.SignedDevice
 import com.zolmid.zolnit.ServiceController
 import com.zolmid.zolnit.ServiceState
 import com.zolmid.zolnit.common.Components
@@ -113,7 +114,11 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         val account = requireNotNull(call.argument<String>("accountId"))
                         val authorization = requireNotNull(call.argument<String>("authorization"))
                         val generation = renewalInteger(call, "accountGeneration")
-                        AndroidClientBundleRenewal.configure(account, authorization, generation)
+                        val deviceId = call.argument<String>("deviceId")
+                        val installation = call.argument<String>("installationId")
+                        require((deviceId == null) == (installation == null))
+                        val device = deviceId?.let { SignedDevice(it, checkNotNull(installation)) }
+                        AndroidClientBundleRenewal.configure(account, authorization, generation, device)
                     }
                     "logoutClientBundleRenewal" -> {
                         val epoch = renewalInteger(call, "sessionEpoch")

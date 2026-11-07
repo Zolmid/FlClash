@@ -30,6 +30,7 @@ class ZolnitAccountPage extends StatefulWidget {
     required this.openHelp,
     required this.logout,
     required this.onCheckout,
+    required this.showRewards,
     this.compact = false,
   });
 
@@ -41,6 +42,7 @@ class ZolnitAccountPage extends StatefulWidget {
   final VoidCallback openHelp;
   final VoidCallback logout;
   final ValueChanged<String> onCheckout;
+  final VoidCallback showRewards;
   final bool compact;
 
   @override
@@ -82,6 +84,7 @@ class _ZolnitAccountPageState extends State<ZolnitAccountPage> {
               showPreferences: widget.showPreferences,
               openHelp: widget.openHelp,
               logout: widget.logout,
+              showRewards: widget.showRewards,
               compact: widget.compact,
             ),
             ZolnitAccountTab.orders => ZolnitOrdersPage(
@@ -106,6 +109,7 @@ class _AccountInfoTab extends StatefulWidget {
     required this.showPreferences,
     required this.openHelp,
     required this.logout,
+    required this.showRewards,
     this.compact = false,
   });
 
@@ -114,6 +118,7 @@ class _AccountInfoTab extends StatefulWidget {
   final VoidCallback showPreferences;
   final VoidCallback openHelp;
   final VoidCallback logout;
+  final VoidCallback showRewards;
   final bool compact;
 
   @override
@@ -127,6 +132,8 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
   bool _loading = false;
   String? _revoking;
   bool _passwordChanged = false;
+  bool _giftCardsAvailable = false;
+  int _giftAvailabilityRequest = 0;
   Timer? _deviceTimer;
   late int _generation;
 
@@ -148,6 +155,7 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
     });
     _generation = widget.session.api.generation;
     unawaited(_loadDevices());
+    unawaited(_loadGiftCards());
   }
 
   @override
@@ -161,13 +169,40 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
       _deviceFailure = null;
       _revoking = null;
       _passwordChanged = false;
+      _giftCardsAvailable = false;
       unawaited(_loadDevices());
+      unawaited(_loadGiftCards());
+    }
+  }
+
+  Future<void> _loadGiftCards() async {
+    final generation = _generation;
+    final session = widget.session;
+    final request = ++_giftAvailabilityRequest;
+    try {
+      final available = await ZolnitRewardsClient(
+        session.api,
+      ).giftCardsAvailable();
+      if (_current(generation) &&
+          identical(widget.session, session) &&
+          request == _giftAvailabilityRequest) {
+        setState(() => _giftCardsAvailable = available);
+      }
+    } catch (_) {
+      if (_current(generation) &&
+          identical(widget.session, session) &&
+          request == _giftAvailabilityRequest) {
+        setState(() => _giftCardsAvailable = false);
+      }
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_loadDevices());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadDevices());
+      unawaited(_loadGiftCards());
+    }
   }
 
   @override
@@ -438,6 +473,13 @@ class _AccountInfoTabState extends State<_AccountInfoTab>
       ),
     );
     final entries = [
+      if (_giftCardsAvailable)
+        (
+          AppGlyphs.layers,
+          text.zolnitGiftCard,
+          text.zolnitGiftPrompt,
+          widget.showRewards,
+        ),
       (
         AppGlyphs.layers,
         text.zolnitPlans,

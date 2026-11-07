@@ -13663,6 +13663,186 @@ class AppLocalizations {
       args: [version],
     );
   }
+
+  /// `Gift card`
+  String get zolnitGiftCard {
+    return Intl.message(
+      'Gift card',
+      name: 'zolnitGiftCard',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Gift card code`
+  String get zolnitGiftCode {
+    return Intl.message(
+      'Gift card code',
+      name: 'zolnitGiftCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Preview`
+  String get zolnitGiftCheck {
+    return Intl.message('Preview', name: 'zolnitGiftCheck', desc: '', args: []);
+  }
+
+  /// `Redeem`
+  String get zolnitGiftConfirm {
+    return Intl.message(
+      'Redeem',
+      name: 'zolnitGiftConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Redemption history`
+  String get zolnitGiftHistory {
+    return Intl.message(
+      'Redemption history',
+      name: 'zolnitGiftHistory',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Possible rewards`
+  String get zolnitGiftPossible {
+    return Intl.message(
+      'Possible rewards',
+      name: 'zolnitGiftPossible',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Rewards received`
+  String get zolnitGiftActual {
+    return Intl.message(
+      'Rewards received',
+      name: 'zolnitGiftActual',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No redemptions yet`
+  String get zolnitGiftEmpty {
+    return Intl.message(
+      'No redemptions yet',
+      name: 'zolnitGiftEmpty',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not refresh your account. Try again.`
+  String get zolnitGiftRefreshFailed {
+    return Intl.message(
+      'Could not refresh your account. Try again.',
+      name: 'zolnitGiftRefreshFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Next`
+  String get zolnitGiftNext {
+    return Intl.message('Next', name: 'zolnitGiftNext', desc: '', args: []);
+  }
+
+  /// `Previous`
+  String get zolnitGiftPrevious {
+    return Intl.message(
+      'Previous',
+      name: 'zolnitGiftPrevious',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter a gift card code`
+  String get zolnitGiftPrompt {
+    return Intl.message(
+      'Enter a gift card code',
+      name: 'zolnitGiftPrompt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Redeemed`
+  String get zolnitGiftRedeemed {
+    return Intl.message(
+      'Redeemed',
+      name: 'zolnitGiftRedeemed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `First-order reference`
+  String get zolnitReferralReference {
+    return Intl.message(
+      'First-order reference',
+      name: 'zolnitReferralReference',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not complete this request. Try again.`
+  String get zolnitGiftFailure {
+    return Intl.message(
+      'Could not complete this request. Try again.',
+      name: 'zolnitGiftFailure',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Gifted balance`
+  String get zolnitGiftBalance {
+    return Intl.message(
+      'Gifted balance',
+      name: 'zolnitGiftBalance',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Included rewards`
+  String get zolnitGiftIncluded {
+    return Intl.message(
+      'Included rewards',
+      name: 'zolnitGiftIncluded',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The final reward is decided when you redeem.`
+  String get zolnitGiftRandomTip {
+    return Intl.message(
+      'The final reward is decided when you redeem.',
+      name: 'zolnitGiftRandomTip',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Redeem another`
+  String get zolnitGiftContinue {
+    return Intl.message(
+      'Redeem another',
+      name: 'zolnitGiftContinue',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

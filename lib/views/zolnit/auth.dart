@@ -99,6 +99,9 @@ class _ZolnitLoginPageState extends State<ZolnitLoginPage> {
               ),
             Expanded(
               child: SafeArea(
+                minimum: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
                 child: Center(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(

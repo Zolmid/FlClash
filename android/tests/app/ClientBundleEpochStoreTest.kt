@@ -46,6 +46,19 @@ class ClientBundleEpochStoreTest {
         assertEquals("Bearer fixture", preferences.values["zolnit.session.authorization.v1"])
     }
 
+    @Test fun signedDeviceSurvivesRestartAndEndsWithItsEpoch() = runTest {
+        val preferences = EncryptedPreferencesFixture()
+        val device = SignedDevice("0123456789abcdef0123456789abcdef", "aW5zdGFsbGF0aW9uLXNlY3JldC1maXh0dXJlLTMyYnk")
+        ClientBundleEpochStore(preferences).configure("account", "Bearer fixture", 1, device)
+        val restored = ClientBundleEpochStore(preferences)
+        assertEquals(device.deviceId, restored.device(1)?.deviceId)
+        assertEquals(device.installationId, restored.device(1)?.installationId)
+        assertFalse(preferences.values["zolnit.bundle.renewal.main.v1"]!!.contains(device.installationId))
+        restored.deleteAuthorization(1)
+        assertNull(restored.device(1))
+        assertNull(ClientBundleEpochStore(preferences).apply { configure("account", "Bearer fixture", 1) }.device(2))
+    }
+
     @Test fun diskFailureCannotReportSuccessfulBarrier() = runTest {
         val preferences = EncryptedPreferencesFixture()
         val store = ClientBundleEpochStore(preferences)

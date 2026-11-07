@@ -7,6 +7,13 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      official_release:
+        description: Run every check and render the formal release notes
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,8 +30,8 @@ jobs:
   dart:
     name: Dart
     # A private copy pays for its Actions minutes, so it runs the checks only when
-    # started by hand.
-    if: &checks github.event_name == 'workflow_dispatch' || !github.event.repository.private
+    # started by hand or for a formal release.
+    if: &checks github.event_name == 'workflow_dispatch' || !github.event.repository.private || inputs.official_release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,6 +42,11 @@ jobs:
 
       - name: Test git hooks
         run: bash tool/hooks/test.sh
+
+      - name: Test release helpers
+        run: |
+          python3 -m unittest discover -s tool/client_release/tests -p '*_test.py'
+          node --test tool/client_release/tests/publish_release_test.mjs
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
@@ -66,6 +78,19 @@ jobs:
       - name: Verify changelog
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         run: dart run tool/changelog.dart verify
+
+      - name: Render formal release notes
+        if: inputs.official_release
+        run: dart run tool/changelog.dart render release --tag "$GITHUB_REF_NAME" --out release-notes.md
+
+      - name: Upload formal release notes
+        if: inputs.official_release
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-release-notes-${{ github.run_number }}
+          path: release-notes.md
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Run tests
         run: dart run tool/test.dart -- --reporter expanded --coverage
@@ -604,8 +629,6 @@ jobs:
           overwrite: true
 
   upload:
-    permissions:
-      contents: write
     needs: [ build, dart, plugins, go, android, rust, windows-helper-test ]
     runs-on: ubuntu-latest
     services:

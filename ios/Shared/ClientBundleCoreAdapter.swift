@@ -32,6 +32,8 @@ public actor ClientBundleCoreAdapter: ClientBundleRenewalCore {
     let generation: UInt64
   }
   private struct Install: Encodable { let owner: Guard; let sequence: UInt64; let body: String }
+  private struct SignedInstall: Encodable { let owner: Guard; let sequence: UInt64; let deviceId: String }
+  private struct SignedReceipt: Decodable { let installed: Bool }
   private struct Lease: Decodable, Equatable {
     let instanceId: String
     let accountId: String
@@ -61,6 +63,7 @@ public actor ClientBundleCoreAdapter: ClientBundleRenewalCore {
   private let call: Call
   private let binding: ClientBundleRenewalState.Binding
   private let accountID: String
+  private let signedDeviceID: String?
   private var context: Context?
   private var guardValue: Guard?
   private var tail: Task<Void, Never>?
@@ -69,9 +72,14 @@ public actor ClientBundleCoreAdapter: ClientBundleRenewalCore {
   private var fencedGeneration: UInt64 = 0
   private var installedLease: Lease?
 
-  public init(binding: ClientBundleRenewalState.Binding, accountID: String, call: @escaping Call) {
+  /// Signed installs consume the Core store; body only supplies lease timing.
+  public init(
+    binding: ClientBundleRenewalState.Binding, accountID: String, signedDeviceID: String? = nil,
+    call: @escaping Call
+  ) {
     self.binding = binding
     self.accountID = accountID
+    self.signedDeviceID = signedDeviceID
     self.call = call
   }
 
@@ -100,8 +108,15 @@ public actor ClientBundleCoreAdapter: ClientBundleRenewalCore {
       guard let owner = self.guardValue, let text = String(data: body, encoding: .utf8) else {
         throw ClientBundleCoreError.unavailable
       }
-      let result: Bool = try await self.invoke("installClientBundle",
-        arguments: Install(owner: owner, sequence: ticket.sequence, body: text))
+      let result: Bool
+      if let deviceID = self.signedDeviceID {
+        let receipt: SignedReceipt = try await self.invoke("installSignedClientBundle",
+          arguments: SignedInstall(owner: owner, sequence: ticket.sequence, deviceId: deviceID))
+        result = receipt.installed
+      } else {
+        result = try await self.invoke("installClientBundle",
+          arguments: Install(owner: owner, sequence: ticket.sequence, body: text))
+      }
       if result {
         let lease: Lease = try await self.invoke("getRoutingLease", arguments: Optional<Bool>.none)
         guard lease.instanceId == owner.instanceId, lease.accountId == self.accountID,
@@ -112,6 +127,22 @@ public actor ClientBundleCoreAdapter: ClientBundleRenewalCore {
     }
     tail = Task { _ = try? await operation.value }
     return try await operation.value
+  }
+
+  public func signedCall(_ request: Data) async throws -> Data {
+    try Task.checkCancellation()
+    guard let owner = guardValue, owner.generation > fencedGeneration,
+      var message = try JSONSerialization.jsonObject(with: request) as? [String: Any],
+      var arguments = message["arguments"] as? [String: Any],
+      arguments["accountId"] as? String == accountID,
+      arguments["deviceId"] as? String == signedDeviceID
+    else { throw ClientBundleCoreError.staleOwner }
+    if message["method"] as? String == "applySignedSubscription" {
+      arguments["owner"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(owner))
+      message["arguments"] = arguments
+      return try await call(JSONSerialization.data(withJSONObject: message))
+    }
+    return try await call(request)
   }
 
   public func fenceOrDrain(

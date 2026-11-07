@@ -16,11 +16,13 @@ public actor ClientBundleSessionPublisher {
     self.stopOwner = stopOwner
   }
 
-  public func configure(accountID: String, authorization: String) async throws -> ClientBundleRenewalState.Binding {
+  public func configure(
+    accountID: String, authorization: String, device: ClientBundleSignedDevice? = nil
+  ) async throws -> ClientBundleRenewalState.Binding {
     let previous = tail
     let operation = Task {
       await previous?.value
-      return try await self.publish(accountID: accountID, authorization: authorization)
+      return try await self.publish(accountID: accountID, authorization: authorization, device: device)
     }
     tail = Task { _ = try? await operation.value }
     return try await operation.value
@@ -41,7 +43,9 @@ public actor ClientBundleSessionPublisher {
     try await operation.value
   }
 
-  private func publish(accountID: String, authorization: String) async throws -> ClientBundleRenewalState.Binding {
+  private func publish(
+    accountID: String, authorization: String, device: ClientBundleSignedDevice?
+  ) async throws -> ClientBundleRenewalState.Binding {
     guard !accountID.isEmpty, accountID.utf8.count <= 256, authorization.hasPrefix("Bearer "),
       authorization.utf8.count > 7, authorization.utf8.count <= 16 * 1024,
       !authorization.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 })
@@ -55,16 +59,17 @@ public actor ClientBundleSessionPublisher {
       do { existing = try await credentials.read(for: current) }
       catch ClientBundleCredentialError.locked { throw ClientBundleCredentialError.locked }
       catch { existing = nil }
-      if existing?.accountID == accountID, existing?.value == authorization {
+      if existing?.accountID == accountID, existing?.value == authorization, existing?.device == device {
         return current
       }
       try await authority.invalidateSession(current.session.rawValue)
       try await retirePendingOwner()
     }
     let reserved = try await authority.reserveSession(accountID: accountID)
-    try await credentials.publish(accountID: accountID, authorization: authorization, binding: reserved)
+    try await credentials.publish(
+      accountID: accountID, authorization: authorization, device: device, binding: reserved)
     let verified = try await credentials.read(for: reserved)
-    guard verified.accountID == accountID, verified.value == authorization else {
+    guard verified.accountID == accountID, verified.value == authorization, verified.device == device else {
       throw ClientBundleCredentialError.bindingMismatch
     }
     try await authority.activateReservedSession(reserved)

@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -10,6 +13,7 @@ import 'checkout.dart';
 import 'policy.dart';
 import 'subscriptions.dart';
 import 'session_vault.dart';
+import 'signed_subscriptions.dart';
 
 class _SessionWork {
   _SessionWork(this.epoch, this.generation, this.sequence);
@@ -27,6 +31,7 @@ class ZolnitSessionController extends ChangeNotifier {
     required ZolnitBillingClient billing,
     required this.checkout,
     this.vault,
+    this.signedSubscriptions,
     this.confirmRecurring,
     this.onAuthenticationInvalidated,
     this.vaultTimeout = const Duration(seconds: 5),
@@ -40,6 +45,7 @@ class ZolnitSessionController extends ChangeNotifier {
   final CheckoutController checkout;
   final Future<bool> Function(Json terms)? confirmRecurring;
   final ZolnitSessionVault? vault;
+  final ZolnitSignedSubscriptions? signedSubscriptions;
   final Future<void> Function()? onAuthenticationInvalidated;
   final Duration vaultTimeout;
   final Duration authenticationTimeout;
@@ -76,6 +82,8 @@ class ZolnitSessionController extends ChangeNotifier {
   Json? _account;
   Json? _subscription;
   Json? _displayUsage;
+  int? _onlineDevices;
+  Timer? _deviceEvidenceExpiry;
   List<Json> _nodes = const [];
   List<Json> _plans = const [];
   List<Json> _notices = const [];
@@ -154,7 +162,10 @@ class ZolnitSessionController extends ChangeNotifier {
       _usageSource = source;
       _usageModel = source == null
           ? null
-          : ZolnitUsage.fromSubscription(source);
+          : ZolnitUsage.fromSubscription(
+              source,
+              verifiedOnlineDevices: _onlineDevices,
+            );
     }
     return _usageModel;
   }
@@ -305,6 +316,13 @@ class ZolnitSessionController extends ChangeNotifier {
           }
           if (clientBundle) {
             _clientBundleFailure = _code(error);
+            if (const {
+              'subscription_tombstone',
+              'subscription_expired',
+            }.contains(_clientBundleFailure)) {
+              _clientBundle = null;
+              _clientBundleNodes = const [];
+            }
             _clientBundleFailureGeneration = work.generation;
           } else if (billing && work.sequence == _billingSequence) {
             _billingFailure = _code(error);
@@ -527,6 +545,7 @@ class ZolnitSessionController extends ChangeNotifier {
   void _clearSnapshots() {
     _clearQuotePreviews();
     _authenticated = false;
+    _setOnlineDevices(null);
     _clientBundle = null;
     _clientBundleAccountId = null;
     _clientBundleGeneration = null;
@@ -550,6 +569,10 @@ class ZolnitSessionController extends ChangeNotifier {
   }
 
   Future<void> _invalidate({bool deleteAuthorization = true}) {
+    final signed = signedSubscriptions;
+    if (signed != null) {
+      unawaited(signed.invalidate().catchError((Object _) {}));
+    }
     _epoch++;
     _vaultGeneration++;
     _flights.clear();
@@ -576,9 +599,15 @@ class ZolnitSessionController extends ChangeNotifier {
     });
   }
 
-  Future<void> logout() {
+  /// An explicit user logout also removes this installation's signed
+  /// credentials; a server-forced sign-out keeps them for reauthentication.
+  Future<void> logout({bool clearSignedCredentials = true}) {
     if (_disposed) return Future.value();
-    final deletion = _invalidate();
+    final signed = signedSubscriptions;
+    final deletion = Future.wait([
+      _invalidate(),
+      if (clearSignedCredentials && signed != null) signed.signOut(),
+    ]).then((_) {});
     final epoch = _epoch;
     notifyListeners();
     return deletion.timeout(vaultTimeout).catchError((Object _) {
@@ -604,6 +633,34 @@ class ZolnitSessionController extends ChangeNotifier {
   Future<void> _loadIdentity(_SessionWork work) async {
     final account = _object(await api.account().timeout(authenticationTimeout));
     if (_current(work)) _account = account;
+  }
+
+  void _setOnlineDevices(Json? state) {
+    _deviceEvidenceExpiry?.cancel();
+    _deviceEvidenceExpiry = null;
+    final online = state?['online'];
+    final observed = secondsToDate(state?['observed_at']);
+    final now = DateTime.now();
+    final remaining = observed
+        ?.add(const Duration(seconds: 180))
+        .difference(now);
+    _onlineDevices =
+        online is int &&
+            online >= 0 &&
+            observed != null &&
+            !observed.isAfter(now) &&
+            remaining != null &&
+            remaining > Duration.zero
+        ? online
+        : null;
+    _usageSource = null;
+    _usageModel = null;
+    if (_onlineDevices != null) {
+      _deviceEvidenceExpiry = Timer(remaining!, () {
+        _setOnlineDevices(null);
+        if (!_disposed && _authenticated) notifyListeners();
+      });
+    }
   }
 
   Future<void> _startOptionalLoad(_SessionWork work) {
@@ -636,6 +693,9 @@ class ZolnitSessionController extends ChangeNotifier {
               _subscription = Map<String, dynamic>.unmodifiable(value);
               _displayUsage = null;
             }
+          }),
+          load(api.fetchOnlineClientDevices(), (value) {
+            _setOnlineDevices(value is Json ? value : null);
           }),
           load(api.nodes(), (value) {
             if (value is List && value.every((entry) => entry is Json)) {
@@ -681,7 +741,19 @@ class ZolnitSessionController extends ChangeNotifier {
   }) => _run<ZolnitClientBundle?>('client_bundle:${api.generation}', null, (
     work,
   ) async {
-    final raw = await api.fetchClientBundle(coreVersion: coreVersion);
+    final accountIdentity = _account?['uuid'];
+    final identityScope =
+        accountIdentity is String && accountIdentity.isNotEmpty
+        ? sha256.convert(utf8.encode(accountIdentity)).toString()
+        : null;
+    final signed = await signedSubscriptions?.bundle(
+      api,
+      coreVersion: coreVersion,
+      expectedAccountId: clientBundleAccountId,
+      identityScope: identityScope,
+    );
+    if (!_current(work)) return null;
+    final raw = signed ?? await api.fetchClientBundle(coreVersion: coreVersion);
     if (!_current(work)) return null;
     final parsed = await compute(_parseClientBundle, (
       raw: raw,
@@ -691,6 +763,12 @@ class ZolnitSessionController extends ChangeNotifier {
     ));
     if (!_current(work)) return null;
     final bundle = parsed.bundle;
+    if (signed == null &&
+        await signedSubscriptions?.refusesUnsigned(api, bundle.accountId) ==
+            true) {
+      throw const ClientFailure('signed_subscription_required');
+    }
+    if (!_current(work)) return null;
     _clientBundleNodes = parsed.nodes;
     _clientBundleAccountId = bundle.accountId;
     _clientBundleGeneration = work.generation;

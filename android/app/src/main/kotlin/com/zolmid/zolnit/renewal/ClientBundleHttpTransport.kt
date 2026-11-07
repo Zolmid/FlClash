@@ -33,25 +33,38 @@ internal class ClientBundleHttpTransport(
     private val active = AtomicReference<Call?>()
     private val activeRequest = AtomicReference<Job?>()
 
-    override suspend fun get(authorization: String, coreVersion: String): BundleHttpResponse = withTimeout(15_000) {
+    override suspend fun get(authorization: String, coreVersion: String): BundleHttpResponse =
+        exchange(ENDPOINT, authorization, coreVersion, emptyMap())
+
+    override suspend fun signed(authorization: String, coreVersion: String, device: SignedDevice, state: Boolean): BundleHttpResponse =
+        exchange(if (state) STATE_ENDPOINT else ENDPOINT, authorization, coreVersion, buildMap {
+            put("X-ZolNit-Device-Id", device.deviceId)
+            put("X-ZolNit-Installation", device.installationId)
+            if (!state) put("X-ZolNit-Subscription-Format", "signed-v2")
+        })
+
+    private suspend fun exchange(url: String, authorization: String, coreVersion: String,
+        extra: Map<String, String>): BundleHttpResponse = withTimeout(15_000) {
         val job = currentCoroutineContext()[Job]!!
         check(activeRequest.compareAndSet(null, job)) { "request_already_active" }
         try {
             val selected = selectCalls?.invoke() ?: calls
             currentCoroutineContext().ensureActive()
-            get(selected, authorization, coreVersion)
+            get(selected, url, authorization, coreVersion, extra)
         } finally {
             activeRequest.compareAndSet(job, null)
         }
     }
 
-    private suspend fun get(calls: Call.Factory, authorization: String, coreVersion: String): BundleHttpResponse =
+    private suspend fun get(calls: Call.Factory, url: String, authorization: String, coreVersion: String,
+        extra: Map<String, String>): BundleHttpResponse =
         suspendCancellableCoroutine { continuation ->
-            val request = Request.Builder().url(ENDPOINT).get()
+            val request = Request.Builder().url(url).get()
                 .header("Authorization", authorization).header("Accept", "application/json")
                 .header("Accept-Encoding", "identity").header("Cache-Control", "no-store")
                 .header("X-ZolNit-Core-Version", coreVersion)
                 .header("X-ZolNit-Platform", "android").header("X-ZolNit-Distribution", "direct")
+                .apply { extra.forEach { (name, value) -> header(name, value) } }
                 .build()
             val call = calls.newCall(request)
             check(active.compareAndSet(null, call)) { "request_already_active" }
@@ -121,6 +134,7 @@ internal class ClientBundleHttpTransport(
             .readTimeout(15, TimeUnit.SECONDS).writeTimeout(15, TimeUnit.SECONDS).build()
 
         const val ENDPOINT = "https://link.zolmid.com/api/v1/zolnit/client/bundle"
+        const val STATE_ENDPOINT = "https://link.zolmid.com/api/v1/zolnit/client/subscription/state"
         const val MAX_BYTES = 8 * 1_024 * 1_024
         const val AUTH_ERROR_MAX_BYTES = 8 * 1_024
 

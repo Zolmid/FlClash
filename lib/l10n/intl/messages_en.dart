@@ -2807,6 +2807,44 @@ class MessageLookup extends MessageLookupByLibrary {
       "Forgot password?",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Gifted access"),
+    "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
+      "Rewards received",
+    ),
+    "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("Gifted balance"),
+    "zolnitGiftCard": MessageLookupByLibrary.simpleMessage("Gift card"),
+    "zolnitGiftCheck": MessageLookupByLibrary.simpleMessage("Preview"),
+    "zolnitGiftCode": MessageLookupByLibrary.simpleMessage("Gift card code"),
+    "zolnitGiftConfirm": MessageLookupByLibrary.simpleMessage("Redeem"),
+    "zolnitGiftContinue": MessageLookupByLibrary.simpleMessage(
+      "Redeem another",
+    ),
+    "zolnitGiftEmpty": MessageLookupByLibrary.simpleMessage(
+      "No redemptions yet",
+    ),
+    "zolnitGiftFailure": MessageLookupByLibrary.simpleMessage(
+      "Could not complete this request. Try again.",
+    ),
+    "zolnitGiftHistory": MessageLookupByLibrary.simpleMessage(
+      "Redemption history",
+    ),
+    "zolnitGiftIncluded": MessageLookupByLibrary.simpleMessage(
+      "Included rewards",
+    ),
+    "zolnitGiftNext": MessageLookupByLibrary.simpleMessage("Next"),
+    "zolnitGiftPossible": MessageLookupByLibrary.simpleMessage(
+      "Possible rewards",
+    ),
+    "zolnitGiftPrevious": MessageLookupByLibrary.simpleMessage("Previous"),
+    "zolnitGiftPrompt": MessageLookupByLibrary.simpleMessage(
+      "Enter a gift card code",
+    ),
+    "zolnitGiftRandomTip": MessageLookupByLibrary.simpleMessage(
+      "The final reward is decided when you redeem.",
+    ),
+    "zolnitGiftRedeemed": MessageLookupByLibrary.simpleMessage("Redeemed"),
+    "zolnitGiftRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "Could not refresh your account. Try again.",
+    ),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "Paid access starts after the first payment replaces the remaining gifted time.",
     ),
@@ -3077,6 +3115,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage(
       "Reference total (RMB)",
+    ),
+    "zolnitReferralReference": MessageLookupByLibrary.simpleMessage(
+      "First-order reference",
     ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("Refresh"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("Sign up"),

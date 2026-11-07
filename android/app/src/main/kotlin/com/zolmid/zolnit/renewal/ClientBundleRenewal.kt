@@ -19,9 +19,20 @@ internal class BundleSession(
     var active: Boolean,
 )
 
+/** The installation secret never appears in logs or [toString]. */
+internal class SignedDevice(val deviceId: String, val installationId: String) {
+    init {
+        require(Regex("^[a-f0-9]{32}$").matches(deviceId) && Regex("^[A-Za-z0-9_-]{43}$").matches(installationId))
+    }
+
+    override fun toString() = "SignedDevice($deviceId)"
+}
+
 internal interface BundleEpochStore {
     suspend fun current(): BundleSession?
-    suspend fun configure(accountId: String, authorization: String, accountGeneration: Long): BundleSession
+    suspend fun configure(accountId: String, authorization: String, accountGeneration: Long,
+        device: SignedDevice? = null): BundleSession
+    suspend fun device(epoch: Long): SignedDevice?
     suspend fun invalidate(epoch: Long): Boolean
     suspend fun authorization(epoch: Long): String?
     suspend fun deleteAuthorization(epoch: Long)
@@ -35,6 +46,7 @@ internal class BundleHttpResponse(val status: Int, val body: String, val retryAf
 
 internal interface BundleTransport {
     suspend fun get(authorization: String, coreVersion: String): BundleHttpResponse
+    suspend fun signed(authorization: String, coreVersion: String, device: SignedDevice, state: Boolean): BundleHttpResponse
     fun cancel()
 }
 
@@ -60,6 +72,9 @@ internal class ClientBundleRenewal(
     private var deadlineWallMillis = 0L
     private var establishedEpoch: Long? = null
     private var installedBundleId: String? = null
+    private var signedInstalled = false
+    private var signedBundleWanted = false
+    private var signedCheckedAt: Long? = null
     @Volatile private var snapshot: Map<String, Any?> = mapOf("ready" to false, "installed" to false, "deadline" to 0L, "state" to "stopped")
 
     fun status(): Map<String, Any?> = snapshot
@@ -77,7 +92,8 @@ internal class ClientBundleRenewal(
         snapshot
     }
 
-    suspend fun configure(accountId: String, authorization: String, accountGeneration: Long): Map<String, Any?> =
+    suspend fun configure(accountId: String, authorization: String, accountGeneration: Long,
+        device: SignedDevice? = null): Map<String, Any?> =
         withContext(NonCancellable) {
             require(accountId.isNotBlank() && accountId.length <= 256)
             require(accountGeneration > 0)
@@ -94,8 +110,11 @@ internal class ClientBundleRenewal(
                     cancelWork()
                     drain(invalidatingSession = old != null)
                     if (old != null) store.deleteAuthorization(old.epoch)
-                    val session = store.configure(accountId, authorization, accountGeneration)
+                    val session = store.configure(accountId, authorization, accountGeneration, device)
                     establishedEpoch = null
+                    signedInstalled = false
+                    signedBundleWanted = false
+                    signedCheckedAt = null
                     publish(session, "configured")
                     if (running) {
                         try {
@@ -223,12 +242,14 @@ internal class ClientBundleRenewal(
     private suspend fun attempt(session: BundleSession): Long? {
         var authorization: String? = null
         var version: String? = null
+        var device: SignedDevice? = null
         val owner = lock.withLock {
             if (!isCurrent(session)) return null
             // Keep a claim visible until its ACK, even if stop cancels this attempt.
             withContext(NonCancellable) {
                 val claimed = claim(session) ?: return@withContext null
                 authorization = store.authorization(session.epoch) ?: error("missing_authorization")
+                device = store.device(session.epoch)
                 version = (rpc.call("getCoreVersion", null) as? String)?.takeIf {
                     it.isNotBlank() && it.length <= 128 && it.none { c -> c.isISOControl() }
                 } ?: error("missing_core_version")
@@ -236,6 +257,7 @@ internal class ClientBundleRenewal(
                 claimed
             }
         } ?: return 60_000
+        device?.let { return signedAttempt(session, owner, checkNotNull(authorization), checkNotNull(version), it) }
         val response = transport.get(checkNotNull(authorization), checkNotNull(version))
         return lock.withLock {
             if (!isCurrent(session)) return@withLock null
@@ -296,6 +318,76 @@ internal class ClientBundleRenewal(
         }
     }
 
+    // The Core keeps entitlement validity separate from short leases and network failures.
+    private suspend fun signedAttempt(session: BundleSession, owner: JSONObject, authorization: String,
+        version: String, device: SignedDevice): Long? {
+        val checked = signedCheckedAt
+        val due = !signedInstalled || signedBundleWanted || checked == null ||
+            monotonicMillis() - checked >= SIGNED_STATE_INTERVAL
+        val wantsState = signedInstalled && !signedBundleWanted
+        val response = if (due) runCatching { transport.signed(authorization, version, device, wantsState) }.getOrNull() else null
+        return lock.withLock {
+            if (!isCurrent(session)) return@withLock null
+            if (guard !== owner) return@withLock 60_000L
+            withContext(NonCancellable) {
+                val state = response?.takeIf { it.status == 200 }?.let { applySigned(session, owner, device, it.body) }
+                if (state != null) {
+                    signedCheckedAt = monotonicMillis()
+                    signedBundleWanted = state.optBoolean("needsRefresh") && !state.optBoolean("revoked")
+                    if (state.optBoolean("revoked") || state.optBoolean("expired")) {
+                        signedInstalled = false
+                        drain()
+                        publish(session, "entitlement_unavailable")
+                        return@withContext SIGNED_STATE_INTERVAL
+                    }
+                    if (signedBundleWanted) return@withContext 1_000L
+                }
+                installSigned(session, owner, device)
+            }
+        }
+    }
+
+    private suspend fun applySigned(session: BundleSession, owner: JSONObject, device: SignedDevice, body: String): JSONObject? = runCatching {
+        val envelope = JSONObject(body).getJSONObject("data")
+        rpc.call("applySignedSubscription", JSONObject().put("accountId", session.accountId)
+            .put("deviceId", device.deviceId).put("owner", owner).put("envelope", envelope.toString())) as? JSONObject
+    }.getOrNull()
+
+    private suspend fun installSigned(session: BundleSession, owner: JSONObject, device: SignedDevice): Long? {
+        sequence = Math.addExact(sequence, 1)
+        val result = rpc.call("installSignedClientBundle", JSONObject().put("owner", owner)
+            .put("sequence", sequence).put("deviceId", device.deviceId)) as? JSONObject ?: error("signed_install_failed")
+        if (!result.optBoolean("installed")) {
+            signedInstalled = false
+            return when (result.optString("code")) {
+                "subscription_tombstone", "subscription_expired" -> {
+                    drain()
+                    publish(session, "entitlement_unavailable")
+                    SIGNED_STATE_INTERVAL
+                }
+                else -> {
+                    signedBundleWanted = true
+                    publish(session, "retrying")
+                    retryDelay(60_000L)
+                }
+            }
+        }
+        if (!isCurrent(session)) {
+            drain()
+            return null
+        }
+        val expiresAt = result.getLong("expiresAt")
+        val remaining = expiresAt - wallMillis()
+        require(remaining > 0)
+        deadline = monotonicMillis() + remaining
+        deadlineWallMillis = expiresAt
+        installedBundleId = result.optString("bundleId").takeIf { it.isNotBlank() }
+        signedInstalled = true
+        scheduleExpiry(session, owner, deadline)
+        publish(session, "installed")
+        return minOf(60_000, maxOf(1_000, (deadline - monotonicMillis()) / 2))
+    }
+
     private fun scheduleExpiry(session: BundleSession, owner: JSONObject, expires: Long) {
         expiryJob?.cancel()
         expiryJob = scope.launch {
@@ -328,6 +420,8 @@ internal class ClientBundleRenewal(
     }
 
     companion object {
+        const val SIGNED_STATE_INTERVAL = 300_000L
+
         fun unauthenticated(body: String): Boolean = body.toByteArray(Charsets.UTF_8).size <= 8 * 1_024 && runCatching {
             JSONObject(body).getJSONObject("error").getString("code") == "unauthenticated"
         }.getOrDefault(false)

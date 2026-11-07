@@ -169,6 +169,22 @@ func applyConfig(params *SetupParams) error {
 	runtime.GC()
 	configMu.Lock()
 	defer configMu.Unlock()
+	return withSignedSetupLocked(params, func(prepared *clientbundle.Prepared) error { return applyConfigLocked(params, prepared) })
+}
+
+func applyConfigLocked(params *SetupParams, prepared *clientbundle.Prepared) error {
+	var cfg *config.Config
+	var err error
+	if prepared != nil {
+		raw, parseErr := unmarshalRawConfig(prepared.Document)
+		if parseErr != nil {
+			return signedMethodError(clientbundle.SubscriptionError("invalid_renewed_configuration"))
+		}
+		cfg, err = parsePlatformConfig(withReturnRouteReject(raw, params.RoutingLease))
+		if err != nil {
+			return signedMethodError(clientbundle.SubscriptionError("invalid_renewed_configuration"))
+		}
+	}
 	if err := guardReturnDispatchSpecReplacement(params.RoutingLease); err != nil {
 		return err
 	}
@@ -183,7 +199,9 @@ func applyConfig(params *SetupParams) error {
 	clearRoutingLeaseForConfigChange()
 	setTestURL(params.TestURL)
 	skipCertVerify.Store(params.SkipCertVerify)
-	cfg, err := loadSetupConfig(params)
+	if prepared == nil {
+		cfg, err = loadSetupConfig(params)
+	}
 	if err != nil {
 		// The fallback is what keeps the listeners serving while the host
 		// reports the error, but it applies a config with no proxies in it.

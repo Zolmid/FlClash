@@ -399,7 +399,10 @@ class ZolnitUsage {
     this.email,
   });
 
-  factory ZolnitUsage.fromSubscription(Json json) {
+  factory ZolnitUsage.fromSubscription(
+    Json json, {
+    int? verifiedOnlineDevices,
+  }) {
     final plan = json['plan'];
     int? count(Object? value) {
       final result = wholeOrNull(value);
@@ -420,7 +423,7 @@ class ZolnitUsage {
           (plan is Map
               ? positiveOrNull(wholeOrNull(plan['device_limit']))
               : null),
-      onlineDevices: wholeOrNull(json['alive_ip']),
+      onlineDevices: verifiedOnlineDevices,
       planId: wholeOrNull(json['plan_id']),
       planName: plan is Map ? textOrNull(plan['name']) : null,
       email: textOrNull(json['email']),

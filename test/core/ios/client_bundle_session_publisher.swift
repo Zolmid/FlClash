@@ -22,7 +22,9 @@ private actor CredentialFixture: ClientBundleWritableCredentialStore {
     guard let value = records[binding.session.rawValue] else { throw ClientBundleCredentialError.unavailable }
     return .init(accountID: value.0, binding: binding, value: value.1)
   }
-  func publish(accountID: String, authorization: String, binding: Binding) async throws {
+  func publish(
+    accountID: String, authorization: String, device: ClientBundleSignedDevice?, binding: Binding
+  ) async throws {
     check(try await !authority.isCurrent(binding))
     events.append("staged")
     if failPublish { throw ClientBundleCredentialError.unavailable }

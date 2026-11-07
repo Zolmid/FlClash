@@ -26,13 +26,25 @@ on:
         type: boolean
         required: false
         default: false
+  workflow_call:
+    inputs:
+      official_release:
+        description: Formal tag build for client-release.yml
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      ZOLNIT_ANDROID_KEYSTORE_BASE64:
+        required: false
+      ZOLNIT_ANDROID_KEYSTORE_PASSWORD:
+        required: false
+      ZOLNIT_ANDROID_KEY_ALIAS:
+        required: false
+      ZOLNIT_ANDROID_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
-
-env:
-  ZOLNIT_NATIVE_UI: ${{ github.ref == 'refs/heads/codex/native-client-shared' && 'true' || 'false' }}
-  ZOLNIT_CLIENT_BUNDLE: ${{ github.ref == 'refs/heads/codex/native-client-shared' && 'true' || 'false' }}
 
 concurrency:
   group: cloud-build-${{ github.ref }}-${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}-${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
@@ -47,17 +59,27 @@ jobs:
       platform: ${{ steps.select.outputs.platform }}
       ios_source: ${{ steps.select.outputs.ios_source }}
       android_release: ${{ steps.select.outputs.android_release }}
+      official: ${{ steps.select.outputs.official }}
+      client_branch: ${{ steps.select.outputs.client_branch }}
+      native_ui: ${{ steps.select.outputs.native_ui }}
     env:
       PLATFORM: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/codex/ios-support' && 'ios' || 'all') || inputs.platform || 'all' }}
       IOS_SOURCE: ${{ github.event_name == 'push' && 'project' || inputs.ios_source || 'project' }}
       CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared' }}
+      NATIVE_BRANCH: ${{ github.ref == 'refs/heads/codex/native-client-shared' }}
       ANDROID_RELEASE_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.android_release }}
       ANDROID_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.android_release && (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') }}
+      OFFICIAL_REQUESTED: ${{ inputs.official_release == true }}
+      OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}
     steps:
       - id: select
         run: |
           node <<'JS'
           const fs = require('fs');
+          const official = process.env.OFFICIAL_REQUESTED === 'true';
+          if (official && (process.env.OFFICIAL_TRUSTED !== 'true' || process.env.PLATFORM !== 'all' || process.env.IOS_SOURCE !== 'project')) {
+            throw new Error('Official builds run only from client-release.yml on a Zolmid/FlClash tag push, for every platform');
+          }
           if (process.env.ANDROID_RELEASE_REQUESTED === 'true' &&
               (process.env.CLIENT_BRANCH !== 'true' || !['all', 'android'].includes(process.env.PLATFORM))) {
             throw new Error('Android release requires a client branch and an Android target');
@@ -73,8 +95,11 @@ jobs:
           if (process.env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(process.env.PLATFORM)) {
             targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});
           }
+          const clientBranch = process.env.CLIENT_BRANCH === 'true' || official;
+          const androidRelease = process.env.ANDROID_RELEASE === 'true' || official;
+          const nativeUi = process.env.NATIVE_BRANCH === 'true' || official;
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
-            `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nandroid_release=${process.env.ANDROID_RELEASE === 'true'}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
+            `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nandroid_release=${androidRelease}\nofficial=${official}\nclient_branch=${clientBranch}\nnative_ui=${nativeUi}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
           JS
 
   project:
@@ -97,10 +122,13 @@ jobs:
       TARGET_PLATFORM: ${{ matrix.platform }}
       TARGET_ARCH: ${{ matrix.arch }}
       CLIENT_SAFE_PREVIEW: ${{ matrix.safe_preview }}
-      CLIENT_BRANCH: ${{ github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared' }}
+      CLIENT_BRANCH: ${{ needs.select.outputs.client_branch }}
       ANDROID_RELEASE: ${{ needs.select.outputs.android_release }}
-      ZOLNIT_DISTRIBUTION: ${{ (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') && 'direct' || '' }}
-      CLIENT_BUILD_ENV: ${{ (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') && 'stable' || 'dev' }}
+      ZOLNIT_DISTRIBUTION: ${{ needs.select.outputs.client_branch == 'true' && 'direct' || '' }}
+      CLIENT_BUILD_ENV: ${{ needs.select.outputs.client_branch == 'true' && 'stable' || 'dev' }}
+      ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
+      ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
+      ZOLNIT_OFFICIAL_RELEASE: ${{ needs.select.outputs.official }}
     steps:
       - name: Enable Windows long paths
         if: matrix.platform == 'windows'
@@ -468,6 +496,9 @@ jobs:
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
             echo "distribution_channel=$ZOLNIT_DISTRIBUTION"
             echo "client_build_env=$compiled_env"
+            if [[ "$ZOLNIT_OFFICIAL_RELEASE" == true ]]; then
+              echo 'official_release=true'
+            fi
             if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
               echo 'client_defines=APP_ENV=dev;SAFE_MODE=true;ZOLNIT_DISTRIBUTION=direct'
             elif [[ -n "$ZOLNIT_DISTRIBUTION" ]]; then
@@ -522,6 +553,9 @@ jobs:
       IOS_SOURCE: ${{ needs.select.outputs.ios_source }}
       IOS_OBSERVER_ACCEPTANCE: ${{ github.ref == 'refs/heads/codex/native-client-shared' && needs.select.outputs.ios_source == 'project' }}
       IOS_ACCEPTANCE_BUNDLE_ID: com.zolmid.zolnit.debug
+      ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
+      ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
+      ZOLNIT_OFFICIAL_RELEASE: ${{ needs.select.outputs.official }}
       FLUTTER_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
       GO_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}
       RUSTUP_TOOLCHAIN: '1.99.0'
@@ -690,6 +724,10 @@ jobs:
             echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
             echo "routing_observation=$IOS_OBSERVER_ACCEPTANCE"
+            if [[ "$ZOLNIT_OFFICIAL_RELEASE" == true ]]; then
+              echo 'official_release=true'
+              echo "run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
             if [[ "$IOS_OBSERVER_ACCEPTANCE" == true ]]; then
               echo "app_bundle_id=$IOS_ACCEPTANCE_BUNDLE_ID"
               echo "observer_bundle_id=$IOS_ACCEPTANCE_BUNDLE_ID.LeaseObserver"

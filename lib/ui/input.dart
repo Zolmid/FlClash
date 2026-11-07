@@ -41,10 +41,14 @@ class SecretTextFormField extends StatefulWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onFieldSubmitted;
+  final ValueChanged<String>? onChanged;
   final FormFieldValidator<String>? validator;
   final bool autofocus;
   final bool enabled;
   final Iterable<String>? autofillHints;
+  final bool showVisibilityToggle;
+  final TextInputType keyboardType;
+  final bool autocorrect;
 
   const SecretTextFormField({
     super.key,
@@ -56,10 +60,14 @@ class SecretTextFormField extends StatefulWidget {
     this.inputFormatters,
     this.textInputAction,
     this.onFieldSubmitted,
+    this.onChanged,
     this.validator,
     this.autofocus = false,
     this.enabled = true,
     this.autofillHints,
+    this.showVisibilityToggle = true,
+    this.keyboardType = TextInputType.visiblePassword,
+    this.autocorrect = true,
   });
 
   @override
@@ -78,28 +86,32 @@ class _SecretTextFormFieldState extends State<SecretTextFormField> {
       focusNode: widget.focusNode,
       controller: widget.controller,
       obscureText: _obscure,
-      keyboardType: TextInputType.visiblePassword,
+      keyboardType: widget.keyboardType,
+      autocorrect: widget.autocorrect,
       autofillHints: widget.autofillHints,
       maxLines: _obscure ? 1 : widget.maxLines,
       minLines: 1,
       inputFormatters: _limited(widget.inputFormatters, widget.maxLength),
       textInputAction: widget.textInputAction,
       onFieldSubmitted: widget.onFieldSubmitted,
+      onChanged: widget.onChanged,
       validator: widget.validator,
       decoration: widget.decoration.copyWith(
-        suffixIcon: IconButton(
-          tooltip: _obscure
-              ? localizations.showPassword
-              : localizations.hidePassword,
-          icon: GlyphIcon(_obscure ? AppGlyphs.eye : AppGlyphs.eyeOff),
-          onPressed: !widget.enabled
-              ? null
-              : () {
-                  setState(() {
-                    _obscure = !_obscure;
-                  });
-                },
-        ),
+        suffixIcon: widget.showVisibilityToggle
+            ? IconButton(
+                tooltip: _obscure
+                    ? localizations.showPassword
+                    : localizations.hidePassword,
+                icon: GlyphIcon(_obscure ? AppGlyphs.eye : AppGlyphs.eyeOff),
+                onPressed: !widget.enabled
+                    ? null
+                    : () {
+                        setState(() {
+                          _obscure = !_obscure;
+                        });
+                      },
+              )
+            : widget.decoration.suffixIcon,
       ),
     );
   }

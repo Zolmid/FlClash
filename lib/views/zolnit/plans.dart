@@ -34,6 +34,16 @@ const _periodMonths = <String, int>{
   'three_year_price': 36,
 };
 
+const _offerPeriods = <String, String>{
+  'month_price': 'monthly',
+  'quarter_price': 'quarterly',
+  'half_year_price': 'half_yearly',
+  'year_price': 'yearly',
+  'two_year_price': 'two_yearly',
+  'three_year_price': 'three_yearly',
+  'onetime_price': 'onetime',
+};
+
 String _periodLabel(BuildContext context, String key) {
   final text = context.appLocalizations;
   return switch (key) {
@@ -96,6 +106,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
   String? _quoteFailure;
   Map<int, String> _quoteErrors = const {};
   Map<int, Map<int, RecurringPlanQuote>> _quotes = const {};
+  Map<int, Json> _offers = const {};
   Timer? _quoteExpiry;
   Timer? _quoteRetry;
   int _quoteRetries = 0;
@@ -163,11 +174,19 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
     if (!refresh) _quoteRetries = 0;
     _quoteExpiry = null;
     _quotes = const {};
+    _offers = const {};
     _quoteErrors = const {};
     _quoteFailure = null;
     final period = _selectedPeriod(widget.session.planList) == 'month_price'
         ? 'monthly'
         : null;
+    final offerPeriod = _offerPeriods[_selectedPeriod(widget.session.planList)];
+    if (offerPeriod != null &&
+        widget.session.authenticated &&
+        _foreground &&
+        widget.session.api.distribution != 'apple-app-store') {
+      scheduleMicrotask(() => _loadOffers(request, context, offerPeriod));
+    }
     _quoteLoading =
         widget.session.authenticated &&
         widget.session.api.distribution != 'apple-app-store' &&
@@ -176,6 +195,37 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
     if (_quoteLoading && _foreground) {
       scheduleMicrotask(() => _loadQuotes(request, context, period!, refresh));
     }
+  }
+
+  Future<void> _loadOffers(int request, Object context, String period) async {
+    final session = widget.session;
+    final client = ZolnitRewardsClient(session.api);
+    final results = await Future.wait([
+      for (final plan in session.planList)
+        if (plan.id case final int id)
+          () async {
+            try {
+              final offer = await client.referralOffer(
+                planId: id,
+                period: period,
+                recurring: false,
+              );
+              return (id, offer);
+            } catch (_) {
+              return (id, <String, dynamic>{});
+            }
+          }(),
+    ]);
+    if (!_currentQuote(request, context)) return;
+    setState(
+      () => _offers = {
+        for (final (id, offer) in results)
+          if (offer['eligible'] == true &&
+              offer['payable_amount'] is int &&
+              (offer['payable_amount'] as int) >= 0)
+            id: offer,
+      },
+    );
   }
 
   Future<void> _loadQuotes(
@@ -313,6 +363,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
     final text = context.appLocalizations;
     final session = widget.session;
     final generation = session.api.generation;
+    final offer = _offers[plan.id];
     final approved = await showZolnitDialog<bool>(
       context,
       (context) => ZolnitAlert(
@@ -327,6 +378,10 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
               Text(
                 '${_periodLabel(context, period)} · ${text.zolnitManualPayment}',
               ),
+              if (offer != null)
+                Text(
+                  '${text.zolnitReferralReference}: ${zolnitMoney(offer['payable_amount'])}',
+                ),
               if (plan.note case final note?) ...[
                 const SizedBox(height: 12),
                 Text(note),
@@ -486,6 +541,7 @@ class _ZolnitPlansPageState extends State<ZolnitPlansPage>
               for (final entry in _quotes.entries)
                 entry.key: ?entry.value[plan.id],
             },
+            referralOffer: _offers[plan.id],
             quoteCurrent: () =>
                 quoteContext != null &&
                 _currentQuote(quoteRequest, quoteContext),
@@ -706,6 +762,7 @@ class _PlanCard extends StatelessWidget {
     required this.quotes,
     required this.quoteCurrent,
     required this.onQuoteRetry,
+    required this.referralOffer,
   });
 
   final ZolnitPlan plan;
@@ -724,6 +781,7 @@ class _PlanCard extends StatelessWidget {
   final Map<int, RecurringPlanQuote> quotes;
   final bool Function() quoteCurrent;
   final VoidCallback onQuoteRetry;
+  final Json? referralOffer;
 
   @override
   Widget build(BuildContext context) {
@@ -845,6 +903,11 @@ class _PlanCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          if (referralOffer case final offer?)
+            Text(
+              '${text.zolnitReferralReference}: ${zolnitMoney(offer['payable_amount'])}',
+              style: zolnitText(context, 11, color: colors.muted),
+            ),
           if (perMonthPrice != null)
             Text(
               '≈ ¥$perMonthPrice ${text.zolnitPerMonth}',
@@ -1066,6 +1129,12 @@ class _QuoteDetails extends StatelessWidget {
               '${text.zolnitFirstCharge}: ${amount('first_total_cents', 'CNY')} / ${amount('first_charge_amount_cents', 'SGD')}',
               style: zolnitText(context, 11, color: colors.muted),
             ),
+            if (quote.terms['referral_promotion'] case final Json promotion)
+              if (promotion['campaign_name'] is String)
+                Text(
+                  promotion['campaign_name'] as String,
+                  style: zolnitText(context, 11, color: colors.muted),
+                ),
             Text(
               '${text.zolnitFollowingCharge}: ${amount('total_cents', 'CNY')} / ${amount('charge_amount_cents', 'SGD')}',
               style: zolnitText(context, 11, color: colors.muted),

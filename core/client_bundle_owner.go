@@ -55,6 +55,7 @@ var (
 	clientBundleOwnerFloor   uint64
 	clientBundleGenFloor     uint64
 	clientBundleAttempt      uint64
+	clientBundleSignedIntent uint64
 	clientBundleRetiredEpoch uint64
 	clientBundleApply        = applyPreparedClientBundleLocked
 )
@@ -183,6 +184,11 @@ func handleBeginClientBundleOwner(params *BeginClientBundleOwnerParams) (*Client
 		return nil, errors.New("client bundle owner exhausted")
 	}
 	clientBundleGenFloor = params.Generation
+	intent, intentErr := withSignedStore(func(store *clientbundle.SubscriptionStore) (uint64, error) { return store.SessionIntent() })
+	if intentErr != nil {
+		intent = ^uint64(0)
+	}
+	clientBundleSignedIntent = intent
 	stopClientBundleRoutingLocked()
 	clientBundleSerial++
 	clientBundleAttempt = 0
@@ -221,11 +227,16 @@ func handleInstallClientBundle(params *InstallClientBundleParams) (bool, error) 
 		prepared.Bundle.Expires <= routingLeaseNow().Unix() {
 		return false, errors.New("superseded client bundle installation")
 	}
-	clientBundleAttempt = params.Sequence
-	applied, err := clientBundleApply(prepared, clientBundleSetup)
-	if applied && err == nil {
-		replaceClientBundleRoutingLocked([]byte(params.Body), params.Owner)
-	}
+	var applied bool
+	err := withUnsignedSignedGuard(params.Owner.AccountID, func() error {
+		clientBundleAttempt = params.Sequence
+		var err error
+		applied, err = clientBundleApply(prepared, clientBundleSetup)
+		if applied && err == nil {
+			replaceClientBundleRoutingLocked([]byte(params.Body), params.Owner)
+		}
+		return err
+	})
 	return applied, err
 }
 
@@ -274,7 +285,9 @@ func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *
 		return false, err
 	}
 	lease := &RoutingLeaseSpec{AccountID: prepared.Bundle.Account, AccountGeneration: previous.RoutingLease.AccountGeneration,
-		BundleID: prepared.Bundle.ID, ConfigurationDigest: prepared.Digest,
+		SignedDeviceID: previous.RoutingLease.SignedDeviceID, SignedSerial: previous.RoutingLease.SignedSerial,
+		SignedIntent: previous.RoutingLease.SignedIntent,
+		BundleID:     prepared.Bundle.ID, ConfigurationDigest: prepared.Digest,
 		ExpiresAt:        time.Unix(prepared.Bundle.Expires, 0).UnixMilli(),
 		ConnectionDigest: prepared.Bundle.Connection.SHA, MetadataDigest: prepared.MetadataDigest,
 		RenewalOverlay: previous.RoutingLease.RenewalOverlay, ReturnRoute: prepared.ReturnRoute}

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:fl_clash/common/context.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
@@ -29,6 +30,7 @@ Future<void> showZolnitNotices(
   required bool Function() isCurrent,
   required Future<bool> Function(ZolnitRealtimeInboxItem) onOpen,
   Listenable? invalidation,
+  ValueListenable<Map<String, ZolnitRealtimeInboxItem>>? canonicalNotices,
 }) {
   final text = context.appLocalizations;
   final read = {
@@ -105,18 +107,25 @@ Future<void> showZolnitNotices(
                           unawaited(
                             dialog(
                               outer,
-                              (inner) => AlertDialog(
-                                title: Text(item.title),
-                                content: SingleChildScrollView(
-                                  child: Text(item.body),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        zolnitCloseDialog<void>(inner),
-                                    child: Text(text.zolnitGotIt),
-                                  ),
-                                ],
+                              (inner) => ListenableBuilder(
+                                listenable: canonicalNotices ?? session,
+                                builder: (inner, _) {
+                                  final current =
+                                      canonicalNotices?.value[item.id] ?? item;
+                                  return AlertDialog(
+                                    title: Text(current.title),
+                                    content: SingleChildScrollView(
+                                      child: Text(current.body),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            zolnitCloseDialog<void>(inner),
+                                        child: Text(text.zolnitGotIt),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                           );

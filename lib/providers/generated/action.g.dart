@@ -40,7 +40,7 @@ final class CommonActionProvider extends $NotifierProvider<CommonAction, void> {
   }
 }
 
-String _$commonActionHash() => r'0d71723957dd48e1a534d3bc3597e9d2b177db07';
+String _$commonActionHash() => r'acf05b821e5ab5b3e13f3da3d854db6a1dec9448';
 
 abstract class _$CommonAction extends $Notifier<void> {
   void build();
@@ -91,7 +91,7 @@ final class SetupActionProvider extends $NotifierProvider<SetupAction, void> {
   }
 }
 
-String _$setupActionHash() => r'fb7b57893baeabd7153a23fb2abcd4513a63aa7a';
+String _$setupActionHash() => r'e554512c7e7f257616a0ff26bd5d1e5c85729bdf';
 
 abstract class _$SetupAction extends $Notifier<void> {
   void build();
@@ -244,7 +244,7 @@ final class SystemActionProvider extends $NotifierProvider<SystemAction, void> {
   }
 }
 
-String _$systemActionHash() => r'8289c73c9e50a4303646e6b5324dc65093ef1447';
+String _$systemActionHash() => r'eeb97be065ff566b5ad13c5982834a539675e55d';
 
 abstract class _$SystemAction extends $Notifier<void> {
   void build();
@@ -398,7 +398,7 @@ final class ProxiesActionProvider
   }
 }
 
-String _$proxiesActionHash() => r'e2bfc279fade4a92e1c9f57d2603c97fd71be03a';
+String _$proxiesActionHash() => r'73f08de6fa6ed2db69bd203dc84c70e6c1c386eb';
 
 abstract class _$ProxiesAction extends $Notifier<void> {
   void build();

@@ -88,6 +88,11 @@ mixin CoreInterface {
 
   Future<Map<String, dynamic>?> getClientBundleOwner();
 
+  Future<Object?> signedSubscription(
+    CoreMethod method,
+    Map<String, Object?>? arguments,
+  );
+
   Future<Map<String, dynamic>?> setClientReturnRoute(
     Map<String, dynamic> parameters,
   );
@@ -464,6 +469,24 @@ abstract class CoreHandlerInterface with CoreInterface {
       _invokeMethod<Map<String, dynamic>>(
         method: CoreMethod.getClientBundleOwner,
       );
+
+  // Credential-bearing signed calls bypass argument and response logging.
+  @override
+  Future<Object?> signedSubscription(
+    CoreMethod method,
+    Map<String, Object?>? arguments,
+  ) {
+    if (!const {
+      CoreMethod.getSignedSubscription,
+      CoreMethod.applySignedSubscription,
+      CoreMethod.projectSignedSubscription,
+      CoreMethod.signOutSignedSubscription,
+      CoreMethod.invalidateSignedSubscription,
+    }.contains(method)) {
+      throw ArgumentError.value(method, 'method');
+    }
+    return invokeMethod<Object>(method: method, arguments: arguments);
+  }
 
   @override
   Future<Map<String, dynamic>?> setClientReturnRoute(

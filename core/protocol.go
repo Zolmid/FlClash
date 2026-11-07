@@ -23,6 +23,15 @@ const (
 )
 
 const (
+	getSignedSubscriptionMethod        CoreMethod = "getSignedSubscription"
+	applySignedSubscriptionMethod      CoreMethod = "applySignedSubscription"
+	projectSignedSubscriptionMethod    CoreMethod = "projectSignedSubscription"
+	installSignedClientBundleMethod    CoreMethod = "installSignedClientBundle"
+	signOutSignedSubscriptionMethod    CoreMethod = "signOutSignedSubscription"
+	invalidateSignedSubscriptionMethod CoreMethod = "invalidateSignedSubscription"
+)
+
+const (
 	setClientReturnRouteMethod CoreMethod = "setClientReturnRoute"
 )
 
@@ -155,6 +164,9 @@ type RoutingLeaseServiceSpec struct {
 }
 
 type RoutingLeaseSpec struct {
+	SignedDeviceID      string                        `json:"signedDeviceId,omitempty"`
+	SignedSerial        int64                         `json:"signedSerial,omitempty"`
+	SignedIntent        *uint64                       `json:"signedIntent,omitempty"`
 	ReturnRoute         *clientbundle.ReturnRouteSpec `json:"returnRoute,omitempty"`
 	ConnectionDigest    string                        `json:"connectionDigest,omitempty"`
 	MetadataDigest      string                        `json:"metadataDigest,omitempty"`

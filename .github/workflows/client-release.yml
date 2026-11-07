@@ -1,0 +1,119 @@
+name: client-release
+run-name: ZolNit release ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: zolnit-client-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Formal tag preflight
+    if: github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/client_release/assemble_release.py preflight
+
+  ci:
+    name: Standard CI
+    needs: preflight
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build.yaml
+    with:
+      official_release: true
+
+  builds:
+    name: Release builds
+    needs: preflight
+    permissions:
+      contents: read
+    uses: ./.github/workflows/cloud-build.yml
+    with:
+      official_release: true
+    secrets:
+      ZOLNIT_ANDROID_KEYSTORE_BASE64: ${{ secrets.ZOLNIT_ANDROID_KEYSTORE_BASE64 }}
+      ZOLNIT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEYSTORE_PASSWORD }}
+      ZOLNIT_ANDROID_KEY_ALIAS: ${{ secrets.ZOLNIT_ANDROID_KEY_ALIAS }}
+      ZOLNIT_ANDROID_KEY_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEY_PASSWORD }}
+
+  publish:
+    name: Publish ${{ needs.preflight.outputs.version }}
+    needs: [ preflight, ci, builds ]
+    if: needs.preflight.result == 'success' && needs.ci.result == 'success' && needs.builds.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify and stage this run's artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZOLNIT_CI_RESULT: ${{ needs.ci.result }}
+          ZOLNIT_BUILDS_RESULT: ${{ needs.builds.result }}
+        run: |
+          echo "STAGE=$RUNNER_TEMP/zolnit-release" >> "$GITHUB_ENV"
+          apksigner=$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -1)
+          test -x "$apksigner" || { echo '::error::apksigner is not available on this runner'; exit 1; }
+          python3 tool/client_release/assemble_release.py assemble --stage "$RUNNER_TEMP/zolnit-release" --apksigner "$apksigner"
+
+      - name: Publish to the release edge
+        run: node tool/client_release/publish_release.mjs "$STAGE/receipt.json" "$STAGE/manifest.json" "$STAGE/packages" > "$STAGE/publish-result.json"
+
+      - name: Mirror to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/client_release/github_release.py --stage "$STAGE" | tee "$STAGE/github-release.json"
+
+      - name: Summarize
+        if: always()
+        run: |
+          for file in publish-result.json github-release.json; do
+            if [[ -s "$STAGE/$file" ]]; then
+              { echo "**$file**"; echo; cat "$STAGE/$file"; echo; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-release-evidence-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/zolnit-release/*.json
+            ${{ runner.temp }}/zolnit-release/release-notes.md
+          if-no-files-found: ignore
+          retention-days: 90

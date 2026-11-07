@@ -8,6 +8,8 @@ final zolnitRealtimeConnectorProvider = Provider<ZolnitRealtimeConnect?>(
   (_) => null,
 );
 
+enum ZolnitInboxMerge { inserted, updated, unchanged }
+
 final class ZolnitRealtimeInboxItem {
   const ZolnitRealtimeInboxItem({
     required this.id,
@@ -59,10 +61,14 @@ final class ZolnitRealtimeInboxItem {
 final class ZolnitRealtimePreferencesStore implements ZolnitRealtimeStore {
   String _key(String scope) =>
       'zolnit.realtime.v1.${base64Url.encode(utf8.encode(scope))}';
-  Future<void> _tail = Future.value();
-  Future<T> _ordered<T>(Future<T> Function() job) {
-    final next = _tail.then((_) => job());
-    _tail = next.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+  static final _tails = Expando<Future<void>>();
+  Future<T> _ordered<T>(Future<T> Function() job) async {
+    final prefs = await SharedPreferences.getInstance();
+    final next = (_tails[prefs] ?? Future<void>.value()).then((_) => job());
+    _tails[prefs] = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
     return next;
   }
 
@@ -168,4 +174,44 @@ final class ZolnitRealtimePreferencesStore implements ZolnitRealtimeStore {
         );
         return i < 0;
       });
+
+  Future<ZolnitInboxMerge> applyCanonicalInbox(
+    String scope,
+    ZolnitRealtimeInboxItem item, {
+    required bool Function() isCurrent,
+  }) => _ordered(() async {
+    if (!isCurrent() || (await _withdrawals(scope)).containsKey(item.id)) {
+      return ZolnitInboxMerge.unchanged;
+    }
+    final list = await readInbox(scope);
+    if (!isCurrent()) return ZolnitInboxMerge.unchanged;
+    final index = list.indexWhere((entry) => entry.id == item.id);
+    if (index >= 0) {
+      final old = list[index];
+      final merged = ZolnitRealtimeInboxItem(
+        id: item.id,
+        title: item.title,
+        body: item.body,
+        createdAt: old.createdAt,
+        popup: item.popup,
+        read: old.read || item.read,
+      );
+      if (old.title == merged.title &&
+          old.body == merged.body &&
+          old.popup == merged.popup &&
+          old.read == merged.read) {
+        return ZolnitInboxMerge.unchanged;
+      }
+      list[index] = merged;
+    } else {
+      list.add(item);
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    if (!isCurrent()) return ZolnitInboxMerge.unchanged;
+    await _put(
+      '${_key(scope)}.inbox',
+      list.take(128).map((e) => e.toJson()).toList(),
+    );
+    return index < 0 ? ZolnitInboxMerge.inserted : ZolnitInboxMerge.updated;
+  });
 }

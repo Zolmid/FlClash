@@ -50,7 +50,11 @@ class _BundlePlatform implements CheckoutPlatform {
 }
 
 class ClientBundleSessionFixture {
-  ClientBundleSessionFixture({ZolnitSessionVault? vault}) {
+  ClientBundleSessionFixture({
+    ZolnitSessionVault? vault,
+    ZolnitSignedSubscriptions? signedSubscriptions,
+    Future<http.Response?> Function(http.Request)? onRequest,
+  }) {
     api = XboardClient(
       origin: Uri.parse('https://panel.example.invalid'),
       clientPlatform: 'macos',
@@ -58,6 +62,8 @@ class ClientBundleSessionFixture {
       userAgent: 'ZolNit/fixture',
       client: MockClient((request) async {
         requests.add(request);
+        final routed = await onRequest?.call(request);
+        if (routed != null) return routed;
         final route = request.url.path;
         if (route == '/api/v1/zolnit/client/bundle') {
           return onBundle?.call(request) ??
@@ -87,6 +93,7 @@ class ClientBundleSessionFixture {
     session = ZolnitSessionController(
       api: api,
       vault: vault,
+      signedSubscriptions: signedSubscriptions,
       billing: ZolnitBillingClient(api),
       checkout: CheckoutController(
         allowStripe: false,

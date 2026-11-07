@@ -95,9 +95,15 @@ actor NEClientBundleRenewal {
       let authorization = try await credentials.read(for: next)
       let version = try await coreVersion()
       guard requested, try await authority.isCurrent(next) else { return }
-      let core = ClientBundleCoreAdapter(binding: next, accountID: authorization.accountID, call: Self.invoke)
-      let transport = try ClientBundleHTTPTransport(origin: configuration.origin,
+      let core = ClientBundleCoreAdapter(binding: next, accountID: authorization.accountID,
+        signedDeviceID: authorization.device?.deviceID, call: Self.invoke)
+      let http = try ClientBundleHTTPTransport(origin: configuration.origin,
         coreVersion: version, platform: "ios", distribution: configuration.distribution)
+      let transport: any ClientBundleRenewalTransport = authorization.device == nil
+        ? http : ClientBundleSignedSource(fetcher: http, call: { request in
+          guard try await authority.isCurrent(next) else { throw ClientBundleCoreError.staleOwner }
+          return try await core.signedCall(request)
+        })
       let renewal = ClientBundleRenewalOwner(credentials: credentials, transport: transport, control: authority, core: core)
       owner = renewal
       binding = next

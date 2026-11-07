@@ -1,14 +1,37 @@
 import Foundation
 
+/// A registered official installation. The secret is omitted from descriptions.
+public struct ClientBundleSignedDevice: Sendable, Equatable, CustomStringConvertible {
+  public let deviceID: String
+  public let installationID: String
+
+  public init?(deviceID: String, installationID: String) {
+    let hex = Set("0123456789abcdef".utf8)
+    let base64URL = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".utf8)
+    guard deviceID.utf8.count == 32, deviceID.utf8.allSatisfy(hex.contains),
+      installationID.utf8.count == 43, installationID.utf8.allSatisfy(base64URL.contains)
+    else { return nil }
+    self.deviceID = deviceID
+    self.installationID = installationID
+  }
+
+  public var description: String { "ClientBundleSignedDevice(\(deviceID))" }
+}
+
 public struct ClientBundleAuthorization: Sendable {
   public let accountID: String
   public let binding: ClientBundleRenewalState.Binding
   public let value: String
+  public let device: ClientBundleSignedDevice?
 
-  public init(accountID: String, binding: ClientBundleRenewalState.Binding, value: String) {
+  public init(
+    accountID: String, binding: ClientBundleRenewalState.Binding, value: String,
+    device: ClientBundleSignedDevice? = nil
+  ) {
     self.accountID = accountID
     self.binding = binding
     self.value = value
+    self.device = device
   }
 }
 
@@ -20,7 +43,10 @@ public protocol ClientBundleCredentialStore: Sendable {
 }
 
 public protocol ClientBundleWritableCredentialStore: ClientBundleCredentialStore {
-  func publish(accountID: String, authorization: String, binding: ClientBundleRenewalState.Binding) async throws
+  func publish(
+    accountID: String, authorization: String, device: ClientBundleSignedDevice?,
+    binding: ClientBundleRenewalState.Binding
+  ) async throws
 }
 
 public struct ClientBundleHTTPResponse: Sendable {

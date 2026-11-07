@@ -53,6 +53,32 @@ private class PendingHttpCall(private val request: Request) : Call {
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class FirstPartyHttpTransportTest {
+    @Test fun signedSubscriptionHeadersReachNativeRequest() = runTest {
+        val headers = mapOf(
+            "X-ZolNit-Device-Id" to "fixture-device",
+            "X-ZolNit-Installation" to "fixture-installation",
+            "X-ZolNit-Subscription-Format" to "signed-v2",
+            "Idempotency-Key" to "fixture-idempotency-key",
+        )
+        var call: PendingHttpCall? = null
+        val transport = FirstPartyHttpTransport(
+            selectCalls = { Call.Factory { PendingHttpCall(it).also { pending -> call = pending } } },
+            scope = backgroundScope,
+        )
+        var result: Result<Map<String, Any>>? = null
+        transport.submit(arguments(extra = mapOf("headers" to headers, "method" to "POST"))) { result = it }
+        runCurrent()
+        val pending = requireNotNull(call)
+        assertEquals("POST", pending.request().method)
+        headers.forEach { (name, value) -> assertEquals(value, pending.request().header(name)) }
+        pending.respond()
+        runCurrent()
+        assertTrue(result!!.isSuccess)
+        assertThrows(IllegalArgumentException::class.java) {
+            FirstPartyRequest.parse(arguments(extra = mapOf("headers" to (headers + ("X-Not-Allowed" to "fixture")))))
+        }
+    }
+
     @Test fun acceptsFixedOriginQueryAndOneShotPost() {
         val request = FirstPartyRequest.parse(arguments(extra = mapOf(
             "url" to "https://link.zolmid.com/api/v1/guest/comm/config?locale=en-US",
@@ -200,6 +226,7 @@ class FirstPartyHttpTransportTest {
             val headersSeen = AtomicInteger()
             val bytesSent = AtomicInteger()
             val finished = CountDownLatch(1)
+            val receivedHeaders = mutableListOf<String>()
             val connection = CompletableDeferred<Socket>()
             val writer = thread(isDaemon = true) {
                 runCatching {
@@ -207,7 +234,11 @@ class FirstPartyHttpTransportTest {
                         connection.complete(socket)
                         socket.soTimeout = 2_000
                         val reader = socket.getInputStream().bufferedReader()
-                        while (!reader.readLine().isNullOrEmpty()) {}
+                        while (true) {
+                            val line = reader.readLine() ?: break
+                            if (line.isEmpty()) break
+                            synchronized(receivedHeaders) { receivedHeaders.add(line) }
+                        }
                         socket.getOutputStream().apply {
                             write("HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\n".toByteArray())
                             while (true) {
@@ -235,7 +266,10 @@ class FirstPartyHttpTransportTest {
             val results = mutableListOf<Result<Map<String, Any>>>()
             val started = System.nanoTime()
             try {
-                transport.submit(arguments(extra = mapOf("method" to "POST"))) {
+                transport.submit(arguments(extra = mapOf(
+                    "method" to "POST",
+                    "headers" to mapOf("Idempotency-Key" to "fixture-idempotency-key"),
+                ))) {
                     synchronized(results) { results.add(it) }
                     finished.countDown()
                 }
@@ -247,6 +281,9 @@ class FirstPartyHttpTransportTest {
                 writer.join(2_000)
                 assertFalse("socket must close even while response keeps arriving", writer.isAlive)
                 assertEquals(1, headersSeen.get())
+                assertTrue(synchronized(receivedHeaders) {
+                    receivedHeaders.any { it.equals("Idempotency-Key: fixture-idempotency-key", ignoreCase = true) }
+                })
                 assertEquals(1, results.size)
             } finally {
                 transport.close()

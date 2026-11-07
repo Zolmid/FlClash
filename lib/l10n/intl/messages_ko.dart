@@ -2340,6 +2340,32 @@ class MessageLookup extends MessageLookupByLibrary {
       "비밀번호를 잊으셨나요?",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("선물 이용 권한"),
+    "zolnitGiftActual": MessageLookupByLibrary.simpleMessage("받은 혜택"),
+    "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("선물 잔액"),
+    "zolnitGiftCard": MessageLookupByLibrary.simpleMessage("기프트 카드"),
+    "zolnitGiftCheck": MessageLookupByLibrary.simpleMessage("미리 보기"),
+    "zolnitGiftCode": MessageLookupByLibrary.simpleMessage("기프트 카드 코드"),
+    "zolnitGiftConfirm": MessageLookupByLibrary.simpleMessage("교환하기"),
+    "zolnitGiftContinue": MessageLookupByLibrary.simpleMessage("계속 교환"),
+    "zolnitGiftEmpty": MessageLookupByLibrary.simpleMessage("교환 내역이 없습니다"),
+    "zolnitGiftFailure": MessageLookupByLibrary.simpleMessage(
+      "요청을 완료하지 못했습니다. 다시 시도하세요.",
+    ),
+    "zolnitGiftHistory": MessageLookupByLibrary.simpleMessage("교환 내역"),
+    "zolnitGiftIncluded": MessageLookupByLibrary.simpleMessage("확정 혜택"),
+    "zolnitGiftNext": MessageLookupByLibrary.simpleMessage("다음"),
+    "zolnitGiftPossible": MessageLookupByLibrary.simpleMessage("받을 수 있는 혜택"),
+    "zolnitGiftPrevious": MessageLookupByLibrary.simpleMessage("이전"),
+    "zolnitGiftPrompt": MessageLookupByLibrary.simpleMessage(
+      "기프트 카드 코드를 입력하세요",
+    ),
+    "zolnitGiftRandomTip": MessageLookupByLibrary.simpleMessage(
+      "무작위 혜택은 교환할 때 결정됩니다.",
+    ),
+    "zolnitGiftRedeemed": MessageLookupByLibrary.simpleMessage("교환 완료"),
+    "zolnitGiftRefreshFailed": MessageLookupByLibrary.simpleMessage(
+      "계정을 새로 고치지 못했습니다. 다시 시도하세요.",
+    ),
     "zolnitGiftReplacement": MessageLookupByLibrary.simpleMessage(
       "첫 결제가 확인되면 유료 기간이 시작되고 남은 무료 기간을 대체합니다.",
     ),
@@ -2571,6 +2597,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "현재 이 요금제는 월 자동 결제를 사용할 수 없습니다.",
     ),
     "zolnitReferenceAmount": MessageLookupByLibrary.simpleMessage("참고 총액(위안)"),
+    "zolnitReferralReference": MessageLookupByLibrary.simpleMessage(
+      "첫 주문 참고 가격",
+    ),
     "zolnitRefresh": MessageLookupByLibrary.simpleMessage("새로고침"),
     "zolnitRegister": MessageLookupByLibrary.simpleMessage("회원가입"),
     "zolnitRegistrationBrowserUnavailable":

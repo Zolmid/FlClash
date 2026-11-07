@@ -613,6 +613,13 @@ void main() {
     testWidgets(
       'ordinary cycles never request recurring quotes on ${skin.name}',
       (tester) async {
+        final previousHitTestWarning =
+            WidgetController.hitTestWarningShouldBeFatal;
+        WidgetController.hitTestWarningShouldBeFatal = true;
+        addTearDown(
+          () => WidgetController.hitTestWarningShouldBeFatal =
+              previousHitTestWarning,
+        );
         harness.panel = (request) {
           if (request.url.path.endsWith('/plan/fetch')) {
             return zolnitJson([
@@ -636,10 +643,19 @@ void main() {
         };
         await harness.relogin();
         await openPlans(tester, skin);
-        for (final label in ['季付', '半年付', '年付', '两年付', '三年付', '一次性', '重置流量']) {
-          await tester.ensureVisible(find.text(label));
-          await tester.tap(find.text(label));
+        for (final label in ['半年付', '季付', '年付', '两年付', '三年付', '一次性', '重置流量']) {
+          final chip = find.widgetWithText(ChoiceChip, label);
+          expect(tester.widget<ChoiceChip>(chip).selected, isFalse);
+          await tester.ensureVisible(chip);
           await tester.pumpAndSettle();
+          expect(chip.hitTestable(), findsOneWidget, reason: label);
+          await tester.tap(chip);
+          await tester.pumpAndSettle();
+          expect(
+            tester.widget<ChoiceChip>(chip).selected,
+            isTrue,
+            reason: label,
+          );
           expect(find.text('Ordinary'), findsWidgets);
           expect(quoteRequests(), isEmpty);
           expect(find.text('连续包月'), findsNothing);
