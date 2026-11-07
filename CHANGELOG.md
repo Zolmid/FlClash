@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.3 (2026-11-08)
+
+**Features**
+
+- Find your invitation link and rewards directly from Home. (fe13ec8)
+
+**Bug Fixes**
+
+- Keep updates recoverable after permission denial or cancellation and keep connection settings stable. (65e46bf)
+
 ## v1.1.2 (2026-11-08)
 
 **Bug Fixes**

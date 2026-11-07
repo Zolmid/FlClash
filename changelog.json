@@ -2,6 +2,32 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.3",
+      "tag": "v1.1.3",
+      "date": "2026-11-08",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "fe13ec8",
+              "text": "Find your invitation link and rewards directly from Home."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "65e46bf",
+              "text": "Keep updates recoverable after permission denial or cancellation and keep connection settings stable."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.2",
       "tag": "v1.1.2",
       "date": "2026-11-08",
