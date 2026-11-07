@@ -2,81 +2,93 @@
   "schemaVersion": 2,
   "versions": [
     {
-      "version": "1.0.0",
-      "tag": "v1.0.0",
-      "date": "2026-10-29",
+      "version": "1.1.0",
+      "tag": "v1.1.0",
+      "date": "2026-11-08",
       "prerelease": false,
       "groups": [
         {
           "type": "feat",
           "entries": [
             {
+              "id": "ac448d2",
+              "text": "Signed subscription protection, gift-card redemption, and more reliable updates."
+            },
+            {
+              "id": "56be73e",
+              "text": "Download updates in the background and apply them after restarting."
+            },
+            {
+              "id": "892ba4f",
+              "text": "Receive account and service updates automatically, with recovery after a connection interruption."
+            },
+            {
+              "id": "e024679",
+              "text": "Pay inside the Android app and return easily from Preferences."
+            },
+            {
+              "id": "60cb925",
+              "text": "Sign in automatically after registration and browse one entry per server."
+            },
+            {
+              "id": "96ec813",
+              "text": "Use the same navigation and clear connection controls on phones, tablets, and computers."
+            },
+            {
               "id": "4f6f9b0",
-              "scope": "client",
-              "text": "Renewals and payment returns come back to the right page in the app, and purchases are verified before they take effect"
+              "text": "Keep valid connections working through temporary service failures."
             },
             {
               "id": "e23394e",
-              "scope": "updater",
-              "text": "Downloaded updates are checked against the published release before they install"
+              "text": "Verify downloaded updates before installation."
             },
             {
               "id": "0d7a4a5",
-              "scope": "client",
-              "text": "Smart routing picks exits per service using verified exit information from your subscription"
+              "text": "Choose suitable exits for supported services with smart routing."
             },
             {
               "id": "22263d1",
-              "scope": "client",
-              "text": "Native connection page on supported platforms, and sign-in that persists across restarts"
+              "text": "Restore your signed-in session when the app starts."
             },
             {
               "id": "4fd24ab",
-              "scope": "client",
-              "text": "Account details, orders and invitations in separate tabs"
+              "text": "Find account details, orders, and invitations in separate tabs."
             },
             {
               "id": "49b9ad8",
-              "scope": "client",
-              "text": "New Nodes, Account and Preferences pages"
+              "text": "Manage server locations, account details, and preferences in the app."
             },
             {
               "id": "24f74c1",
-              "scope": "client",
-              "text": "Account, support and invitation information in the ZolNit design"
+              "text": "Read account, support, and invitation details more clearly."
             },
             {
               "id": "86269f9",
-              "scope": "client",
-              "text": "Redesigned Connect and Plans pages with a style for each platform"
+              "text": "Browse connection and plan pages with layouts suited to your screen."
             },
             {
               "id": "423fa25",
-              "scope": "client",
-              "text": "ZolNit sign-in page with the official logo, and monthly auto-renewal enrollment"
+              "text": "Sign in with the ZolNit interface and manage monthly renewal."
             },
             {
               "id": "2a80939",
-              "scope": "client",
-              "text": "Monthly auto-renewal from a server-provided quote, with clearer payment error messages"
+              "text": "See renewal prices before confirming, with clearer payment messages."
             },
             {
               "id": "dcd2f52",
-              "scope": "client",
-              "text": "ZolNit account and subscription pages with their own app identity"
+              "text": "Manage your account and subscription from ZolNit."
             },
             {
               "id": "88476f4",
-              "text": "Add runtime DNS and rules, mobile widgets, verified updates and desktop tools"
+              "text": "Use connection tools and verified updates across supported platforms."
             },
             {
               "id": "0713ff7",
-              "text": "Proxy fixes and unified builds"
+              "text": "Improve proxy connections and consistency between platforms."
             },
             {
               "id": "2c8c9f8",
-              "scope": "ios",
-              "text": "Experimental iOS arm64 support; unsigned builds only, not released"
+              "text": "Keep the experimental iOS build available for development; public iOS installation is not included."
             }
           ]
         },
@@ -84,9 +96,57 @@
           "type": "fix",
           "entries": [
             {
+              "id": "dc5a0c8",
+              "scope": "release",
+              "text": "Keep release notes and download details in sync when a release is retried."
+            },
+            {
+              "id": "dc13158",
+              "text": "Wait for payment confirmation automatically and simplify order cards."
+            },
+            {
+              "id": "97fdb41",
+              "text": "Remove withdrawn notices and slide between pages without overlapping content."
+            },
+            {
+              "id": "65f45fb",
+              "text": "Recover interrupted updates without delaying startup."
+            },
+            {
+              "id": "16087b9",
+              "text": "Restore automatic account updates, in-app checkout, and latency tests."
+            },
+            {
+              "id": "2470714",
+              "text": "Use consistent typography in the notification inbox."
+            },
+            {
+              "id": "7e389d6",
+              "text": "Keep VPN connected when a background refresh temporarily fails."
+            },
+            {
+              "id": "98deee6",
+              "text": "Show VPN state separately from a configuration refresh error."
+            },
+            {
+              "id": "921db4c",
+              "text": "Recover sign-in and service requests across platforms."
+            },
+            {
+              "id": "967a6b9",
+              "text": "Keep the same light and dark colors on nested pages."
+            },
+            {
+              "id": "943c403",
+              "text": "Fit headers to tablets and wider phone windows."
+            },
+            {
+              "id": "24f7675",
+              "text": "Adapt connection controls and content to the window size."
+            },
+            {
               "id": "7651531",
-              "scope": "client",
-              "text": "ZolNit icons on every platform, and the app opens directly without the old consent screen"
+              "text": "Use ZolNit icons and start directly in the app."
             }
           ]
         }
