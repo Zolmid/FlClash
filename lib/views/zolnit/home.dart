@@ -13,6 +13,7 @@ import 'package:fl_clash/providers/zolnit_realtime.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -881,6 +882,19 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     });
   }
 
+  void _showInvitations() {
+    if (!_session.authenticated) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _movePage(3);
+      _selected = 3;
+      _accountTab = ZolnitAccountTab.invite;
+      _showingPreferences = false;
+      _showingRewards = false;
+      _cashierTradeNo = null;
+    });
+  }
+
   void _showCashier(String tradeNo) {
     setState(() {
       _movePage(4);
@@ -1043,15 +1057,22 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                         onClose: _showOrders,
                       )
                     : switch (_selected) {
-                        0 => ZolnitConnectPage(
-                          key: const ValueKey('zolnit-connect'),
-                          session: session,
-                          compact: false,
-                          syncing: _syncing,
-                          syncFailed: _syncFailed,
-                          connect: _connect,
-                          openNodes: () => _select(1),
-                          openPlans: () => _select(2),
+                        0 => Column(
+                          children: [
+                            Expanded(
+                              child: ZolnitConnectPage(
+                                key: const ValueKey('zolnit-connect'),
+                                session: session,
+                                compact: false,
+                                syncing: _syncing,
+                                syncFailed: _syncFailed,
+                                connect: _connect,
+                                openNodes: () => _select(1),
+                                openPlans: () => _select(2),
+                              ),
+                            ),
+                            _HomeInvitationCard(onTap: _showInvitations),
+                          ],
                         ),
                         1 => ZolnitNodesPage(
                           key: const ValueKey('zolnit-nodes'),
@@ -1207,6 +1228,86 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                   ),
                 );
               },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeInvitationCard extends StatelessWidget {
+  const _HomeInvitationCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = ZolnitSkin.of(context);
+    final colors = ZolnitColors.of(context);
+    final text = context.appLocalizations;
+    final padding = zolnitPagePadding(
+      skin,
+      compact: !ZolnitLayoutScope.of(context).useSidebar,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: EdgeInsets.fromLTRB(padding.left, 0, padding.right, 12),
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: FractionallySizedBox(
+            widthFactor: constraints.maxWidth >= 740 ? 0.4 : 1,
+            child: Material(
+              color: Colors.transparent,
+              child: Semantics(
+                button: true,
+                child: InkWell(
+                  key: const ValueKey('home-invitation-card'),
+                  customBorder: AppShape.all(skin.tileCorner),
+                  onTap: onTap,
+                  child: ZolnitCard(
+                    corner: skin.tileCorner,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        GlyphIcon(AppGlyphs.gift, color: colors.muted),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                text.zolnitInviteShare,
+                                style: zolnitText(
+                                  context,
+                                  14,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                text.zolnitInviteNoData,
+                                style: zolnitText(
+                                  context,
+                                  12,
+                                  color: colors.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GlyphIcon(
+                          AppGlyphs.chevronForward,
+                          color: colors.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
