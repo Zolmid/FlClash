@@ -127,14 +127,8 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
         status == 2 || status == 4 || state == CheckoutStage.cancelled;
     final waiting =
         state == CheckoutStage.processing ||
-        state == CheckoutStage.awaitingPayment ||
-        state == CheckoutStage.qr ||
         state == CheckoutStage.launching ||
         status == 1;
-    final canContinue =
-        !session.busy &&
-        status == 0 &&
-        (state == CheckoutStage.awaitingPayment || state == CheckoutStage.qr);
     final payable =
         status == 0 && !done && !closed && !waiting && !session.busy;
     final method = methods.where((m) => m['id'] == selected).firstOrNull;
@@ -313,20 +307,16 @@ class _ZolnitCashierPageState extends State<ZolnitCashierPage> {
             FilledButton(
               onPressed:
                   !_cancelling &&
-                      (payable || canContinue) &&
+                      payable &&
                       session.checkout.allowStripe &&
                       selected != null
                   ? () => session.payOrder(widget.tradeNo, selected)
                   : null,
               child: Text(
-                canContinue
-                    ? text.zolnitPay
-                    : waiting
-                    ? text.zolnitConfirmingPayment
-                    : text.zolnitPay,
+                waiting ? text.zolnitConfirmingPayment : text.zolnitPay,
               ),
             ),
-          if (status == 0 && !done && !closed && (!waiting || canContinue))
+          if (status == 0 && !done && !closed && !waiting)
             TextButton(
               onPressed: session.busy || _cancelling ? null : _cancel,
               child: Text(text.zolnitCancelOrder),

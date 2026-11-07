@@ -12,7 +12,7 @@ import 'harness.dart';
 void main() {
   final harness = ZolnitHarness.register();
 
-  testWidgets('an order payment selection resets when the account changes', (
+  testWidgets('pending orders enter cashier without payment controls', (
     tester,
   ) async {
     harness.panel = (request) {
@@ -31,32 +31,18 @@ void main() {
     };
     await harness.relogin();
     await harness.session.refreshBilling();
-    Future<void> mount() => harness.mount(
+    final opened = <String>[];
+    await harness.mount(
       tester,
       ZolnitSkin.macos,
-      child: ZolnitOrdersPage(session: harness.session, onCheckout: (_) {}),
+      child: ZolnitOrdersPage(session: harness.session, onCheckout: opened.add),
     );
-    await mount();
-    await tester.tap(find.byType(DropdownButton<int>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Second method').last);
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
-          .value,
-      2,
-    );
-
-    await harness.relogin();
-    await harness.session.refreshBilling();
-    await mount();
-    expect(
-      tester
-          .widget<DropdownButton<int>>(find.byType(DropdownButton<int>))
-          .value,
-      1,
-    );
+    expect(find.byType(DropdownButton<int>), findsNothing);
+    expect(find.text('在线支付'), findsNothing);
+    expect(find.text('刷新'), findsNothing);
+    expect(find.text('取消订单'), findsNothing);
+    await tester.tap(find.text('前往付款'));
+    expect(opened, ['orderA']);
     expect(tester.takeException(), isNull);
   });
 
@@ -415,7 +401,7 @@ void main() {
     expect(find.text('暂无订单'), findsOneWidget);
   });
 
-  testWidgets('only an order awaiting payment carries the charge notice', (
+  testWidgets('orders omit payment-method and settlement details', (
     tester,
   ) async {
     harness.panel = (request) {
@@ -457,8 +443,8 @@ void main() {
     expect(find.text('已取消'), findsOneWidget);
     expect(find.text('¥48.00'), findsOneWidget);
     expect(find.text('¥28.00'), findsOneWidget);
-    expect(find.text('参考总额（人民币）'), findsOneWidget);
-    expect(find.textContaining('SGD'), findsOneWidget);
+    expect(find.text('参考总额（人民币）'), findsNothing);
+    expect(find.textContaining('SGD'), findsNothing);
   });
 
   testWidgets('switching to invite tab shows invite data', (tester) async {

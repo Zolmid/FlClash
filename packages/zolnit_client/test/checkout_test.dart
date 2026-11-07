@@ -12,6 +12,7 @@ class Backend implements CheckoutBackend {
   );
   Completer<CheckoutAction>? deferred;
   Completer<int>? deferredStatus;
+  Exception? statusFailure;
 
   @override
   Future<CheckoutAction> start(String tradeNo, int methodId) async {
@@ -22,6 +23,7 @@ class Backend implements CheckoutBackend {
   @override
   Future<int> status(String tradeNo) async {
     checks++;
+    if (statusFailure case final failure?) throw failure;
     return deferredStatus == null ? currentStatus : deferredStatus!.future;
   }
 }
@@ -31,6 +33,7 @@ class Platform implements CheckoutPlatform {
   int confirmations = 0;
   bool launchable = true;
   String? sdkFailure;
+  Completer<void>? deferredConfirmation;
 
   @override
   Future<bool> open(Uri uri) async {
@@ -45,6 +48,7 @@ class Platform implements CheckoutPlatform {
   }) async {
     confirmations++;
     if (sdkFailure != null) throw ClientFailure(sdkFailure!);
+    await deferredConfirmation?.future;
   }
 }
 
@@ -56,6 +60,12 @@ void main() {
   PaymentQr validQr() => PaymentQr(
     payload: 'weixin://wxpay/demo',
     expiresAt: now.add(const Duration(minutes: 10)),
+  );
+  StripeCheckout nativeCheckout() => StripeCheckout(
+    publishableKey: 'pk_test_demo',
+    clientSecret: 'pi_demo_secret_demo',
+    wallet: StripeWallet.card,
+    returnUri: Uri.parse('zolnit://safepay'),
   );
 
   setUp(() {
@@ -224,6 +234,76 @@ void main() {
       expect(controller.failure, 'payment_status_unknown');
       expect(controller.tradeNo, 'orderA');
       expect(backend.starts, 1);
+    },
+  );
+
+  test(
+    'SDK success waits for authority without offering another payment',
+    () async {
+      backend.action = nativeCheckout();
+      await controller.start('orderA', 2);
+      expect(controller.stage, CheckoutStage.processing);
+      await controller.refresh();
+      await controller.start('orderA', 2);
+      expect(controller.stage, CheckoutStage.processing);
+      expect(backend.starts, 1);
+      expect(platform.confirmations, 1);
+      backend.currentStatus = 3;
+      await controller.refresh();
+      expect(controller.stage, CheckoutStage.completed);
+      final checks = backend.checks;
+      await controller.start('orderA', 2);
+      expect(backend.checks, checks);
+      expect(backend.starts, 1);
+    },
+  );
+
+  test('a status outage preserves submitted payment until recovery', () async {
+    backend.action = nativeCheckout();
+    await controller.start('orderA', 2);
+    for (final failure in [
+      const ClientFailure('network'),
+      TimeoutException('status lookup'),
+    ]) {
+      backend.statusFailure = failure;
+      await controller.refresh();
+      expect(controller.stage, CheckoutStage.processing);
+      expect(controller.failure, 'network');
+      await controller.start('orderA', 2);
+      expect(platform.confirmations, 1);
+    }
+    backend.statusFailure = null;
+    backend.currentStatus = 3;
+    await controller.refresh();
+    expect(controller.stage, CheckoutStage.completed);
+    expect(controller.failure, isNull);
+  });
+
+  test('closing the SDK without payment leaves retry available', () async {
+    backend.action = nativeCheckout();
+    platform.sdkFailure = 'user_cancelled';
+    await controller.start('orderA', 2);
+    expect(controller.stage, CheckoutStage.awaitingPayment);
+    platform.sdkFailure = null;
+    await controller.start('orderA', 2);
+    expect(platform.confirmations, 2);
+    expect(controller.stage, CheckoutStage.processing);
+  });
+
+  test(
+    'late SDK completion cannot overwrite an authoritative terminal state',
+    () async {
+      backend.action = nativeCheckout();
+      platform.deferredConfirmation = Completer<void>();
+      final starting = controller.start('orderA', 2);
+      await Future<void>.delayed(Duration.zero);
+      backend.currentStatus = 3;
+      await controller.refresh();
+      expect(controller.stage, CheckoutStage.completed);
+      platform.deferredConfirmation!.complete();
+      await starting;
+      expect(controller.stage, CheckoutStage.completed);
+      expect(backend.checks, 1);
     },
   );
 

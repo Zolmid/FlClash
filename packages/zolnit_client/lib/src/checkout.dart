@@ -142,10 +142,14 @@ class CheckoutController extends ChangeNotifier {
   String? get failureMessage => _failureMessage;
   int _generation = 0;
   bool _disposed = false;
+  bool _submitted = false;
   Future<void>? _active;
   Future<void>? _refreshing;
 
   bool _current(int generation) => !_disposed && generation == _generation;
+
+  bool get _terminal =>
+      stage == CheckoutStage.completed || stage == CheckoutStage.cancelled;
 
   void _set(CheckoutStage value) {
     _stage = value;
@@ -165,6 +169,12 @@ class CheckoutController extends ChangeNotifier {
       }
       return _active!;
     }
+    if (this.tradeNo == tradeNo && (_submitted || _terminal)) return refresh();
+    if (_submitted && !_terminal) {
+      return Future.error(const ClientFailure('purchase_in_progress'));
+    }
+    _submitted = false;
+    _refreshing = null;
     _chargeMinorSgd = null;
     _tradeNo = tradeNo;
     final generation = ++_generation;
@@ -221,18 +231,22 @@ class CheckoutController extends ChangeNotifier {
             action,
             isCurrent: () => _current(generation),
           );
+          if (!_current(generation) || _terminal) return;
+          _submitted = true;
         case QrCheckout():
           _showQr(action);
           return;
         case StatusOnlyCheckout():
           break;
       }
-      if (!_current(generation)) return;
+      if (!_current(generation) || _terminal) return;
       _qr = action.fallbackQr;
-      _set(CheckoutStage.awaitingPayment);
+      _set(
+        _submitted ? CheckoutStage.processing : CheckoutStage.awaitingPayment,
+      );
       await refresh();
     } on ClientFailure catch (error) {
-      if (!_current(generation)) return;
+      if (!_current(generation) || _terminal) return;
       _failure = error.code;
       _failureMessage = error.serverMessage;
       if ({'user_cancelled', 'confirmation_pending'}.contains(error.code)) {
@@ -263,7 +277,7 @@ class CheckoutController extends ChangeNotifier {
         _set(CheckoutStage.failed);
       }
     } catch (_) {
-      if (!_current(generation)) return;
+      if (!_current(generation) || _terminal) return;
       _failure = 'payment_status_unknown';
       _set(CheckoutStage.processing);
     }
@@ -280,6 +294,7 @@ class CheckoutController extends ChangeNotifier {
 
   void showFallbackQr() {
     if (_disposed ||
+        _submitted ||
         {CheckoutStage.completed, CheckoutStage.cancelled}.contains(stage)) {
       return;
     }
@@ -320,11 +335,14 @@ class CheckoutController extends ChangeNotifier {
       switch (status) {
         case 0:
           _set(
-            qr?.isValidAt(_now()) == true && stage == CheckoutStage.qr
+            _submitted
+                ? CheckoutStage.processing
+                : qr?.isValidAt(_now()) == true && stage == CheckoutStage.qr
                 ? CheckoutStage.qr
                 : CheckoutStage.awaitingPayment,
           );
         case 1:
+          _submitted = true;
           _set(CheckoutStage.processing);
         case 2:
           _qr = null;
@@ -342,11 +360,11 @@ class CheckoutController extends ChangeNotifier {
     } on ClientFailure catch (error) {
       if (!_current(generation)) return;
       _failure = error.code;
-      _set(CheckoutStage.failed);
+      _set(_submitted ? CheckoutStage.processing : CheckoutStage.failed);
     } catch (_) {
       if (!_current(generation)) return;
       _failure = 'network';
-      _set(CheckoutStage.failed);
+      _set(_submitted ? CheckoutStage.processing : CheckoutStage.failed);
     }
   }
 
@@ -382,6 +400,7 @@ class CheckoutController extends ChangeNotifier {
 
   void reset() {
     _generation++;
+    _submitted = false;
     _active = null;
     _refreshing = null;
     _chargeMinorSgd = null;
