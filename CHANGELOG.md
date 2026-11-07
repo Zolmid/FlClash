@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.1 (2026-11-08)
+
+**Bug Fixes**
+
+- Format update notes clearly and keep long details collapsed (3174744)
+
 ## v1.1.0 (2026-11-08)
 
 **Features**
