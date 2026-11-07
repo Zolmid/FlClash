@@ -116,16 +116,21 @@ def mirror(stage, env, github, live):
     latest = is_live(manifest, live)
     candidates = [item for item in github.releases() if item.get('tag_name') == tag]
     require(len(candidates) <= 1, f'more than one GitHub release uses {tag}')
+    title = f'ZolNit {tag[1:]}'
     if candidates:
         current = candidates[0]
-        if current.get('draft') and current.get('body') != notes:
-            current = github.update(current['id'], {'body': notes})
+        if current.get('draft'):
+            changes = {key: value for key, value in {'name': title, 'body': notes}.items() if current.get(key) != value}
+            if changes:
+                current = github.update(current['id'], changes)
     else:
-        current = github.create({'tag_name': tag, 'name': f'ZolNit {tag[1:]}', 'body': notes, 'draft': True,
+        current = github.create({'tag_name': tag, 'name': title, 'body': notes, 'draft': True,
                                  'prerelease': False, 'make_latest': 'false'})
     require(current.get('tag_name') == tag, 'GitHub returned a release for another tag')
     draft = bool(current.get('draft'))
     require(not current.get('prerelease'), f'{tag} is marked as a prerelease on GitHub')
+    require(current.get('name') == title and current.get('body') == notes,
+            f'GitHub release {tag} title or notes differ from the verified release')
 
     expected = {asset['name']: asset for asset in release['assets']}
     existing = {}

@@ -23,6 +23,8 @@ def digest(data):
 class FakeReleases:
     def __init__(self, releases=None):
         self.releases_list = releases or []
+        for release in self.releases_list:
+            release.setdefault('name', f'ZolNit {TAG[1:]}')
         self.files, self.calls, self.next_id = {}, [], 900
 
     def releases(self):
@@ -37,14 +39,14 @@ class FakeReleases:
     def create(self, body):
         self.calls.append(('create', body))
         release = {'id': 77, 'tag_name': body['tag_name'], 'draft': body['draft'], 'prerelease': False,
-                   'body': body['body'], 'assets': []}
+                   'body': body['body'], 'name': body['name'], 'assets': []}
         self.releases_list.append(release)
         return dict(release)
 
     def update(self, release_id, body):
         self.calls.append(('update', body))
         release = self.find(release_id)
-        release.update({key: value for key, value in body.items() if key in ('body', 'draft')})
+        release.update({key: value for key, value in body.items() if key in ('name', 'body', 'draft')})
         return dict(release)
 
     def delete_asset(self, asset_id):
@@ -125,14 +127,14 @@ class MirrorTest(unittest.TestCase):
 
     def test_interrupted_draft_resumes_without_reuploading_good_assets(self):
         apk, dmg = 'ZolNit-1.2.3-android-arm64-v8a.apk', 'ZolNit-1.2.3-macos-arm64.dmg'
-        draft = {'id': 5, 'tag_name': TAG, 'draft': True, 'prerelease': False, 'body': 'stale',
+        draft = {'id': 5, 'tag_name': TAG, 'draft': True, 'prerelease': False, 'body': 'stale', 'name': 'stale',
                  'assets': [asset(apk, asset_id=1), asset(dmg, data=b'dm', state='starter', asset_id=2)]}
         github = FakeReleases([draft])
         gr.mirror(self.stage, ENV, github, self.live())
         uploads = [call[1] for call in github.calls if call[0] == 'upload']
         self.assertEqual(uploads, ['ZolNit-1.2.3-linux-x64.deb', dmg])
         self.assertIn(('delete', 2), github.calls)
-        self.assertIn(('update', {'body': NOTES}), github.calls)
+        self.assertIn(('update', {'name': f'ZolNit {TAG[1:]}', 'body': NOTES}), github.calls)
         self.assertEqual(github.calls[-1], ('update', {'draft': False, 'make_latest': 'true'}))
 
     def test_differing_bytes_are_never_clobbered(self):
@@ -162,6 +164,16 @@ class MirrorTest(unittest.TestCase):
         with self.assertRaises(gr.ReleaseError):
             gr.mirror(self.stage, ENV, github, self.live())
         self.assertFalse([call for call in github.calls if call[0] == 'upload'])
+
+    def test_published_release_title_and_notes_must_match(self):
+        for field, value in (('name', 'wrong title'), ('body', 'stale notes')):
+            release = {'id': 5, 'tag_name': TAG, 'draft': False, 'prerelease': False, 'body': NOTES,
+                       'name': f'ZolNit {TAG[1:]}', 'assets': [asset(name) for name in PACKAGES]}
+            release[field] = value
+            github = FakeReleases([release])
+            with self.assertRaises(gr.ReleaseError):
+                gr.mirror(self.stage, ENV, github, self.live())
+            self.assertEqual(github.calls, [])
 
     def test_unexpected_assets_or_duplicate_releases_stop_the_mirror(self):
         extra = {'id': 9, 'name': 'notes.txt', 'state': 'uploaded', 'size': 1, 'digest': 'sha256:' + '0' * 64}
