@@ -20,6 +20,8 @@ import urllib.request
 from assemble_release import NOTES_FILE, REPOSITORY, TAG, ReleaseError, require, sha256_file
 
 LIVE_MANIFEST = 'https://link.zolmid.com/client/releases.json'
+# The edge rejects Python's default urllib User-Agent with 403.
+USER_AGENT = 'ZolNit/ReleasePublisher'
 
 
 class GitHubReleases:
@@ -73,7 +75,8 @@ class GitHubReleases:
 
 
 def live_manifest(opener=urllib.request.urlopen):
-    request = urllib.request.Request(LIVE_MANIFEST, headers={'Accept': 'application/json', 'Cache-Control': 'no-cache'})
+    request = urllib.request.Request(LIVE_MANIFEST, headers={
+        'Accept': 'application/json', 'Cache-Control': 'no-cache', 'User-Agent': USER_AGENT})
     with opener(request, timeout=30) as response:
         return json.loads(response.read(1024 * 1024))
 

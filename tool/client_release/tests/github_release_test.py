@@ -196,5 +196,32 @@ class MirrorTest(unittest.TestCase):
         self.assertEqual(gr.mirror(self.stage, ENV, github, self.live())['github_release'], 'published')
 
 
+class LiveManifestTest(unittest.TestCase):
+    def test_request_identifies_the_publisher(self):
+        sent = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self, limit):
+                sent['limit'] = limit
+                return b'{"tag": "v1.2.3"}'
+
+        def opener(request, timeout):
+            sent.update(url=request.full_url, timeout=timeout, headers=dict(request.header_items()))
+            return Response()
+
+        self.assertEqual(gr.live_manifest(opener), {'tag': 'v1.2.3'})
+        self.assertEqual(sent['url'], 'https://link.zolmid.com/client/releases.json')
+        self.assertEqual(sent['timeout'], 30)
+        self.assertEqual(sent['limit'], 1024 * 1024)
+        self.assertEqual(sent['headers'], {'User-agent': 'ZolNit/ReleasePublisher', 'Accept': 'application/json',
+                                           'Cache-control': 'no-cache'})
+
+
 if __name__ == '__main__':
     unittest.main()
