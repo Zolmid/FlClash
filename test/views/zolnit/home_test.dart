@@ -947,8 +947,8 @@ void main() {
       await mountPopulated(tester);
       await tester.tap(find.text('全部线路').first);
       await tester.pumpAndSettle();
-      expect(find.text('Tokyo \u2013 Premium'), findsOneWidget);
-      expect(find.text('Frankfurt \u2013 Transit'), findsOneWidget);
+      expect(find.text('JP · Premium'), findsOneWidget);
+      expect(find.text('DE · Transit'), findsOneWidget);
       await capture(tester, 'nodes-populated-zh-light');
     });
 

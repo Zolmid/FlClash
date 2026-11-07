@@ -4,8 +4,8 @@ import 'package:zolnit_client/zolnit_client.dart';
 
 void main() {
   for (final (name, title, flag) in [
-    ('🇭🇰 香港 Lite A · HY2 · 1×', '香港 Lite A', '🇭🇰'),
-    ('🇺🇸 美国 · HY2 · 1×', '美国', '🇺🇸'),
+    ('🇭🇰 香港 Lite A · HY2 · 1×', 'HK · Lite A', '🇭🇰'),
+    ('🇺🇸 美国 · HY2 · 1×', 'US', '🇺🇸'),
   ]) {
     test(
       'private bundle presentation normalizes $name without changing routing',
@@ -46,4 +46,21 @@ void main() {
     expect(zolnitNodePresentation(explicit).region, 'SG');
     expect(zolnitNodePresentation(explicit).flag, '🇸🇬');
   });
+
+  test(
+    'region labels use ISO codes independently of localized server text',
+    () {
+      for (final (name, code) in [
+        ('香港 · Edge', 'HK'),
+        ('United States · Edge', 'US'),
+        ('Singapore · Edge', 'SG'),
+        ('日本 · Edge', 'JP'),
+        ('台湾 · Edge', 'TW'),
+      ]) {
+        final node = ZolnitNode.fromJson({'id': name, 'name': name});
+        expect(node.region, code);
+        expect(zolnitNodePresentation(node).region, code);
+      }
+    },
+  );
 }

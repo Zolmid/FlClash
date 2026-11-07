@@ -28,6 +28,7 @@ Future<void> showZolnitNotices(
   required ZolnitSessionController session,
   required bool Function() isCurrent,
   required Future<bool> Function(ZolnitRealtimeInboxItem) onOpen,
+  Listenable? invalidation,
 }) {
   final text = context.appLocalizations;
   final read = {
@@ -46,10 +47,12 @@ Future<void> showZolnitNotices(
     }
 
     session.addListener(guard);
+    invalidation?.addListener(guard);
     try {
       await Navigator.of(ctx, rootNavigator: true).push(route);
     } finally {
       session.removeListener(guard);
+      invalidation?.removeListener(guard);
     }
   }
 

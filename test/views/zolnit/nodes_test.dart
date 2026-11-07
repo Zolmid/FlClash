@@ -189,7 +189,7 @@ void main() {
           merged: true,
           skin: skin,
         );
-        expect(find.text('香港 Lite A'), findsOneWidget);
+        expect(find.text('HK · Lite A'), findsOneWidget);
         expect(find.textContaining('VLESS'), findsNothing);
         expect(find.textContaining('HY2'), findsNothing);
         expect(find.text('线路：2'), findsOneWidget);
@@ -197,7 +197,7 @@ void main() {
         final action =
             harness.container.read(proxiesActionProvider.notifier)
                 as _RecordingProxies;
-        await tester.tap(find.text('香港 Lite A'));
+        await tester.tap(find.text('HK · Lite A'));
         expect(action.selections, [(group, 'zn.node.hysteria.8')]);
         harness.container.read(groupsProvider.notifier).value = [
           for (final g in harness.container.read(groupsProvider))
@@ -211,7 +211,7 @@ void main() {
               .where((widget) => widget.properties.selected == true),
           hasLength(1),
         );
-        await tester.tap(find.text('香港 Lite A'));
+        await tester.tap(find.text('HK · Lite A'));
         expect(action.selections, hasLength(1));
         expect(tester.takeException(), isNull);
         await harness.capture(tester, 'nodes-grouped-${skin.name}');
@@ -232,7 +232,9 @@ void main() {
           tester.getTopLeft(find.text('45 ms')).dy,
           lessThan(tester.getTopLeft(find.text('286 ms')).dy),
         );
-        await tester.tap(find.text(mode == Mode.global ? '美国 原名' : '香港').first);
+        await tester.tap(
+          find.text(mode == Mode.global ? 'US · 原名' : 'HK').last,
+        );
         await tester.pump();
         expect(action.selections.single.$1, expected);
         expect(
@@ -251,7 +253,7 @@ void main() {
       final action =
           harness.container.read(proxiesActionProvider.notifier)
               as _RecordingProxies;
-      await tester.tap(find.text('香港').first);
+      await tester.tap(find.text('HK').last);
       expect(action.selections, isEmpty);
       expect(find.textContaining('此处无法更改'), findsOneWidget);
     },
@@ -293,7 +295,7 @@ void main() {
             as _RecordingProxies;
     harness.container.read(coreStatusProvider.notifier).value =
         CoreStatus.disconnected;
-    await tester.tap(find.text('香港').first);
+    await tester.tap(find.text('HK').last);
     expect(action.selections, isEmpty);
     await tester.pump();
     expect(find.textContaining('已保存的选择'), findsOneWidget);
@@ -301,13 +303,13 @@ void main() {
         CoreStatus.connected;
     await tester.pump();
     bundleNow = bundleTime(9999);
-    await tester.tap(find.text('香港').first);
+    await tester.tap(find.text('HK').last);
     expect(action.selections, isEmpty);
     bundleNow = bundleTime(1001);
     (harness.container.read(profilesProvider.notifier) as TestProfiles).replace(
       [],
     );
-    await tester.tap(find.text('香港').first);
+    await tester.tap(find.text('HK').last);
     expect(action.selections, isEmpty);
     expect(tester.takeException(), isNull);
   });
@@ -463,10 +465,10 @@ void main() {
     final action =
         harness.container.read(proxiesActionProvider.notifier)
             as _RecordingProxies;
-    await tester.tap(find.text(nodes[1].title));
+    await tester.tap(find.text(zolnitDisplayTitle(nodes[1].title)));
     await tester.pump();
     expect(action.selections, [('Airport', nodes[1].name)]);
-    await tester.tap(find.text(nodes[2].title));
+    await tester.tap(find.text(zolnitDisplayTitle(nodes[2].title)));
     await tester.pump();
     expect(action.selections, hasLength(1));
   });
@@ -502,7 +504,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('42 ms'), findsNothing);
       expect(find.text('已选择'), findsNothing);
-      await tester.tap(find.text(node.title));
+      await tester.tap(find.text(zolnitDisplayTitle(node.title)));
       final action =
           harness.container.read(proxiesActionProvider.notifier)
               as _RecordingProxies;
@@ -540,8 +542,8 @@ void main() {
       expect(find.byType(ZolnitNodesPage), findsOneWidget);
       expect(find.text('全部线路'), findsWidgets);
       expect(find.text('线路'), findsNothing);
-      expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsWidgets);
-      expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsWidgets);
+      expect(find.text('HK · 轻风 01'), findsWidgets);
+      expect(find.text('JP · 东京 01'), findsWidgets);
       await harness.capture(tester, 'nodes-${skin.name}');
     });
   }
@@ -551,11 +553,11 @@ void main() {
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('线路：3'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('zolnit-region-香港')));
+    await tester.tap(find.byKey(const ValueKey('zolnit-region-HK')));
     await tester.pumpAndSettle();
     expect(find.text('线路：1'), findsOneWidget);
-    expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsWidgets);
-    expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsNothing);
+    expect(find.text('HK · 轻风 01'), findsWidgets);
+    expect(find.text('JP · 东京 01'), findsNothing);
   });
 
   testWidgets('search filters nodes by text', (tester) async {
@@ -565,8 +567,8 @@ void main() {
     await tester.enterText(find.byType(TextField), '\u4e1c\u4eac');
     await tester.pumpAndSettle();
     expect(find.text('线路：1'), findsOneWidget);
-    expect(find.text('\u65e5\u672c \u00b7 \u4e1c\u4eac 01'), findsWidgets);
-    expect(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01'), findsNothing);
+    expect(find.text('JP · 东京 01'), findsWidgets);
+    expect(find.text('HK · 轻风 01'), findsNothing);
   });
 
   testWidgets('empty panel shows the no-nodes message', (tester) async {
@@ -631,7 +633,7 @@ void main() {
     await tester.pumpAndSettle();
     final selected = find.text('\u5df2\u9009\u62e9');
     expect(selected, findsNothing);
-    await tester.tap(find.text('\u9999\u6e2f \u00b7 \u8f7b\u98ce 01').first);
+    await tester.tap(find.text('HK · 轻风 01').first);
     await tester.pumpAndSettle();
     expect(selected, findsNothing);
   });
@@ -662,14 +664,14 @@ void main() {
   );
 
   test('display title strips protocol suffix from real node names', () {
-    expect(zolnitDisplayTitle('香港 Lite A · HY2 · 1×'), '香港 Lite A');
-    expect(zolnitDisplayTitle('美国 · HY2 · 1×'), '美国');
-    expect(zolnitDisplayTitle('香港 · 轻风 01'), '香港 · 轻风 01');
+    expect(zolnitDisplayTitle('香港 Lite A · HY2 · 1×'), 'HK · Lite A');
+    expect(zolnitDisplayTitle('美国 · HY2 · 1×'), 'US');
+    expect(zolnitDisplayTitle('香港 · 轻风 01'), 'HK · 轻风 01');
   });
 
   test('display title strips leading flag when badge renders it', () {
-    expect(zolnitDisplayTitle('🇭🇰 香港 Lite A · HY2 · 1×'), '香港 Lite A');
-    expect(zolnitDisplayTitle('🇺🇸 美国 · HY2 · 1×'), '美国');
+    expect(zolnitDisplayTitle('🇭🇰 香港 Lite A · HY2 · 1×'), 'HK · Lite A');
+    expect(zolnitDisplayTitle('🇺🇸 美国 · HY2 · 1×'), 'US');
   });
 
   test('ZolnitNode resolves HK flag and region from explicit emoji', () {
@@ -678,16 +680,16 @@ void main() {
       'name': '🇭🇰 香港 Lite A · HY2 · 1×',
     });
     expect(node.countryCode, 'HK');
-    expect(node.region, '香港');
+    expect(node.region, 'HK');
     expect(node.flag, isNotNull);
-    expect(zolnitDisplayTitle(node.title), '香港 Lite A');
+    expect(zolnitDisplayTitle(node.title), 'HK · Lite A');
   });
 
   test('ZolnitNode resolves US flag and region from explicit emoji', () {
     final node = ZolnitNode.fromJson({'id': 2, 'name': '🇺🇸 美国 · HY2 · 1×'});
     expect(node.countryCode, 'US');
-    expect(node.region, '美国');
+    expect(node.region, 'US');
     expect(node.flag, isNotNull);
-    expect(zolnitDisplayTitle(node.title), '美国');
+    expect(zolnitDisplayTitle(node.title), 'US');
   });
 }

@@ -140,6 +140,32 @@ _Region? _matchRegion(String name) {
   return null;
 }
 
+String? regionCode(String value) => _matchRegion(value)?.code;
+
+String normalizeGeographicalPrefix(String value) {
+  final source = value.trim();
+  for (final region in _regions) {
+    final prefixes = <String>[region.name, ...region.aliases]
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final prefix in prefixes) {
+      final expression = _cjk.hasMatch(prefix)
+          ? RegExp('^${RegExp.escape(prefix)}', caseSensitive: false)
+          : RegExp(
+              '^${RegExp.escape(prefix)}(?=\\s|[·|\\-_/–—]|\$)',
+              caseSensitive: false,
+            );
+      final match = expression.matchAsPrefix(source);
+      if (match == null) continue;
+      final suffix = source
+          .substring(match.end)
+          .replaceFirst(RegExp(r'^[\s·|\-_/–—]+'), '')
+          .trim();
+      return suffix.isEmpty ? region.code : '${region.code} · $suffix';
+    }
+  }
+  return source;
+}
+
 class ZolnitNode {
   const ZolnitNode({
     required this.id,
@@ -171,15 +197,12 @@ class ZolnitNode {
     final match = code == null
         ? _matchRegion(raw)
         : _regions.where((region) => region.code == code).firstOrNull;
-    final fallback = raw
-        .split(RegExp(r'\s*[·|\-_/]\s*|\s+'))
-        .firstWhere((part) => part.isNotEmpty, orElse: () => raw);
     final id = json['id'];
     return ZolnitNode(
       id: id is int || id is String ? '$id' : raw,
       name: raw,
       title: title.isEmpty ? raw : title,
-      region: match?.name ?? code ?? fallback,
+      region: match?.code ?? code ?? '—',
       countryCode: code ?? match?.code,
       rate: decimalOrNull(json['rate']) ?? 1,
       tags: textList(json['tags']),

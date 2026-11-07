@@ -501,7 +501,7 @@ void main() {
     'current display follows Core data rather than a display-name guess',
     (tester) async {
       await mount(tester);
-      expect(find.text('Current route: 美国 原名'), findsOneWidget);
+      expect(find.text('Current route: US · 原名'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('bundle-routing-mode')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Manual').last);
@@ -537,7 +537,7 @@ void main() {
         ),
       );
       await mount(tester);
-      expect(find.text('Current route: 香港 Lite A · 2'), findsOneWidget);
+      expect(find.text('Current route: HK · Lite A · 2'), findsOneWidget);
       expect(find.textContaining('HY2'), findsNothing);
       expect(find.textContaining('REALITY'), findsNothing);
       final owner =
@@ -615,7 +615,7 @@ void main() {
   ) async {
     container.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
     await mount(tester);
-    expect(find.text('Current route: 美国 原名'), findsNothing);
+    expect(find.text('Current route: US · 原名'), findsNothing);
   });
 
   for (final skin in ZolnitSkin.values) {

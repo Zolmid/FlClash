@@ -153,8 +153,9 @@ class _UpdateCard extends StatelessWidget {
     ]) {
       try {
         if (await supportsLaunchMode(mode) &&
-            await launchUrl(zolnitDownloadsPage, mode: mode))
+            await launchUrl(zolnitDownloadsPage, mode: mode)) {
           return;
+        }
       } catch (_) {}
     }
     if (!context.mounted) return;

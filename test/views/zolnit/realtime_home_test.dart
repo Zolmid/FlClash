@@ -87,6 +87,58 @@ void main() {
     };
     h.container.read(initProvider.notifier).value = true;
   });
+  testWidgets('withdrawal closes a shown popup and blocks its late replay', (
+    tester,
+  ) async {
+    var withdrawn = false;
+    final previous = h.panel;
+    final notice = {
+      'id': 'e' * 32,
+      'scope': 'global',
+      'type': 'notice.popup',
+      'data': {'title': 'Withdraw me', 'body': 'Mistaken delivery'},
+      'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'read': false,
+    };
+    h.panel = (r) => r.url.path.endsWith('/realtime/inbox')
+        ? zolnitJson({
+            'subject': 'b' * 64,
+            'events': withdrawn ? [] : [notice],
+            'withdrawn': withdrawn ? ['e' * 32] : [],
+          })
+        : previous(r);
+    await h.mount(tester, ZolnitSkin.android);
+    await tester.pumpAndSettle();
+    expect(find.text('Withdraw me'), findsOneWidget);
+    wire.receive({'op': 'ready'});
+    wire.receive({'op': 'pulse'});
+    await tester.pumpAndSettle();
+    withdrawn = true;
+    wire.receive({
+      'op': 'resync',
+      'cursor': {'global': 1, 'account': 0},
+    });
+    wire.receive({'op': 'ready'});
+    await tester.pumpAndSettle();
+    expect(find.text('Withdraw me'), findsNothing);
+    expect(
+      await ZolnitRealtimePreferencesStore().readInbox(
+        'https://panel.example:${'b' * 64}',
+      ),
+      isEmpty,
+    );
+    wire.receive({'op': 'event', ...notice, 'seq': 2});
+    await tester.pumpAndSettle();
+    expect(find.text('Withdraw me'), findsNothing);
+    expect(
+      await ZolnitRealtimePreferencesStore().readInbox(
+        'https://panel.example:${'b' * 64}',
+      ),
+      isEmpty,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'healthy WSS stops the HTTP sweep; losing the origin pulse resumes it without signing out',
     (tester) async {

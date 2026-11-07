@@ -30,7 +30,7 @@ void main() {
         hosts: {a.proxyName: 'hk.example', b.proxyName: 'hk.example'},
       );
       expect(rows, hasLength(1));
-      expect(rows.single.title, '香港 Lite A');
+      expect(rows.single.title, 'HK · Lite A');
       expect(rows.single.members.map((n) => n.id).toSet(), {
         'vless:7',
         'hysteria:8',

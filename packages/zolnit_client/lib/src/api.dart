@@ -34,19 +34,34 @@ final class ZolnitRealtimeTicket {
 }
 
 final class ZolnitRealtimeInbox {
-  const ZolnitRealtimeInbox({required this.subject, required this.events});
+  const ZolnitRealtimeInbox({
+    required this.subject,
+    required this.events,
+    this.withdrawn = const [],
+  });
   final String subject;
   final List<Json> events;
+  final List<String> withdrawn;
 
   static ZolnitRealtimeInbox? parse(Object? value) {
     if (value is! Json ||
         value['subject'] is! String ||
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(value['subject'] as String) ||
-        value['events'] is! List) {
+        value['events'] is! List ||
+        (value['withdrawn'] != null &&
+            (value['withdrawn'] is! List ||
+                (value['withdrawn'] as List).length > 8192 ||
+                !(value['withdrawn'] as List).every(
+                  (id) =>
+                      id is String && RegExp(r'^[a-f0-9]{32}$').hasMatch(id),
+                )))) {
       return null;
     }
     return ZolnitRealtimeInbox(
       subject: value['subject'] as String,
+      withdrawn: List<String>.unmodifiable(
+        (value['withdrawn'] as List?)?.cast<String>() ?? const [],
+      ),
       events: List<Json>.unmodifiable(value['events'].whereType<Json>()),
     );
   }

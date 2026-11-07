@@ -108,17 +108,51 @@ final class ZolnitRealtimePreferencesStore implements ZolnitRealtimeStore {
   Future<List<ZolnitRealtimeInboxItem>> readInbox(String scope) async {
     final j = await _load('${_key(scope)}.inbox');
     if (j is! List) return [];
+    final removed = await _withdrawals(scope);
     final cutoff = DateTime.now().subtract(const Duration(days: 7));
     return j
         .map(ZolnitRealtimeInboxItem.fromJson)
         .whereType<ZolnitRealtimeInboxItem>()
-        .where((e) => e.createdAt.isAfter(cutoff))
+        .where((e) => e.createdAt.isAfter(cutoff) && !removed.containsKey(e.id))
         .take(128)
         .toList();
   }
 
+  Future<Map<String, int>> _withdrawals(String scope) async {
+    final value = await _load('${_key(scope)}.withdrawn');
+    if (value is! Map) return {};
+    final cutoff = DateTime.now()
+        .subtract(const Duration(days: 7))
+        .millisecondsSinceEpoch;
+    return {
+      for (final e in value.entries)
+        if (e.key is String && e.value is int && e.value > cutoff)
+          e.key as String: e.value as int,
+    };
+  }
+
+  Future<void> withdrawInbox(String scope, Iterable<String> ids) =>
+      _ordered(() async {
+        final tombstones = await _withdrawals(scope),
+            now = DateTime.now().millisecondsSinceEpoch;
+        for (final id in ids) {
+          if (RegExp(r'^[a-f0-9]{32}$').hasMatch(id)) tombstones[id] = now;
+        }
+        if (tombstones.length > 8192) throw StateError('withdrawal limit');
+        await _put('${_key(scope)}.withdrawn', tombstones);
+        final list = await readInbox(scope);
+        await _put(
+          '${_key(scope)}.inbox',
+          list
+              .where((e) => !tombstones.containsKey(e.id))
+              .map((e) => e.toJson())
+              .toList(),
+        );
+      });
+
   Future<bool> appendInbox(String scope, ZolnitRealtimeInboxItem item) =>
       _ordered(() async {
+        if ((await _withdrawals(scope)).containsKey(item.id)) return false;
         final list = await readInbox(scope);
         final i = list.indexWhere((e) => e.id == item.id);
         if (i >= 0) {

@@ -43,6 +43,9 @@ class ZolnitHomePage extends ConsumerStatefulWidget {
 class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     with WidgetsBindingObserver {
   int _selected = 0;
+  int _pagePosition = 0;
+  int _pageTransition = 0;
+  ZolnitPageDirection _pageDirection = ZolnitPageDirection.forward;
   ZolnitAccountTab _accountTab = ZolnitAccountTab.info;
   bool _showingPreferences = false;
   int _preferencesOrigin = 3;
@@ -69,6 +72,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   Future<void>? _inboxFlight;
   int? _inboxGeneration;
   RawDialogRoute<void>? _popupRoute;
+  String? _popupItemId;
+  final _noticeRevision = ValueNotifier<int>(0);
+  final _withdrawn = <String>{};
   final _popups = Queue<ZolnitRealtimeInboxItem>();
   Future<int?>? _buildNumber;
   int _unread = 0;
@@ -124,6 +130,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _observedGeneration = null;
       _clearPopups();
       _realtimeSubject = null;
+      _withdrawn.clear();
       _unread = 0;
       unawaited(_realtime?.dispose() ?? Future<void>.value());
       _realtime = null;
@@ -133,6 +140,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _reportUpdateHints(false);
       _clearPopups();
       _realtimeSubject = null;
+      _withdrawn.clear();
       _unread = 0;
       final old = _realtime;
       _realtime = null;
@@ -284,6 +292,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     _reportUpdateHints(false);
     unawaited(_realtime?.dispose() ?? Future<void>.value());
     _clearPopups();
+    _noticeRevision.dispose();
     _registration.cancel();
     _session.removeListener(_sessionChanged);
     WidgetsBinding.instance.removeObserver(this);
@@ -441,6 +450,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   }
 
   void _clearPopups() {
+    _popupItemId = null;
     _popups.clear();
     final route = _popupRoute;
     _popupRoute = null;
@@ -462,6 +472,10 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     final item = _popups.removeFirst();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_currentRealtime(gen) || !_foreground || scope != _realtimeScope()) {
+        return;
+      }
+      if (_withdrawn.contains(item.id)) {
+        _showNextPopup(scope, gen);
         return;
       }
       if (_popupRoute != null) {
@@ -486,10 +500,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         ),
       );
       _popupRoute = route;
+      _popupItemId = item.id;
       unawaited(
         Navigator.of(context, rootNavigator: true).push(route).whenComplete(() {
           if (identical(_popupRoute, route)) {
             _popupRoute = null;
+            _popupItemId = null;
             _showNextPopup(scope, gen);
           }
         }),
@@ -530,6 +546,26 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     }
   }
 
+  Future<void> _withdrawMessages(
+    String scope,
+    int gen,
+    List<String> ids,
+  ) async {
+    if (ids.isEmpty || !_currentRealtime(gen)) return;
+    await _realtimeStore.withdrawInbox(scope, ids);
+    if (!_currentRealtime(gen)) return;
+    _withdrawn.addAll(ids);
+    _popups.removeWhere((e) => _withdrawn.contains(e.id));
+    if (_withdrawn.contains(_popupItemId)) {
+      final route = _popupRoute;
+      _popupRoute = null;
+      _popupItemId = null;
+      if (route?.isActive == true) route?.navigator?.removeRoute(route);
+    }
+    _noticeRevision.value++;
+    await _updateUnread(scope, gen);
+  }
+
   Future<void> _refreshRealtimeInbox(int gen) {
     if (_inboxGeneration == gen && _inboxFlight != null) return _inboxFlight!;
     _inboxGeneration = gen;
@@ -543,6 +579,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
             throw StateError('account binding changed');
           }
           _realtimeSubject = inbox.subject;
+          await _withdrawMessages(scope, gen, inbox.withdrawn);
           for (final e in inbox.events.take(100)) {
             if (!_currentRealtime(gen)) return;
             final id = e['id'],
@@ -590,12 +627,15 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     } catch (_) {}
     if (!_currentRealtime(gen)) return;
     if (!mounted) return;
+    final noticeRevision = _noticeRevision.value;
     await showZolnitNotices(
       _brandContext,
       _session.noticeList,
       inbox,
       session: _session,
-      isCurrent: () => _currentRealtime(gen),
+      isCurrent: () =>
+          _currentRealtime(gen) && _noticeRevision.value == noticeRevision,
+      invalidation: _noticeRevision,
       onOpen: (item) async =>
           scope != null && await _markRead(item, scope, gen),
     );
@@ -709,6 +749,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _select(int index) {
     setState(() {
+      _movePage(index);
       _selected = index;
       _accountTab = ZolnitAccountTab.info;
       _showingPreferences = false;
@@ -727,6 +768,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _showOrders() {
     setState(() {
+      _movePage(3);
       _selected = 3;
       _accountTab = ZolnitAccountTab.orders;
       _showingPreferences = false;
@@ -736,6 +778,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _showCashier(String tradeNo) {
     setState(() {
+      _movePage(4);
       _selected = 3;
       _accountTab = ZolnitAccountTab.orders;
       _showingPreferences = false;
@@ -746,6 +789,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   void _showPreferences() {
     setState(() {
       if (!_showingPreferences) _preferencesOrigin = _selected;
+      _movePage(4);
       _selected = 3;
       _showingPreferences = true;
       _cashierTradeNo = null;
@@ -756,7 +800,15 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     setState(() {
       _showingPreferences = false;
       _selected = _preferencesOrigin;
+      _movePage(_preferencesOrigin);
     });
+  }
+
+  void _movePage(int position) {
+    if (position == _pagePosition) return;
+    _pageDirection = zolnitPageDirection(_pagePosition, position);
+    _pagePosition = position;
+    _pageTransition++;
   }
 
   Future<void> _logout() async {
@@ -765,6 +817,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         .read(appSettingProvider.notifier)
         .update((state) => state.copyWith(autoRun: false));
     setState(() {
+      _movePage(0);
       _selected = 0;
       _accountTab = ZolnitAccountTab.info;
       _showingPreferences = false;
@@ -951,13 +1004,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                                             ),
                                           ),
                                         Expanded(
-                                          child: ZolnitSwitcher(
-                                            switchKey: (
-                                              _selected,
-                                              _showingPreferences,
-                                              _cashierTradeNo,
-                                            ),
-                                            rise: 8,
+                                          child: ZolnitPageSwitcher(
+                                            switchKey: _pageTransition,
+                                            direction: _pageDirection,
                                             child: page,
                                           ),
                                         ),

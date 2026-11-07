@@ -21,7 +21,7 @@ void main() {
         });
         expect(node.id, '7');
         expect(node.countryCode, 'HK');
-        expect(node.region, '香港');
+        expect(node.region, 'HK');
         expect(node.title, '香港 · 轻风 01');
         expect(node.flag, '\u{1F1ED}\u{1F1F0}');
         expect(node.rateText, '1.25');
@@ -31,7 +31,7 @@ void main() {
     );
 
     test('finds the region of an unflagged name', () {
-      expect(ZolnitNode.fromJson({'name': 'Tokyo – Premium'}).region, '日本');
+      expect(ZolnitNode.fromJson({'name': 'Tokyo – Premium'}).region, 'JP');
       expect(ZolnitNode.fromJson({'name': 'US West 02'}).countryCode, 'US');
       expect(ZolnitNode.fromJson({'name': 'Hong Kong 01'}).countryCode, 'HK');
       expect(ZolnitNode.fromJson({'name': '新加坡 · 狮城 02'}).countryCode, 'SG');
@@ -40,7 +40,7 @@ void main() {
     test('keeps an unknown region readable and claims nothing else', () {
       final node = ZolnitNode.fromJson({'id': 'n-1', 'name': 'Atlantis Prime'});
       expect(node.id, 'n-1');
-      expect(node.region, 'Atlantis');
+      expect(node.region, '—');
       expect(node.countryCode, isNull);
       expect(node.flag, isNull);
       expect(node.online, isNull);

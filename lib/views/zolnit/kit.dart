@@ -1,5 +1,6 @@
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
@@ -365,7 +366,13 @@ class ZolnitSegmented<T> extends StatelessWidget {
                       customBorder: AppShape.all(selectedCorner),
                       onTap: onChanged == null
                           ? null
-                          : () => onChanged!(option),
+                          : () {
+                              if (option == value) return;
+                              if (!skin.desktop) {
+                                HapticFeedback.selectionClick();
+                              }
+                              onChanged!(option);
+                            },
                       child: Container(
                         height: phone
                             ? (skin == ZolnitSkin.ios ? 44 : 48)
@@ -483,7 +490,14 @@ class ZolnitButton extends StatelessWidget {
           shape: shape,
           child: InkWell(
             customBorder: shape,
-            onTap: onPressed,
+            onTap: onPressed == null
+                ? null
+                : () {
+                    if (!skin.desktop && primary) {
+                      HapticFeedback.lightImpact();
+                    }
+                    onPressed!();
+                  },
             child: SizedBox(
               height: skin.desktop ? 38 : 48,
               width: expand ? double.infinity : null,
@@ -739,7 +753,7 @@ String zolnitDisplayTitle(String title) {
       .replaceFirst(_protocolSuffix, '')
       .replaceFirst(_trailingRate, '')
       .trim();
-  return clean.isEmpty ? named.title : clean;
+  return normalizeGeographicalPrefix(clean.isEmpty ? named.title : clean);
 }
 
 ({String title, String region, String? flag}) zolnitNodePresentation(
@@ -749,7 +763,7 @@ String zolnitDisplayTitle(String title) {
   return (
     title: zolnitDisplayTitle(node.title),
     region: node.region.isNotEmpty
-        ? node.region
+        ? regionCode(node.region) ?? node.region
         : named.countryCode != null
         ? named.region
         : '',
@@ -763,9 +777,22 @@ Future<T?> openZolnitPage<T>(BuildContext context, Widget page) {
     context,
     ZolnitSkinScope(skin: skin, child: page),
   );
-  return Navigator.of(
-    context,
-  ).push(MaterialPageRoute<T>(builder: (_) => themed));
+  return Navigator.of(context).push(
+    PageRouteBuilder<T>(
+      pageBuilder: (_, _, _) => themed,
+      transitionDuration: context.motionDuration(zolnitPageDuration),
+      reverseTransitionDuration: context.motionDuration(zolnitPageDuration),
+      transitionsBuilder: (_, animation, _, child) => ClipRect(
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: zolnitPageEase)).animate(animation),
+          child: child,
+        ),
+      ),
+    ),
+  );
 }
 
 class _EasedFill extends StatelessWidget {
