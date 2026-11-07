@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.2 (2026-11-08)
+
+**Bug Fixes**
+
+- Show readable update notes with long details collapsed (f8b59c6)
+
 ## v1.1.1 (2026-11-08)
 
 **Bug Fixes**
