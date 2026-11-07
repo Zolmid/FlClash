@@ -22,6 +22,7 @@ import 'auth.dart';
 import 'catalogue.dart';
 import 'connect.dart';
 import 'notices.dart';
+import 'notes.dart';
 import 'preferences.dart';
 import 'rewards.dart';
 import 'plans.dart';
@@ -538,7 +539,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
           builder: (dialog, current, _) => AlertDialog(
             title: Text(current?.title ?? item.title),
             content: SingleChildScrollView(
-              child: Text(current?.body ?? item.body),
+              child: ReleaseNotesContent(body: current?.body ?? item.body),
             ),
             actions: [
               FilledButton(

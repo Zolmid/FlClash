@@ -18,7 +18,8 @@ import assemble_release as ar  # noqa: E402
 SHA = 'c' * 40
 RUN_ID, RUN_NUMBER = 4242, 77
 TAG, VERSION, BUILD = 'v1.2.3', '1.2.3', 2026110706
-NOTES = ar.NOTES_BEGIN + '\n### Bug fixes\n- Payments stay pending\n\n' + ar.NOTES_END + '\n\n<!-- flclash:changelog:json\n{}\n-->\n'
+PUBLIC_NOTES = '### Bug fixes\n- Payments stay pending\n'
+NOTES = ar.NOTES_BEGIN + '\n' + PUBLIC_NOTES + '\n' + ar.NOTES_END + '\n\n<!-- flclash:changelog:json\n{}\n-->\n'
 SAMPLES = Path(__file__).resolve().parents[5] / 'artifacts' / 'candidate-dc131580'
 TOOLCHAIN = ['Flutter 3.47.6 • channel stable • https://github.com/flutter/flutter.git',
              'Tools • Dart 3.13.5 • DevTools 2.60.0', 'go version go1.27.1 linux/amd64', 'rustc 1.99.0 (b940084d7 2026-09-28)']
@@ -189,8 +190,12 @@ class AssembleTest(Workspace):
         self.assertEqual(names, sorted(names))
         self.assertEqual(len(names), 8)
         self.assertFalse(any('ios' in name or 'FlClash' in name or 'safe' in name for name in names))
-        self.assertEqual(manifest['releases'][0]['notes'], NOTES)
-        self.assertEqual((self.stage / ar.NOTES_FILE).read_text(), NOTES)
+        self.assertEqual(manifest['releases'][0]['notes'], PUBLIC_NOTES)
+        self.assertEqual((self.stage / ar.NOTES_FILE).read_text(), PUBLIC_NOTES)
+        for hidden in (ar.NOTES_BEGIN, ar.NOTES_END, 'flclash:changelog:json'):
+            self.assertNotIn(hidden, manifest['releases'][0]['notes'])
+        notes_evidence = next(item for item in receipt['evidence'] if item['kind'] == 'release-notes')
+        self.assertEqual(notes_evidence['sha256'], hashlib.sha256(NOTES.encode()).hexdigest())
         for asset in manifest['releases'][0]['assets']:
             path = self.stage / 'packages' / TAG / asset['name']
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), asset['sha256'])
@@ -332,7 +337,39 @@ class AssembleTest(Workspace):
 
     def test_notes_must_come_from_the_changelog_renderer(self):
         notes = ar.NOTES_ARTIFACT.format(run=RUN_NUMBER)
+        full_visible = (
+            '### Features\n'
+            '- Signed subscription protection, gift-card redemption, and more reliable updates.\n'
+            '- Keep the experimental iOS build available for development; public iOS installation is not included.\n\n'
+            '### Bug Fixes\n'
+            '- **release** Keep release notes and download details in sync when a release is retried.\n'
+            '- Use ZolNit icons and start directly in the app.\n'
+        )
+        full_raw = (
+            f'{ar.NOTES_BEGIN}\n{full_visible}\n{ar.NOTES_END}\n\n'
+            '<!-- flclash:changelog:json\n'
+            '{"schemaVersion":2,"versions":[{"version":"1.1.0","tag":"v1.1.0","date":"2026-11-08","prerelease":false,'
+            '"groups":[{"type":"feat","entries":[{"id":"ac448d2","text":"Signed subscription protection"}]},'
+            '{"type":"fix","entries":[{"id":"dc5a0c8","scope":"release","text":"Handle --\\u003e safely"}]}]}]}\n'
+            '-->\n'
+        ).encode()
+        self.assertEqual(ar.public_notes(full_raw), full_visible)
+        commented = (
+            f'{ar.NOTES_BEGIN}\n<!-- hidden banner -->\n### Features\n'
+            f'- **release** Keep <!-- internal note --> visible copy\n{ar.NOTES_END}\n'
+        ).encode()
+        self.assertEqual(ar.public_notes(commented), '### Features\n- **release** Keep  visible copy\n')
         for files, message in (({ar.NOTES_FILE: b'# hand written'}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item\n'.encode()}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_END}\n- item\n{ar.NOTES_BEGIN}\n'.encode()}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item\n{ar.NOTES_BEGIN}\n{ar.NOTES_END}\n'.encode()}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item\n{ar.NOTES_END}\n{ar.NOTES_END}\n'.encode()}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item {ar.NOTES_END}\n'.encode()}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item\n{ar.NOTES_END}trailing\n'.encode()}, 'not rendered'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n   \n<!-- only comment -->\n{ar.NOTES_END}\n'.encode()}, 'no visible public content'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item <!-- unclosed\n{ar.NOTES_END}\n'.encode()}, 'unclosed comment'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item --> <!-- unclosed\n{ar.NOTES_END}\n'.encode()}, 'unclosed comment'),
+                               ({ar.NOTES_FILE: f'{ar.NOTES_BEGIN}\n- item <!-- outer <!-- inner --> -->\n{ar.NOTES_END}\n'.encode()}, 'unclosed comment'),
                                ({ar.NOTES_FILE: NOTES.encode(), 'extra.md': b'x'}, 'must contain only'),
                                ({ar.NOTES_FILE: (NOTES + 'x' * 40000).encode()}, 'exceed 32 KiB')):
             github = standard(skip={notes})

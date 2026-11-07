@@ -41,6 +41,7 @@ class Dialogs {
 
   Future<bool?> showMessage({
     required InlineSpan message,
+    Widget? content,
     BuildContext? context,
     String? title,
     String? confirmText,
@@ -75,10 +76,12 @@ class Dialogs {
                 child: Text(confirmText ?? appLocalizations.confirm),
               ),
             ],
-            child: SelectableText.rich(
-              TextSpan(children: [message]),
-              style: const TextStyle(overflow: TextOverflow.visible),
-            ),
+            child:
+                content ??
+                SelectableText.rich(
+                  TextSpan(children: [message]),
+                  style: const TextStyle(overflow: TextOverflow.visible),
+                ),
           );
         },
       ),

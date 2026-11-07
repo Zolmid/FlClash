@@ -287,6 +287,25 @@ def run_android_verifier(apksigner, apk):
     check_android_signing(result.stdout)
 
 
+def public_notes(raw):
+    require(0 < len(raw) <= MAX_NOTES_BYTES, 'release notes are empty or exceed 32 KiB')
+    text = raw.decode('utf-8').replace('\r\n', '\n')
+    require('\0' not in text, 'release notes were not rendered by tool/changelog.dart')
+    begin = NOTES_BEGIN + '\n'
+    end = '\n' + NOTES_END
+    require(text.startswith(begin) and text.count(NOTES_BEGIN) == 1 and text.count(NOTES_END) == 1,
+            'release notes were not rendered by tool/changelog.dart')
+    stop = text.find(end, len(begin))
+    require(stop >= len(begin) and text[stop + len(end):stop + len(end) + 1] in ('', '\n'),
+            'release notes were not rendered by tool/changelog.dart')
+    section = text[len(begin):stop]
+    require(section.count('<!--') == section.count('-->'), 'release notes contain an unclosed comment')
+    visible = re.sub(r'<!--.*?-->', '', section, flags=re.S).strip()
+    require('<!--' not in visible and '-->' not in visible, 'release notes contain an unclosed comment')
+    require(visible, 'release notes have no visible public content')
+    return visible + '\n'
+
+
 def assemble(context, github, stage, env, apksigner):
     require(env.get('ZOLNIT_CI_RESULT') == 'success' and env.get('ZOLNIT_BUILDS_RESULT') == 'success',
             'standard CI and every release build must succeed first')
@@ -347,10 +366,7 @@ def assemble(context, github, stage, env, apksigner):
     directory, names, outer = fetch_artifact(github, records[notes_name], context, notes_name, work)
     require(names == {NOTES_FILE}, f'{notes_name} must contain only {NOTES_FILE}')
     raw = (directory / NOTES_FILE).read_bytes()
-    notes = raw.decode('utf-8')
-    require(0 < len(raw) <= MAX_NOTES_BYTES, 'release notes are empty or exceed 32 KiB')
-    require(notes.startswith(NOTES_BEGIN + '\n') and NOTES_END in notes and '\0' not in notes,
-            'release notes were not rendered by tool/changelog.dart')
+    notes = public_notes(raw)
     evidence.append({'artifact_name': notes_name, 'artifact_id': records[notes_name]['id'],
                      'artifact_sha256': outer, 'kind': 'release-notes', 'sha256': hashlib.sha256(raw).hexdigest(),
                      'distributed': False})
@@ -368,7 +384,7 @@ def assemble(context, github, stage, env, apksigner):
                           'android_production_certificate': True, 'ios_unsigned_compile': True}}
     (stage / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
     (stage / 'receipt.json').write_text(json.dumps(receipt, ensure_ascii=False), encoding='utf-8')
-    (stage / NOTES_FILE).write_bytes(raw)
+    (stage / NOTES_FILE).write_text(notes, encoding='utf-8')
     return {'tag': context.tag, 'build': context.build, 'source_sha': context.sha,
             'verified_targets': len(wanted), 'public_assets': len(assets)}
 

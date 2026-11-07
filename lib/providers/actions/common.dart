@@ -342,17 +342,10 @@ class CommonAction extends _$CommonAction {
   TextSpan _releaseSpan(BuildContext context, String tagName, String? body) {
     final version = parseReleaseChangelog(body);
     return TextSpan(
-      text: '$tagName \n',
+      text: tagName.isEmpty ? '' : '$tagName \n',
       style: AppTextStyle.title2.of(context),
       children: version == null
-          ? [
-              TextSpan(text: '\n', style: AppTextStyle.subheadline.of(context)),
-              for (final submit in parseReleaseBody(body))
-                TextSpan(
-                  text: '- $submit \n',
-                  style: AppTextStyle.subheadline.of(context),
-                ),
-            ]
+          ? [releaseNotesMarkdownSpan(context, body ?? '')]
           : _changelogSpans(context, version),
     );
   }
@@ -395,7 +388,7 @@ class CommonAction extends _$CommonAction {
     if (release != null) {
       final message = _releaseSpan(
         globalState.navigatorKey.currentContext!,
-        release.tag,
+        '',
         release.notes,
       );
       final plan = await _planAppUpdate(release);
@@ -403,6 +396,7 @@ class CommonAction extends _$CommonAction {
       final res = await dialogs.showMessage(
         title: currentAppLocalizations.discoverNewVersion,
         message: message,
+        content: ReleaseNotesContent(heading: release.tag, span: message),
         leadingAction: TextButton(
           onPressed: () => launchUrl(
             release.releaseUri,

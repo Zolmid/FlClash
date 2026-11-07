@@ -9,6 +9,7 @@ import '../../providers/zolnit_realtime.dart';
 import 'data.dart';
 import 'kit.dart';
 import 'motion.dart';
+import 'notes.dart';
 
 Future<void> showZolnitNotice(BuildContext context, ZolnitNotice notice) {
   final text = context.appLocalizations;
@@ -16,7 +17,11 @@ Future<void> showZolnitNotice(BuildContext context, ZolnitNotice notice) {
     context,
     (_) => ZolnitAlert(
       title: notice.title,
-      message: notice.body.isEmpty ? '—' : notice.body,
+      content: SingleChildScrollView(
+        child: ReleaseNotesContent(
+          body: notice.body.isEmpty ? '—' : notice.body,
+        ),
+      ),
       confirmLabel: text.zolnitGotIt,
     ),
   );
@@ -89,7 +94,7 @@ Future<void> showZolnitNotices(
                           ),
                         ),
                         subtitle: Text(
-                          item.body,
+                          releaseNotesPlainText(item.body),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -115,7 +120,9 @@ Future<void> showZolnitNotices(
                                   return AlertDialog(
                                     title: Text(current.title),
                                     content: SingleChildScrollView(
-                                      child: Text(current.body),
+                                      child: ReleaseNotesContent(
+                                        body: current.body,
+                                      ),
                                     ),
                                     actions: [
                                       TextButton(
@@ -141,7 +148,9 @@ Future<void> showZolnitNotices(
                           outer,
                           (inner) => AlertDialog(
                             title: Text(n.title),
-                            content: SingleChildScrollView(child: Text(n.body)),
+                            content: SingleChildScrollView(
+                              child: ReleaseNotesContent(body: n.body),
+                            ),
                             actions: [
                               TextButton(
                                 onPressed: () => zolnitCloseDialog<void>(inner),

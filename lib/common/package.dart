@@ -84,7 +84,7 @@ List<String> parseReleaseBody(String? body) {
   if (body == null) return [];
   final regex = RegExp(r'^[ \t]*-[ \t]+(.*)$', multiLine: true);
   return regex
-      .allMatches(scopeReleaseNotes(body))
+      .allMatches(displayReleaseNotes(scopeReleaseNotes(body)))
       .map((match) => match.group(1)?.trim() ?? '')
       .where((item) => item.isNotEmpty)
       .toList();

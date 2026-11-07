@@ -55,3 +55,23 @@ ChangelogVersion? parseReleaseChangelog(String? body) {
     return null;
   }
 }
+
+/// Removes internal release metadata before displaying a notice.
+String displayReleaseNotes(String body) {
+  final metadata = body.indexOf(releaseChangelogJsonMarker);
+  if (metadata >= 0) body = body.substring(0, metadata);
+  final out = StringBuffer();
+  var cursor = 0;
+  while (cursor < body.length) {
+    final start = body.indexOf('<!--', cursor);
+    if (start < 0) {
+      out.write(body.substring(cursor));
+      break;
+    }
+    out.write(body.substring(cursor, start));
+    final end = body.indexOf('-->', start + 4);
+    if (end < 0) break;
+    cursor = end + 3;
+  }
+  return out.toString().trim();
+}
