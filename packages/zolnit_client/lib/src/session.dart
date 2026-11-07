@@ -16,11 +16,12 @@ import 'session_vault.dart';
 import 'signed_subscriptions.dart';
 
 class _SessionWork {
-  _SessionWork(this.epoch, this.generation, this.sequence);
+  _SessionWork(this.epoch, this.generation, this.sequence, {this.bundleRead});
 
   final int epoch;
   int generation;
   final int sequence;
+  final int? bundleRead;
 }
 
 enum ZolnitRestoreState { signedOut, restoring, signedIn, offline, expired }
@@ -64,6 +65,7 @@ class ZolnitSessionController extends ChangeNotifier {
   int _billingRead = 0;
   bool _authenticated = false;
   ZolnitClientBundle? _clientBundle;
+  int _clientBundleRead = 0;
   String? _clientBundleAccountId;
   int? _clientBundleGeneration;
   int? _clientBundleFailureGeneration;
@@ -233,7 +235,10 @@ class ZolnitSessionController extends ChangeNotifier {
   }
 
   bool _current(_SessionWork work) =>
-      !_disposed && work.epoch == _epoch && work.generation == api.generation;
+      !_disposed &&
+      work.epoch == _epoch &&
+      work.generation == api.generation &&
+      (work.bundleRead == null || work.bundleRead == _clientBundleRead);
 
   void _checkoutChanged() {
     if (!_disposed && !_invalidating) notifyListeners();
@@ -270,7 +275,12 @@ class ZolnitSessionController extends ChangeNotifier {
       }
       return active as Future<T>;
     }
-    final work = _SessionWork(_epoch, api.generation, ++_sequence);
+    final work = _SessionWork(
+      _epoch,
+      api.generation,
+      ++_sequence,
+      bundleRead: clientBundle ? ++_clientBundleRead : null,
+    );
     late final Future<T> operation;
     operation = Future<T>.microtask(() async {
       try {
@@ -738,45 +748,88 @@ class ZolnitSessionController extends ChangeNotifier {
   Future<ZolnitClientBundle?> refreshClientBundle({
     required String coreVersion,
     DateTime Function()? clock,
-  }) => _run<ZolnitClientBundle?>('client_bundle:${api.generation}', null, (
-    work,
-  ) async {
-    final accountIdentity = _account?['uuid'];
-    final identityScope =
-        accountIdentity is String && accountIdentity.isNotEmpty
-        ? sha256.convert(utf8.encode(accountIdentity)).toString()
-        : null;
-    final signed = await signedSubscriptions?.bundle(
-      api,
-      coreVersion: coreVersion,
-      expectedAccountId: clientBundleAccountId,
-      identityScope: identityScope,
-    );
-    if (!_current(work)) return null;
-    final raw = signed ?? await api.fetchClientBundle(coreVersion: coreVersion);
-    if (!_current(work)) return null;
-    final parsed = await compute(_parseClientBundle, (
-      raw: raw,
-      now: clock?.call() ?? DateTime.now(),
-      accountId: clientBundleAccountId,
-      panelNodes: _nodes,
-    ));
-    if (!_current(work)) return null;
-    final bundle = parsed.bundle;
-    if (signed == null &&
-        await signedSubscriptions?.refusesUnsigned(api, bundle.accountId) ==
-            true) {
-      throw const ClientFailure('signed_subscription_required');
-    }
-    if (!_current(work)) return null;
-    _clientBundleNodes = parsed.nodes;
-    _clientBundleAccountId = bundle.accountId;
-    _clientBundleGeneration = work.generation;
-    _clientBundle = bundle;
-    _clientBundleFailure = null;
-    _clientBundleFailureGeneration = work.generation;
-    return bundle;
-  }, clientBundle: true);
+    Future<void> Function(ZolnitClientBundle bundle)? prepare,
+    void Function(ZolnitClientBundle bundle)? publish,
+    Future<Json?> Function()? readNative,
+  }) => _run<ZolnitClientBundle?>(
+    'client_bundle:${api.generation}:${readNative == null ? 'remote' : 'native'}',
+    null,
+    (work) async {
+      final read = work.bundleRead!;
+      bool currentBundleRead() => _current(work) && read == _clientBundleRead;
+      final accountIdentity = _account?['uuid'];
+      final identityScope =
+          accountIdentity is String && accountIdentity.isNotEmpty
+          ? sha256.convert(utf8.encode(accountIdentity)).toString()
+          : null;
+      final signed = readNative != null
+          ? await readNative()
+          : await signedSubscriptions?.bundle(
+              api,
+              coreVersion: coreVersion,
+              expectedAccountId: clientBundleAccountId,
+              identityScope: identityScope,
+            );
+      if (!currentBundleRead()) return null;
+      if (readNative != null && signed == null) {
+        throw const ClientFailure('core_unavailable');
+      }
+      final raw =
+          signed ?? await api.fetchClientBundle(coreVersion: coreVersion);
+      if (!currentBundleRead()) return null;
+      Never rejectCandidate(Object error) {
+        final previous = clientBundle;
+        if (signed == null &&
+            currentBundleRead() &&
+            previous != null &&
+            previous.isFresh(clock?.call() ?? DateTime.now()) &&
+            error is ClientFailure &&
+            const {
+              'invalid_client_bundle',
+              'client_bundle_binding_mismatch',
+              'client_bundle_expired',
+            }.contains(error.code)) {
+          throw const ClientFailure('bundle_refresh_rejected');
+        }
+        Error.throwWithStackTrace(error, StackTrace.current);
+      }
+
+      final ({ZolnitClientBundle bundle, List<ZolnitNode> nodes}) parsed;
+      try {
+        parsed = await compute(_parseClientBundle, (
+          raw: raw,
+          now: clock?.call() ?? DateTime.now(),
+          accountId: clientBundleAccountId,
+          panelNodes: _nodes,
+        ));
+      } catch (error) {
+        rejectCandidate(error);
+      }
+      if (!currentBundleRead()) return null;
+      final bundle = parsed.bundle;
+      if (signed == null &&
+          await signedSubscriptions?.refusesUnsigned(api, bundle.accountId) ==
+              true) {
+        throw const ClientFailure('signed_subscription_required');
+      }
+      if (!currentBundleRead()) return null;
+      try {
+        if (prepare != null) await prepare(bundle);
+      } catch (error) {
+        rejectCandidate(error);
+      }
+      if (!currentBundleRead()) return null;
+      _clientBundleNodes = parsed.nodes;
+      _clientBundleAccountId = bundle.accountId;
+      _clientBundleGeneration = work.generation;
+      _clientBundle = bundle;
+      _clientBundleFailure = null;
+      _clientBundleFailureGeneration = work.generation;
+      publish?.call(bundle);
+      return bundle;
+    },
+    clientBundle: true,
+  );
 
   Future<void> refresh() => _run<void>('refresh', null, (work) async {
     final hydration = _startOptionalLoad(work);

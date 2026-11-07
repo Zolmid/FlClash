@@ -8437,6 +8437,56 @@ class AppLocalizations {
     );
   }
 
+  /// `Installation permission`
+  String get updatePermissionTitle {
+    return Intl.message(
+      'Installation permission',
+      name: 'updatePermissionTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Allow ZolNit to install this downloaded update in Android settings. You will still confirm the installation.`
+  String get updatePermissionPrompt {
+    return Intl.message(
+      'Allow ZolNit to install this downloaded update in Android settings. You will still confirm the installation.',
+      name: 'updatePermissionPrompt',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Go authorize`
+  String get updateGoAuthorize {
+    return Intl.message(
+      'Go authorize',
+      name: 'updateGoAuthorize',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Install later`
+  String get updateInstallLater {
+    return Intl.message(
+      'Install later',
+      name: 'updateInstallLater',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Installation was cancelled. You can retry or open the download page.`
+  String get updateInstallCancelled {
+    return Intl.message(
+      'Installation was cancelled. You can retry or open the download page.',
+      name: 'updateInstallCancelled',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `ZolNit was not allowed to install apps, so the update was not installed.`
   String get updateInstallPermission {
     return Intl.message(

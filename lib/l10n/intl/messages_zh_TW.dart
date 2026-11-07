@@ -1945,7 +1945,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "下載的檔案與發佈的校驗值不符，已捨棄。",
     ),
     "updateDownloading": MessageLookupByLibrary.simpleMessage("正在下載更新"),
+    "updateGoAuthorize": MessageLookupByLibrary.simpleMessage("前往授權"),
+    "updateInstallCancelled": MessageLookupByLibrary.simpleMessage(
+      "安裝已取消。你可以重試或開啟下載頁面。",
+    ),
     "updateInstallFailed": MessageLookupByLibrary.simpleMessage("無法啟動安裝程式。"),
+    "updateInstallLater": MessageLookupByLibrary.simpleMessage("稍後安裝"),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
       "ZolNit 未獲得安裝應用程式的權限，因此未安裝更新。",
     ),
@@ -1953,6 +1958,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "ZolNit 無法寫入其安裝目錄，請手動下載更新。",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage("立即更新"),
+    "updatePermissionPrompt": MessageLookupByLibrary.simpleMessage(
+      "請在 Android 設定中允許 ZolNit 安裝已下載的更新。安裝前仍需在系統中確認。",
+    ),
+    "updatePermissionTitle": MessageLookupByLibrary.simpleMessage("安裝權限"),
     "upload": MessageLookupByLibrary.simpleMessage("上傳"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("上行頻寬"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("上傳速度"),

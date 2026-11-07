@@ -27,7 +27,7 @@ class ApkInstallPolicyTest {
     fun `a nonempty real apk in a tag and digest release directory is accepted`() {
         val apk = staged()
         assertEquals(apk.canonicalFile, ApkInstallPolicy.stagedApk(cache, apk.path))
-        val upperCase = staged("update.APK")
+        val upperCase = staged("upper.APK")
         assertEquals(upperCase.canonicalFile, ApkInstallPolicy.stagedApk(cache, upperCase.path))
     }
 

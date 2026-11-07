@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import 'package:zolnit_client/zolnit_client.dart';
+import 'zolnit_signed_subscription.dart';
 
 final zolnitClientBundleTransportProvider = Provider<bool>(
   (ref) => const bool.fromEnvironment('ZOLNIT_CLIENT_BUNDLE'),
@@ -344,6 +345,9 @@ ZolnitBundleStatus bundleFailureStatus(String? code) => switch (code) {
   'subscription_expired' => ZolnitBundleStatus.expired,
   'client_bundle_expired' => ZolnitBundleStatus.expired,
   'invalid_client_bundle' ||
+  'invalid_signed_subscription' ||
+  'subscription_replay' ||
+  'signed_subscription_stale_owner' ||
   'client_bundle_binding_mismatch' => ZolnitBundleStatus.invalid,
   'client_api_unavailable' ||
   'bundle_unavailable' ||
@@ -351,16 +355,75 @@ ZolnitBundleStatus bundleFailureStatus(String? code) => switch (code) {
   _ => ZolnitBundleStatus.refreshFailed,
 };
 
+class _BundleSyncRevision {
+  int value = 0;
+}
+
+final _bundleSyncRevisionProvider = Provider((_) => _BundleSyncRevision());
+
 final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
-  final session = ref.watch(zolnitSessionProvider);
+  return _createBundleSync(ref, ref.watch(zolnitSessionProvider));
+});
+
+final zolnitSyncCurrentClientBundleProvider =
+    Provider<Future<int?> Function(Map<String, dynamic>)>((ref) {
+      final session = ref.watch(zolnitSessionProvider);
+      return (lease) {
+        final generation = session.api.generation;
+        final subscriptions = session.signedSubscriptions;
+        final binding = subscriptions?.active;
+        if (binding == null ||
+            lease['accountId'] != binding.accountId ||
+            lease['accountGeneration'] != generation) {
+          return Future.error(const ClientFailure('superseded'));
+        }
+        return _createBundleSync(
+          ref,
+          session,
+          readNative: () async {
+            final projection =
+                await CoreSignedSubscriptionOwner(
+                  ref.read(coreHandlerProvider),
+                ).current(
+                  accountId: binding.accountId,
+                  deviceId: binding.device.deviceId,
+                  intent: binding.intent,
+                  lease: lease,
+                );
+            if (!ref.mounted ||
+                !session.authenticated ||
+                !subscriptions!.acceptNativeState(
+                  session.api,
+                  generation: generation,
+                  accountId: binding.accountId,
+                  deviceId: binding.device.deviceId,
+                  intent: projection.intent,
+                  state: projection.state,
+                )) {
+              throw const ClientFailure('superseded');
+            }
+            return projection.data;
+          },
+        )();
+      };
+    });
+
+Future<int?> Function() _createBundleSync(
+  Ref ref,
+  ZolnitSessionController session, {
+  Future<Json?> Function()? readNative,
+}) {
   Future<int?>? pending;
   int? pendingGeneration;
   Future<int?> sync() async {
     if (!session.authenticated) throw const ClientFailure('unauthenticated');
     final generation = session.api.generation;
+    final revision = ref.read(_bundleSyncRevisionProvider);
+    final sequence = ++revision.value;
     final clock = ref.read(zolnitBundleClockProvider);
     bool current() =>
         ref.mounted &&
+        revision.value == sequence &&
         session.authenticated &&
         session.api.generation == generation;
     final status = ref.read(zolnitBundleStatusProvider.notifier);
@@ -386,9 +449,83 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
       final core = ref.read(coreHandlerProvider);
       final coreVersion = (await core.getCoreVersion()).trim();
       if (!current()) throw const ClientFailure('superseded');
+      int? profileId;
+      Profile? preparedProfile;
       final bundle = await session.refreshClientBundle(
         coreVersion: coreVersion,
         clock: clock,
+        readNative: readNative,
+        prepare: (bundle) async {
+          final prepared = await compute(prepareClientBundleConfiguration, (
+            bundle: bundle,
+            now: clock(),
+            automaticAllowed: ref.read(zolnitClientBundleAutomaticProvider),
+          ));
+          if (!current()) throw const ClientFailure('superseded');
+          final existing = ref
+              .read(profilesProvider)
+              .where(
+                (p) =>
+                    p.zolnitAccountId == bundle.accountId &&
+                    p.zolnitOrigin == session.api.origin.origin,
+              )
+              .firstOrNull;
+          final profile = (existing ?? Profile.normal(label: 'ZolNit'))
+              .copyWith(
+                type: ProfileType.file,
+                url: '',
+                autoUpdate: false,
+                zolnitAccountId: bundle.accountId,
+                zolnitOrigin: session.api.origin.origin,
+                zolnitBundleId: bundle.bundleId,
+              );
+          final parent = Directory(
+            path.dirname(await zolnitBundlePath(profile)),
+          );
+          await parent.create(recursive: true);
+          await _privateMode(parent.path, '700');
+          final signed =
+              session.signedSubscriptions?.active?.accountId ==
+              bundle.accountId;
+          if (!signed) {
+            final validationDir = await parent.createTemp('validate-');
+            staging = validationDir;
+            final config = File(path.join(validationDir.path, 'config.yaml'));
+            await config.writeAsString(
+              yaml.encode(prepared.config),
+              flush: true,
+            );
+            await _privateMode(config.path, '600');
+            final message = await core.validateProfile(config.path, '');
+            if (!current()) throw const ClientFailure('superseded');
+            if (message.isNotEmpty) {
+              throw const ClientFailure('invalid_client_bundle');
+            }
+          }
+          if (!signed) await _saveClientBundle(profile, bundle, clock());
+          if (!current()) throw const ClientFailure('superseded');
+          final keep = <String>{if (!signed) await zolnitBundlePath(profile)};
+          if (!signed && existing?.zolnitBundleId != null) {
+            keep.add(await zolnitBundlePath(existing!));
+          }
+          await for (final entry in parent.list(followLinks: false)) {
+            if (entry is File &&
+                RegExp(
+                  r'^[0-9a-f]{64}\.json$',
+                ).hasMatch(path.basename(entry.path)) &&
+                !keep.contains(entry.path)) {
+              await entry.delete();
+            }
+          }
+          if (!current()) throw const ClientFailure('superseded');
+          preparedProfile = profile.copyWith(lastUpdateDate: clock());
+          profileId = profile.id;
+        },
+        publish: (_) {
+          ref
+              .read(profilesActionProvider.notifier)
+              .putProfile(preparedProfile!);
+        },
       );
       if (!current()) throw const ClientFailure('superseded');
       if (bundle == null) {
@@ -396,69 +533,13 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
           session.clientBundleFailure ?? 'bundle_unavailable',
         );
       }
-      final prepared = await compute(prepareClientBundleConfiguration, (
-        bundle: bundle,
-        now: clock(),
-        automaticAllowed: ref.read(zolnitClientBundleAutomaticProvider),
-      ));
-      if (!current()) throw const ClientFailure('superseded');
-      final existing = ref
-          .read(profilesProvider)
-          .where(
-            (p) =>
-                p.zolnitAccountId == bundle.accountId &&
-                p.zolnitOrigin == session.api.origin.origin,
-          )
-          .firstOrNull;
-      final profile = (existing ?? Profile.normal(label: 'ZolNit')).copyWith(
-        type: ProfileType.file,
-        url: '',
-        autoUpdate: false,
-        zolnitAccountId: bundle.accountId,
-        zolnitOrigin: session.api.origin.origin,
-        zolnitBundleId: bundle.bundleId,
-      );
-      final parent = Directory(path.dirname(await zolnitBundlePath(profile)));
-      await parent.create(recursive: true);
-      await _privateMode(parent.path, '700');
-      final signed =
-          session.signedSubscriptions?.active?.accountId == bundle.accountId;
-      if (!signed) {
-        staging = await parent.createTemp('validate-');
-        final config = File(path.join(staging.path, 'config.yaml'));
-        await config.writeAsString(yaml.encode(prepared.config), flush: true);
-        await _privateMode(config.path, '600');
-        final message = await core.validateProfile(config.path, '');
-        if (!current()) throw const ClientFailure('superseded');
-        if (message.isNotEmpty) {
-          throw const ClientFailure('invalid_client_bundle');
-        }
-      }
-      if (!signed) await _saveClientBundle(profile, bundle, clock());
-      if (!current()) throw const ClientFailure('superseded');
-      ref
-          .read(profilesActionProvider.notifier)
-          .putProfile(profile.copyWith(lastUpdateDate: clock()));
-      final keep = <String>{if (!signed) await zolnitBundlePath(profile)};
-      if (!signed && existing?.zolnitBundleId != null) {
-        keep.add(await zolnitBundlePath(existing!));
-      }
-      await for (final entry in parent.list(followLinks: false)) {
-        if (entry is File &&
-            RegExp(
-              r'^[0-9a-f]{64}\.json$',
-            ).hasMatch(path.basename(entry.path)) &&
-            !keep.contains(entry.path)) {
-          await entry.delete();
-        }
-      }
       status.set(
         bundle.isFresh(clock())
             ? ZolnitBundleStatus.ready
             : ZolnitBundleStatus.expired,
       );
       activity.set(const ZolnitBundleActivity());
-      return profile.id;
+      return profileId;
     } catch (error) {
       if (!current()) throw const ClientFailure('superseded');
       final code = error is ClientFailure
@@ -477,8 +558,9 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
       }
       throw ClientFailure(code);
     } finally {
-      if (staging != null && await staging.exists()) {
-        await staging.delete(recursive: true);
+      final validationDir = staging;
+      if (validationDir != null && await validationDir.exists()) {
+        await validationDir.delete(recursive: true);
       }
     }
   }
@@ -493,4 +575,4 @@ final zolnitSyncClientBundleProvider = Provider<Future<int?> Function()>((ref) {
       if (identical(operation, pending)) pending = null;
     });
   };
-});
+}

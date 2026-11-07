@@ -8,6 +8,8 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
@@ -15,6 +17,120 @@ import com.zolmid.zolnit.common.GlobalState
 import java.io.File
 
 object ApkInstaller {
+    private val handler = Handler(Looper.getMainLooper())
+    private val lock = Any()
+    private var attempt: ApkInstallAttempt? = null
+    private var epoch = 0
+    fun epoch(): Int = synchronized(lock) { epoch }
+    private var foreground = true
+    private var reconciliationStarted = 0L
+    private val watchdog = object : Runnable {
+        override fun run() {
+            val current = synchronized(lock) { attempt } ?: return
+            if (foreground) reconcile(GlobalState.application, current, force = true)
+            if (synchronized(lock) { attempt === current }) handler.postDelayed(this, 90000)
+        }
+    }
+
+    private fun finish(current: ApkInstallAttempt, status: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            handler.post { finish(current, status) }
+            return
+        }
+        val matched = synchronized(lock) {
+            if (attempt !== current) false else {
+                attempt = null
+                true
+            }
+        }
+        if (matched) {
+            handler.removeCallbacks(watchdog)
+            current.finish(status)
+        }
+    }
+
+    private fun reconcile(context: Context, current: ApkInstallAttempt, force: Boolean, allowBackground: Boolean = false) {
+        if ((!foreground && !allowBackground) || synchronized(lock) { attempt !== current }) return
+        val installer = context.packageManager.packageInstaller
+        val info = try {
+            installer.getSessionInfo(current.sessionId)
+        } catch (_: Exception) {
+            recoverUnobservable(context, current, force, allowBackground)
+            return
+        }
+        if (info == null) {
+            @Suppress("DEPRECATION")
+            val installed = try {
+                val info = context.packageManager.getPackageInfo(context.packageName, 0)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
+            } catch (_: Exception) {
+                recoverUnobservable(context, current, force, allowBackground)
+                return
+            }
+            val outcome = apkReconciliation(false, false, installed >= current.versionCode, force)
+            finish(current, if (outcome == ApkReconciliation.INSTALLED) "installed" else "cancelled")
+            return
+        }
+        if (apkReconciliation(true, info.isActive, false, force) == ApkReconciliation.WAIT) {
+            if (reconciliationStarted == 0L) reconciliationStarted = android.os.SystemClock.elapsedRealtime()
+            val expired = android.os.SystemClock.elapsedRealtime() - reconciliationStarted >= 90000
+            handler.postDelayed({ reconcile(context, current, expired, allowBackground) }, 1000)
+            return
+        }
+        if (runCatching { installer.abandonSession(current.sessionId) }.isSuccess) {
+            finish(current, "cancelled")
+        } else {
+            recoverUnobservable(context, current, true, allowBackground)
+        }
+    }
+
+    private fun recoverUnobservable(context: Context, current: ApkInstallAttempt, force: Boolean, allowBackground: Boolean) {
+        val expired = current.unobservable(android.os.SystemClock.elapsedRealtime())
+        if (expired) current.reportRecovery()
+        handler.postDelayed({ reconcile(context, current, force, allowBackground) }, if (expired) 30000 else 1000)
+    }
+
+    fun activityPaused() {
+        foreground = false
+        synchronized(lock) { attempt }?.paused()
+    }
+
+    fun activityResumed(context: Context) {
+        foreground = true
+        val current = synchronized(lock) { attempt } ?: return
+        if (current.returned()) {
+            reconciliationStarted = 0L
+            handler.postDelayed({ reconcile(context, current, false) }, 1000)
+        }
+    }
+
+    fun detach(context: Context) {
+        val current = synchronized(lock) { epoch++; attempt } ?: return
+        reconcile(context, current, force = true, allowBackground = true)
+    }
+
+    fun status(context: Context, sessionId: Int, status: Int, confirm: Intent?) {
+        val current = synchronized(lock) { attempt?.takeIf { it.sessionId == sessionId } } ?: return
+        when (status) {
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                if (!current.confirmationLaunched()) return
+                if (confirm == null || runCatching {
+                        context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.isFailure
+                ) {
+                    val installer = context.packageManager.packageInstaller
+                    if (runCatching { installer.abandonSession(sessionId) }.isSuccess) {
+                        finish(current, "failed")
+                    } else {
+                        handler.postDelayed({ reconcile(context, current, true) }, 1000)
+                    }
+                }
+            }
+            PackageInstaller.STATUS_SUCCESS -> finish(current, "installed")
+            PackageInstaller.STATUS_FAILURE_ABORTED -> finish(current, "cancelled")
+            else -> finish(current, "failed")
+        }
+    }
     fun canRequestInstalls(context: Context): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
             context.packageManager.canRequestPackageInstalls()
@@ -64,9 +180,14 @@ object ApkInstaller {
         )
     }
 
-    fun install(context: Context, path: String) {
+    fun install(context: Context, path: String, expectedEpoch: Int, complete: (String) -> Unit) {
         val apk = validate(context, path)
         check(canRequestInstalls(context)) { "APK installation permission is not granted" }
+        @Suppress("DEPRECATION")
+        val candidateInfo = context.packageManager.getPackageArchiveInfo(apk.path, 0)
+            ?: error("APK identity is unavailable")
+        @Suppress("DEPRECATION")
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) candidateInfo.longVersionCode else candidateInfo.versionCode.toLong()
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
@@ -74,6 +195,12 @@ object ApkInstaller {
         }
         val sessionId = installer.createSession(params)
         try {
+            val current = ApkInstallAttempt(sessionId, versionCode, complete)
+            synchronized(lock) {
+                check(expectedEpoch == epoch && attempt == null) { "APK installation is no longer available" }
+                attempt = current
+            }
+            handler.postDelayed(watchdog, 90000)
             installer.openSession(sessionId).use { session ->
                 apk.inputStream().use { input ->
                     session.openWrite("base.apk", 0, apk.length()).use { output ->
@@ -84,8 +211,11 @@ object ApkInstaller {
                 session.commit(statusIntent(context, sessionId).intentSender)
             }
         } catch (error: Exception) {
-            runCatching { installer.abandonSession(sessionId) }
-            throw error
+            val abandoned = runCatching { installer.abandonSession(sessionId) }.isSuccess
+            val current = synchronized(lock) { attempt?.takeIf { it.sessionId == sessionId } }
+            if (current == null) throw error
+            if (abandoned) finish(current, "failed")
+            else handler.post { reconcile(context, current, force = true, allowBackground = true) }
         }
     }
 
@@ -103,19 +233,11 @@ object ApkInstaller {
 
 class ApkInstallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
-            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                val confirm = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
-                    ?: return
-                runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    .onFailure { GlobalState.log("Unable to confirm APK installation: $it") }
-            }
-            PackageInstaller.STATUS_SUCCESS -> Unit
-            else -> {
-                val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                GlobalState.log("APK install failed: $message")
-                GlobalState.application.showToast(message)
-            }
-        }
+        ApkInstaller.status(
+            context,
+            intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1),
+            intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE),
+            IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java),
+        )
     }
 }

@@ -26,6 +26,46 @@ void main() {
   setUp(() => fixture = ClientBundleSessionFixture());
   tearDown(() => fixture.dispose());
 
+  test('replacement is published only after preparation succeeds', () async {
+    await fixture.login();
+    Future<ZolnitClientBundle?> refresh({
+      Future<void> Function(ZolnitClientBundle)? prepare,
+      void Function(ZolnitClientBundle)? publish,
+    }) => fixture.session.refreshClientBundle(
+      coreVersion: 'v1.19.32',
+      clock: () => bundleTime(1001),
+      prepare: prepare,
+      publish: publish,
+    );
+    final first = await refresh();
+    for (var i = 0; i < 3; i++) {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      fixture.onBundle = (_) async =>
+          clientBundleResponse(clientBundleFixture(bundleId: 'replacement-$i'));
+      final pending = refresh(
+        prepare: (_) async {
+          entered.complete();
+          await release.future;
+          if (i == 1) throw const ClientFailure('network');
+        },
+        publish: (bundle) => expect(fixture.session.clientBundle, same(bundle)),
+      );
+      await entered.future;
+      final previous = fixture.session.clientBundle;
+      expect(previous, isNotNull);
+      if (i == 0) expect(previous, same(first));
+      release.complete();
+      final result = await pending;
+      if (i == 1) {
+        expect(result, isNull);
+        expect(fixture.session.clientBundle, same(previous));
+      } else {
+        expect(fixture.session.clientBundle, same(result));
+      }
+    }
+  });
+
   for (final restore in [false, true]) {
     test(
       'canonical account 2 bootstrap after ${restore ? 'restore' : 'login'}',
@@ -63,10 +103,7 @@ void main() {
           ),
           isNull,
         );
-        expect(
-          client.session.clientBundleFailure,
-          'client_bundle_binding_mismatch',
-        );
+        expect(client.session.clientBundleFailure, 'bundle_refresh_rejected');
         expect(client.session.clientBundle, same(accepted));
         expect(client.session.clientBundleAccountId, '2');
         expect(
@@ -207,10 +244,7 @@ void main() {
         ),
         isNull,
       );
-      expect(
-        fixture.session.clientBundleFailure,
-        'client_bundle_binding_mismatch',
-      );
+      expect(fixture.session.clientBundleFailure, 'bundle_refresh_rejected');
       expect(fixture.session.clientBundleAccountId, 'account-1');
       expect(fixture.session.clientBundle!.accountId, 'account-1');
       expect(fixture.session.authenticated, isTrue);

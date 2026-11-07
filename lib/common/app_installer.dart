@@ -80,7 +80,7 @@ systemctl --no-ask-password try-restart zolnit-helper.service >/dev/null 2>&1 ||
 
 const _appImageRuntimeVariables = {'APPDIR', 'APPIMAGE', 'ARGV0', 'OWD'};
 
-enum ApkInstallStatus { started, permissionDenied, failed }
+enum ApkInstallStatus { installed, cancelled, permissionDenied, failed }
 
 enum UpdaterFailureReason { checksumMismatch, notWritable, installFailed }
 
@@ -438,7 +438,8 @@ class AppInstaller {
       '$packageName/app',
     ).invokeMethod<String>('installApk', {'path': apk.path});
     return switch (status) {
-      'started' => ApkInstallStatus.started,
+      'installed' => ApkInstallStatus.installed,
+      'cancelled' => ApkInstallStatus.cancelled,
       'permissionDenied' => ApkInstallStatus.permissionDenied,
       _ => ApkInstallStatus.failed,
     };

@@ -184,6 +184,11 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
     ).timeout(operationTimeout);
     if (result is! Map) return;
     if (result['sessionEpoch'] != scope.epoch) return;
+    final owner = result['ownerId'];
+    final latestOwner = _snapshot.sessionEpoch == scope.epoch
+        ? _snapshot.ownerId ?? scope.owner
+        : scope.owner;
+    if (owner is! int || owner < scope.owner || owner < latestOwner) return;
     final state = result['state'];
     if (state == 'logged_out') {
       await _journal.write(
@@ -194,13 +199,10 @@ class ZolnitNativeRenewalClient extends ChangeNotifier {
       _set(
         ZolnitNativeRenewalSnapshot(
           sessionEpoch: scope.epoch,
-          ownerId: scope.owner,
+          ownerId: owner,
           state: 'logged_out',
         ),
       );
-      return;
-    }
-    if (result['ownerId'] is! int || (result['ownerId'] as int) < scope.owner) {
       return;
     }
     _set(_from(result));

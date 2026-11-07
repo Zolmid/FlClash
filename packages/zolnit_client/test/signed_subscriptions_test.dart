@@ -286,6 +286,55 @@ class _ManualStopwatch extends Stopwatch {
 }
 
 void main() {
+  test(
+    'native state cannot cross account, device, session or revocation boundaries',
+    () async {
+      final harness = _Harness();
+      addTearDown(harness.fixture.dispose);
+      final envelope = await _envelope('bundle', 1);
+      harness.bundle = () => envelope;
+      await harness.fixture.login();
+      expect(await harness.refresh(), isNotNull);
+      final active = harness.signed.active!;
+      final generation = harness.fixture.api.generation;
+      bool accept({
+        String? account,
+        String? device,
+        int? intent,
+        int? gen,
+        bool revoked = false,
+        bool expired = false,
+        int serial = 2,
+      }) => harness.signed.acceptNativeState(
+        harness.fixture.api,
+        generation: gen ?? generation,
+        accountId: account ?? active.accountId,
+        deviceId: device ?? active.device.deviceId,
+        intent: intent ?? active.intent,
+        state: ZolnitSignedState(
+          available: true,
+          hasFloor: true,
+          installed: true,
+          serial: serial,
+          revoked: revoked,
+          expired: expired,
+        ),
+      );
+      expect(accept(account: 'another-account'), false);
+      expect(accept(device: 'fedcba9876543210fedcba9876543210'), false);
+      expect(accept(intent: active.intent + 1), false);
+      expect(accept(gen: generation + 1), false);
+      expect(accept(revoked: true), false);
+      expect(accept(expired: true), false);
+      expect(harness.signed.active!.serial, 1);
+      expect(accept(), true);
+      expect(harness.signed.active!.serial, 2);
+      expect(accept(serial: 1), false);
+      await harness.fixture.session.logout();
+      expect(accept(), false);
+    },
+  );
+
   test('unavailable Core before enrollment uses legacy bundle', () async {
     final harness = _Harness();
     addTearDown(harness.fixture.dispose);
@@ -304,6 +353,21 @@ void main() {
     await harness.fixture.login();
     expect(await harness.refresh(), isNull);
     expect(harness.paths, isEmpty);
+  });
+
+  test('tampered initial signed package cannot become active', () async {
+    final harness = _Harness();
+    addTearDown(harness.fixture.dispose);
+    final value = await _envelope('bundle', 1);
+    value['serial'] = 2;
+    harness.bundle = () => value;
+    await harness.fixture.login();
+    expect(await harness.refresh(), isNull);
+    expect(
+      harness.fixture.session.clientBundleFailure,
+      'invalid_signed_subscription',
+    );
+    expect(harness.owner.installed, isFalse);
   });
 
   test(
@@ -477,6 +541,25 @@ void main() {
     harness.clock.now = const Duration(minutes: 12);
     expect(await harness.refresh(), isNotNull);
   });
+
+  test(
+    'tampered signed state retains the independently verified package',
+    () async {
+      final harness = _Harness();
+      addTearDown(harness.fixture.dispose);
+      final one = await _envelope('bundle', 1);
+      harness.bundle = () => one;
+      await harness.fixture.login();
+      expect(await harness.refresh(), isNotNull);
+      final state = await _envelope('state', 1);
+      state['serial'] = 2;
+      harness.state = () => state;
+      harness.clock.now = const Duration(minutes: 6);
+      expect(await harness.refresh(), isNotNull);
+      expect(harness.fixture.session.clientBundleFailure, isNull);
+      expect(harness.owner.installed, isTrue);
+    },
+  );
 
   test(
     'signed revocation stops service and replay cannot resurrect it',

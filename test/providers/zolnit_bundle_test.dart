@@ -4,8 +4,10 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/zolnit_native_renewal.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
@@ -14,7 +16,9 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_connection.dart';
+import 'package:fl_clash/providers/zolnit_native_renewal.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
+import 'package:fl_clash/providers/zolnit_vault.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,7 +37,68 @@ class _Core extends Mock implements CoreHandlerInterface {}
 
 class _Downloader extends Mock implements Dio {}
 
+class _NativeSigned extends Fake implements ZolnitSignedSubscriptions {
+  int serial = 1;
+  Completer<Json?>? next;
+  @override
+  ({String accountId, ZolnitClientDevice device, int serial, int intent})
+  get active => (
+    accountId: 'account-1',
+    device: const ZolnitClientDevice(
+      deviceId: '0123456789abcdef0123456789abcdef',
+      installationId: 'installation-fixture',
+    ),
+    serial: serial,
+    intent: 0,
+  );
+  @override
+  Future<void> invalidate() async {}
+  @override
+  Future<void> signOut() async {}
+  @override
+  Future<Json?> bundle(
+    XboardClient api, {
+    required String coreVersion,
+    String? expectedAccountId,
+    String? identityScope,
+  }) async => next == null ? clientBundleFixture() : await next!.future;
+  @override
+  Future<bool> refusesUnsigned(XboardClient api, String accountId) async =>
+      true;
+  @override
+  bool acceptNativeState(
+    XboardClient api, {
+    required int generation,
+    required String accountId,
+    required String deviceId,
+    required int intent,
+    required ZolnitSignedState state,
+  }) {
+    serial = state.serial!;
+    return true;
+  }
+}
+
 class _UpdateParams extends Fake implements UpdateParams {}
+
+class _Journal implements ZolnitRenewalJournal {
+  String? value;
+  @override
+  Future<String?> read() async => value;
+  @override
+  Future<void> write(String value) async => this.value = value;
+  @override
+  Future<void> clear() async => value = null;
+}
+
+class _Vault implements ZolnitSessionVault {
+  @override
+  Future<String?> readAuthorization() async => 'Bearer fixture';
+  @override
+  Future<void> writeAuthorization(String value) async {}
+  @override
+  Future<void> deleteAuthorization() async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,11 +110,43 @@ void main() {
   void Function(ChangeProxyParams)? changed;
   late DateTime now;
   late bool safe;
+  late bool nativeSupported;
+  late ZolnitNativeRenewalClient native;
+  late Map<String, Object?> nativeReceipt;
+  Future<Map<String, dynamic>?> Function()? leaseOverride;
   TunnelState? tunnelState;
   Future<void> Function()? validation;
   Map<String, dynamic>? compiled;
   String? compiledDigest;
   final picks = <String, String>{};
+
+  void createContainer() {
+    container = ProviderContainer(
+      overrides: [
+        zolnitSessionProvider.overrideWithValue(fixture.session),
+        zolnitNativeRenewalSupportedProvider.overrideWith(
+          (_) => nativeSupported,
+        ),
+        zolnitNativeRenewalClientProvider.overrideWithValue(native),
+        zolnitSessionVaultProvider.overrideWithValue(_Vault()),
+        zolnitProfileDownloaderProvider.overrideWithValue(downloader),
+        zolnitClientBundleTransportProvider.overrideWithValue(true),
+        zolnitClientBundleAutomaticProvider.overrideWithValue(true),
+        zolnitBundleClockProvider.overrideWithValue(() => now),
+        zolnitRoutingProbeSchedulerProvider.overrideWithValue(
+          RoutingProbeScheduler(
+            elapsed: () => now.difference(bundleTime(1001)),
+            wallClock: () => now,
+          ),
+        ),
+        profilesProvider.overrideWith(() => TestProfiles()),
+        currentProfileIdProvider.overrideWithBuild((_, _) => null),
+        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        safeModeProvider.overrideWith((_) => safe),
+        tunnelStateProvider.overrideWith((_) => tunnelState),
+      ],
+    );
+  }
 
   setUpAll(() async {
     registerFallbackValue(<String, dynamic>{});
@@ -74,6 +171,20 @@ void main() {
     );
     now = bundleTime(1001);
     safe = true;
+    nativeSupported = false;
+    leaseOverride = null;
+    nativeReceipt = {
+      'supported': true,
+      'sessionEpoch': 1,
+      'ownerId': 1,
+      'ownsRenewal': true,
+      'ready': true,
+      'state': 'installed',
+    };
+    native = ZolnitNativeRenewalClient(
+      journal: _Journal(),
+      call: (method, _) async => nativeReceipt,
+    );
     tunnelState = null;
     validation = null;
     compiled = null;
@@ -96,6 +207,7 @@ void main() {
       return const ChangeProxyResult(changed: true);
     });
     when(core.getRoutingLease).thenAnswer((_) async {
+      if (leaseOverride != null) return leaseOverride!();
       final profile = container.read(currentProfileProvider);
       final bundle = fixture.session.clientBundle;
       if (profile == null || bundle == null) return null;
@@ -157,29 +269,11 @@ void main() {
         proxies: raw,
       );
     });
-    container = ProviderContainer(
-      overrides: [
-        zolnitSessionProvider.overrideWithValue(fixture.session),
-        zolnitProfileDownloaderProvider.overrideWithValue(downloader),
-        zolnitClientBundleTransportProvider.overrideWithValue(true),
-        zolnitClientBundleAutomaticProvider.overrideWithValue(true),
-        zolnitBundleClockProvider.overrideWithValue(() => now),
-        zolnitRoutingProbeSchedulerProvider.overrideWithValue(
-          RoutingProbeScheduler(
-            elapsed: () => now.difference(bundleTime(1001)),
-            wallClock: () => now,
-          ),
-        ),
-        profilesProvider.overrideWith(() => TestProfiles()),
-        currentProfileIdProvider.overrideWithBuild((_, _) => null),
-        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
-        safeModeProvider.overrideWith((_) => safe),
-        tunnelStateProvider.overrideWith((_) => tunnelState),
-      ],
-    );
+    createContainer();
   });
   tearDown(() async {
     container.dispose();
+    native.dispose();
     verifyZeroInteractions(downloader);
     fixture.dispose();
     await directory.delete(recursive: true);
@@ -376,29 +470,25 @@ void main() {
 
   for (final expiresAt in [1000, 1301, 1001]) {
     test(
-      'TTL rejection $expiresAt invalidates old automatic eligibility',
+      'invalid replacement TTL $expiresAt preserves the fresh active bundle',
       () async {
         final profile = await sync();
         final subscription = fixture.session.subscription;
         final routing = await activate(profile);
         await routing.run();
-        final rejected = Completer<void>();
-        changed = (value) {
-          if (!rejected.isCompleted &&
-              value.groupName == 'zn.service.ai.auto' &&
-              value.proxyName == 'REJECT') {
-            rejected.complete();
-          }
-        };
         fixture.onBundle = (_) async {
           final raw = clientBundleFixture();
           raw['expires_at'] = expiresAt;
           return clientBundleResponse(raw);
         };
         await routing.refreshBundle();
-        await rejected.future;
         await routing.run();
-        expect(picks['zn.service.ai.auto'], 'REJECT');
+        expect(picks['zn.service.ai.auto'], 'zn.node.vless.7');
+        expect(
+          container.read(zolnitBundleStatusProvider),
+          ZolnitBundleStatus.ready,
+        );
+        expect(fixture.session.clientBundleFailure, 'bundle_refresh_rejected');
         expect(fixture.session.authenticated, isTrue);
         expect(fixture.session.subscription, subscription);
       },
@@ -866,6 +956,187 @@ void main() {
   );
 
   test(
+    'repeated refreshes keep profile and session bound through failure',
+    () async {
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      expect(zolnitConnectionConfigReady(container.read), isTrue);
+      for (var i = 0; i < 3; i++) {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        validation = () async {
+          entered.complete();
+          await release.future;
+        };
+        fixture.onBundle = (_) async =>
+            clientBundleResponse(clientBundleFixture(bundleId: 'renewal-$i'));
+        final oldId = fixture.session.clientBundle!.bundleId;
+        final pending = container.read(zolnitSyncProfileProvider)();
+        await entered.future;
+        expect(fixture.session.clientBundle!.bundleId, oldId);
+        expect(container.read(currentProfileProvider)!.zolnitBundleId, oldId);
+        expect(zolnitConnectionConfigReady(container.read), isTrue);
+        release.complete();
+        await pending;
+        expect(
+          container.read(currentProfileProvider)!.zolnitBundleId,
+          'renewal-$i',
+        );
+        expect(fixture.session.clientBundle!.bundleId, 'renewal-$i');
+        expect(zolnitConnectionConfigReady(container.read), isTrue);
+        if (i == 1) {
+          fixture.onBundle = (_) async =>
+              http.Response('{"error":{"code":"client_api_unavailable"}}', 503);
+          await expectLater(
+            container.read(zolnitSyncProfileProvider)(),
+            throwsA(isA<ClientFailure>()),
+          );
+          expect(zolnitConnectionConfigReady(container.read), isTrue);
+        }
+      }
+    },
+  );
+
+  test('new valid bundle waits for its matching native Core lease', () async {
+    nativeSupported = true;
+    final profile = await sync();
+    container.read(currentProfileIdProvider.notifier).value = profile.id;
+    final first = await build(profile);
+    final routing = container.read(zolnitRoutingProvider);
+    safe = false;
+    container.invalidate(safeModeProvider);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    routing.activate(profile.id, first.md5);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await native.poll();
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+    final observed = <bool>[];
+    final subscription = container.listen(
+      zolnitCoreLeaseReadyProvider,
+      (_, next) => observed.add(next),
+    );
+    addTearDown(subscription.close);
+
+    fixture.onBundle = (_) async => clientBundleResponse(
+      clientBundleFixture(issuedAt: 1001, bundleId: 'new-verified-bundle'),
+    );
+    now = bundleTime(1002);
+    final replacement = await sync();
+    await native.poll();
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(zolnitCoreLeaseReadyProvider), isFalse);
+    expect(
+      container.read(zolnitBundleStatusProvider),
+      ZolnitBundleStatus.ready,
+    );
+    final rebuilt = await build(replacement);
+    routing.activate(replacement.id, rebuilt.md5);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await native.poll();
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+    expect(observed, [false, true]);
+  });
+
+  test(
+    'native ready from the previous account cannot survive logout',
+    () async {
+      nativeSupported = true;
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      final built = await build(profile);
+      final routing = container.read(zolnitRoutingProvider);
+      safe = false;
+      container.invalidate(safeModeProvider);
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      routing.activate(profile.id, built.md5);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await native.poll();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      final held = Completer<Map<String, dynamic>?>();
+      leaseOverride = () => held.future;
+      await native.poll();
+      await fixture.session.logout();
+      held.complete({
+        'instanceId': 'fixture-core',
+        'token': 'fixture-token',
+        'configurationGeneration': 1,
+        'accountId': profile.zolnitAccountId,
+        'accountGeneration': fixture.api.generation - 1,
+        'bundleId': profile.zolnitBundleId,
+        'configurationDigest': built.md5,
+        'expiresAt': bundleTime(1300).millisecondsSinceEpoch,
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(zolnitCoreLeaseReadyProvider), isFalse);
+      expect(
+        container.read(zolnitBundleStatusProvider),
+        ZolnitBundleStatus.unloaded,
+      );
+    },
+  );
+
+  for (final rejection in [
+    ZolnitBundleStatus.invalid,
+    ZolnitBundleStatus.expired,
+    ZolnitBundleStatus.forbidden,
+  ]) {
+    test('native ready cannot revive $rejection or a stale lease', () async {
+      nativeSupported = true;
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      final built = await build(profile);
+      final routing = container.read(zolnitRoutingProvider);
+      safe = false;
+      container.invalidate(safeModeProvider);
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      routing.activate(profile.id, built.md5);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await native.poll();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      final statuses = <ZolnitBundleStatus>[];
+      final ready = <bool>[];
+      final statusWatch = container.listen(
+        zolnitBundleStatusProvider,
+        (_, next) => statuses.add(next),
+      );
+      final readyWatch = container.listen(
+        zolnitCoreLeaseReadyProvider,
+        (_, next) => ready.add(next),
+      );
+      addTearDown(statusWatch.close);
+      addTearDown(readyWatch.close);
+
+      final held = Completer<Map<String, dynamic>?>();
+      leaseOverride = () => held.future;
+      await native.poll();
+      container.read(zolnitBundleStatusProvider.notifier).set(rejection);
+      expect(container.read(zolnitCoreLeaseReadyProvider), isFalse);
+      held.complete({
+        'instanceId': 'fixture-core',
+        'token': 'fixture-token',
+        'configurationGeneration': 1,
+        'accountId': fixture.session.clientBundle!.accountId,
+        'accountGeneration': fixture.api.generation,
+        'bundleId': fixture.session.clientBundle!.bundleId,
+        'configurationDigest': built.md5,
+        'expiresAt':
+            fixture.session.clientBundle!.expiresAt.millisecondsSinceEpoch,
+      });
+      await Future<void>.delayed(Duration.zero);
+      await native.poll();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(zolnitBundleStatusProvider), rejection);
+      expect(container.read(zolnitCoreLeaseReadyProvider), isFalse);
+      expect(statuses, [rejection]);
+      expect(ready, [false]);
+    });
+  }
+
+  test(
     'a rejected bundle reads as stopped until the VPN runs, then as an issue',
     () async {
       final profile = await sync();
@@ -969,8 +1240,9 @@ void main() {
       expect(await File(await zolnitBundlePath(first)).readAsString(), before);
       expect(
         container.read(zolnitBundleStatusProvider),
-        ZolnitBundleStatus.invalid,
+        ZolnitBundleStatus.ready,
       );
+      expect(fixture.session.clientBundleFailure, 'bundle_refresh_rejected');
     },
   );
 
@@ -1153,6 +1425,118 @@ void main() {
         isNull,
       );
       expect(fixture.session.authenticated, isTrue);
+    },
+  );
+  test(
+    'native renewal adopts the exact Core projection without false invalid states or HTTP',
+    () async {
+      container.dispose();
+      fixture.dispose();
+      final signed = _NativeSigned();
+      fixture = ClientBundleSessionFixture(signedSubscriptions: signed);
+      await fixture.login();
+      nativeSupported = true;
+      createContainer();
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      final built = await build(profile);
+      final routing = container.read(zolnitRoutingProvider);
+      safe = false;
+      container.invalidate(safeModeProvider);
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      routing.activate(profile.id, built.md5);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await native.poll();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      final readiness = <bool>[];
+      final states = <ZolnitBundleStatus>[];
+      final readyListener = container.listen(
+        zolnitCoreLeaseReadyProvider,
+        (_, next) => readiness.add(next),
+      );
+      final stateListener = container.listen(
+        zolnitBundleStatusProvider,
+        (_, next) => states.add(next),
+      );
+      addTearDown(readyListener.close);
+      addTearDown(stateListener.close);
+      now = bundleTime(1002);
+      final raw = clientBundleFixture(
+        issuedAt: 1001,
+        bundleId: 'native-installed-projection',
+      );
+      final guard = <String, dynamic>{
+        'instanceId': 'fixture-core',
+        'token': 'renewed-token',
+        'configurationGeneration': 2,
+        'accountId': 'account-1',
+        'accountGeneration': fixture.api.generation,
+        'bundleId': raw['bundle_id'],
+        'configurationDigest': 'native-installed-digest',
+        'expiresAt': 1301000,
+      };
+      leaseOverride = () async => guard;
+      var reads = 0;
+      when(
+        () => core.signedSubscription(
+          CoreMethod.projectSignedSubscription,
+          any(),
+        ),
+      ).thenAnswer((invocation) async {
+        final args = invocation.positionalArguments[1] as Map;
+        expect(args['current'], true);
+        expect(args['lease'], guard);
+        reads++;
+        return {
+          'body': jsonEncode({'data': raw}),
+          'lease': guard,
+          'state': {
+            'available': true,
+            'hasFloor': true,
+            'installed': true,
+            'serial': 2,
+            'intent': 0,
+          },
+        };
+      });
+      final requests = fixture.requests.length;
+      await native.poll();
+      for (
+        var i = 0;
+        i < 30 && fixture.session.clientBundle?.bundleId != raw['bundle_id'];
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(fixture.session.clientBundle?.bundleId, raw['bundle_id']);
+      expect(
+        container.read(currentProfileProvider)?.zolnitBundleId,
+        raw['bundle_id'],
+      );
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      expect(states, isNot(contains(ZolnitBundleStatus.invalid)));
+      expect(readiness, isNot(contains(false)));
+      for (var i = 0; i < 4; i++) {
+        await native.poll();
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(reads, 1);
+      expect(fixture.requests.length, requests);
+      expect(signed.serial, 2);
+      signed.next = Completer<Json?>();
+      final remote = container.read(zolnitSyncClientBundleProvider)();
+      await Future<void>.delayed(Duration.zero);
+      await container.read(zolnitSyncCurrentClientBundleProvider)(guard);
+      signed.next!.completeError(const ClientFailure('subscription_expired'));
+      await expectLater(remote, throwsA(isA<ClientFailure>()));
+      expect(fixture.session.clientBundle?.bundleId, raw['bundle_id']);
+      expect(fixture.session.clientBundleFailure, isNull);
+      expect(
+        container.read(zolnitBundleStatusProvider),
+        ZolnitBundleStatus.ready,
+      );
     },
   );
 }

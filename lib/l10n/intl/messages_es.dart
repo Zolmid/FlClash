@@ -2791,8 +2791,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "updateDownloading": MessageLookupByLibrary.simpleMessage(
       "Descargando actualización",
     ),
+    "updateGoAuthorize": MessageLookupByLibrary.simpleMessage("Autorizar"),
+    "updateInstallCancelled": MessageLookupByLibrary.simpleMessage(
+      "Instalación cancelada. Puedes volver a intentarlo o abrir la página de descargas.",
+    ),
     "updateInstallFailed": MessageLookupByLibrary.simpleMessage(
       "No se pudo iniciar el instalador.",
+    ),
+    "updateInstallLater": MessageLookupByLibrary.simpleMessage(
+      "Instalar más tarde",
     ),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
       "No se autorizó a ZolNit a instalar aplicaciones, por lo que no se instaló la actualización.",
@@ -2801,6 +2808,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "ZolNit no puede escribir en su carpeta de instalación. Descarga la actualización manualmente.",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage("Actualizar ahora"),
+    "updatePermissionPrompt": MessageLookupByLibrary.simpleMessage(
+      "Permite que ZolNit instale la actualización descargada en los ajustes de Android. Aún tendrás que confirmar la instalación.",
+    ),
+    "updatePermissionTitle": MessageLookupByLibrary.simpleMessage(
+      "Permiso de instalación",
+    ),
     "upload": MessageLookupByLibrary.simpleMessage("Subida"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage(
       "Ancho de banda de subida",

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_status.dart';
+import 'package:fl_clash/common/exception.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
@@ -169,6 +170,10 @@ void main() {
       set(_status(AppUpdatePhase.staged, package: UpdatePackage.androidApk));
       await tester.pumpAndSettle();
       expect(find.text('ZolNit 1.3.0 已下载，可以安装'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('zolnit-update-download')),
+        findsOneWidget,
+      );
       final install = find.byKey(const ValueKey('zolnit-update-install'));
       await tester.tap(install);
       await tester.pump();
@@ -179,6 +184,63 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('正在打开安装程序…'), findsOneWidget);
       expect(find.byTooltip('关闭'), findsNothing);
+    });
+
+    testWidgets('install permission offers later and explicit authorization', (
+      tester,
+    ) async {
+      bool? result;
+      await tester.pumpWidget(
+        TestApp(
+          includeNavigatorKey: false,
+          locale: const Locale('zh', 'CN'),
+          child: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async => result = await confirmUpdateInstallation(
+                context,
+                () async => false,
+              ),
+              child: const Text('test permission'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('test permission'));
+      await tester.pumpAndSettle();
+      expect(find.text('前往授权'), findsOneWidget);
+      await tester.tap(find.text('稍后安装'));
+      await tester.pumpAndSettle();
+      expect(result, false);
+      await tester.tap(find.text('test permission'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('前往授权'));
+      await tester.pumpAndSettle();
+      expect(result, true);
+    });
+
+    testWidgets('already granted install permission does not open a prompt', (
+      tester,
+    ) async {
+      bool? result;
+      await tester.pumpWidget(
+        TestApp(
+          includeNavigatorKey: false,
+          locale: const Locale('zh', 'CN'),
+          child: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async => result = await confirmUpdateInstallation(
+                context,
+                () async => true,
+              ),
+              child: const Text('test granted'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('test granted'));
+      await tester.pumpAndSettle();
+      expect(result, true);
+      expect(find.text('前往授权'), findsNothing);
     });
 
     testWidgets('a failed update offers the website download', (tester) async {
@@ -197,6 +259,36 @@ void main() {
       await tester.pumpAndSettle();
       expect(banner, findsNothing);
     });
+
+    testWidgets(
+      'a denied install keeps retry and opens the official page fallback',
+      (tester) async {
+        await mount(tester);
+        final staged = _status(
+          AppUpdatePhase.staged,
+          package: UpdatePackage.androidApk,
+        );
+        set(
+          AppUpdateStatus(
+            phase: staged.phase,
+            release: staged.release,
+            plan: staged.plan,
+            failure: const MessageException('ZolNit 未获得安装应用的权限，因此未安装更新。'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('zolnit-update-install')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('zolnit-update-download')));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('https://link.zolmid.com/theme/ZolNit/downloads.html'),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('reduced motion shows the status in one frame', (tester) async {
       await mount(tester, still: true);

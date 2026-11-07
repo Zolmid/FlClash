@@ -40,6 +40,9 @@ class App {
     return _instance!;
   }
 
+  Future<bool> canInstallApk() async =>
+      await methodChannel.invokeMethod<bool>('canInstallApk') ?? false;
+
   Future<bool?> moveTaskToBack() async {
     return methodChannel.invokeMethod<bool>('moveTaskToBack');
   }

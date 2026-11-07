@@ -121,6 +121,63 @@ class CoreSignedSubscriptionOwner implements ZolnitSignedSubscriptionOwner {
     return data;
   }
 
+  Future<({Json data, ZolnitSignedState state, int intent})> current({
+    required String accountId,
+    required String deviceId,
+    required int intent,
+    required Map<String, dynamic> lease,
+  }) async {
+    final Object? value;
+    try {
+      value = await _call(CoreMethod.projectSignedSubscription, {
+        'accountId': accountId,
+        'deviceId': deviceId,
+        'intent': intent,
+        'current': true,
+        'lease': lease,
+      });
+    } on ClientFailure catch (error) {
+      if (error.code == 'signed_projection_unavailable') {
+        throw const ClientFailure('core_unavailable');
+      }
+      rethrow;
+    }
+    if (value is! Map ||
+        value['body'] is! String ||
+        value['lease'] is! Map ||
+        value['state'] is! Map ||
+        (value['state'] as Map)['intent'] != intent) {
+      throw const ClientFailure('core_unavailable');
+    }
+    final current = value['lease'] as Map;
+    for (final key in const [
+      'instanceId',
+      'token',
+      'configurationGeneration',
+      'accountId',
+      'accountGeneration',
+      'bundleId',
+      'configurationDigest',
+      'expiresAt',
+    ]) {
+      if (current[key] != lease[key]) throw const ClientFailure('superseded');
+    }
+    final decoded = await compute(jsonDecode, value['body'] as String);
+    final data = decoded is Map ? decoded['data'] : null;
+    if (data is! Json ||
+        data['bundle_id'] != lease['bundleId'] ||
+        data['account_id'] != accountId ||
+        data['expires_at'] is! int ||
+        (data['expires_at'] as int) * 1000 != lease['expiresAt']) {
+      throw const ClientFailure('invalid_signed_subscription');
+    }
+    return (
+      data: data,
+      state: ZolnitSignedState.fromJson(value['state']),
+      intent: intent,
+    );
+  }
+
   @override
   Future<void> signOut(int intent) async {
     final result = await _call(CoreMethod.signOutSignedSubscription, {

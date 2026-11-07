@@ -2125,9 +2125,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "다운로드한 파일이 공개된 체크섬과 일치하지 않아 삭제되었습니다.",
     ),
     "updateDownloading": MessageLookupByLibrary.simpleMessage("업데이트 다운로드 중"),
+    "updateGoAuthorize": MessageLookupByLibrary.simpleMessage("권한 설정"),
+    "updateInstallCancelled": MessageLookupByLibrary.simpleMessage(
+      "설치가 취소되었습니다. 다시 시도하거나 다운로드 페이지를 열 수 있습니다.",
+    ),
     "updateInstallFailed": MessageLookupByLibrary.simpleMessage(
       "설치 프로그램을 시작할 수 없습니다.",
     ),
+    "updateInstallLater": MessageLookupByLibrary.simpleMessage("나중에 설치"),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
       "ZolNit에 앱 설치 권한이 없어 업데이트를 설치하지 못했습니다.",
     ),
@@ -2135,6 +2140,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "ZolNit가 설치 폴더에 쓸 수 없습니다. 업데이트를 직접 다운로드하세요.",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage("지금 업데이트"),
+    "updatePermissionPrompt": MessageLookupByLibrary.simpleMessage(
+      "Android 설정에서 ZolNit이 다운로드한 업데이트를 설치하도록 허용하세요. 설치 전 시스템 확인이 필요합니다.",
+    ),
+    "updatePermissionTitle": MessageLookupByLibrary.simpleMessage("설치 권한"),
     "upload": MessageLookupByLibrary.simpleMessage("업로드"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("업로드 대역폭"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("업로드 속도"),

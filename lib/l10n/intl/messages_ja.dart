@@ -2175,9 +2175,14 @@ class MessageLookup extends MessageLookupByLibrary {
       "ダウンロードしたファイルが公開されたチェックサムと一致しないため、破棄しました。",
     ),
     "updateDownloading": MessageLookupByLibrary.simpleMessage("更新をダウンロード中"),
+    "updateGoAuthorize": MessageLookupByLibrary.simpleMessage("許可する"),
+    "updateInstallCancelled": MessageLookupByLibrary.simpleMessage(
+      "インストールをキャンセルしました。再試行するか、ダウンロードページを開けます。",
+    ),
     "updateInstallFailed": MessageLookupByLibrary.simpleMessage(
       "インストーラーを起動できませんでした。",
     ),
+    "updateInstallLater": MessageLookupByLibrary.simpleMessage("後でインストール"),
     "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
       "ZolNit にアプリのインストールが許可されなかったため、更新をインストールしませんでした。",
     ),
@@ -2185,6 +2190,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "ZolNit はインストール先のフォルダに書き込めません。更新を手動でダウンロードしてください。",
     ),
     "updateNow": MessageLookupByLibrary.simpleMessage("今すぐ更新"),
+    "updatePermissionPrompt": MessageLookupByLibrary.simpleMessage(
+      "Android の設定で、ダウンロード済みの更新を ZolNit がインストールできるようにしてください。インストール前に確認が必要です。",
+    ),
+    "updatePermissionTitle": MessageLookupByLibrary.simpleMessage("インストールの許可"),
     "upload": MessageLookupByLibrary.simpleMessage("アップロード"),
     "uploadBandwidth": MessageLookupByLibrary.simpleMessage("アップロード帯域幅"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("アップロード速度"),

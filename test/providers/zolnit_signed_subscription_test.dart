@@ -49,6 +49,98 @@ void main() {
   });
 
   test(
+    'current projection is bound to the observed active Core lease',
+    () async {
+      final lease = <String, dynamic>{
+        'instanceId': 'core-fixture',
+        'token': 'current-token',
+        'configurationGeneration': 2,
+        'accountId': '2',
+        'accountGeneration': 3,
+        'bundleId': 'installed-bundle',
+        'configurationDigest': 'current-digest',
+        'expiresAt': 1300000,
+      };
+      var response = <String, Object?>{
+        'lease': lease,
+        'body': jsonEncode({
+          'data': {
+            'account_id': '2',
+            'bundle_id': 'installed-bundle',
+            'expires_at': 1300,
+          },
+        }),
+        'state': {
+          'available': true,
+          'hasFloor': true,
+          'installed': true,
+          'serial': 2,
+          'intent': 4,
+        },
+      };
+      core.answer = (method, arguments) {
+        expect(method, CoreMethod.projectSignedSubscription);
+        expect(arguments, {
+          'accountId': '2',
+          'deviceId': _device,
+          'intent': 4,
+          'current': true,
+          'lease': lease,
+        });
+        return response;
+      };
+      final current = await owner.current(
+        accountId: '2',
+        deviceId: _device,
+        intent: 4,
+        lease: lease,
+      );
+      expect(current.data['bundle_id'], 'installed-bundle');
+      expect(current.state.serial, 2);
+      expect(current.intent, 4);
+      for (final change in [
+        {
+          'lease': {...lease, 'token': 'old-token'},
+        },
+        {
+          'state': {'intent': 3},
+        },
+        {
+          'body': jsonEncode({
+            'data': {
+              'account_id': 'other',
+              'bundle_id': 'installed-bundle',
+              'expires_at': 1300,
+            },
+          }),
+        },
+        {
+          'body': jsonEncode({
+            'data': {
+              'account_id': '2',
+              'bundle_id': 'installed-bundle',
+              'expires_at': 1400,
+            },
+          }),
+        },
+      ]) {
+        final original = response;
+        response = {...response, ...change};
+        await expectLater(
+          owner.current(
+            accountId: '2',
+            deviceId: _device,
+            intent: 4,
+            lease: lease,
+          ),
+          throwsA(isA<ClientFailure>()),
+        );
+        response = original;
+      }
+    },
+  );
+
+  test(
     'the Core is asked to verify, commit and project signed material',
     () async {
       core.answer = (method, arguments) => switch (method) {

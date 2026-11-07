@@ -138,6 +138,39 @@ class ZolnitSignedSubscriptions {
   ({String accountId, ZolnitClientDevice device, int serial, int intent})?
   get active => _active;
 
+  bool acceptNativeState(
+    XboardClient api, {
+    required int generation,
+    required String accountId,
+    required String deviceId,
+    required int intent,
+    required ZolnitSignedState state,
+  }) {
+    final current = _active;
+    if (api.generation != generation ||
+        current == null ||
+        current.accountId != accountId ||
+        current.device.deviceId != deviceId ||
+        current.intent != intent ||
+        !state.available ||
+        !state.hasFloor ||
+        !state.installed ||
+        state.revoked ||
+        state.expired ||
+        state.serial == null ||
+        state.serial! < current.serial) {
+      return false;
+    }
+    _active = (
+      accountId: accountId,
+      device: current.device,
+      serial: state.serial!,
+      intent: intent,
+    );
+    _stateCheckedAt = _monotonic.elapsed;
+    return true;
+  }
+
   /// Returns a projected v1 bundle object, or null when signed subscriptions
   /// are not negotiated for this installation and the legacy path applies.
   Future<Json?> bundle(
@@ -280,8 +313,13 @@ class ZolnitSignedSubscriptions {
         }
         checkCurrent();
         _stateCheckedAt = _monotonic.elapsed;
-      } on ClientFailure {
+      } on ClientFailure catch (error) {
         checkCurrent();
+        if (error.code == 'subscription_expired' ||
+            error.code == 'subscription_tombstone' ||
+            error.code == 'signed_subscription_stale_owner') {
+          rethrow;
+        }
         if (applyStarted && state?.installed != true) rethrow;
         // A failed or rejected refresh leaves the Core's store unchanged; only
         // a signed revocation or expiry removes an installed package.

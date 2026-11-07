@@ -33,6 +33,30 @@ Future<ZolnitNativeRenewalSnapshot> _configure(
 );
 
 void main() {
+  test('older owner cannot overwrite a newer owner or log it out', () async {
+    final journal = _Journal();
+    var response = <String, Object?>{..._receipt, 'ownerId': 10};
+    final client = ZolnitNativeRenewalClient(
+      journal: journal,
+      call: (method, _) async =>
+          method == 'configureClientBundleRenewal' ? _receipt : response,
+    );
+    addTearDown(client.dispose);
+    final states = <String>[];
+    client.addListener(
+      () => states.add('${client.snapshot.ownerId}:${client.snapshot.state}'),
+    );
+    await _configure(client);
+    await client.poll();
+    response = {..._receipt, 'ownerId': 9, 'state': 'logged_out'};
+    await client.poll();
+    response = {..._receipt, 'ownerId': 9, 'ready': false, 'state': 'stale'};
+    await client.poll();
+    expect(states, ['9:installed', '10:installed']);
+    expect(client.snapshot.ownerId, 10);
+    expect(client.snapshot.ready, isTrue);
+    expect(await client.allowsRestoration(_authorization), isTrue);
+  });
   test(
     'journal persists the owner binding without persisting its bearer',
     () async {

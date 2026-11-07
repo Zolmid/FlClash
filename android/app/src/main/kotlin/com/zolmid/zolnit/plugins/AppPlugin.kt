@@ -3,6 +3,7 @@ package com.zolmid.zolnit.plugins
 import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -10,6 +11,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -74,6 +76,34 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     private val requestLocalNetworkCallback = PendingCallback<Boolean>()
 
     private val installPermissionCallback = PendingCallback<Boolean>()
+    private val installResult = PendingCallback<String>()
+    private var installSettingsPaused = false
+    private var installGeneration = 0
+    private var installPermissionRequestCode = INSTALL_PERMISSION_REQUEST_CODE
+    private var nextInstallPermissionRequestCode = 12000
+    private val installLifecycle = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityPaused(current: Activity) {
+            if (current === activity) {
+                if (installPermissionCallback.isPending) installSettingsPaused = true
+                ApkInstaller.activityPaused()
+            }
+        }
+        override fun onActivityResumed(current: Activity) {
+            if (current === activity) ApkInstaller.activityResumed(GlobalState.application)
+            if (current === activity && installSettingsPaused) {
+                installSettingsPaused = false
+                val generation = installGeneration
+                mainHandler.post {
+                    if (generation == installGeneration) invokeInstallPermissionCallback()
+                }
+            }
+        }
+        override fun onActivityCreated(current: Activity, state: Bundle?) = Unit
+        override fun onActivityStarted(current: Activity) = Unit
+        override fun onActivityStopped(current: Activity) = Unit
+        override fun onActivitySaveInstanceState(current: Activity, state: Bundle) = Unit
+        override fun onActivityDestroyed(current: Activity) = Unit
+    }
 
     private var isRequestingNotificationPermission = false
 
@@ -202,6 +232,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 result.success(openAppSettings())
             }
 
+            "canInstallApk" -> result.success(ApkInstaller.canRequestInstalls(GlobalState.application))
+
             "installApk" -> handleInstallApk(call, result)
 
             "getLastExitInfo" -> reply(result) {
@@ -220,34 +252,43 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             result.success("failed")
             return
         }
+        if (installResult.isPending) {
+            result.success("failed")
+            return
+        }
+        val generation = ++installGeneration
+        val epoch = ApkInstaller.epoch()
+        fun finish(status: String) = onMainThread {
+            if (generation == installGeneration) installResult.resolve(status)
+        }
+        installResult.replace({ result.success(it) }, supersededValue = "failed")
         scope.launch(Dispatchers.IO) {
             try {
                 ApkInstaller.validate(GlobalState.application, path)
             } catch (error: Exception) {
                 GlobalState.log("Rejected APK update: $error")
-                result.success("failed")
+                finish("failed")
                 return@launch
             }
-            requestInstallPermission { granted ->
+            requestInstallPermission(generation) { granted ->
                 if (!granted) {
-                    result.success("permissionDenied")
+                    finish("permissionDenied")
                 } else {
                     scope.launch(Dispatchers.IO) {
-                        val status = runCatching {
-                            ApkInstaller.install(GlobalState.application, path)
-                            "started"
-                        }.getOrElse { error ->
+                        runCatching {
+                            ApkInstaller.install(GlobalState.application, path, epoch, ::finish)
+                        }.onFailure { error ->
                             GlobalState.log("Unable to install APK update: $error")
-                            "failed"
+                            finish("failed")
                         }
-                        result.success(status)
                     }
                 }
             }
         }
     }
 
-    private fun requestInstallPermission(callback: (Boolean) -> Unit) = onMainThread {
+    private fun requestInstallPermission(generation: Int, callback: (Boolean) -> Unit) = onMainThread {
+        if (generation != installGeneration || !installResult.isPending) return@onMainThread
         installPermissionCallback.replace(callback, supersededValue = false)
         val context = GlobalState.application
         if (ApkInstaller.canRequestInstalls(context)) {
@@ -259,13 +300,26 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             invokeInstallPermissionCallback()
             return@onMainThread
         }
+        installSettingsPaused = false
+        val requestCode = nextInstallPermissionRequestCode
+        nextInstallPermissionRequestCode = if (requestCode == 60000) 12000 else requestCode + 1
+        installPermissionRequestCode = requestCode
         runCatching {
             @Suppress("DEPRECATION")
             currentActivity.startActivityForResult(
                 ApkInstaller.unknownSourcesSettings(context),
-                INSTALL_PERMISSION_REQUEST_CODE,
+                requestCode,
             )
         }.onFailure { invokeInstallPermissionCallback() }
+        mainHandler.postDelayed({
+            if (generation == installGeneration && installPermissionCallback.isPending &&
+                activity === currentActivity && !installSettingsPaused && currentActivity.hasWindowFocus()
+            ) {
+                if (runCatching { currentActivity.finishActivity(requestCode) }.isSuccess) {
+                    invokeInstallPermissionCallback()
+                }
+            }
+        }, 30000)
     }
 
     private fun invokeInstallPermissionCallback() {
@@ -472,6 +526,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        (flutterPluginBinding.applicationContext as Application).registerActivityLifecycleCallbacks(installLifecycle)
         channel =
             MethodChannel(flutterPluginBinding.binaryMessenger, "${Components.PACKAGE_NAME}/app")
         channel.setMethodCallHandler(this)
@@ -490,6 +545,10 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        (binding.applicationContext as Application).unregisterActivityLifecycleCallbacks(installLifecycle)
+        ApkInstaller.detach(GlobalState.application)
+        installResult.resolve("failed")
+        installGeneration++
         packageChangeContext?.unregisterReceiver(packageChangeReceiver)
         packageChangeContext = null
         channel.setMethodCallHandler(null)
@@ -557,12 +616,15 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         invokeRequestLocalNetworkCallback(false)
         invokeRequestInstalledAppsCallback(false)
         installPermissionCallback.resolve(false)
+        ApkInstaller.detach(GlobalState.application)
+        installResult.resolve("failed")
+        installGeneration++
     }
 
     private fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (consumeActivityResult(
                 requestCode,
-                INSTALL_PERMISSION_REQUEST_CODE,
+                installPermissionRequestCode,
                 ::invokeInstallPermissionCallback,
             )
         ) {

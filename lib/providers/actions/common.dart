@@ -162,6 +162,9 @@ class CommonAction extends _$CommonAction {
   void cancelAppUpdateStaging() => _stagingCancelToken?.cancel();
 
   Future<bool> checkForAppUpdate({bool isUser = false, bool force = false}) {
+    if (ref.read(appUpdateStatusProvider).phase == AppUpdatePhase.applying) {
+      return Future.value(false);
+    }
     if (ref.read(safeModeProvider)) return Future.value(false);
     if (!isUser && !force && !_updateDiscoveryDue) {
       return Future<bool>.value(_hasStagedOrAnnouncement);
@@ -277,10 +280,7 @@ class CommonAction extends _$CommonAction {
     final cancelToken = CancelToken();
     _stagingCancelToken = cancelToken;
     try {
-      final staged = await appInstaller.download(
-        plan,
-        cancelToken: cancelToken,
-      );
+      final staged = await stageAppUpdate(plan, cancelToken);
       if (!ref.mounted) return;
       _stagedUpdate = staged;
       _setUpdateStatus(
@@ -434,6 +434,10 @@ class CommonAction extends _$CommonAction {
     }
   }
 
+  @protected
+  Future<File> stageAppUpdate(AppUpdatePlan plan, CancelToken cancelToken) =>
+      appInstaller.download(plan, cancelToken: cancelToken);
+
   @visibleForTesting
   Future<UpdateTarget> Function() detectAppUpdateTarget = detectUpdateTarget;
 
@@ -514,17 +518,17 @@ class CommonAction extends _$CommonAction {
       ),
     );
     try {
-      await _installWithRestartJournal(
-        plan,
-        file,
-        exitAfterInstall: false,
-        markRestart: allowRestart,
-      );
+      await installStagedUpdate(plan, file, allowRestart: allowRestart);
+      if (ref.mounted && plan.target.package == UpdatePackage.androidApk) {
+        _setUpdateStatus(const AppUpdateStatus());
+      }
     } catch (error) {
       if (ref.mounted) {
         _setUpdateStatus(
           AppUpdateStatus(
-            phase: AppUpdatePhase.failed,
+            phase: plan.target.package == UpdatePackage.androidApk
+                ? AppUpdatePhase.staged
+                : AppUpdatePhase.failed,
             release: status.release,
             plan: plan,
             failure: error,
@@ -534,6 +538,18 @@ class CommonAction extends _$CommonAction {
       rethrow;
     }
   }
+
+  @protected
+  Future<void> installStagedUpdate(
+    AppUpdatePlan plan,
+    File file, {
+    required bool allowRestart,
+  }) => _installWithRestartJournal(
+    plan,
+    file,
+    exitAfterInstall: false,
+    markRestart: allowRestart,
+  );
 
   Future<void> _installWithRestartJournal(
     AppUpdatePlan plan,
@@ -690,8 +706,10 @@ class CommonAction extends _$CommonAction {
   Future<void> _installApk(File apk) async {
     final status = await appInstaller.installApk(apk);
     switch (status) {
-      case ApkInstallStatus.started:
+      case ApkInstallStatus.installed:
         return;
+      case ApkInstallStatus.cancelled:
+        throw MessageException(currentAppLocalizations.updateInstallCancelled);
       case ApkInstallStatus.permissionDenied:
         throw MessageException(currentAppLocalizations.updateInstallPermission);
       case ApkInstallStatus.failed:

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -18,6 +19,7 @@ class _ReleaseServer implements HttpClientAdapter {
   var downloads = 0, checks = 0;
   var version = '1.0.1', contents = 'abc';
   bool disabled = false;
+  UpdatePackage package = UpdatePackage.androidApk;
 
   @override
   Future<ResponseBody> fetch(
@@ -27,7 +29,9 @@ class _ReleaseServer implements HttpClientAdapter {
   ) async {
     final uri = options.uri;
     expect(uri.origin, 'https://link.zolmid.com');
-    final name = 'ZolNit-$version-android-arm64-v8a.apk';
+    final arch = package == UpdatePackage.androidApk ? 'arm64-v8a' : 'arm64';
+    final suffix = UpdateTarget(package, arch).assetSuffix;
+    final name = 'ZolNit-$version$suffix';
     if (uri.path == '/client/releases.json') {
       checks++;
       return ResponseBody.fromString(
@@ -71,6 +75,28 @@ class _ReleaseServer implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+class _UpdateActions extends CommonAction {
+  int attempts = 0;
+  Completer<void> operation = Completer<void>();
+  File? stagedFile;
+
+  @override
+  Future<File> stageAppUpdate(AppUpdatePlan plan, CancelToken cancelToken) =>
+      stagedFile == null
+      ? super.stageAppUpdate(plan, cancelToken)
+      : Future.value(stagedFile!);
+
+  @override
+  Future<void> installStagedUpdate(
+    AppUpdatePlan plan,
+    File file, {
+    required bool allowRestart,
+  }) {
+    attempts++;
+    return operation.future;
+  }
 }
 
 void main() {
@@ -130,4 +156,105 @@ void main() {
       expect(status().release?.tag, 'v1.0.3');
     },
   );
+  for (final scenario in ['permission denied', 'cancelled', 'launch failed']) {
+    test(
+      'Android $scenario preserves the staged APK and allows retry',
+      () async {
+        final root = await Directory.systemTemp.createTemp(
+          'zolnit-update-retry-',
+        );
+        addTearDown(() => root.delete(recursive: true));
+        await useAppPaths(root);
+        globalState.packageInfo = PackageInfo(
+          appName: 'ZolNit',
+          packageName: 'com.zolmid.zolnit',
+          version: '1.0.0',
+          buildNumber: '100',
+        );
+        final actions = _UpdateActions();
+        final scope = ProviderContainer(
+          overrides: [commonActionProvider.overrideWith(() => actions)],
+        );
+        addTearDown(scope.dispose);
+        scope.read(commonActionProvider.notifier);
+        final server = _ReleaseServer();
+        final old = appUpdateClient.dio.httpClientAdapter;
+        appUpdateClient.dio.httpClientAdapter = server;
+        addTearDown(() => appUpdateClient.dio.httpClientAdapter = old);
+        actions.detectAppUpdateTarget = () async =>
+            const UpdateTarget(UpdatePackage.androidApk, 'arm64-v8a');
+        await actions.autoCheckUpdate();
+        final first = actions.applyStagedAppUpdate();
+        final duplicate = actions.applyStagedAppUpdate();
+        expect(actions.attempts, 1);
+        expect(
+          scope.read(appUpdateStatusProvider).phase,
+          AppUpdatePhase.applying,
+        );
+        final checks = server.checks;
+        await actions.notifyAppUpdateHint(version: '1.0.2');
+        expect(server.checks, checks);
+        expect(
+          scope.read(appUpdateStatusProvider).phase,
+          AppUpdatePhase.applying,
+        );
+        actions.operation.completeError(StateError(scenario));
+        await expectLater(first, throwsStateError);
+        await duplicate;
+        expect(
+          scope.read(appUpdateStatusProvider).phase,
+          AppUpdatePhase.staged,
+        );
+        expect(scope.read(appUpdateStatusProvider).failure, isNotNull);
+        expect(server.downloads, 1);
+        actions.operation = Completer<void>();
+        final retry = actions.applyStagedAppUpdate();
+        expect(actions.attempts, 2);
+        actions.operation.complete();
+        await retry;
+        expect(scope.read(appUpdateStatusProvider).phase, AppUpdatePhase.idle);
+        expect(server.downloads, 1);
+      },
+    );
+  }
+
+  for (final package in [
+    UpdatePackage.windowsInstaller,
+    UpdatePackage.macosDmg,
+    UpdatePackage.linuxAppImage,
+  ]) {
+    test('desktop $package failure clears applying state', () async {
+      final root = await Directory.systemTemp.createTemp(
+        'zolnit-update-desktop-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      await useAppPaths(root);
+      globalState.packageInfo = PackageInfo(
+        appName: 'ZolNit',
+        packageName: 'com.zolmid.zolnit',
+        version: '1.0.0',
+        buildNumber: '100',
+      );
+      final actions = _UpdateActions()
+        ..stagedFile = File('${root.path}/staged');
+      final scope = ProviderContainer(
+        overrides: [commonActionProvider.overrideWith(() => actions)],
+      );
+      addTearDown(scope.dispose);
+      scope.read(commonActionProvider.notifier);
+      final server = _ReleaseServer()..package = package;
+      final old = appUpdateClient.dio.httpClientAdapter;
+      appUpdateClient.dio.httpClientAdapter = server;
+      addTearDown(() => appUpdateClient.dio.httpClientAdapter = old);
+      actions.detectAppUpdateTarget = () async =>
+          UpdateTarget(package, 'arm64');
+      await actions.autoCheckUpdate();
+      expect(scope.read(appUpdateStatusProvider).phase, AppUpdatePhase.staged);
+      final operation = actions.applyStagedAppUpdateOnExit();
+      expect(actions.attempts, 1);
+      actions.operation.completeError(StateError('cancelled or failed'));
+      await expectLater(operation, throwsStateError);
+      expect(scope.read(appUpdateStatusProvider).phase, AppUpdatePhase.failed);
+    });
+  }
 }

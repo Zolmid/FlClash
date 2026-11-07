@@ -284,17 +284,7 @@ func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *
 	if err := guardReturnDispatchReplacement(prepared, previous); err != nil {
 		return false, err
 	}
-	lease := &RoutingLeaseSpec{AccountID: prepared.Bundle.Account, AccountGeneration: previous.RoutingLease.AccountGeneration,
-		SignedDeviceID: previous.RoutingLease.SignedDeviceID, SignedSerial: previous.RoutingLease.SignedSerial,
-		SignedIntent: previous.RoutingLease.SignedIntent,
-		BundleID:     prepared.Bundle.ID, ConfigurationDigest: prepared.Digest,
-		ExpiresAt:        time.Unix(prepared.Bundle.Expires, 0).UnixMilli(),
-		ConnectionDigest: prepared.Bundle.Connection.SHA, MetadataDigest: prepared.MetadataDigest,
-		RenewalOverlay: previous.RoutingLease.RenewalOverlay, ReturnRoute: prepared.ReturnRoute}
-	for _, service := range prepared.Services {
-		lease.Services = append(lease.Services, RoutingLeaseServiceSpec{GroupName: service.GroupName,
-			AutomaticGroup: service.AutomaticGroup, ManualGroup: service.ManualGroup, AllowedProxies: service.AllowedProxies})
-	}
+	lease := routingLeaseForPrepared(prepared, previous.RoutingLease)
 	renewed := *previous
 	renewed.RoutingLease = lease
 	if reuseClientBundleConfigurationLocked(&renewed) {
@@ -336,4 +326,17 @@ func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *
 	applyParsedConfigLocked(cfg, &params, nil)
 	rememberClientBundleSetupLocked(&params)
 	return true, nil
+}
+
+func routingLeaseForPrepared(prepared *clientbundle.Prepared, previous *RoutingLeaseSpec) *RoutingLeaseSpec {
+	lease := &RoutingLeaseSpec{AccountID: prepared.Bundle.Account, AccountGeneration: previous.AccountGeneration,
+		SignedDeviceID: previous.SignedDeviceID, SignedSerial: previous.SignedSerial, SignedIntent: previous.SignedIntent,
+		BundleID: prepared.Bundle.ID, ConfigurationDigest: prepared.Digest, ExpiresAt: time.Unix(prepared.Bundle.Expires, 0).UnixMilli(),
+		ConnectionDigest: prepared.Bundle.Connection.SHA, MetadataDigest: prepared.MetadataDigest,
+		RenewalOverlay: previous.RenewalOverlay, ReturnRoute: prepared.ReturnRoute}
+	for _, service := range prepared.Services {
+		lease.Services = append(lease.Services, RoutingLeaseServiceSpec{GroupName: service.GroupName,
+			AutomaticGroup: service.AutomaticGroup, ManualGroup: service.ManualGroup, AllowedProxies: service.AllowedProxies})
+	}
+	return lease
 }

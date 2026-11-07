@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_status.dart';
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/common/exception.dart';
 import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
@@ -66,6 +68,29 @@ String? _runningVersion() {
   }
 }
 
+Future<bool> confirmUpdateInstallation(
+  BuildContext context,
+  Future<bool> Function() permissionProbe,
+) async {
+  var allowed = false;
+  try {
+    allowed = await permissionProbe();
+  } catch (_) {}
+  if (allowed) return true;
+  if (!context.mounted) return false;
+  final text = context.appLocalizations;
+  return await showZolnitDialog<bool>(
+        context,
+        (_) => ZolnitAlert(
+          title: text.updatePermissionTitle,
+          message: text.updatePermissionPrompt,
+          cancelLabel: text.updateInstallLater,
+          confirmLabel: text.updateGoAuthorize,
+        ),
+      ) ==
+      true;
+}
+
 /// The update status as a compact brand row, in place on the page rather than
 /// as a modal, and gone whenever there is nothing the user can act on.
 class ZolnitUpdateBanner extends ConsumerStatefulWidget {
@@ -92,6 +117,12 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
     if (_installing) return;
     setState(() => _installing = true);
     try {
+      final android = app;
+      if (android != null &&
+          !await confirmUpdateInstallation(context, android.canInstallApk)) {
+        return;
+      }
+      if (!mounted) return;
       await ref.read(commonActionProvider.notifier).applyStagedAppUpdate();
     } catch (_) {
       // The updater reports the failure through its status.
@@ -121,6 +152,7 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
                 child: _UpdateCard(
                   notice: notice,
                   busy: _installing,
+                  failure: ref.watch(appUpdateStatusProvider).failure,
                   onInstall: _install,
                   onDismiss: widget.dismissible
                       ? () => setState(() => _dismissed = key)
@@ -138,11 +170,13 @@ class _UpdateCard extends StatelessWidget {
     required this.notice,
     required this.busy,
     required this.onInstall,
+    required this.failure,
     required this.onDismiss,
   });
 
   final ZolnitUpdateNotice notice;
   final bool busy;
+  final Object? failure;
   final VoidCallback onInstall;
   final VoidCallback? onDismiss;
 
@@ -181,19 +215,31 @@ class _UpdateCard extends StatelessWidget {
     final skin = ZolnitSkin.of(context);
     final message = switch (notice.kind) {
       ZolnitUpdateKind.readyOnRestart => text.zolnitUpdateReadyRestart,
-      ZolnitUpdateKind.readyToInstall => text.zolnitUpdateReadyInstall(
-        notice.version,
-      ),
+      ZolnitUpdateKind.readyToInstall => switch (failure) {
+        MessageException(:final message) => message,
+        null => text.zolnitUpdateReadyInstall(notice.version),
+        _ => text.updateInstallFailed,
+      },
       ZolnitUpdateKind.installing => text.zolnitUpdateInstalling,
       ZolnitUpdateKind.available => text.zolnitUpdateAvailable(notice.version),
       ZolnitUpdateKind.manual => text.zolnitUpdateManual(notice.version),
     };
     final action = switch (notice.kind) {
-      ZolnitUpdateKind.readyToInstall => ZolnitButton(
-        key: const ValueKey('zolnit-update-install'),
-        label: text.zolnitUpdateInstall,
-        primary: true,
-        onPressed: busy ? null : onInstall,
+      ZolnitUpdateKind.readyToInstall => Wrap(
+        spacing: 8,
+        children: [
+          ZolnitButton(
+            key: const ValueKey('zolnit-update-install'),
+            label: text.zolnitUpdateInstall,
+            primary: true,
+            onPressed: busy ? null : onInstall,
+          ),
+          ZolnitButton(
+            key: const ValueKey('zolnit-update-download'),
+            label: text.goDownload,
+            onPressed: () => unawaited(_openDownload(context)),
+          ),
+        ],
       ),
       ZolnitUpdateKind.available || ZolnitUpdateKind.manual => ZolnitButton(
         key: const ValueKey('zolnit-update-download'),

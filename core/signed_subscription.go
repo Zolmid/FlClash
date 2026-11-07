@@ -19,6 +19,8 @@ type SignedSubscriptionParams struct {
 	Summary   bool                    `json:"summary,omitempty"`
 	Owner     *ClientBundleOwnerGuard `json:"owner,omitempty"`
 	Intent    *uint64                 `json:"intent,omitempty"`
+	Current   bool                    `json:"current,omitempty"`
+	Lease     *RoutingLeaseGuard      `json:"lease,omitempty"`
 }
 
 type SignedSubscriptionState struct {
@@ -43,6 +45,7 @@ type SignedSubscriptionProjection struct {
 	IssuedAt  int64                   `json:"issuedAt"`
 	ExpiresAt int64                   `json:"expiresAt"`
 	State     SignedSubscriptionState `json:"state"`
+	Lease     *RoutingLeaseGuard      `json:"lease,omitempty"`
 }
 
 type InstallSignedClientBundleParams struct {
@@ -212,6 +215,7 @@ func handleApplySignedSubscription(params *SignedSubscriptionParams) (*SignedSub
 }
 
 func retireSignedAccountLocked(account, device string) {
+	forgetSignedProjectionsLocked(account, device, nil)
 	if clientBundleSetup == nil || clientBundleSetup.RoutingLease == nil || clientBundleSetup.RoutingLease.AccountID != account ||
 		clientBundleSetup.RoutingLease.SignedDeviceID != device {
 		return
@@ -249,7 +253,14 @@ func handleProjectSignedSubscription(params *SignedSubscriptionParams) (*SignedS
 	configMu.Lock()
 	defer configMu.Unlock()
 	projection, err := withSignedStore(func(store *clientbundle.SubscriptionStore) (SignedSubscriptionProjection, error) {
-		body, _, err := store.Project(params.AccountID, params.DeviceID)
+		intent, err := store.SessionIntent()
+		if err != nil {
+			return SignedSubscriptionProjection{}, err
+		}
+		if params.Current {
+			return currentSignedProjectionLocked(store, params, intent)
+		}
+		body, pkg, err := store.Project(params.AccountID, params.DeviceID)
 		if err != nil {
 			return SignedSubscriptionProjection{}, err
 		}
@@ -266,6 +277,7 @@ func handleProjectSignedSubscription(params *SignedSubscriptionParams) (*SignedS
 		projection := SignedSubscriptionProjection{IssuedAt: lease.Data.Issued, ExpiresAt: lease.Data.Expires, State: signedState(status)}
 		if !params.Summary {
 			projection.Body = string(body)
+			rememberSignedProjectionLocked(body, pkg, intent, false)
 		}
 		return projection, err
 	})
@@ -314,6 +326,7 @@ func handleInstallSignedClientBundle(params *InstallSignedClientBundleParams) (*
 		}
 		if applied {
 			replaceClientBundleRoutingLocked(body, params.Owner)
+			rememberSignedProjectionLocked(body, pkg, intent, true)
 			armSignedRuntimeCheckLocked(store)
 		}
 		return &InstallSignedClientBundleResult{Installed: applied, BundleID: prepared.Bundle.ID,
@@ -355,6 +368,9 @@ func withSignedSetupLocked(params *SetupParams, apply func(*clientbundle.Prepare
 		if err != nil {
 			return false, signedMethodError(err)
 		}
+		if saved := signedProjectionForSetupLocked(lease, pkg, intent, body); saved != nil {
+			body = saved.body
+		}
 		prepared, code := clientbundle.Prepare(body, lease.AccountID, lease.RenewalOverlay, routingLeaseNow())
 		if code != "" {
 			return false, signedMethodError(clientbundle.SubscriptionError(code))
@@ -365,6 +381,7 @@ func withSignedSetupLocked(params *SetupParams, apply func(*clientbundle.Prepare
 				err = signedMethodError(clientbundle.ErrSignedRequired)
 			}
 			if err == nil {
+				rememberSignedProjectionLocked(body, pkg, intent, true)
 				armSignedRuntimeCheckLocked(store)
 			}
 			return applied, err
@@ -372,9 +389,12 @@ func withSignedSetupLocked(params *SetupParams, apply func(*clientbundle.Prepare
 		if pkg.Serial != lease.SignedSerial || prepared.Bundle.Connection.SHA != lease.ConnectionDigest {
 			return false, signedMethodError(clientbundle.ErrReplay)
 		}
+		params.RoutingLease = routingLeaseForPrepared(prepared, lease)
+		params.RoutingLease.ConfigurationDigest = lease.ConfigurationDigest
 		if err := apply(prepared); err != nil {
 			return false, err
 		}
+		rememberSignedProjectionLocked(body, pkg, intent, true)
 		armSignedRuntimeCheckLocked(store)
 		return true, nil
 	})

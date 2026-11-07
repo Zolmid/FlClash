@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart' show compute;
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/zolnit_routing.dart';
@@ -8,6 +10,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_native_renewal.dart';
+import 'package:fl_clash/common/zolnit_return_route.dart';
 import 'package:fl_clash/providers/zolnit_vault.dart';
 import 'package:fl_clash/common/zolnit_native_renewal.dart';
 import 'package:flutter/widgets.dart'
@@ -68,7 +71,7 @@ typedef _RoutingPlan = ({
   Map<String, dynamic>? returnRoute,
 });
 
-typedef _LeaseIdentity = (int, int, DateTime, String?);
+typedef _LeaseIdentity = (int, int, DateTime, String?, String?);
 
 Duration zolnitBundleRefreshInterval(
   Duration remaining, {
@@ -102,9 +105,12 @@ class ZolnitRouting with WidgetsBindingObserver {
   bool _nativeOwned = false;
   bool _nativeConfiguring = false;
   bool _nativePolling = false;
+  bool _nativeSynchronizing = false;
   bool _resuming = false;
   int? _nativeGeneration;
+  int? _nativeSessionEpoch;
   String? _nativeDigest;
+  int _nativeObservation = 0;
   Timer? _nativePollTimer;
   Timer? _nativeStaleTimer;
   final _providerHealth = RoutingProviderHealthStore();
@@ -140,6 +146,7 @@ class ZolnitRouting with WidgetsBindingObserver {
           plan.accountGeneration,
           plan.expiresAt!,
           plan.metadataIdentity,
+          plan.bundleId,
         );
 
   bool manages(int profileId) {
@@ -406,7 +413,6 @@ class ZolnitRouting with WidgetsBindingObserver {
     _refreshTimer?.cancel();
     final expiry = _active?.expiresAt;
     if (expiry == null) return;
-    if (_nativeOwned) return;
     _invalidLeaseToken = null;
     final remaining = expiry.difference(_now);
     _expiryTimer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
@@ -478,20 +484,23 @@ class ZolnitRouting with WidgetsBindingObserver {
   Future<void> _invalidateAutomatic(ZolnitBundleStatus status) async {
     if (_nativeOwned) {
       final plan = _active;
+      if (plan == null) return;
+      _nativeObservation++;
+      final identity = _leaseIdentity(plan);
+      if (identity != null) _invalidatedLeases[identity] = status;
+      _leaseReady(false);
+      ref.read(zolnitBundleStatusProvider.notifier).set(status);
       final generation = _session?.api.generation;
       final guard = await ref.read(coreHandlerProvider).getRoutingLease();
       if (_disposed ||
           !_nativeOwned ||
           !identical(plan, _active) ||
-          generation != _session?.api.generation ||
-          plan == null) {
+          generation != _session?.api.generation) {
         return;
       }
-      if (guard != null && guard['accountId'] == plan.accountId) {
-        await ref.read(coreHandlerProvider).invalidateRoutingLease(guard);
+      if (_matchesCoreLease(guard, plan)) {
+        await ref.read(coreHandlerProvider).invalidateRoutingLease(guard!);
       }
-      _leaseReady(false);
-      ref.read(zolnitBundleStatusProvider.notifier).set(status);
       return;
     }
     if (_disposed || _active?.expiresAt == null || _invalidLeaseToken != null) {
@@ -679,6 +688,7 @@ class ZolnitRouting with WidgetsBindingObserver {
   }
 
   void clear() {
+    _nativeObservation++;
     _revokeCoreLease();
     _epoch++;
     _providerHealth.resetGeneration(_epoch);
@@ -696,6 +706,7 @@ class ZolnitRouting with WidgetsBindingObserver {
     _engine = SmartRoutingEngine()..resetGeneration(_epoch);
     _nativeOwned = false;
     _nativeGeneration = null;
+    _nativeSessionEpoch = null;
     _nativeDigest = null;
     _nativePollTimer?.cancel();
     _nativeStaleTimer?.cancel();
@@ -729,6 +740,7 @@ class ZolnitRouting with WidgetsBindingObserver {
     _nativeConfiguring = true;
     _nativeDigest = plan.digest;
     _nativeGeneration = plan.accountGeneration;
+    _nativeSessionEpoch = null;
     try {
       final authorization = await ref
           .read(zolnitSessionVaultProvider)
@@ -752,8 +764,10 @@ class ZolnitRouting with WidgetsBindingObserver {
       if (_disposed ||
           !identical(plan, _active) ||
           _session?.api.generation != plan.accountGeneration) {
+        _nativeDigest = null;
         return;
       }
+      _nativeSessionEpoch = status.sessionEpoch;
       _nativePollTimer?.cancel();
       if (status.sessionEpoch != null) {
         _nativePollTimer = Timer.periodic(
@@ -763,7 +777,7 @@ class ZolnitRouting with WidgetsBindingObserver {
       }
       _nativeChanged();
     } catch (_) {
-      if (!_disposed) _nativeChanged();
+      if (!_disposed) _leaseReady(false);
     } finally {
       _nativeConfiguring = false;
       if (!_disposed && _active != null && _active!.digest != _nativeDigest) {
@@ -785,9 +799,12 @@ class ZolnitRouting with WidgetsBindingObserver {
   }
 
   void _nativeChanged() {
+    final observation = ++_nativeObservation;
     if (_disposed ||
         _active == null ||
-        _nativeGeneration != _session?.api.generation) {
+        _nativeGeneration != _session?.api.generation ||
+        _nativeSessionEpoch == null ||
+        _nativeClient.snapshot.sessionEpoch != _nativeSessionEpoch) {
       return;
     }
     final status = _nativeClient.snapshot;
@@ -802,14 +819,12 @@ class ZolnitRouting with WidgetsBindingObserver {
         _providerHealth.resetGeneration(_epoch);
         _probeScope = Object();
         _timer?.cancel();
-        _expiryTimer?.cancel();
         _refreshTimer?.cancel();
       }
-      _leaseReady(status.ready);
-      if (status.ready) {
-        ref
-            .read(zolnitBundleStatusProvider.notifier)
-            .set(ZolnitBundleStatus.ready);
+      if (!status.ready) {
+        _leaseReady(false);
+      } else {
+        unawaited(_verifyNativeReady(status, observation));
       }
       _nativeStaleTimer?.cancel();
       _nativeStaleTimer = Timer(const Duration(seconds: 5), () {
@@ -819,6 +834,126 @@ class ZolnitRouting with WidgetsBindingObserver {
       _nativeOwned = false;
       _leaseReady(false);
       _leaseTimers();
+    }
+  }
+
+  Future<void> _verifyNativeReady(
+    ZolnitNativeRenewalSnapshot status,
+    int observation,
+  ) async {
+    final plan = _active;
+    final session = _session;
+    final intent = _intent;
+    bool current() {
+      final latest = _nativeClient.snapshot;
+      return !_disposed &&
+          plan != null &&
+          session != null &&
+          session.authenticated &&
+          session.api.generation == plan.accountGeneration &&
+          _nativeGeneration == plan.accountGeneration &&
+          latest.sessionEpoch == status.sessionEpoch &&
+          latest.ownerId == status.ownerId &&
+          latest.ready &&
+          latest.ownsRenewal &&
+          _intent == intent &&
+          _active?.profileId == plan.profileId &&
+          ref.read(currentProfileIdProvider) == plan.profileId &&
+          !const {
+            ZolnitBundleStatus.invalid,
+            ZolnitBundleStatus.forbidden,
+          }.contains(ref.read(zolnitBundleStatusProvider));
+    }
+
+    if (!current()) {
+      if (observation == _nativeObservation) _leaseReady(false);
+      return;
+    }
+    try {
+      final core = ref.read(coreHandlerProvider);
+      final guard = await core.getRoutingLease();
+      if (!current()) return;
+      if (_matchesCoreLease(guard, _active!) &&
+          session!.clientBundle?.isFresh(_now) == true &&
+          ref.read(zolnitBundleStatusProvider) == ZolnitBundleStatus.ready) {
+        _coreLease = guard;
+        _leaseReady(true);
+        return;
+      }
+      final signed = session!.signedSubscriptions?.active;
+      if (guard == null ||
+          signed == null ||
+          signed.accountId != plan!.accountId ||
+          guard['accountId'] != plan.accountId ||
+          guard['accountGeneration'] != plan.accountGeneration) {
+        _leaseReady(false);
+        return;
+      }
+      if (_nativeSynchronizing) return;
+      _nativeSynchronizing = true;
+      try {
+        await ref.read(zolnitSyncCurrentClientBundleProvider)(guard);
+        if (!current()) return;
+        final bundle = session.clientBundle;
+        final profile = ref.read(currentProfileProvider);
+        if (bundle == null ||
+            profile == null ||
+            !isCurrentZolnitBundleProfile(profile, session) ||
+            bundle.bundleId != guard['bundleId'] ||
+            !bundle.isFresh(_now) ||
+            bundle.expiresAt.millisecondsSinceEpoch != guard['expiresAt']) {
+          throw const ClientFailure('superseded');
+        }
+        final prepared = await compute(prepareClientBundleConfiguration, (
+          bundle: bundle,
+          now: _now,
+          automaticAllowed: ref.read(zolnitClientBundleAutomaticProvider),
+        ));
+        final after = await core.getRoutingLease();
+        if (!current() ||
+            !const MapEquality<String, dynamic>().equals(after, guard)) {
+          return;
+        }
+        final digest = guard['configurationDigest'];
+        if (digest is! String || digest.isEmpty) {
+          throw const ClientFailure('core_unavailable');
+        }
+        stage(
+          profileId: plan.profileId,
+          accountGeneration: plan.accountGeneration,
+          digest: digest,
+          manifest: prepared.manifest,
+          engine: prepared.engine,
+          expiresAt: bundle.expiresAt,
+          metadataIdentity: bundle.routingSha256,
+          accountId: bundle.accountId,
+          bundleId: bundle.bundleId,
+          connectionDigest: bundle.connectionSha256,
+          renewalOverlay: plan.renewalOverlay,
+          returnRoute: ZolnitReturnRoute.corePolicy(bundle),
+        );
+        _active = _staged;
+        _staged = null;
+        _configuration = core.configurationChanges.value;
+        if (_continues(plan, _active!)) {
+          _engine.carryForward(++_epoch);
+          _providerHealth.carryForward(_epoch);
+        } else {
+          _engine = prepared.engine ?? SmartRoutingEngine();
+          _engine.resetGeneration(++_epoch);
+          _providerHealth.resetGeneration(_epoch);
+          _probeScope = Object();
+          _positions.clear();
+        }
+        _nativeDigest = digest;
+        _coreLease = guard;
+        _leaseTimers();
+        _leaseReady(true);
+      } finally {
+        _nativeSynchronizing = false;
+      }
+    } catch (_) {
+      if (current()) _leaseReady(false);
     }
   }
 
