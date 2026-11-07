@@ -345,7 +345,7 @@ class CommonAction extends _$CommonAction {
       text: tagName.isEmpty ? '' : '$tagName \n',
       style: AppTextStyle.title2.of(context),
       children: version == null
-          ? [releaseNotesMarkdownSpan(context, body ?? '')]
+          ? [releaseNotesPort!.markdownSpan(context, body ?? '')]
           : _changelogSpans(context, version),
     );
   }
@@ -396,7 +396,7 @@ class CommonAction extends _$CommonAction {
       final res = await dialogs.showMessage(
         title: currentAppLocalizations.discoverNewVersion,
         message: message,
-        content: ReleaseNotesContent(heading: release.tag, span: message),
+        content: releaseNotesPort!.content(heading: release.tag, span: message),
         leadingAction: TextButton(
           onPressed: () => launchUrl(
             release.releaseUri,

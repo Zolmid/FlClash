@@ -1,4 +1,6 @@
 import 'package:fl_clash/common/app_localizations.dart';
+import 'package:fl_clash/common/app_ports.dart';
+import 'package:fl_clash/views/zolnit/notes.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -73,6 +75,11 @@ Future<void> tapCancel(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() {
+    releaseNotesPort = const ZolnitReleaseNotesPort();
+    addTearDown(() => releaseNotesPort = null);
+  });
+
   setUpAll(() {
     globalState.packageInfo = PackageInfo(
       appName: 'FlClash',

@@ -21,7 +21,6 @@ import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/state.dart';
-import 'package:fl_clash/views/zolnit/notes.dart';
 import 'package:fl_clash/widgets/update_progress.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:material_ui/material_ui.dart';

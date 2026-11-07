@@ -164,12 +164,14 @@ void main() {
     wire.receive({'op': 'ready'});
     await tester.pumpAndSettle();
     expect(find.text('Edited notice'), findsOneWidget);
-    expect(find.text('Edited body'), findsOneWidget);
+    final bodyText = tester.widget<SelectableText>(find.byType(SelectableText));
+    expect(bodyText.textSpan!.toPlainText().trim(), 'Edited body');
     expect(find.text('Original notice'), findsNothing);
     final inbox = await ZolnitRealtimePreferencesStore().readInbox(
       'https://panel.example:${'b' * 64}',
     );
     expect(inbox.single.title, 'Edited notice');
+    expect(inbox.single.body, 'Edited body');
     wire.answer = (method, data) => method == 'inbox.read'
         ? {
             'data': {'event_id': id, 'read': true},

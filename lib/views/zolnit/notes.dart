@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/app_ports.dart';
 import 'package:fl_clash/common/changelog.dart';
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/models/changelog.dart';
@@ -110,4 +111,16 @@ class _ReleaseNotesContentState extends State<ReleaseNotesContent> {
       ],
     );
   }
+}
+
+class ZolnitReleaseNotesPort implements ReleaseNotesPort {
+  const ZolnitReleaseNotesPort();
+
+  @override
+  TextSpan markdownSpan(BuildContext context, String body) =>
+      releaseNotesMarkdownSpan(context, body);
+
+  @override
+  Widget content({required String heading, required TextSpan span}) =>
+      ReleaseNotesContent(heading: heading, span: span);
 }

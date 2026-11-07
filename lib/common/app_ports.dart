@@ -2,6 +2,7 @@ import 'dart:ui' show Brightness, Color;
 
 import 'package:fl_clash/common/provider_reader.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:flutter/widgets.dart' show BuildContext, TextSpan, Widget;
 
 abstract interface class WindowPort {
   Future<WindowProps?> captureNormalGeometry(WindowProps current);
@@ -38,6 +39,13 @@ abstract interface class NavigationPort {
   List<NavigationItem> getItems({bool openLogs, bool hasProxies});
 }
 
+abstract interface class ReleaseNotesPort {
+  TextSpan markdownSpan(BuildContext context, String body);
+
+  Widget content({required String heading, required TextSpan span});
+}
+
+ReleaseNotesPort? releaseNotesPort;
 WindowPort? windowPort;
 TrayPort? trayPort;
 NavigationPort? navigationPort;
