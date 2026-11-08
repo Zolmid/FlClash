@@ -1,0 +1,373 @@
+name: apple-distribution-prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable:
+        description: 'Type enable to run the manual iOS archive and export lane'
+        required: true
+        default: 'disabled'
+        type: string
+      source_tag:
+        description: 'Stable release tag to build and verify (vX.Y.Z)'
+        required: true
+        default: 'v1.1.4'
+        type: string
+      distribution:
+        description: 'release-testing (Ad Hoc) or app-store-connect (TestFlight)'
+        required: true
+        default: release-testing
+        type: choice
+        options:
+          - release-testing
+          - app-store-connect
+      upload_testflight:
+        description: 'Upload exported IPA to TestFlight via App Store Connect API key'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    runs-on: xcode-27
+    environment: apple-distribution
+    timeout-minutes: 90
+    env:
+      FLUTTER_VERSION: '3.47.6'
+      GO_VERSION: '1.27.1'
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      GOTOOLCHAIN: local
+      SOURCE_TAG: ${{ inputs.source_tag }}
+      DISTRIBUTION: ${{ inputs.distribution }}
+      UPLOAD_TESTFLIGHT: ${{ inputs.upload_testflight }}
+    steps:
+      - name: Refuse disabled lane
+        if: ${{ inputs.enable != 'enable' }}
+        run: |
+          echo '::error::apple-distribution-prep is disabled by default; type enable only after controller approval and secret wiring.'
+          exit 1
+
+      - name: Fail clearly when signing secrets are absent
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_BUILD_P12_BASE64: ${{ secrets.APPLE_BUILD_P12_BASE64 }}
+          APPLE_BUILD_P12_PASSWORD: ${{ secrets.APPLE_BUILD_P12_PASSWORD }}
+          APPLE_APP_PROFILE_BASE64: ${{ secrets.APPLE_APP_PROFILE_BASE64 }}
+          APPLE_NECORE_PROFILE_BASE64: ${{ secrets.APPLE_NECORE_PROFILE_BASE64 }}
+          APPLE_WIDGET_PROFILE_BASE64: ${{ secrets.APPLE_WIDGET_PROFILE_BASE64 }}
+          APPLE_APP_PROFILE_SHA256: ${{ secrets.APPLE_APP_PROFILE_SHA256 }}
+          APPLE_NECORE_PROFILE_SHA256: ${{ secrets.APPLE_NECORE_PROFILE_SHA256 }}
+          APPLE_WIDGET_PROFILE_SHA256: ${{ secrets.APPLE_WIDGET_PROFILE_SHA256 }}
+          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+          APPLE_ASC_API_ISSUER_ID: ${{ secrets.APPLE_ASC_API_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8_BASE64: ${{ secrets.APPLE_ASC_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          for var in APPLE_TEAM_ID APPLE_BUILD_P12_BASE64 APPLE_BUILD_P12_PASSWORD \
+                     APPLE_APP_PROFILE_BASE64 APPLE_NECORE_PROFILE_BASE64 APPLE_WIDGET_PROFILE_BASE64 \
+                     APPLE_APP_PROFILE_SHA256 APPLE_NECORE_PROFILE_SHA256 APPLE_WIDGET_PROFILE_SHA256; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error::Required signing secret $var is not configured"
+              exit 1
+            fi
+          done
+          if [[ "$UPLOAD_TESTFLIGHT" == true ]]; then
+            if [[ "$DISTRIBUTION" != app-store-connect ]]; then
+              echo '::error::upload_testflight requires distribution=app-store-connect'
+              exit 1
+            fi
+            for var in APPLE_ASC_API_KEY_ID APPLE_ASC_API_ISSUER_ID APPLE_ASC_API_KEY_P8_BASE64; do
+              if [[ -z "${!var}" ]]; then
+                echo "::error::Required TestFlight secret $var is not configured"
+                exit 1
+              fi
+            done
+          fi
+
+      - name: Checkout trusted tools revision
+        uses: actions/checkout@v4
+        with:
+          path: tools
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify trusted tools revision
+        run: |
+          set -euo pipefail
+          tools_dir="$GITHUB_WORKSPACE/tools"
+          actual_tools_sha=$(git -C "$tools_dir" rev-parse HEAD)
+          if [[ "$actual_tools_sha" != "$GITHUB_SHA" ]]; then
+            echo "::error::Tools checkout HEAD $actual_tools_sha does not match GITHUB_SHA $GITHUB_SHA"
+            exit 1
+          fi
+          test -f "$tools_dir/tool/apple_distribution/apple_distribution.py"
+          test -f "$tools_dir/tool/apple_distribution/source_preparation.py"
+          echo "ZOLNIT_TOOLS_DIR=$tools_dir" >> "$GITHUB_ENV"
+
+      - name: Checkout stable release source tag
+        uses: actions/checkout@v4
+        with:
+          path: source
+          ref: refs/tags/${{ inputs.source_tag }}
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve and verify exact stable source tag SHA
+        run: |
+          set -euo pipefail
+          source_dir="$GITHUB_WORKSPACE/source"
+          if [[ ! "$SOURCE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::source_tag $SOURCE_TAG is not a stable release tag vX.Y.Z"
+            exit 1
+          fi
+          tag_sha=$(git -C "$source_dir" rev-parse --verify "refs/tags/$SOURCE_TAG^{commit}")
+          head_sha=$(git -C "$source_dir" rev-parse HEAD)
+          if [[ "$head_sha" != "$tag_sha" ]]; then
+            echo "::error::Source checkout HEAD $head_sha does not match tag $SOURCE_TAG ($tag_sha)"
+            exit 1
+          fi
+          echo "ZOLNIT_SOURCE_DIR=$source_dir" >> "$GITHUB_ENV"
+          echo "ZOLNIT_SOURCE_SHA=$tag_sha" >> "$GITHUB_ENV"
+
+      - name: Select Xcode 27.1 and verify iOS SDK 27
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          sdk_ver=$(xcrun --sdk macosx --show-sdk-version)
+          ios_sdk_ver=$(xcrun --sdk iphoneos --show-sdk-version)
+          if [[ "$sdk_ver" != 27.* || "$ios_sdk_ver" != 27.* ]]; then
+            echo "::error::Expected macOS/iOS SDK 27.x but got macOS=$sdk_ver iOS=$ios_sdk_ver"
+            exit 1
+          fi
+
+      - name: Provision 0600 temporary signing files and isolated keychain
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_BUILD_P12_BASE64: ${{ secrets.APPLE_BUILD_P12_BASE64 }}
+          APPLE_BUILD_P12_PASSWORD: ${{ secrets.APPLE_BUILD_P12_PASSWORD }}
+          APPLE_APP_PROFILE_BASE64: ${{ secrets.APPLE_APP_PROFILE_BASE64 }}
+          APPLE_NECORE_PROFILE_BASE64: ${{ secrets.APPLE_NECORE_PROFILE_BASE64 }}
+          APPLE_WIDGET_PROFILE_BASE64: ${{ secrets.APPLE_WIDGET_PROFILE_BASE64 }}
+          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+          APPLE_ASC_API_KEY_P8_BASE64: ${{ secrets.APPLE_ASC_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/zolnit-apple-signing-XXXXXX")
+          chmod 700 "$signing_dir"
+          echo "ZOLNIT_APPLE_SIGNING_DIR=$signing_dir" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import base64, os, pathlib, secrets, subprocess
+
+          signing_dir = pathlib.Path(os.environ['RUNNER_TEMP'])
+          dirs = sorted(signing_dir.glob('zolnit-apple-signing-*'), key=lambda p: p.stat().st_mtime)
+          work = dirs[-1]
+
+          def write_secret(env_name: str, filename: str) -> pathlib.Path:
+              raw = base64.b64decode(os.environ[env_name], validate=True)
+              if not raw:
+                  raise SystemExit(f'::error::Decoded {env_name} is empty')
+              target = work / filename
+              fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+              with os.fdopen(fd, 'wb') as handle:
+                  handle.write(raw)
+              return target
+
+          p12_path = write_secret('APPLE_BUILD_P12_BASE64', 'signing.p12')
+          app_prof = write_secret('APPLE_APP_PROFILE_BASE64', 'app.mobileprovision')
+          ne_prof = write_secret('APPLE_NECORE_PROFILE_BASE64', 'necore.mobileprovision')
+          wid_prof = write_secret('APPLE_WIDGET_PROFILE_BASE64', 'widget.mobileprovision')
+
+          kc_path = work / 'zolnit-signing.keychain-db'
+          kc_pass = secrets.token_hex(32)
+          p12_pass = os.environ['APPLE_BUILD_P12_PASSWORD']
+          def sec_stdin(line: str) -> None:
+              res = subprocess.run(
+                  ['security', '-i'],
+                  input=line + '\n',
+                  text=True,
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              )
+              if res.returncode not in (0, 50):
+                  raise SystemExit(f'::error::security command failed with code {res.returncode}')
+
+          sec_stdin(f'create-keychain -p "{kc_pass}" "{kc_path}"')
+          subprocess.run(['security', 'set-keychain-settings', '-lut', '21600', str(kc_path)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          sec_stdin(f'unlock-keychain -p "{kc_pass}" "{kc_path}"')
+          sec_stdin(f'import "{p12_path}" -k "{kc_path}" -P "{p12_pass}" -T /usr/bin/codesign -T /usr/bin/security')
+          sec_stdin(f'set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "{kc_pass}" "{kc_path}"')
+          existing = subprocess.check_output(['security', 'list-keychains', '-d', 'user'], text=True)
+          chains = [line.strip().strip('"') for line in existing.splitlines() if line.strip()]
+          subprocess.run(['security', 'list-keychains', '-d', 'user', '-s', str(kc_path), *chains], check=True)
+          p12_path.unlink(missing_ok=True)
+          ident_out = subprocess.check_output(['security', 'find-identity', '-v', '-p', 'codesigning', str(kc_path)], text=True)
+          import re
+          ident_matches = re.findall(r'\b([0-9A-F]{40})\b', ident_out)
+          if not ident_matches:
+              raise SystemExit('::error::No valid codesigning identity found in temporary keychain')
+          signing_identity = ident_matches[0]
+
+          if os.environ.get('UPLOAD_TESTFLIGHT') == 'true':
+              key_id = os.environ['APPLE_ASC_API_KEY_ID']
+              asc_path = write_secret('APPLE_ASC_API_KEY_P8_BASE64', f'AuthKey_{key_id}.p8')
+              with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env_out:
+                  env_out.write(f'ZOLNIT_ASC_KEY_PATH={asc_path}\n')
+                  env_out.write(f'API_PRIVATE_KEYS_DIR={work}\n')
+
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env_out:
+              env_out.write(f'ZOLNIT_KEYCHAIN_PATH={kc_path}\n')
+              env_out.write(f'ZOLNIT_SIGNING_IDENTITY={signing_identity}\n')
+              env_out.write(f'ZOLNIT_APP_PROFILE={app_prof}\n')
+              env_out.write(f'ZOLNIT_NECORE_PROFILE={ne_prof}\n')
+              env_out.write(f'ZOLNIT_WIDGET_PROFILE={wid_prof}\n')
+          PY
+
+      - name: Run preflight and install provisioning profiles
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PROFILE_SHA256: ${{ secrets.APPLE_APP_PROFILE_SHA256 }}
+          APPLE_NECORE_PROFILE_SHA256: ${{ secrets.APPLE_NECORE_PROFILE_SHA256 }}
+          APPLE_WIDGET_PROFILE_SHA256: ${{ secrets.APPLE_WIDGET_PROFILE_SHA256 }}
+        run: |
+          set -euo pipefail
+          python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/apple_distribution.py" \
+            --repo "$ZOLNIT_SOURCE_DIR" \
+            --source-tag "$SOURCE_TAG" \
+            --source-sha "$ZOLNIT_SOURCE_SHA" \
+            --distribution "$DISTRIBUTION" \
+            --team-id "$APPLE_TEAM_ID" \
+            --app-profile "$ZOLNIT_APP_PROFILE" \
+            --necore-profile "$ZOLNIT_NECORE_PROFILE" \
+            --widget-profile "$ZOLNIT_WIDGET_PROFILE" \
+            --profile-sha256 "app=$APPLE_APP_PROFILE_SHA256" \
+            --profile-sha256 "necore=$APPLE_NECORE_PROFILE_SHA256" \
+            --profile-sha256 "widget=$APPLE_WIDGET_PROFILE_SHA256"
+          python3 - <<'PY'
+          import os, pathlib, shutil, sys
+          sys.path.insert(0, str(pathlib.Path(os.environ['ZOLNIT_TOOLS_DIR']) / 'tool/apple_distribution'))
+          from apple_distribution import read_profile, run_argv
+          dest = pathlib.Path.home() / 'Library/MobileDevice/Provisioning Profiles'
+          dest.mkdir(parents=True, exist_ok=True)
+          mapping = (
+              ('app', 'ZOLNIT_APP_PROFILE', 'APPLE_APP_PROFILE_SHA256'),
+              ('necore', 'ZOLNIT_NECORE_PROFILE', 'APPLE_NECORE_PROFILE_SHA256'),
+              ('widget', 'ZOLNIT_WIDGET_PROFILE', 'APPLE_WIDGET_PROFILE_SHA256'),
+          )
+          for target_name, env_key, sha_key in mapping:
+              src = pathlib.Path(os.environ[env_key])
+              prof = read_profile(
+                  target_name, src, os.environ[sha_key], run_argv,
+                  distribution=os.environ['DISTRIBUTION'], execute=True, require_trusted_hash=True,
+              )
+              target = dest / f'{prof.uuid}.mobileprovision'
+              shutil.copyfile(src, target)
+              os.chmod(target, 0o600)
+          PY
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: source/core/go.sum
+
+      - name: Install Rust iOS target
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-apple-ios
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Build Xcode archive and execute verified export
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PROFILE_SHA256: ${{ secrets.APPLE_APP_PROFILE_SHA256 }}
+          APPLE_NECORE_PROFILE_SHA256: ${{ secrets.APPLE_NECORE_PROFILE_SHA256 }}
+          APPLE_WIDGET_PROFILE_SHA256: ${{ secrets.APPLE_WIDGET_PROFILE_SHA256 }}
+          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+          APPLE_ASC_API_ISSUER_ID: ${{ secrets.APPLE_ASC_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/apple_distribution.py" \
+            --prepare-source \
+            --repo "$ZOLNIT_SOURCE_DIR" \
+            --source-tag "$SOURCE_TAG" \
+            --source-sha "$ZOLNIT_SOURCE_SHA" \
+            --distribution "$DISTRIBUTION"
+          (cd "$ZOLNIT_SOURCE_DIR" && flutter pub get --enforce-lockfile)
+          (cd "$ZOLNIT_SOURCE_DIR" && flutter build ios --release --config-only --no-codesign --dart-define-from-file=env.json)
+          (cd "$ZOLNIT_SOURCE_DIR/ios" && pod install)
+          archive_path="$RUNNER_TEMP/zolnit-archive/Runner.xcarchive"
+          derived_path="$RUNNER_TEMP/zolnit-derived"
+          export_path="$RUNNER_TEMP/zolnit-export"
+          xcodebuild archive \
+            -workspace "$ZOLNIT_SOURCE_DIR/ios/Runner.xcworkspace" \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$archive_path" \
+            -derivedDataPath "$derived_path" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            DEVELOPMENT_TEAM=
+          extra_args=()
+          if [[ "$UPLOAD_TESTFLIGHT" == true ]]; then
+            extra_args+=(
+              --upload-testflight
+              --asc-api-key-id "$APPLE_ASC_API_KEY_ID"
+              --asc-api-issuer-id "$APPLE_ASC_API_ISSUER_ID"
+              --asc-api-key-path "$ZOLNIT_ASC_KEY_PATH"
+            )
+          fi
+          python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/apple_distribution.py" \
+            --execute \
+            --repo "$ZOLNIT_SOURCE_DIR" \
+            --source-tag "$SOURCE_TAG" \
+            --source-sha "$ZOLNIT_SOURCE_SHA" \
+            --distribution "$DISTRIBUTION" \
+            --team-id "$APPLE_TEAM_ID" \
+            --archive-path "$archive_path" \
+            --export-path "$export_path" \
+            --signing-identity "$ZOLNIT_SIGNING_IDENTITY" \
+            --signing-keychain "$ZOLNIT_KEYCHAIN_PATH" \
+            --app-profile "$ZOLNIT_APP_PROFILE" \
+            --necore-profile "$ZOLNIT_NECORE_PROFILE" \
+            --widget-profile "$ZOLNIT_WIDGET_PROFILE" \
+            --profile-sha256 "app=$APPLE_APP_PROFILE_SHA256" \
+            --profile-sha256 "necore=$APPLE_NECORE_PROFILE_SHA256" \
+            --profile-sha256 "widget=$APPLE_WIDGET_PROFILE_SHA256" \
+            "${extra_args[@]}"
+
+      - name: Retain verified App Store export
+        if: success() && inputs.distribution == 'app-store-connect'
+        uses: actions/upload-artifact@v4
+        with:
+          name: zolnit-app-store-export-${{ inputs.source_tag }}
+          path: ${{ runner.temp }}/zolnit-export/*.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Clean temporary signing material and keychain
+        if: always()
+        run: |
+          if [[ -n "${ZOLNIT_KEYCHAIN_PATH:-}" && -f "$ZOLNIT_KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$ZOLNIT_KEYCHAIN_PATH" || true
+          fi
+          if [[ "${ZOLNIT_APPLE_SIGNING_DIR:-}" == "$RUNNER_TEMP"/zolnit-apple-signing-* && -d "$ZOLNIT_APPLE_SIGNING_DIR" ]]; then
+            rm -rf -- "$ZOLNIT_APPLE_SIGNING_DIR"
+          fi
