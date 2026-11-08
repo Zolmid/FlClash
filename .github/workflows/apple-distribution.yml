@@ -122,7 +122,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: source
-          ref: refs/tags/${{ inputs.source_tag }}
+          ref: refs/tags/${{ env.SOURCE_TAG }}
           submodules: recursive
           fetch-depth: 0
           persist-credentials: false
@@ -363,7 +363,7 @@ jobs:
         if: success() && env.DISTRIBUTION == 'app-store-connect'
         uses: actions/upload-artifact@v4
         with:
-          name: zolnit-app-store-export-${{ inputs.source_tag }}
+          name: zolnit-app-store-export-${{ env.SOURCE_TAG }}
           path: ${{ runner.temp }}/zolnit-export/*.ipa
           if-no-files-found: error
           retention-days: 7
