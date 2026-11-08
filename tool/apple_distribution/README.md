@@ -68,8 +68,11 @@ argv support via `--asc-api-key-id`, `--asc-api-issuer-id`, and
 and `API_PRIVATE_KEYS_DIR`). Unit tests use synthetic fixtures and fake command
 runners and do not represent real Apple code-signing verification.
 
-The workflow is manual-only and disabled by default. It does not modify or
-invoke `client-release.yml`. It checks out the trusted tools revision
+Manual runs are disabled by default. An explicitly approved export check can
+also run on a workflow-file push to `codex/apple-distribution-prep` with the
+exact `ci(ios): validate approved export-only archive` subject prefix. This
+branch trigger always selects App Store export without uploading to TestFlight.
+It does not modify or invoke `client-release.yml`. It checks out the trusted tools revision
 (`GITHUB_SHA`) under `tools/` and the stable release tag (`refs/tags/vX.Y.Z`)
 under `source/`, verifies both SHAs, runs `source_preparation.py`
 (`--prepare-source`) to project `direct` (Ad Hoc) or `apple-app-store`
@@ -82,3 +85,10 @@ Not connected here: server-side one-time device registration, idempotent task
 queue, Apple Developer API/device registration, GitHub secret provisioning,
 R2 storage, TestFlight upload, device installation, and end-to-end CI/R2
 acceptance. No real credentials or private key material are generated.
+
+`signing_transport.py` provides bounded, injectable transport for the staged
+device runner: source authorization, job claim/renew/complete, verified private
+archive downloads, and lease-bound multipart uploads to R2. It refreshes its
+caller-provided OIDC token for every request, rejects redirects, and reports
+errors without response bodies or credentials. Its synthetic tests do not
+enable the production signing runner or prove an end-to-end device install.
