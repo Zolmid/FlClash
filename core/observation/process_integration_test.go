@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -151,6 +153,87 @@ func guard(t *testing.T, p *coreProcess) map[string]any {
 		t.Fatal("guard unavailable")
 	}
 	return g
+}
+
+func TestDelayReadinessAcrossIsolatedCoreConfigurations(t *testing.T) {
+	binaryPath := os.Getenv("ZOLNIT_TEST_CORE_BINARY")
+	if binaryPath == "" {
+		t.Skip("requires an explicitly built isolated Core binary")
+	}
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(15 * time.Millisecond)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer target.Close()
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodConnect {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		upstream, err := net.Dial("tcp", r.Host)
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		client, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			_ = upstream.Close()
+			return
+		}
+		defer client.Close()
+		defer upstream.Close()
+		_, _ = client.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+		go func() { _, _ = io.Copy(upstream, client) }()
+		_, _ = io.Copy(client, upstream)
+	}))
+	defer proxy.Close()
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(proxy.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := startCore(t, binaryPath, home)
+	probe := func(name string) json.RawMessage {
+		return p.call(t, "asyncTestDelay", map[string]any{"proxy-name": name, "test-url": target.URL, "timeout": 1000})
+	}
+	if got := probe("fixture-old"); string(got) != "null" && len(got) != 0 {
+		t.Fatalf("unconfigured Core produced an observation: %s", got)
+	}
+	install := func(name string) {
+		document := fmt.Sprintf("mixed-port: 0\nport: 0\nsocks-port: 0\nexternal-controller: ''\nmode: rule\ndns: {enable: false}\ntun: {enable: false}\nntp: {enable: false}\ngeo-auto-update: false\nproxies:\n  - {name: %s, type: http, server: 127.0.0.1, port: %s}\nrules: ['MATCH,REJECT']\n", name, port)
+		if err := os.WriteFile(filepath.Join(home, "config.yaml"), []byte(document), 0600); err != nil {
+			t.Fatal(err)
+		}
+		p.call(t, "setupConfig", map[string]any{"selected-map": map[string]string{}, "test-url": target.URL})
+	}
+	checkSuccess := func(name string) {
+		var delay struct {
+			Value int `json:"value"`
+		}
+		result := probe(name)
+		if json.Unmarshal(result, &delay) != nil || delay.Value <= 0 {
+			t.Fatalf("probe did not recover under %s: %s", name, result)
+		}
+	}
+	install("fixture-old")
+	checkSuccess("fixture-old")
+	install("fixture-new")
+	if got := probe("fixture-old"); string(got) != "null" && len(got) != 0 {
+		t.Fatalf("old configuration returned a node failure: %s", got)
+	}
+	checkSuccess("fixture-new")
+	proxy.Close()
+	var failed struct {
+		Value int `json:"value"`
+	}
+	result := probe("fixture-new")
+	if json.Unmarshal(result, &failed) != nil || failed.Value >= 0 {
+		t.Fatalf("unreachable proxy did not fail: %s", result)
+	}
+	p.stop(t)
 }
 func TestObserverWithRealCoreProcesses(t *testing.T) {
 	coreBinary, readerBinary := os.Getenv("ZOLNIT_TEST_CORE_BINARY"), os.Getenv("ZOLNIT_TEST_OBSERVER_BINARY")

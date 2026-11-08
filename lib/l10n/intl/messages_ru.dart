@@ -3042,6 +3042,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage(
       "Оплатить в приложении",
     ),
+    "zolnitInviteCashbackRate": MessageLookupByLibrary.simpleMessage(
+      "Процент возврата",
+    ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("Код приглашения"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
       "Код скопирован",

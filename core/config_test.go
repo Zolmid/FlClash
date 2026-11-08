@@ -580,8 +580,8 @@ func TestTestDelayRejectsAnUnknownProxyWithoutWaitingForASlot(t *testing.T) {
 
 	select {
 	case delay := <-done:
-		if delay.Value != delayFailed {
-			t.Errorf("value = %d, want %d", delay.Value, delayFailed)
+		if delay != nil {
+			t.Errorf("delay = %+v, want no observation for a missing proxy", delay)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("an unknown proxy queued behind a saturated delay-test semaphore")
@@ -654,6 +654,69 @@ func TestTestDelayUsesTheCurrentBundleWithoutApplyingItsConfig(t *testing.T) {
 	clientBundleRouting.policy.Expires = routingLeaseNow().Unix()
 	if lookupDelayTestProxy("bundle-http") != nil {
 		t.Fatal("expired bundle remains available to probe")
+	}
+	if delay := handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: target.URL}); delay != nil {
+		t.Fatalf("expired lease produced a node failure: %+v", delay)
+	}
+	clientBundleRouting.policy.Expires = routingLeaseNow().Unix() + 60
+	oldOwner := clientBundleOwner
+	otherOwner := *oldOwner
+	otherOwner.SessionEpoch++
+	clientBundleOwner = &otherOwner
+	if delay := handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: target.URL}); delay != nil {
+		t.Fatalf("changed account epoch produced a node failure: %+v", delay)
+	}
+	clientBundleOwner = oldOwner
+	if delay := handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: target.URL}); delay == nil || delay.Value <= 0 {
+		t.Fatalf("restored lease did not recover the probe: %+v", delay)
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		close(entered)
+		<-release
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer slow.Close()
+	finished := make(chan *Delay, 1)
+	go func() { finished <- handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: slow.URL}) }()
+	<-entered
+	clearRoutingLeaseForConfigChange()
+	close(release)
+	if delay := <-finished; delay != nil {
+		t.Fatalf("old configuration produced a late observation: %+v", delay)
+	}
+	if delay := handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: target.URL}); delay == nil || delay.Value <= 0 {
+		t.Fatalf("probe did not recover after configuration change: %+v", delay)
+	}
+	selectMu.Lock()
+	previousLease := activeRoutingLease
+	lease := &routingLeaseState{deadline: routingLeaseNow().Add(time.Minute)}
+	activeRoutingLease = lease
+	selectMu.Unlock()
+	enteredAgain, releaseAgain := make(chan struct{}), make(chan struct{})
+	slowAgain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		close(enteredAgain)
+		<-releaseAgain
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer slowAgain.Close()
+	go func() {
+		finished <- handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: slowAgain.URL})
+	}()
+	<-enteredAgain
+	selectMu.Lock()
+	lease.revoked = true
+	selectMu.Unlock()
+	close(releaseAgain)
+	if delay := <-finished; delay != nil {
+		t.Fatalf("revoked lease produced a late observation: %+v", delay)
+	}
+	selectMu.Lock()
+	activeRoutingLease = previousLease
+	selectMu.Unlock()
+	proxy.Close()
+	if delay := handleTestDelay(&TestDelayParams{ProxyName: "bundle-http", TestUrl: target.URL}); delay == nil || delay.Value >= 0 {
+		t.Fatalf("unreachable proxy was not recorded as a failure: %+v", delay)
 	}
 }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -24,8 +25,15 @@ import '../../../packages/zolnit_client/test/client_bundle_fixture.dart';
 import '../../helpers/test_profiles.dart';
 
 class _RecordingProxies extends ProxiesAction {
+  static NodeDelayBatchResult initialMeasurementResult =
+      NodeDelayBatchResult.observed;
+  static bool recordSamples = false;
+  static Completer<NodeDelayBatchResult>? initialBlockedMeasurement;
   final selections = <(String, String)>[];
   final measurements = <(List<String>, String)>[];
+  NodeDelayBatchResult measurementResult = initialMeasurementResult;
+  Completer<NodeDelayBatchResult>? blockedMeasurement =
+      initialBlockedMeasurement;
 
   @override
   void build() {}
@@ -37,8 +45,25 @@ class _RecordingProxies extends ProxiesAction {
   }) async {}
 
   @override
-  Future<void> delayTestNodes(List<Proxy> proxies, String testUrl) async {
+  Future<NodeDelayBatchResult> delayTestNodes(
+    List<Proxy> proxies,
+    String testUrl,
+  ) async {
     measurements.add((proxies.map((proxy) => proxy.name).toList(), testUrl));
+    final blocked = blockedMeasurement;
+    blockedMeasurement = null;
+    final result = blocked == null ? measurementResult : await blocked.future;
+    if (recordSamples && result != NodeDelayBatchResult.unavailable) {
+      ref.read(delayDataSourceProvider.notifier).setDelays([
+        for (final proxy in proxies)
+          Delay(
+            name: proxy.name,
+            url: testUrl,
+            value: result == NodeDelayBatchResult.allFailed ? -1 : 39,
+          ),
+      ]);
+    }
+    return result;
   }
 
   @override
@@ -285,6 +310,125 @@ void main() {
       expect(action.measurements, hasLength(2));
     },
   );
+
+  testWidgets('retries an automatic batch with no observations', (
+    tester,
+  ) async {
+    _RecordingProxies.initialMeasurementResult =
+        NodeDelayBatchResult.unavailable;
+    addTearDown(
+      () => _RecordingProxies.initialMeasurementResult =
+          NodeDelayBatchResult.observed,
+    );
+    await preparePrivateBundle(tester, automatic: true);
+    _RecordingProxies.initialMeasurementResult = NodeDelayBatchResult.observed;
+    final action =
+        harness.container.read(proxiesActionProvider.notifier)
+            as _RecordingProxies;
+    await tester.pump();
+    expect(action.measurements, hasLength(1));
+    action.measurementResult = NodeDelayBatchResult.observed;
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(action.measurements, hasLength(2));
+    await tester.pump(const Duration(seconds: 20));
+    expect(action.measurements, hasLength(2));
+  });
+
+  for (final recovery in [true, false]) {
+    testWidgets('all-failed batch gets one bounded retry, recovery=$recovery', (
+      tester,
+    ) async {
+      _RecordingProxies.initialMeasurementResult =
+          NodeDelayBatchResult.allFailed;
+      _RecordingProxies.recordSamples = true;
+      addTearDown(() {
+        _RecordingProxies.initialMeasurementResult =
+            NodeDelayBatchResult.observed;
+        _RecordingProxies.recordSamples = false;
+      });
+      await preparePrivateBundle(tester, automatic: true);
+      _RecordingProxies.initialMeasurementResult =
+          NodeDelayBatchResult.observed;
+      final action =
+          harness.container.read(proxiesActionProvider.notifier)
+              as _RecordingProxies;
+      await tester.pump();
+      expect(action.measurements, hasLength(1));
+      expect(
+        harness.container.read(delayDataSourceProvider)[defaultTestUrl]!.values,
+        everyElement(-1),
+      );
+      if (recovery) action.measurementResult = NodeDelayBatchResult.observed;
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+      expect(action.measurements, hasLength(2));
+      expect(
+        harness.container.read(delayDataSourceProvider)[defaultTestUrl]!.values,
+        everyElement(recovery ? 39 : -1),
+      );
+      await tester.pump(const Duration(minutes: 1));
+      expect(action.measurements, hasLength(2));
+    });
+  }
+
+  testWidgets('all-failed retry waits until the app is visible', (
+    tester,
+  ) async {
+    _RecordingProxies.initialMeasurementResult = NodeDelayBatchResult.allFailed;
+    addTearDown(
+      () => _RecordingProxies.initialMeasurementResult =
+          NodeDelayBatchResult.observed,
+    );
+    await preparePrivateBundle(tester, automatic: true);
+    _RecordingProxies.initialMeasurementResult = NodeDelayBatchResult.observed;
+    final action =
+        harness.container.read(proxiesActionProvider.notifier)
+            as _RecordingProxies;
+    await tester.pump();
+    harness.container.read(appVisibleProvider.notifier).value = false;
+    await tester.pump(const Duration(seconds: 10));
+    expect(action.measurements, hasLength(1));
+    harness.container.read(appVisibleProvider.notifier).value = true;
+    await tester.pump();
+    expect(action.measurements, hasLength(2));
+  });
+
+  testWidgets('new configuration retries after an older busy batch finishes', (
+    tester,
+  ) async {
+    final old = Completer<NodeDelayBatchResult>();
+    _RecordingProxies.initialBlockedMeasurement = old;
+    _RecordingProxies.recordSamples = true;
+    addTearDown(() {
+      _RecordingProxies.initialBlockedMeasurement = null;
+      _RecordingProxies.recordSamples = false;
+    });
+    await preparePrivateBundle(tester, automatic: true);
+    _RecordingProxies.initialBlockedMeasurement = null;
+    final action =
+        harness.container.read(proxiesActionProvider.notifier)
+            as _RecordingProxies;
+    await tester.pump();
+    expect(action.measurements, hasLength(1));
+    const newUrl = 'https://new-probe.example.invalid/';
+    final setting = harness.container.read(appSettingProvider);
+    harness.container.read(appSettingProvider.notifier).value = setting
+        .copyWith(testUrl: newUrl);
+    await tester.pump();
+    await tester.pump();
+    expect(action.measurements, hasLength(1));
+    old.complete(NodeDelayBatchResult.unavailable);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(action.measurements, hasLength(2));
+    expect(action.measurements.last.$2, newUrl);
+    expect(
+      harness.container.read(delayDataSourceProvider)[newUrl]!.values,
+      everyElement(39),
+    );
+  });
 
   testWidgets('stale taps recheck connection, profile and bundle freshness', (
     tester,

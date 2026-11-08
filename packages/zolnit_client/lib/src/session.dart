@@ -325,15 +325,17 @@ class ZolnitSessionController extends ChangeNotifier {
             return fallback;
           }
           if (clientBundle) {
-            _clientBundleFailure = _code(error);
-            if (const {
-              'subscription_tombstone',
-              'subscription_expired',
-            }.contains(_clientBundleFailure)) {
-              _clientBundle = null;
-              _clientBundleNodes = const [];
+            if (work.bundleRead == _clientBundleRead) {
+              _clientBundleFailure = _code(error);
+              if (const {
+                'subscription_tombstone',
+                'subscription_expired',
+              }.contains(_clientBundleFailure)) {
+                _clientBundle = null;
+                _clientBundleNodes = const [];
+              }
+              _clientBundleFailureGeneration = work.generation;
             }
-            _clientBundleFailureGeneration = work.generation;
           } else if (billing && work.sequence == _billingSequence) {
             _billingFailure = _code(error);
             _billingFailureMessage = _message(error);

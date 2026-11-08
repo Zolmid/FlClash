@@ -1498,6 +1498,7 @@
   "zolnitInviteCommissionConfirmed": "Подтверждённая комиссия",
   "zolnitInviteCommissionPending": "Ожидающая комиссия",
   "zolnitInviteCommissionRate": "Ставка комиссии",
+  "zolnitInviteCashbackRate": "Процент возврата",
   "zolnitInviteCommissionAvailable": "Доступная комиссия",
   "zolnitInviteNoData": "Пригласите друзей, чтобы начать.",
   "zolnitInviteCreateFailed": "Не удалось создать код приглашения. Попробуйте ещё раз.",

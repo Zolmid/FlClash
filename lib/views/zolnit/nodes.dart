@@ -20,6 +20,13 @@ import 'node_groups.dart';
 import 'bundle_routing.dart';
 import 'skin.dart';
 
+final _failedDelayRetryProvider = Provider((_) => _FailedDelayRetry());
+
+class _FailedDelayRetry {
+  Object? key;
+  bool used = false;
+}
+
 class ZolnitNodesPage extends ConsumerStatefulWidget {
   const ZolnitNodesPage({
     super.key,
@@ -41,6 +48,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
   String _routingService = 'ai';
   String _query = '';
   Object? _measurementKey;
+  Timer? _measurementRetry;
   late int _generation = widget.session.api.generation;
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
@@ -60,11 +68,14 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
       _query = '';
       _searchController.clear();
       _measurementKey = null;
+      _measurementRetry?.cancel();
+      _measurementRetry = null;
     }
   }
 
   @override
   void dispose() {
+    _measurementRetry?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -74,6 +85,9 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
   void initState() {
     super.initState();
     ref.listenManual(groupsProvider, (_, _) => _autoMeasure());
+    ref.listenManual(appVisibleProvider, (_, visible) {
+      if (visible) _autoMeasure();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (ref.read(initProvider) && ref.read(currentProfileProvider) == null) {
@@ -88,6 +102,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
 
   void _autoMeasure() {
     if (!mounted ||
+        !ref.read(appVisibleProvider) ||
         ref.read(safeModeProvider) ||
         ref.read(coreStatusProvider) != CoreStatus.connected) {
       return;
@@ -101,8 +116,34 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
       ref.read(realTestUrlProvider()),
     );
     if (_measurementKey == key) return;
+    final budget = ref.read(_failedDelayRetryProvider);
+    if (budget.key != key) {
+      budget.key = key;
+      budget.used = false;
+    }
+    _measurementRetry?.cancel();
+    _measurementRetry = null;
     _measurementKey = key;
-    _measureNodes();
+    unawaited(
+      _measureNodes().then((result) {
+        if (!mounted ||
+            _measurementKey != key ||
+            result == NodeDelayBatchResult.observed) {
+          return;
+        }
+        if (result == NodeDelayBatchResult.allFailed) {
+          if (budget.key != key || budget.used) return;
+          budget.used = true;
+        }
+        _measurementRetry ??= Timer(const Duration(seconds: 10), () {
+          _measurementRetry = null;
+          if (mounted && _measurementKey == key) {
+            _measurementKey = null;
+            _autoMeasure();
+          }
+        });
+      }),
+    );
   }
 
   bool _isCurrentAccount(WidgetRef ref, {required bool watch}) =>
@@ -275,35 +316,38 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
     if (target != null) _selectNode(groupName, target.proxyName);
   }
 
-  void _measureNodes() {
+  Future<NodeDelayBatchResult> _measureNodes() async {
     if (!mounted ||
         ref.read(safeModeProvider) ||
         ref.read(coreStatusProvider) != CoreStatus.connected ||
         !_isCurrentAccount(ref, watch: false)) {
-      return;
+      return NodeDelayBatchResult.unavailable;
     }
     final url = ref.read(realTestUrlProvider());
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !uri.hasAuthority ||
         (uri.scheme != 'http' && uri.scheme != 'https')) {
-      return;
+      return NodeDelayBatchResult.unavailable;
     }
     final proxies = [
       for (final node in widget.session.nodeList)
         if (node.proxyName.trim().isNotEmpty)
           Proxy(name: node.proxyName, type: 'ss'),
     ];
-    if (proxies.isEmpty) return;
+    if (proxies.isEmpty) return NodeDelayBatchResult.unavailable;
     final group = 'zolnit-nodes-${widget.session.api.generation}';
     final testing = ref.read(delayTestingGroupsProvider.notifier);
-    if (!testing.start(group)) return;
-    unawaited(
-      ref
+    if (!testing.start(group)) return NodeDelayBatchResult.unavailable;
+    try {
+      return await ref
           .read(proxiesActionProvider.notifier)
-          .delayTestNodes(proxies, url)
-          .whenComplete(() => testing.stop(group)),
-    );
+          .delayTestNodes(proxies, url);
+    } catch (_) {
+      return NodeDelayBatchResult.unavailable;
+    } finally {
+      testing.stop(group);
+    }
   }
 
   @override

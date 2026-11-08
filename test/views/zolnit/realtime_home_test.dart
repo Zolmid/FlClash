@@ -88,6 +88,300 @@ void main() {
     };
     h.container.read(initProvider.notifier).value = true;
   });
+  testWidgets('installed update is acknowledged and retained in history', (
+    tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'ZolNit',
+      packageName: 'com.zolmid.zolnit',
+      version: '1.1.3',
+      buildNumber: '113',
+      buildSignature: '',
+    );
+    final id = 'd' * 32;
+    var reads = 0;
+    final previous = h.panel;
+    h.panel = (request) {
+      if (request.url.path.endsWith('/realtime/inbox')) {
+        return zolnitJson({
+          'subject': 'b' * 64,
+          'events': [
+            {
+              'id': id,
+              'type': 'client.update',
+              'data': {'platform': 'android', 'version': '1.1.3', 'build': 113},
+              'created_at': now.millisecondsSinceEpoch ~/ 1000,
+              'read': false,
+            },
+          ],
+        });
+      }
+      if (request.url.path.endsWith('/realtime/read')) {
+        reads++;
+        return zolnitJson({'event_id': id, 'read': true});
+      }
+      return previous(request);
+    };
+    await h.mount(tester, ZolnitSkin.android);
+    await tester.pumpAndSettle();
+    final items = await ZolnitRealtimePreferencesStore().readInbox(
+      'https://panel.example:${'b' * 64}',
+    );
+    expect(items.single.id, id);
+    expect(items.single.read, isTrue);
+    expect(reads, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  testWidgets('startup reconciles cached old updates by version and build', (
+    tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'ZolNit',
+      packageName: 'com.zolmid.zolnit',
+      version: '1.1.4',
+      buildNumber: '114',
+      buildSignature: '',
+    );
+    final old = '1' * 32,
+        same = '2' * 32,
+        future = '3' * 32,
+        newerBuild = '4' * 32,
+        otherPlatform = '5' * 32,
+        notice = '6' * 32;
+    final scope = 'https://panel.example:${'b' * 64}';
+    final store = ZolnitRealtimePreferencesStore();
+    await store.appendInbox(
+      scope,
+      ZolnitRealtimeInboxItem(
+        id: old,
+        title: 'Cached update',
+        body: 'Cached body',
+        createdAt: now,
+        popup: false,
+      ),
+    );
+    final readIds = <String>[];
+    final previous = h.panel;
+    h.panel = (request) {
+      if (request.url.path.endsWith('/realtime/inbox')) {
+        Map<String, Object> event(
+          String id,
+          String type,
+          Map<String, Object> data,
+        ) => {
+          'id': id,
+          'type': type,
+          'data': data,
+          'created_at': now.millisecondsSinceEpoch ~/ 1000,
+          'read': false,
+        };
+        return zolnitJson({
+          'subject': 'b' * 64,
+          'events': [
+            event(old, 'client.update', {
+              'platform': 'android',
+              'version': '1.1.2',
+              'build': 112,
+            }),
+            event(same, 'client.update', {
+              'platform': 'android',
+              'version': '1.1.4',
+              'build': 113,
+            }),
+            event(future, 'client.update', {
+              'platform': 'android',
+              'version': '1.1.5',
+              'build': 100,
+            }),
+            event(newerBuild, 'client.update', {
+              'platform': 'android',
+              'version': '1.1.4',
+              'build': 115,
+            }),
+            event(otherPlatform, 'client.update', {
+              'platform': 'ios',
+              'version': '1.1.2',
+              'build': 112,
+            }),
+            event(notice, 'notice.published', {
+              'title': 'Ordinary notice',
+              'body': 'Still unread',
+            }),
+          ],
+        });
+      }
+      if (request.url.path.endsWith('/realtime/read')) {
+        final id = (jsonDecode(request.body) as Map)['event_id'] as String;
+        readIds.add(id);
+        return zolnitJson({'event_id': id, 'read': true});
+      }
+      return previous(request);
+    };
+    await h.mount(tester, ZolnitSkin.android);
+    await tester.pumpAndSettle();
+    final items = {
+      for (final item in await store.readInbox(scope)) item.id: item,
+    };
+    expect(readIds.toSet(), {old, same});
+    expect(items[old]!.read, isTrue);
+    expect(items[same]!.read, isTrue);
+    expect(items[future]!.read, isFalse);
+    expect(items[newerBuild]!.read, isFalse);
+    expect(items[notice]!.read, isFalse);
+    expect(items.containsKey(otherPlatform), isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  testWidgets('failed installed update acknowledgement retries', (
+    tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'ZolNit',
+      packageName: 'com.zolmid.zolnit',
+      version: '1.1.4',
+      buildNumber: '114',
+      buildSignature: '',
+    );
+    final id = 'e' * 32;
+    var reads = 0;
+    final previous = h.panel;
+    h.panel = (request) {
+      if (request.url.path.endsWith('/realtime/inbox')) {
+        return zolnitJson({
+          'subject': 'b' * 64,
+          'events': [
+            {
+              'id': id,
+              'type': 'client.update',
+              'data': {'platform': 'android', 'version': '1.1.2', 'build': 112},
+              'created_at': now.millisecondsSinceEpoch ~/ 1000,
+              'read': false,
+            },
+          ],
+        });
+      }
+      if (request.url.path.endsWith('/realtime/read')) {
+        reads++;
+        if (reads == 1) return http.Response('', 503);
+        return zolnitJson({'event_id': id, 'read': true});
+      }
+      return previous(request);
+    };
+    await h.mount(tester, ZolnitSkin.android);
+    await tester.pumpAndSettle();
+    final store = ZolnitRealtimePreferencesStore();
+    final scope = 'https://panel.example:${'b' * 64}';
+    expect((await store.readInbox(scope)).single.read, isFalse);
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpAndSettle();
+    expect((await store.readInbox(scope)).single.read, isTrue);
+    expect(reads, 2);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  testWidgets('live installed update uses the read channel', (tester) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'ZolNit',
+      packageName: 'com.zolmid.zolnit',
+      version: '1.1.4',
+      buildNumber: '114',
+      buildSignature: '',
+    );
+    final id = 'e' * 32;
+    wire.answer = (method, data) => method == 'inbox.read'
+        ? {
+            'data': {'event_id': id, 'read': true},
+          }
+        : null;
+    await h.mount(tester, ZolnitSkin.android);
+    await tester.pumpAndSettle();
+    wire.receive({
+      'op': 'ready',
+      'methods': ['inbox.read'],
+    });
+    wire.receive({'op': 'pulse'});
+    wire.receive({
+      'op': 'event',
+      'scope': 'global',
+      'seq': 1,
+      'id': id,
+      'type': 'client.update',
+      'data': {'platform': 'android', 'version': '1.1.4', 'build': 113},
+    });
+    await tester.pumpAndSettle();
+    final items = await ZolnitRealtimePreferencesStore().readInbox(
+      'https://panel.example:${'b' * 64}',
+    );
+    expect(items.single.read, isTrue);
+    expect(
+      wire.sent.where((frame) => frame.contains('inbox.read')),
+      hasLength(1),
+    );
+    expect(
+      h.requests.where((r) => r.url.path.endsWith('/realtime/read')),
+      isEmpty,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  testWidgets('old account read flight does not block the new account', (
+    tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'ZolNit',
+      packageName: 'com.zolmid.zolnit',
+      version: '1.1.4',
+      buildNumber: '114',
+      buildSignature: '',
+    );
+    final id = 'd' * 32;
+    final oldReply = Completer<http.Response>();
+    final newReply = Completer<http.Response>();
+    var subject = 'b' * 64;
+    var calls = 0;
+    final previous = h.panel;
+    h.panel = (request) {
+      if (request.url.path.endsWith('/realtime/inbox')) {
+        return zolnitJson({
+          'subject': subject,
+          'events': [
+            {
+              'id': id,
+              'type': 'client.update',
+              'data': {'platform': 'android', 'version': '1.1.2', 'build': 112},
+              'created_at': now.millisecondsSinceEpoch ~/ 1000,
+              'read': false,
+            },
+          ],
+        });
+      }
+      if (request.url.path.endsWith('/realtime/read')) {
+        calls++;
+        if (calls == 1) return oldReply.future;
+        return newReply.future;
+      }
+      return previous(request);
+    };
+    await h.mount(tester, ZolnitSkin.android, settle: false);
+    for (var i = 0; i < 30 && calls == 0; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(calls, 1);
+    subject = 'c' * 64;
+    await h.relogin();
+    for (var i = 0; i < 50 && calls < 2; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(calls, 2);
+    final store = ZolnitRealtimePreferencesStore();
+    final scope = 'https://panel.example:${'c' * 64}';
+    oldReply.complete(zolnitJson({'event_id': id, 'read': true}));
+    await tester.pump();
+    expect((await store.readInbox(scope)).single.read, isFalse);
+    expect(calls, 2);
+    newReply.complete(zolnitJson({'event_id': id, 'read': true}));
+    await tester.pumpAndSettle();
+    expect((await store.readInbox(scope)).single.read, isTrue);
+    expect(calls, 2);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   testWidgets(
     'an inbox snapshot arriving after logout cannot update the account',
     (tester) async {
@@ -373,11 +667,9 @@ void main() {
       );
       expect(items.where((e) => e.title == 'Fixture popup'), hasLength(1));
       expect(items.where((e) => e.body == 'Build 201'), hasLength(1));
-      expect(
-        items.any((e) => e.body == 'Build 200' || e.body == 'Build 202'),
-        isFalse,
-      );
-      expect(updater.hints, ['1.1.0']);
+      expect(items.singleWhere((e) => e.body == 'Build 200').read, isFalse);
+      expect(items.any((e) => e.body == 'Build 202'), isFalse);
+      expect(updater.hints, ['1.1.0', '1.1.0']);
       expect(updater.health.first, isTrue);
       for (var i = 1; i < updater.health.length; i++) {
         expect(updater.health[i], isNot(updater.health[i - 1]));

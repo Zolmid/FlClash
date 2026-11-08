@@ -94,7 +94,7 @@ func lookupDelayTestProxy(name string) constant.Proxy {
 	return proxy
 }
 
-// A nil answer means the test never got a slot, which says nothing about the proxy.
+// A nil answer means no current observation was obtained for the proxy.
 func handleTestDelay(params *TestDelayParams) *Delay {
 	url := params.TestUrl
 	if url == "" {
@@ -102,10 +102,15 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	}
 	result := &Delay{Name: params.ProxyName, Url: url, Value: delayFailed}
 
+	selectMu.Lock()
+	generation := routingConfigurationGeneration
+	lease := activeRoutingLease
+	guarded := lease != nil && !lease.revoked && routingLeaseNow().Before(lease.deadline)
+	selectMu.Unlock()
 	proxy := lookupDelayTestProxy(params.ProxyName)
 	if proxy == nil {
 		reportMissingDelayTestProxy(params.ProxyName)
-		return result
+		return nil
 	}
 
 	timeout := timeoutFromMillis(params.Timeout, defaultDelayTestTimeout)
@@ -117,6 +122,13 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	delay, err := proxy.URLTest(ctx, url, anyDelayTestStatus)
+	selectMu.Lock()
+	current := generation == routingConfigurationGeneration &&
+		(!guarded || (activeRoutingLease == lease && !lease.revoked && routingLeaseNow().Before(lease.deadline)))
+	selectMu.Unlock()
+	if !current {
+		return nil
+	}
 	if err != nil {
 		delay = 0
 	}

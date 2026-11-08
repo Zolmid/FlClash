@@ -21,6 +21,7 @@ void main() {
         await harness.mount(tester, skin, size: size, dark: dark);
         final card = find.byKey(const ValueKey('home-invitation-card'));
         expect(card, findsOneWidget);
+        expect(find.text('返现比例 · 10%'), findsOneWidget);
         expect(tester.takeException(), isNull);
         final semantics = tester.ensureSemantics();
         final node = tester.getSemantics(card).getSemanticsData();

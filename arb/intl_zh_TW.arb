@@ -1498,6 +1498,7 @@
   "zolnitInviteCommissionConfirmed": "已確認佣金",
   "zolnitInviteCommissionPending": "待確認佣金",
   "zolnitInviteCommissionRate": "佣金比例",
+  "zolnitInviteCashbackRate": "返現比例",
   "zolnitInviteCommissionAvailable": "可用佣金",
   "zolnitInviteNoData": "邀請好友，從這裡開始。",
   "zolnitInviteCreateFailed": "產生邀請碼失敗，請重試。",

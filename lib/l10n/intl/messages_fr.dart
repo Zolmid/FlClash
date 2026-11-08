@@ -3133,6 +3133,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage(
       "Payer dans l’application",
     ),
+    "zolnitInviteCashbackRate": MessageLookupByLibrary.simpleMessage(
+      "Taux de remboursement",
+    ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage(
       "Code d\'invitation",
     ),

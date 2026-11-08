@@ -2163,6 +2163,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage("暂无帮助文章。"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("帮助与支持"),
     "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("应用内付款"),
+    "zolnitInviteCashbackRate": MessageLookupByLibrary.simpleMessage("返现比例"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("邀请码"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage("邀请码已复制"),
     "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(

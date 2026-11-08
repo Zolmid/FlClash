@@ -2181,6 +2181,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitHelpNoArticles": MessageLookupByLibrary.simpleMessage("暫無說明文章。"),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("說明與支援"),
     "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("App 內付款"),
+    "zolnitInviteCashbackRate": MessageLookupByLibrary.simpleMessage("返現比例"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("邀請碼"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage("邀請碼已複製"),
     "zolnitInviteCommissionAvailable": MessageLookupByLibrary.simpleMessage(

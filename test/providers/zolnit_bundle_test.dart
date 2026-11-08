@@ -956,6 +956,59 @@ void main() {
   );
 
   test(
+    'concurrent probes and refresh callers share one rate-limited request',
+    () async {
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      final entered = Completer<void>();
+      final response = Completer<http.Response>();
+      var calls = 0;
+      fixture.onBundle = (_) {
+        calls++;
+        if (!entered.isCompleted) entered.complete();
+        return response.future;
+      };
+      when(
+        () => core.asyncTestDelay(any(), any()),
+      ).thenAnswer((_) async => null);
+      final syncProfile = container.read(zolnitSyncProfileProvider);
+      final outcomes = [
+        for (var i = 0; i < 64; i++)
+          syncProfile().then(
+            (_) => 'success',
+            onError: (Object error) =>
+                error is ClientFailure ? error.code : 'unexpected',
+          ),
+      ];
+      await entered.future;
+      final proxies = List.generate(
+        64,
+        (i) => Proxy(name: 'fixture-$i', type: 'ss'),
+      );
+      final observed = await container
+          .read(proxiesActionProvider.notifier)
+          .delayTestNodes(proxies, 'https://probe.example.invalid/');
+      expect(observed, NodeDelayBatchResult.unavailable);
+      expect(calls, 1);
+      response.complete(
+        http.Response('{"error":{"code":"rate_limited"}}', 429),
+      );
+      expect(await Future.wait(outcomes), everyElement('rate_limited'));
+      expect(calls, 1);
+      expect(fixture.session.clientBundle, isNotNull);
+      fixture.onBundle = (_) async {
+        calls++;
+        return clientBundleResponse(
+          clientBundleFixture(bundleId: 'after-rate-limit'),
+        );
+      };
+      await syncProfile();
+      expect(calls, 2);
+      expect(fixture.session.clientBundle?.bundleId, 'after-rate-limit');
+    },
+  );
+
+  test(
     'repeated refreshes keep profile and session bound through failure',
     () async {
       final profile = await sync();
@@ -1427,6 +1480,148 @@ void main() {
       expect(fixture.session.authenticated, isTrue);
     },
   );
+  for (final latestFails in [false, true]) {
+    test(
+      'three interleaved syncs follow final result, failure=$latestFails',
+      () async {
+        container.dispose();
+        fixture.dispose();
+        final signed = _NativeSigned();
+        fixture = ClientBundleSessionFixture(signedSubscriptions: signed);
+        await fixture.login();
+        createContainer();
+        final profile = await sync();
+        container.read(currentProfileIdProvider.notifier).value = profile.id;
+        final raw = clientBundleFixture(
+          issuedAt: 1001,
+          bundleId: 'three-way-current',
+        );
+        final guard = <String, dynamic>{
+          'instanceId': 'fixture-core',
+          'token': 'three-way-token',
+          'configurationGeneration': 2,
+          'accountId': 'account-1',
+          'accountGeneration': fixture.api.generation,
+          'bundleId': raw['bundle_id'],
+          'configurationDigest': 'three-way-digest',
+          'expiresAt': 1301000,
+        };
+        signed.next = Completer<Json?>();
+        final bEntered = Completer<void>(), releaseB = Completer<void>();
+        final cEntered = Completer<void>(), releaseC = Completer<Object?>();
+        var versions = 0;
+        when(core.getCoreVersion).thenAnswer((_) async {
+          versions++;
+          if (versions == 2) {
+            bEntered.complete();
+            await releaseB.future;
+          }
+          return 'v1.19.32';
+        });
+        when(
+          () => core.signedSubscription(
+            CoreMethod.projectSignedSubscription,
+            any(),
+          ),
+        ).thenAnswer((_) {
+          cEntered.complete();
+          return releaseC.future;
+        });
+        Future<String> outcome(Future<int?> future) => future.then(
+          (id) => 'ok:$id',
+          onError: (Object e) => e is ClientFailure ? e.code : 'unexpected',
+        );
+        final a = outcome(container.read(zolnitSyncClientBundleProvider)());
+        await Future<void>.delayed(Duration.zero);
+        final b = outcome(
+          container.read(zolnitSyncCurrentClientBundleProvider)(guard),
+        );
+        await bEntered.future;
+        signed.next!.completeError(const ClientFailure('subscription_expired'));
+        await Future<void>.delayed(Duration.zero);
+        final c = outcome(
+          container.read(zolnitSyncCurrentClientBundleProvider)(guard),
+        );
+        await cEntered.future;
+        releaseB.complete();
+        await Future<void>.delayed(Duration.zero);
+        if (latestFails) {
+          releaseC.completeError(const ClientFailure('core_unavailable'));
+        } else {
+          releaseC.complete({
+            'body': jsonEncode({'data': raw}),
+            'lease': guard,
+            'state': {
+              'available': true,
+              'hasFloor': true,
+              'installed': true,
+              'serial': 2,
+              'intent': 0,
+            },
+          });
+        }
+        final results = await Future.wait([
+          a,
+          b,
+          c,
+        ]).timeout(const Duration(seconds: 3));
+        expect(
+          results,
+          everyElement(latestFails ? 'core_unavailable' : 'ok:${profile.id}'),
+        );
+      },
+    );
+  }
+
+  test('joined old generation cannot follow a new login', () async {
+    container.dispose();
+    fixture.dispose();
+    final signed = _NativeSigned();
+    fixture = ClientBundleSessionFixture(signedSubscriptions: signed);
+    await fixture.login();
+    createContainer();
+    await sync();
+    final guard = <String, dynamic>{
+      'accountId': 'account-1',
+      'accountGeneration': fixture.api.generation,
+    };
+    signed.next = Completer<Json?>();
+    final entered = Completer<void>(), release = Completer<void>();
+    var calls = 0;
+    when(core.getCoreVersion).thenAnswer((_) async {
+      calls++;
+      if (calls == 2) {
+        entered.complete();
+        await release.future;
+      }
+      return 'v1.19.32';
+    });
+    Future<String> outcome(Future<int?> future) => future.then(
+      (_) => 'success',
+      onError: (Object e) => e is ClientFailure ? e.code : 'unexpected',
+    );
+    final a = outcome(container.read(zolnitSyncClientBundleProvider)());
+    await Future<void>.delayed(Duration.zero);
+    final b = outcome(
+      container.read(zolnitSyncCurrentClientBundleProvider)(guard),
+    );
+    await entered.future;
+    signed.next!.completeError(const ClientFailure('subscription_expired'));
+    await Future<void>.delayed(Duration.zero);
+    await fixture.session.logout();
+    signed.next = null;
+    await fixture.login();
+    expect(
+      await outcome(container.read(zolnitSyncClientBundleProvider)()),
+      'success',
+    );
+    release.complete();
+    expect(await Future.wait([a, b]).timeout(const Duration(seconds: 3)), [
+      'superseded',
+      'superseded',
+    ]);
+  });
+
   test(
     'native renewal adopts the exact Core projection without false invalid states or HTTP',
     () async {
@@ -1530,9 +1725,40 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await container.read(zolnitSyncCurrentClientBundleProvider)(guard);
       signed.next!.completeError(const ClientFailure('subscription_expired'));
-      await expectLater(remote, throwsA(isA<ClientFailure>()));
+      expect(await remote, container.read(currentProfileIdProvider));
       expect(fixture.session.clientBundle?.bundleId, raw['bundle_id']);
       expect(fixture.session.clientBundleFailure, isNull);
+      signed.next = Completer<Json?>();
+      final older = container.read(zolnitSyncClientBundleProvider)();
+      final olderFailure = expectLater(
+        older,
+        throwsA(
+          isA<ClientFailure>().having(
+            (e) => e.code,
+            'code',
+            'core_unavailable',
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      when(
+        () => core.signedSubscription(
+          CoreMethod.projectSignedSubscription,
+          any(),
+        ),
+      ).thenAnswer((_) async => throw const ClientFailure('core_unavailable'));
+      await expectLater(
+        container.read(zolnitSyncCurrentClientBundleProvider)(guard),
+        throwsA(
+          isA<ClientFailure>().having(
+            (e) => e.code,
+            'code',
+            'core_unavailable',
+          ),
+        ),
+      );
+      signed.next!.completeError(const ClientFailure('subscription_expired'));
+      await olderFailure;
       expect(
         container.read(zolnitBundleStatusProvider),
         ZolnitBundleStatus.ready,

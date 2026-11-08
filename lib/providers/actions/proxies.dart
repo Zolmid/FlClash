@@ -14,12 +14,16 @@ class _DelayTestTarget {
 
 typedef _DelayTestBatch = ({List<Proxy> proxies, String? testUrl, bool direct});
 
+enum NodeDelayBatchResult { unavailable, allFailed, observed }
+
 class _DelayTestJob {
   _DelayTestJob(Iterable<String> keys) : held = keys.toSet();
 
   final Set<String> held;
   final Set<String> startedOnDispatch = {};
   bool cancelled = false;
+  int observed = 0;
+  int failed = 0;
 }
 
 @Riverpod(keepAlive: true)
@@ -421,9 +425,15 @@ class ProxiesAction extends _$ProxiesAction {
     ref.read(sortNumProvider.notifier).add();
   }
 
-  Future<void> delayTestNodes(List<Proxy> proxies, String testUrl) async {
-    await _runDelayTests([(proxies: proxies, testUrl: testUrl, direct: true)]);
+  Future<NodeDelayBatchResult> delayTestNodes(
+    List<Proxy> proxies,
+    String testUrl,
+  ) async {
+    final result = await _runDelayTests([
+      (proxies: proxies, testUrl: testUrl, direct: true),
+    ]);
     ref.read(sortNumProvider.notifier).add();
+    return result;
   }
 
   Future<void> delayTestGroups(List<Group> groups) async {
@@ -498,10 +508,12 @@ class ProxiesAction extends _$ProxiesAction {
     return targets;
   }
 
-  Future<void> _runDelayTests(List<_DelayTestBatch> batches) async {
+  Future<NodeDelayBatchResult> _runDelayTests(
+    List<_DelayTestBatch> batches,
+  ) async {
     final targets = _resolveDelayTestTargets(batches);
     if (targets.isEmpty) {
-      return;
+      return NodeDelayBatchResult.unavailable;
     }
     final pending = ref.read(pendingDelayTestsProvider.notifier);
     final job = _DelayTestJob(targets.map((target) => target.key));
@@ -529,6 +541,11 @@ class ProxiesAction extends _$ProxiesAction {
         ),
       );
     }
+    if (job.observed == 0) return NodeDelayBatchResult.unavailable;
+    if (!job.cancelled && job.failed == targets.length) {
+      return NodeDelayBatchResult.allFailed;
+    }
+    return NodeDelayBatchResult.observed;
   }
 
   Future<void> _runDelayTest(_DelayTestJob job, _DelayTestTarget target) async {
@@ -542,6 +559,8 @@ class ProxiesAction extends _$ProxiesAction {
     try {
       final delay = await _core.getDelay(target.testUrl, target.proxyName);
       if (delay != null && !job.cancelled) {
+        job.observed++;
+        if ((delay.value ?? 0) < 0) job.failed++;
         setDelay(delay);
       }
     } catch (error) {

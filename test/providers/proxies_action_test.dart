@@ -882,6 +882,77 @@ void main() {
     });
 
     test(
+      'unavailable batch preserves old delays and a later run recovers',
+      () async {
+        var available = false;
+        when(() => core.asyncTestDelay(_testUrl, any())).thenAnswer((
+          invocation,
+        ) async {
+          if (!available) return null;
+          final name = invocation.positionalArguments[1] as String;
+          return Delay(
+            name: name,
+            url: _testUrl,
+            value: name == 'HK-01' ? 39 : -2,
+          );
+        });
+        final container = _delayContainer(buildContainer);
+        container.read(delayDataSourceProvider.notifier).setDelays(const [
+          Delay(name: 'HK-01', url: _testUrl, value: 50),
+          Delay(name: 'HK-02', url: _testUrl, value: 60),
+        ]);
+        const proxies = [_proxy, Proxy(name: 'HK-02', type: 'ss')];
+        await actionOf(container).delayTestNodes(proxies, _testUrl);
+        expect(container.read(delayDataSourceProvider)[_testUrl], {
+          'HK-01': 50,
+          'HK-02': 60,
+        });
+        available = true;
+        await actionOf(container).delayTestNodes(proxies, _testUrl);
+        expect(container.read(delayDataSourceProvider)[_testUrl], {
+          'HK-01': 39,
+          'HK-02': -2,
+        });
+      },
+    );
+
+    test(
+      'classifies all real failures separately from mixed results',
+      () async {
+        var recover = false;
+        when(() => core.asyncTestDelay(_testUrl, any())).thenAnswer((
+          invocation,
+        ) async {
+          final name = invocation.positionalArguments[1] as String;
+          return Delay(
+            name: name,
+            url: _testUrl,
+            value: recover && name == 'HK-01' ? 39 : -1,
+          );
+        });
+        final container = _delayContainer(buildContainer);
+        const proxies = [_proxy, Proxy(name: 'HK-02', type: 'ss')];
+        expect(
+          await actionOf(container).delayTestNodes(proxies, _testUrl),
+          NodeDelayBatchResult.allFailed,
+        );
+        expect(container.read(delayDataSourceProvider)[_testUrl], {
+          'HK-01': -1,
+          'HK-02': -1,
+        });
+        recover = true;
+        expect(
+          await actionOf(container).delayTestNodes(proxies, _testUrl),
+          NodeDelayBatchResult.observed,
+        );
+        expect(container.read(delayDataSourceProvider)[_testUrl], {
+          'HK-01': 39,
+          'HK-02': -1,
+        });
+      },
+    );
+
+    test(
       'a profile change discards an in-flight physical-node result',
       () async {
         final release = Completer<Delay?>();

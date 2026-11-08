@@ -2435,6 +2435,9 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("ヘルプとサポート"),
     "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("アプリ内で支払う"),
+    "zolnitInviteCashbackRate": MessageLookupByLibrary.simpleMessage(
+      "キャッシュバック率",
+    ),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("招待コード"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
       "招待コードをコピーしました",

@@ -1498,6 +1498,7 @@
   "zolnitInviteCommissionConfirmed": "Confirmed commission",
   "zolnitInviteCommissionPending": "Pending commission",
   "zolnitInviteCommissionRate": "Commission rate",
+  "zolnitInviteCashbackRate": "Cashback rate",
   "zolnitInviteCommissionAvailable": "Available commission",
   "zolnitInviteNoData": "Invite your friends to get started.",
   "zolnitInviteCreateFailed": "Could not create the invite code. Please try again.",

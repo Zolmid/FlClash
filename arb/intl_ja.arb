@@ -1498,6 +1498,7 @@
   "zolnitInviteCommissionConfirmed": "確定報酬",
   "zolnitInviteCommissionPending": "保留中の報酬",
   "zolnitInviteCommissionRate": "報酬率",
+  "zolnitInviteCashbackRate": "キャッシュバック率",
   "zolnitInviteCommissionAvailable": "利用可能な報酬",
   "zolnitInviteNoData": "友達を招待して始めましょう。",
   "zolnitInviteCreateFailed": "招待コードの作成に失敗しました。もう一度お試しください。",

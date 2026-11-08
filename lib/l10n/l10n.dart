@@ -12909,6 +12909,16 @@ class AppLocalizations {
     );
   }
 
+  /// `Cashback rate`
+  String get zolnitInviteCashbackRate {
+    return Intl.message(
+      'Cashback rate',
+      name: 'zolnitInviteCashbackRate',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Available commission`
   String get zolnitInviteCommissionAvailable {
     return Intl.message(

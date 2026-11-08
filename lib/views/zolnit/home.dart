@@ -5,6 +5,7 @@ import 'dart:collection';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
@@ -86,7 +87,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   final _noticeRevision = ValueNotifier<int>(0);
   final _withdrawn = <String>{};
   final _popups = Queue<ZolnitRealtimeInboxItem>();
-  Future<int?>? _buildNumber;
+  Future<PackageInfo?>? _installedPackage;
+  int? _inviteRate;
+  int? _inviteRateGeneration;
+  int? _inviteLoadingGeneration;
+  final _automaticReadFlights = <(String, int, String)>{};
+  Timer? _automaticReadRetry;
   int _unread = 0;
   CommonAction? _cachedActions;
   bool _updateHintsHealthy = false;
@@ -135,10 +141,13 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _sessionChanged() {
     if (!_session.authenticated) {
+      _automaticReadRetry?.cancel();
       if (_observedGeneration != null) _inboxEpoch++;
       _reportUpdateHints(false);
       if (_observedGeneration != null) _nextRefresh = null;
       _observedGeneration = null;
+      _inviteRate = null;
+      _inviteRateGeneration = null;
       _clearPopups();
       _realtimeSubject = null;
       _withdrawn.clear();
@@ -149,6 +158,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       return;
     }
     if (_observedGeneration != _session.api.generation) {
+      _automaticReadRetry?.cancel();
+      _automaticReadRetry = null;
       _inboxEpoch++;
       _reportUpdateHints(false);
       _clearPopups();
@@ -160,10 +171,38 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       _realtime = null;
       unawaited(old?.dispose() ?? Future.value());
       _observedGeneration = _session.api.generation;
+      _inviteRate = null;
+      _inviteRateGeneration = null;
+      unawaited(_loadInviteRate(_observedGeneration!));
       _nextRefresh = null;
       _nextOrderCheck = null;
       _refreshFailures = 0;
       scheduleMicrotask(() => unawaited(_refreshData(force: true)));
+    }
+  }
+
+  Future<void> _loadInviteRate(int generation) async {
+    if (_inviteLoadingGeneration == generation) return;
+    _inviteLoadingGeneration = generation;
+    try {
+      final invite = await ZolnitInviteClient(_session.api).overview();
+      final rate = invite.stats?.commissionRatePercent;
+      if (mounted &&
+          _session.authenticated &&
+          _session.api.generation == generation &&
+          rate != null &&
+          rate >= 0 &&
+          rate <= 100) {
+        setState(() {
+          _inviteRate = rate;
+          _inviteRateGeneration = generation;
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (_inviteLoadingGeneration == generation) {
+        _inviteLoadingGeneration = null;
+      }
     }
   }
 
@@ -181,6 +220,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       return Future.value();
     }
     if (!ref.read(initProvider)) return Future.value();
+    if (_inviteRateGeneration != _session.api.generation) {
+      unawaited(_loadInviteRate(_session.api.generation));
+    }
     if (_refreshFlight case final pending?) return pending;
     if (!force && _realtime?.healthy == true) {
       final pending = _pendingOrders();
@@ -302,6 +344,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   @override
   void dispose() {
+    _automaticReadRetry?.cancel();
     _refreshTimer?.cancel();
     _reportUpdateHints(false);
     unawaited(_realtime?.dispose() ?? Future<void>.value());
@@ -401,6 +444,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     }
     final String title, body;
     String? updateVersion;
+    var installedUpdate = false;
     if (type == 'client.update') {
       final target = data['platform'],
           build = data['build'],
@@ -413,17 +457,25 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
           version.length > 32) {
         return;
       }
-      _buildNumber ??= PackageInfo.fromPlatform()
-          .then((i) => int.tryParse(i.buildNumber))
+      _installedPackage ??= PackageInfo.fromPlatform()
+          .then<PackageInfo?>((info) => info)
           .catchError((Object _) => null);
-      final current = await _buildNumber;
-      if (current == null) {
-        _buildNumber = null;
+      final package = await _installedPackage;
+      final current = int.tryParse(package?.buildNumber ?? '');
+      if (current == null || current <= 0 || package == null) {
+        _installedPackage = null;
         return;
       }
-      if (!_currentRealtime(gen) || build <= current) return;
+      if (!_currentRealtime(gen)) return;
+      final int comparison;
+      try {
+        comparison = compareVersions(package.version.split('+').first, version);
+      } on FormatException {
+        return;
+      }
+      installedUpdate = comparison > 0 || (comparison == 0 && current >= build);
       if (!mounted) return;
-      updateVersion = version;
+      if (!installedUpdate) updateVersion = version;
       title = '${context.appLocalizations.discoverNewVersion} · $version';
       body = data['body'] is String
           ? data['body'] as String
@@ -466,6 +518,29 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
               ? ZolnitInboxMerge.inserted
               : ZolnitInboxMerge.unchanged);
     final fresh = merge == ZolnitInboxMerge.inserted;
+    final automaticReadKey = (scope, gen, id);
+    if (installedUpdate &&
+        !read &&
+        _currentRealtime(gen) &&
+        _automaticReadFlights.add(automaticReadKey)) {
+      try {
+        final stored = await _realtimeStore.readInbox(scope);
+        final existing = stored.where((entry) => entry.id == id).firstOrNull;
+        if (existing != null && !existing.read && _currentRealtime(gen)) {
+          final confirmed = await _markRead(existing, scope, gen);
+          if (!confirmed && _currentRealtime(gen)) {
+            _automaticReadRetry ??= Timer(const Duration(minutes: 1), () {
+              _automaticReadRetry = null;
+              if (_currentRealtime(gen)) {
+                unawaited(_refreshRealtimeInbox(gen).catchError((Object _) {}));
+              }
+            });
+          }
+        }
+      } finally {
+        _automaticReadFlights.remove(automaticReadKey);
+      }
+    }
     if (merge == ZolnitInboxMerge.updated && _currentRealtime(gen)) {
       _canonicalNotices.value = {..._canonicalNotices.value, item.id: item};
       if (_popupItemId == item.id) _popupContent.value = item;
@@ -1071,7 +1146,14 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                                 openPlans: () => _select(2),
                               ),
                             ),
-                            _HomeInvitationCard(onTap: _showInvitations),
+                            _HomeInvitationCard(
+                              onTap: _showInvitations,
+                              commissionRate:
+                                  _inviteRateGeneration ==
+                                      _session.api.generation
+                                  ? _inviteRate
+                                  : null,
+                            ),
                           ],
                         ),
                         1 => ZolnitNodesPage(
@@ -1237,9 +1319,10 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 }
 
 class _HomeInvitationCard extends StatelessWidget {
-  const _HomeInvitationCard({required this.onTap});
+  const _HomeInvitationCard({required this.onTap, this.commissionRate});
 
   final VoidCallback onTap;
+  final int? commissionRate;
 
   @override
   Widget build(BuildContext context) {
@@ -1288,7 +1371,9 @@ class _HomeInvitationCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                text.zolnitInviteNoData,
+                                commissionRate == null
+                                    ? text.zolnitInviteNoData
+                                    : '${text.zolnitInviteCashbackRate} · $commissionRate%',
                                 style: zolnitText(
                                   context,
                                   12,

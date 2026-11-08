@@ -357,6 +357,8 @@ ZolnitBundleStatus bundleFailureStatus(String? code) => switch (code) {
 
 class _BundleSyncRevision {
   int value = 0;
+  int? generation;
+  Future<int?>? latest;
 }
 
 final _bundleSyncRevisionProvider = Provider((_) => _BundleSyncRevision());
@@ -569,10 +571,30 @@ Future<int?> Function() _createBundleSync(
     final generation = session.api.generation;
     if (pending != null && pendingGeneration == generation) return pending!;
     final operation = Future<int?>.microtask(sync);
-    pending = operation;
     pendingGeneration = generation;
-    return operation.whenComplete(() {
-      if (identical(operation, pending)) pending = null;
-    });
+    final revision = ref.read(_bundleSyncRevisionProvider);
+    revision.generation = generation;
+    late final Future<int?> joined;
+    joined = operation
+        .catchError((Object error, StackTrace stack) async {
+          final latest = revision.latest;
+          if (error is ClientFailure &&
+              error.code == 'superseded' &&
+              ref.mounted &&
+              session.authenticated &&
+              session.api.generation == generation &&
+              revision.generation == generation &&
+              latest != null &&
+              !identical(latest, joined)) {
+            return latest;
+          }
+          Error.throwWithStackTrace(error, stack);
+        })
+        .whenComplete(() {
+          if (identical(joined, pending)) pending = null;
+        });
+    revision.latest = joined;
+    pending = joined;
+    return joined;
   };
 }

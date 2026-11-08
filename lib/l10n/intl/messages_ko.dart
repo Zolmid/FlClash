@@ -2393,6 +2393,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitHelpSupport": MessageLookupByLibrary.simpleMessage("도움말 및 지원"),
     "zolnitInAppPayment": MessageLookupByLibrary.simpleMessage("앱에서 결제"),
+    "zolnitInviteCashbackRate": MessageLookupByLibrary.simpleMessage("캐시백 비율"),
     "zolnitInviteCode": MessageLookupByLibrary.simpleMessage("초대 코드"),
     "zolnitInviteCodeCopied": MessageLookupByLibrary.simpleMessage(
       "초대 코드가 복사되었습니다",

@@ -1498,6 +1498,7 @@
   "zolnitInviteCommissionConfirmed": "Comisión confirmada",
   "zolnitInviteCommissionPending": "Comisión pendiente",
   "zolnitInviteCommissionRate": "Tasa de comisión",
+  "zolnitInviteCashbackRate": "Porcentaje de reembolso",
   "zolnitInviteCommissionAvailable": "Comisión disponible",
   "zolnitInviteNoData": "Invita a tus amigos para empezar.",
   "zolnitInviteCreateFailed": "No se pudo crear el código. Inténtalo de nuevo.",

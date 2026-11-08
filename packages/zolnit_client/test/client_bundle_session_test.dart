@@ -26,6 +26,30 @@ void main() {
   setUp(() => fixture = ClientBundleSessionFixture());
   tearDown(() => fixture.dispose());
 
+  test('superseded native failure cannot overwrite a newer bundle', () async {
+    await fixture.login();
+    final entered = Completer<void>();
+    final release = Completer<Json?>();
+    final older = fixture.session.refreshClientBundle(
+      coreVersion: 'v1.19.32',
+      clock: () => bundleTime(1001),
+      readNative: () {
+        entered.complete();
+        return release.future;
+      },
+    );
+    await entered.future;
+    final newer = await fixture.session.refreshClientBundle(
+      coreVersion: 'v1.19.32',
+      clock: () => bundleTime(1001),
+    );
+    expect(newer, isNotNull);
+    release.completeError(const ClientFailure('subscription_tombstone'));
+    expect(await older, isNull);
+    expect(fixture.session.clientBundle, same(newer));
+    expect(fixture.session.clientBundleFailure, isNull);
+  });
+
   test('replacement is published only after preparation succeeds', () async {
     await fixture.login();
     Future<ZolnitClientBundle?> refresh({
