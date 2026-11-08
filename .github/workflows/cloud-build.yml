@@ -213,6 +213,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         if: matrix.platform == 'android'
 
+      - name: Prefetch pinned Gradle distribution
+        if: matrix.platform == 'android'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/ci/prefetch_gradle.py
+
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
 

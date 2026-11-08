@@ -46,6 +46,7 @@ jobs:
       - name: Test release helpers
         run: |
           python3 -m unittest discover -s tool/client_release/tests -p '*_test.py'
+          python3 -m unittest discover -s tool/ci/tests -p '*_test.py'
           node --test tool/client_release/tests/publish_release_test.mjs
 
       - name: Setup Rust cache
@@ -408,6 +409,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev' }}
+
+      - name: Prefetch pinned Gradle distribution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/ci/prefetch_gradle.py
 
       - name: Run Android unit tests
         working-directory: android
