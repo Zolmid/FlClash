@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.4 (2026-11-08)
+
+**Bug Fixes**
+
+- **client** Improve connection reliability, show invitation cashback, and clear installed update alerts (66f9f5c)
+
 ## v1.1.3 (2026-11-08)
 
 **Features**
