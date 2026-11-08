@@ -331,14 +331,12 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY= \
             DEVELOPMENT_TEAM=
-          extra_args=()
+          set --
           if [[ "$UPLOAD_TESTFLIGHT" == true ]]; then
-            extra_args+=(
-              --upload-testflight
-              --asc-api-key-id "$APPLE_ASC_API_KEY_ID"
-              --asc-api-issuer-id "$APPLE_ASC_API_ISSUER_ID"
+            set -- --upload-testflight \
+              --asc-api-key-id "$APPLE_ASC_API_KEY_ID" \
+              --asc-api-issuer-id "$APPLE_ASC_API_ISSUER_ID" \
               --asc-api-key-path "$ZOLNIT_ASC_KEY_PATH"
-            )
           fi
           python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/apple_distribution.py" \
             --execute \
@@ -357,7 +355,7 @@ jobs:
             --profile-sha256 "app=$APPLE_APP_PROFILE_SHA256" \
             --profile-sha256 "necore=$APPLE_NECORE_PROFILE_SHA256" \
             --profile-sha256 "widget=$APPLE_WIDGET_PROFILE_SHA256" \
-            "${extra_args[@]}"
+            "$@"
 
       - name: Retain verified App Store export
         if: success() && env.DISTRIBUTION == 'app-store-connect'
