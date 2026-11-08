@@ -413,7 +413,7 @@ jobs:
       - name: Prefetch pinned Gradle distribution
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 tool/ci/prefetch_gradle.py
+        run: python3 tool/ci/prefetch_gradle.py --install-kotlin-compiler-mirror
 
       - name: Run Android unit tests
         working-directory: android
@@ -547,6 +547,12 @@ jobs:
       - name: Setup Gradle
         if: startsWith(matrix.platform,'android')
         uses: gradle/actions/setup-gradle@v6
+
+      - name: Prefetch pinned Gradle distribution
+        if: startsWith(matrix.platform,'android')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tool/ci/prefetch_gradle.py --install-kotlin-compiler-mirror
 
       - name: Enable git long paths (Windows)
         if: startsWith(matrix.os, 'windows')

@@ -35,6 +35,64 @@ ALLOWED_REDIRECT_HOSTS = frozenset({
     'github-releases.githubusercontent.com',
 })
 USER_AGENT = 'ZolNit/GradlePrefetch'
+KOTLIN_COMPILER_INIT_SCRIPT_NAME = 'zolnit-kotlin-compiler-mirror.init.gradle'
+GOOGLE_MAVEN_CENTRAL_MIRROR_URL = 'https://maven-central.storage-download.googleapis.com/maven2/'
+KOTLIN_COMPILER_GROUP = 'org.jetbrains.kotlin'
+KOTLIN_COMPILER_MODULE = 'kotlin-compiler-embeddable'
+KOTLIN_COMPILER_INIT_SCRIPT = f'''def mirrorName = "ZolNitGoogleMavenCentralKotlinCompiler"
+def mirrorUrl = "{GOOGLE_MAVEN_CENTRAL_MIRROR_URL}"
+
+def ensureMirrorFirst = {{ RepositoryHandler repos ->
+    if (repos.isEmpty()) {{
+        return
+    }}
+    def existing = repos.findByName(mirrorName)
+    if (existing != null) {{
+        if (repos.indexOf(existing) != 0) {{
+            repos.remove(existing)
+            repos.addFirst(existing)
+        }}
+        return
+    }}
+    def created = repos.maven {{
+        name = mirrorName
+        url = uri(mirrorUrl)
+        content {{
+            includeModule("{KOTLIN_COMPILER_GROUP}", "{KOTLIN_COMPILER_MODULE}")
+        }}
+    }}
+    if (repos.indexOf(created) != 0) {{
+        repos.remove(created)
+        repos.addFirst(created)
+    }}
+}}
+
+def watchRepositories = {{ RepositoryHandler repos ->
+    ensureMirrorFirst(repos)
+    repos.whenObjectAdded {{ repo ->
+        if (repo.name != mirrorName) {{
+            ensureMirrorFirst(repos)
+        }}
+    }}
+}}
+
+beforeSettings {{ settings ->
+    watchRepositories(settings.buildscript.repositories)
+    watchRepositories(settings.pluginManagement.repositories)
+    watchRepositories(settings.dependencyResolutionManagement.repositories)
+}}
+
+settingsEvaluated {{ settings ->
+    watchRepositories(settings.buildscript.repositories)
+    watchRepositories(settings.pluginManagement.repositories)
+    watchRepositories(settings.dependencyResolutionManagement.repositories)
+}}
+
+allprojects {{ project ->
+    watchRepositories(project.buildscript.repositories)
+    watchRepositories(project.repositories)
+}}
+'''
 
 
 class PrefetchError(RuntimeError):
@@ -119,7 +177,11 @@ def verify_archive(path: Path, expected_size: int = EXPECTED_SIZE, expected_sha2
     return actual_sha
 
 
-def validate_source_url(url: str, allow_redirect_hosts: bool = False) -> urllib.parse.ParseResult:
+def validate_source_url(
+    url: str,
+    allow_redirect_hosts: bool = False,
+    expected_api_url: str = EXPECTED_ASSET_API_URL,
+) -> urllib.parse.ParseResult:
     parsed = urllib.parse.urlparse(url)
     host = (parsed.hostname or '').lower()
     require(parsed.scheme == 'https', f'source URL must use https: {url}')
@@ -127,7 +189,7 @@ def validate_source_url(url: str, allow_redirect_hosts: bool = False) -> urllib.
     if allow_redirect_hosts:
         require(host in ALLOWED_REDIRECT_HOSTS, f'untrusted redirect host: {host!r}')
     else:
-        require(host == EXPECTED_API_HOST and url == EXPECTED_ASSET_API_URL,
+        require(host == EXPECTED_API_HOST and url == expected_api_url,
                 f'untrusted source URL: {url!r}')
     return parsed
 
@@ -155,10 +217,11 @@ def stream_github_asset(
     destination: Path,
     token: str | None = None,
     api_url: str = EXPECTED_ASSET_API_URL,
+    expected_api_url: str = EXPECTED_ASSET_API_URL,
     opener=None,
     retries: int = 3,
 ) -> None:
-    validate_source_url(api_url, allow_redirect_hosts=False)
+    validate_source_url(api_url, allow_redirect_hosts=False, expected_api_url=expected_api_url)
     headers = {
         'Accept': 'application/octet-stream',
         'User-Agent': USER_AGENT,
@@ -174,7 +237,7 @@ def stream_github_asset(
             with client.open(request, timeout=60) as response, destination.open('wb') as handle:
                 final_url = getattr(response, 'geturl', lambda: api_url)()
                 if final_url:
-                    validate_source_url(final_url, allow_redirect_hosts=True)
+                    validate_source_url(final_url, allow_redirect_hosts=True, expected_api_url=expected_api_url)
                 shutil.copyfileobj(response, handle, length=1024 * 1024)
             return
         except (OSError, urllib.error.URLError, PrefetchError) as error:
@@ -183,7 +246,7 @@ def stream_github_asset(
                 raise
             if attempt < retries:
                 time.sleep(min(2 * attempt, 5))
-    raise PrefetchError(f'failed to download official Gradle asset after {retries} attempts: {last_error}')
+    raise PrefetchError(f'failed to download official GitHub asset after {retries} attempts: {last_error}')
 
 
 def resolve_gradle_user_home(env: dict[str, str], explicit: Path | None = None) -> Path:
@@ -195,6 +258,22 @@ def resolve_gradle_user_home(env: dict[str, str], explicit: Path | None = None) 
     return Path.home() / '.gradle'
 
 
+def install_kotlin_compiler_mirror_init_script(gradle_user_home: Path) -> Path:
+    init_dir = gradle_user_home / 'init.d'
+    init_dir.mkdir(parents=True, exist_ok=True)
+    target = init_dir / KOTLIN_COMPILER_INIT_SCRIPT_NAME
+    fd, temp_name = tempfile.mkstemp(prefix=f'.{KOTLIN_COMPILER_INIT_SCRIPT_NAME}.', suffix='.tmp', dir=str(init_dir))
+    os.close(fd)
+    temp_path = Path(temp_name)
+    try:
+        temp_path.write_text(KOTLIN_COMPILER_INIT_SCRIPT, encoding='utf-8')
+        os.replace(temp_path, target)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+    return target
+
+
 def prefetch_gradle(
     wrapper_properties: Path = WRAPPER_PROPERTIES,
     gradle_user_home: Path | None = None,
@@ -202,6 +281,7 @@ def prefetch_gradle(
     api_url: str = EXPECTED_ASSET_API_URL,
     expected_size: int = EXPECTED_SIZE,
     expected_sha256: str = EXPECTED_SHA256,
+    install_kotlin_mirror: bool = False,
     env: dict[str, str] | None = None,
     opener=None,
 ) -> dict[str, object]:
@@ -216,19 +296,13 @@ def prefetch_gradle(
     part_file = target_dir / f'{EXPECTED_ZIP_NAME}.part'
 
     target_dir.mkdir(parents=True, exist_ok=True)
+    status = 'prefetched'
     if target_zip.exists():
         try:
             if not target_zip.is_file():
                 raise PrefetchError('cached target path is not a regular file')
             verify_archive(target_zip, expected_size=expected_size, expected_sha256=expected_sha256)
-            return {
-                'status': 'cached',
-                'version': EXPECTED_VERSION,
-                'url_hash': url_hash,
-                'zip': str(target_zip),
-                'size': expected_size,
-                'sha256': expected_sha256,
-            }
+            status = 'cached'
         except PrefetchError:
             for child in target_dir.iterdir():
                 if child.is_dir():
@@ -236,41 +310,46 @@ def prefetch_gradle(
                 elif child.name in (EXPECTED_ZIP_NAME, ok_marker.name, part_file.name):
                     child.unlink(missing_ok=True)
 
-    if fixture is not None:
-        require(fixture.is_file(), f'fixture archive not found: {fixture}')
-    else:
-        validate_source_url(api_url, allow_redirect_hosts=False)
-
-    fd, temp_name = tempfile.mkstemp(prefix=f'.{EXPECTED_ZIP_NAME}.', suffix='.tmp', dir=str(target_dir))
-    os.close(fd)
-    temp_path = Path(temp_name)
-    try:
+    if status != 'cached':
         if fixture is not None:
-            shutil.copyfile(fixture, temp_path)
+            require(fixture.is_file(), f'fixture archive not found: {fixture}')
         else:
-            token = (env_map.get('GH_TOKEN') or env_map.get('GITHUB_TOKEN') or '').strip() or None
-            stream_github_asset(temp_path, token=token, api_url=api_url, opener=opener)
-        verify_archive(temp_path, expected_size=expected_size, expected_sha256=expected_sha256)
-        for child in target_dir.iterdir():
-            if child == temp_path:
-                continue
-            if child.is_dir():
-                shutil.rmtree(child, ignore_errors=True)
-            elif child.name in (ok_marker.name, part_file.name):
-                child.unlink(missing_ok=True)
-        os.replace(temp_path, target_zip)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink(missing_ok=True)
+            validate_source_url(api_url, allow_redirect_hosts=False)
 
-    return {
-        'status': 'prefetched',
+        fd, temp_name = tempfile.mkstemp(prefix=f'.{EXPECTED_ZIP_NAME}.', suffix='.tmp', dir=str(target_dir))
+        os.close(fd)
+        temp_path = Path(temp_name)
+        try:
+            if fixture is not None:
+                shutil.copyfile(fixture, temp_path)
+            else:
+                token = (env_map.get('GH_TOKEN') or env_map.get('GITHUB_TOKEN') or '').strip() or None
+                stream_github_asset(temp_path, token=token, api_url=api_url, opener=opener)
+            verify_archive(temp_path, expected_size=expected_size, expected_sha256=expected_sha256)
+            for child in target_dir.iterdir():
+                if child == temp_path:
+                    continue
+                if child.is_dir():
+                    shutil.rmtree(child, ignore_errors=True)
+                elif child.name in (ok_marker.name, part_file.name):
+                    child.unlink(missing_ok=True)
+            os.replace(temp_path, target_zip)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink(missing_ok=True)
+
+    result: dict[str, object] = {
+        'status': status,
         'version': EXPECTED_VERSION,
         'url_hash': url_hash,
         'zip': str(target_zip),
         'size': expected_size,
         'sha256': expected_sha256,
     }
+    if install_kotlin_mirror:
+        init_script = install_kotlin_compiler_mirror_init_script(home)
+        result['kotlin_compiler_mirror_init'] = str(init_script)
+    return result
 
 
 def main(argv: list[str] | None = None, env: dict[str, str] | None = None) -> int:
@@ -279,6 +358,7 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None) -> in
     parser.add_argument('--gradle-user-home', type=Path, default=None)
     parser.add_argument('--fixture', type=Path, default=None)
     parser.add_argument('--api-url', default=EXPECTED_ASSET_API_URL)
+    parser.add_argument('--install-kotlin-compiler-mirror', action='store_true')
     args = parser.parse_args(argv)
     try:
         result = prefetch_gradle(
@@ -286,6 +366,7 @@ def main(argv: list[str] | None = None, env: dict[str, str] | None = None) -> in
             gradle_user_home=args.gradle_user_home,
             fixture=args.fixture,
             api_url=args.api_url,
+            install_kotlin_mirror=args.install_kotlin_compiler_mirror,
             env=env,
         )
     except (PrefetchError, OSError, ValueError) as error:

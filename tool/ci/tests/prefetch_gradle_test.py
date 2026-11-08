@@ -9,6 +9,7 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import prefetch_appimage_runtime as par  # noqa: E402
 import prefetch_gradle as pg  # noqa: E402
 
 
@@ -64,25 +65,35 @@ class PrefetchGradleTest(unittest.TestCase):
             fixture=fixture,
             expected_size=self.valid_size,
             expected_sha256=self.valid_sha,
+            install_kotlin_mirror=True,
         )
         expected_zip = (
             self.gradle_home
             / 'wrapper/dists/gradle-9.8.0-all/619e6l8zt76uzaekhqdol0b60/gradle-9.8.0-all.zip'
         )
+        expected_init = self.gradle_home / 'init.d' / pg.KOTLIN_COMPILER_INIT_SCRIPT_NAME
         self.assertEqual(result['status'], 'prefetched')
         self.assertEqual(Path(result['zip']), expected_zip)
+        self.assertEqual(Path(result['kotlin_compiler_mirror_init']), expected_init)
         self.assertTrue(expected_zip.is_file())
+        self.assertTrue(expected_init.is_file())
+        init_text = expected_init.read_text(encoding='utf-8')
+        self.assertIn(pg.GOOGLE_MAVEN_CENTRAL_MIRROR_URL, init_text)
+        self.assertIn('includeModule("org.jetbrains.kotlin", "kotlin-compiler-embeddable")', init_text)
         self.assertEqual(expected_zip.read_bytes(), self.valid_bytes)
 
         fixture.unlink()
+        expected_init.unlink()
         cached = pg.prefetch_gradle(
             wrapper_properties=self.wrapper_props,
             gradle_user_home=self.gradle_home,
             fixture=fixture,
             expected_size=self.valid_size,
             expected_sha256=self.valid_sha,
+            install_kotlin_mirror=True,
         )
         self.assertEqual(cached['status'], 'cached')
+        self.assertTrue(expected_init.is_file())
 
     def test_wrong_sha_or_size_is_rejected_without_polluting_cache(self):
         fixture = self.root / 'bad.zip'
@@ -259,6 +270,69 @@ class PrefetchGradleTest(unittest.TestCase):
             '--fixture', str(bad_fixture),
         ], env={})
         self.assertEqual(code_mismatch, 1)
+
+
+class PrefetchAppImageRuntimeTest(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='zolnit-appimage-prefetch-test-'))
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.valid_bytes = b'\x7fELF' + b'runtime-payload-x86_64'
+        self.valid_sha = hashlib.sha256(self.valid_bytes).hexdigest()
+        self.valid_size = len(self.valid_bytes)
+
+    def test_fixture_and_cache_reuse_and_corruption_recovery(self):
+        fixture = self.root / 'fixture-runtime'
+        fixture.write_bytes(self.valid_bytes)
+        target = self.root / 'out/runtime-x86_64'
+        result = par.prefetch_appimage_runtime(
+            output=target,
+            fixture=fixture,
+            expected_size=self.valid_size,
+            expected_sha256=self.valid_sha,
+        )
+        self.assertEqual(result['status'], 'prefetched')
+        self.assertEqual(target.read_bytes(), self.valid_bytes)
+
+        fixture.unlink()
+        cached = par.prefetch_appimage_runtime(
+            output=target,
+            fixture=fixture,
+            expected_size=self.valid_size,
+            expected_sha256=self.valid_sha,
+        )
+        self.assertEqual(cached['status'], 'cached')
+
+        target.write_bytes(b'corrupted')
+        fixture.write_bytes(self.valid_bytes)
+        recovered = par.prefetch_appimage_runtime(
+            output=target,
+            fixture=fixture,
+            expected_size=self.valid_size,
+            expected_sha256=self.valid_sha,
+        )
+        self.assertEqual(recovered['status'], 'prefetched')
+        self.assertEqual(target.read_bytes(), self.valid_bytes)
+
+    def test_rejects_non_elf_wrong_hash_or_untrusted_url(self):
+        non_elf = self.root / 'non-elf'
+        non_elf.write_bytes(b'NOPE' + b'123456')
+        target = self.root / 'out/runtime-x86_64'
+        with self.assertRaises(pg.PrefetchError):
+            par.prefetch_appimage_runtime(
+                output=target,
+                fixture=non_elf,
+                expected_size=len(non_elf.read_bytes()),
+                expected_sha256=hashlib.sha256(non_elf.read_bytes()).hexdigest(),
+            )
+        self.assertFalse(target.exists())
+
+        with self.assertRaises(pg.PrefetchError):
+            par.prefetch_appimage_runtime(
+                output=target,
+                api_url='https://api.github.com/repos/evil/type2-runtime/releases/assets/326011592',
+                expected_size=self.valid_size,
+                expected_sha256=self.valid_sha,
+            )
 
 
 if __name__ == '__main__':

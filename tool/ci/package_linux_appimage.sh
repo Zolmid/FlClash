@@ -36,8 +36,7 @@ runtime="$stage/runtime"
 if [[ -n "${ZOLNIT_APPIMAGE_RUNTIME:-}" ]]; then
   cp "$ZOLNIT_APPIMAGE_RUNTIME" "$runtime"
 else
-  curl -fsSL --proto '=https' --retry 3 -o "$runtime" \
-    'https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64'
+  python3 "$(dirname -- "$0")/prefetch_appimage_runtime.py" --output "$runtime"
 fi
 printf '%s  %s\n' 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d "$runtime" | sha256sum -c -
 mksquashfs "$root" "$stage/payload" -noappend -all-root -no-xattrs -comp zstd -no-progress

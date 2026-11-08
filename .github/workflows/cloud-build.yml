@@ -217,7 +217,7 @@ jobs:
         if: matrix.platform == 'android'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 tool/ci/prefetch_gradle.py
+        run: python3 tool/ci/prefetch_gradle.py --install-kotlin-compiler-mirror
 
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
@@ -357,7 +357,11 @@ jobs:
 
       - name: Package and verify Linux AppImage
         if: matrix.platform == 'linux' && env.CLIENT_BRANCH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZOLNIT_APPIMAGE_RUNTIME: ${{ runner.temp }}/zolnit-appimage-runtime-x86_64
         run: |
+          python3 tool/ci/prefetch_appimage_runtime.py --output "$ZOLNIT_APPIMAGE_RUNTIME"
           bash tool/ci/package_linux_appimage.sh build/linux/x64/release/bundle "dist/ZolNit-${{ steps.version.outputs.package }}-linux-x64.AppImage"
 
       - name: Create and validate canonical Linux package
