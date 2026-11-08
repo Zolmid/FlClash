@@ -1,6 +1,9 @@
 name: apple-distribution-prep
 
 on:
+  push:
+    branches: [codex/apple-distribution-prep]
+    paths: [.github/workflows/apple-distribution.yml]
   workflow_dispatch:
     inputs:
       enable:
@@ -36,6 +39,9 @@ defaults:
 
 jobs:
   prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'ci(ios): validate approved export-only archive')
     runs-on: xcode-27
     environment: apple-distribution
     timeout-minutes: 90
@@ -44,12 +50,12 @@ jobs:
       GO_VERSION: '1.27.1'
       RUSTUP_TOOLCHAIN: '1.99.0'
       GOTOOLCHAIN: local
-      SOURCE_TAG: ${{ inputs.source_tag }}
-      DISTRIBUTION: ${{ inputs.distribution }}
-      UPLOAD_TESTFLIGHT: ${{ inputs.upload_testflight }}
+      SOURCE_TAG: ${{ inputs.source_tag || 'v1.1.4' }}
+      DISTRIBUTION: ${{ inputs.distribution || 'app-store-connect' }}
+      UPLOAD_TESTFLIGHT: ${{ inputs.upload_testflight || false }}
     steps:
       - name: Refuse disabled lane
-        if: ${{ inputs.enable != 'enable' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.enable != 'enable' }}
         run: |
           echo '::error::apple-distribution-prep is disabled by default; type enable only after controller approval and secret wiring.'
           exit 1
@@ -354,7 +360,7 @@ jobs:
             "${extra_args[@]}"
 
       - name: Retain verified App Store export
-        if: success() && inputs.distribution == 'app-store-connect'
+        if: success() && env.DISTRIBUTION == 'app-store-connect'
         uses: actions/upload-artifact@v4
         with:
           name: zolnit-app-store-export-${{ inputs.source_tag }}
