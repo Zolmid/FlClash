@@ -112,6 +112,45 @@ class SigningTest(unittest.TestCase):
             self.package()
         self.assertEqual(self.commands, [])
 
+    def test_only_launch_at_login_build_zips_are_removed_before_signing(self):
+        resources = self.app / 'Contents/Resources/LaunchAtLogin_LaunchAtLogin.bundle/Contents/Resources'
+        resources.mkdir(parents=True)
+        for name in ('LaunchAtLoginHelper.zip', 'LaunchAtLoginHelper-with-runtime.zip', 'unrelated.zip'):
+            (resources / name).write_bytes(b'archive')
+        helper = self.app / 'Contents/Library/LoginItems/LoginHelper.app/Contents/MacOS/LoginHelper'
+        before = helper.read_bytes()
+        with mock.patch.object(signing, 'run', side_effect=self.runner):
+            self.package()
+        self.assertFalse((resources / 'LaunchAtLoginHelper.zip').exists())
+        self.assertFalse((resources / 'LaunchAtLoginHelper-with-runtime.zip').exists())
+        self.assertTrue((resources / 'unrelated.zip').exists())
+        self.assertEqual(helper.read_bytes(), before)
+        self.assertIn(str(helper), [cmd[-1] for cmd in self.commands if cmd[:2] == ['codesign', '--force']])
+
+    def test_launch_at_login_archive_symlink_is_rejected(self):
+        resources = self.app / 'Contents/Resources/LaunchAtLogin_LaunchAtLogin.bundle/Contents/Resources'
+        resources.mkdir(parents=True)
+        outside = self.root / 'outside.zip'
+        outside.write_bytes(b'keep')
+        (resources / 'LaunchAtLoginHelper.zip').symlink_to(outside)
+        with mock.patch.object(signing, 'run', side_effect=self.runner), self.assertRaisesRegex(signing.SigningError, 'symlink'):
+            self.package()
+        self.assertEqual(outside.read_bytes(), b'keep')
+        self.assertFalse(self.commands)
+
+    def test_launch_at_login_resource_directory_symlink_is_rejected(self):
+        outside = self.root / 'outside-resources'
+        outside.mkdir()
+        marker = outside / 'LaunchAtLoginHelper.zip'
+        marker.write_bytes(b'keep')
+        parent = self.app / 'Contents/Resources/LaunchAtLogin_LaunchAtLogin.bundle/Contents'
+        parent.mkdir(parents=True)
+        (parent / 'Resources').symlink_to(outside, target_is_directory=True)
+        with mock.patch.object(signing, 'run', side_effect=self.runner), self.assertRaisesRegex(signing.SigningError, 'directory must not be a symlink'):
+            self.package()
+        self.assertEqual(marker.read_bytes(), b'keep')
+        self.assertFalse(self.commands)
+
     def test_identity_requires_single_valid_team_developer_id(self):
         valid = '  1) ' + 'A' * 40 + ' "Developer ID Application: Example (ABCDE12345)"\n'
         self.assertEqual(signing.select_identity(valid, 'ABCDE12345'), 'A' * 40)

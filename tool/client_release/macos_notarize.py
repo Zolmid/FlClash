@@ -51,6 +51,9 @@ def safe_signing_error(error):
         'unexpected Core manifest: macOS helper hash binding requires review',
         'unexpected privileged Helper: embedded Core hash requires review',
         'bundled FlClashCore Mach-O is missing', 'app executable is missing',
+        'LaunchAtLogin resource directory must not be a symlink',
+        'LaunchAtLogin build archive must not be a symlink',
+        'LaunchAtLogin build archive must be a regular file',
         'MACOS_TEAM_ID must be a ten-character Apple team ID',
         'expected exactly one valid Developer ID Application identity for the team',
         'notarytool returned invalid JSON', 'final DMG is missing or empty',
@@ -106,6 +109,23 @@ def decode_secret(name, destination):
     destination.chmod(0o600)
 
 
+def remove_launch_at_login_build_archives(app):
+    # SwiftPM bundles helper archives used by its build script, not by the runtime.
+    resources = app
+    for part in ('Contents', 'Resources', 'LaunchAtLogin_LaunchAtLogin.bundle', 'Contents', 'Resources'):
+        resources = resources / part
+        if resources.is_symlink():
+            raise SigningError('LaunchAtLogin resource directory must not be a symlink')
+    for name in ('LaunchAtLoginHelper.zip', 'LaunchAtLoginHelper-with-runtime.zip'):
+        archive = resources / name
+        if archive.is_symlink():
+            raise SigningError('LaunchAtLogin build archive must not be a symlink')
+        if archive.exists():
+            if not archive.is_file():
+                raise SigningError('LaunchAtLogin build archive must be a regular file')
+            archive.unlink()
+
+
 def nested_code(app):
     found = []
     main = app / 'Contents' / 'MacOS' / plistlib.loads((app / 'Contents/Info.plist').read_bytes())['CFBundleExecutable']
@@ -157,6 +177,7 @@ def submit(path, key, key_id, issuer):
 
 def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements):
     phase('nested-signing')
+    remove_launch_at_login_build_archives(app)
     for item in nested_code(app):
         run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp', item])
     phase('app-signing')
