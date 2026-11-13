@@ -41,6 +41,17 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
   private func exchange(
     _ url: URL, authorization: ClientBundleAuthorization, headers: [String: String]
   ) async throws -> ClientBundleHTTPResponse {
+    let request = try makeRequest(url, authorization: authorization, headers: headers)
+    let operation = ClientBundleHTTPRequest(request)
+    return try await withTaskCancellationHandler {
+      try Task.checkCancellation()
+      return try await operation.run()
+    } onCancel: { operation.cancel() }
+  }
+
+  func makeRequest(
+    _ url: URL, authorization: ClientBundleAuthorization, headers: [String: String]
+  ) throws -> URLRequest {
     guard authorization.value.hasPrefix("Bearer "), authorization.value.utf8.count > 7,
       authorization.value.utf8.count <= 16 * 1024,
       !authorization.value.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 })
@@ -48,17 +59,15 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
     var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
     request.httpMethod = "GET"
     request.setValue("application/json", forHTTPHeaderField: "Accept")
+    let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    request.setValue("ZolNit/v\(appVersion) clash-verge Platform/\(platform)", forHTTPHeaderField: "User-Agent")
     request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
     request.setValue(authorization.value, forHTTPHeaderField: "Authorization")
     request.setValue(version, forHTTPHeaderField: "X-ZolNit-Core-Version")
     request.setValue(platform, forHTTPHeaderField: "X-ZolNit-Platform")
     request.setValue(distribution, forHTTPHeaderField: "X-ZolNit-Distribution")
     for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
-    let operation = ClientBundleHTTPRequest(request)
-    return try await withTaskCancellationHandler {
-      try Task.checkCancellation()
-      return try await operation.run()
-    } onCancel: { operation.cancel() }
+    return request
   }
 }
 
