@@ -308,8 +308,11 @@ static FlMethodResponse* handle_show(TrayPlugin* self, FlValue* args) {
 
   const bool is_new = self->indicator == nullptr;
   if (is_new) {
+    // Both supported indicator libraries expose this GTK-based constructor.
+    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     self->indicator =
         app_indicator_new(id, icon_path, APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+    G_GNUC_END_IGNORE_DEPRECATIONS
     if (g_signal_lookup("activate", G_OBJECT_TYPE(self->indicator)) != 0) {
       g_signal_connect(self->indicator, "activate",
                         G_CALLBACK(on_icon_activate), self);
