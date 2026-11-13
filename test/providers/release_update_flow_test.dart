@@ -19,6 +19,7 @@ class _ReleaseServer implements HttpClientAdapter {
   var downloads = 0, checks = 0;
   var version = '1.0.1', contents = 'abc';
   bool disabled = false;
+  bool fourPlatforms = false;
   UpdatePackage package = UpdatePackage.androidApk;
 
   @override
@@ -52,6 +53,20 @@ class _ReleaseServer implements HttpClientAdapter {
                     'sha256':
                         'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
                   },
+                  if (fourPlatforms)
+                    for (final suffix in [
+                      '-windows-x64-setup.exe',
+                      '-macos-arm64.dmg',
+                      '-linux-arm64.AppImage',
+                    ])
+                      {
+                        'name': 'ZolNit-$version$suffix',
+                        'url':
+                            '${uri.origin}/client/downloads/v$version/ZolNit-$version$suffix',
+                        'size': 3,
+                        'sha256':
+                            'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+                      },
                 ],
               },
           ],
@@ -101,6 +116,39 @@ class _UpdateActions extends CommonAction {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'direct iOS rediscovers over HTTP after restart without a realtime hint',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'zolnit-ios-discovery-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      await useAppPaths(root);
+      globalState.packageInfo = PackageInfo(
+        appName: 'ZolNit',
+        packageName: 'com.zolmid.zolnit',
+        version: '1.0.0',
+        buildNumber: '1',
+      );
+      final server = _ReleaseServer()..fourPlatforms = true;
+      final old = appUpdateClient.dio.httpClientAdapter;
+      appUpdateClient.dio.httpClientAdapter = server;
+      addTearDown(() => appUpdateClient.dio.httpClientAdapter = old);
+      for (var i = 0; i < 2; i++) {
+        final scope = ProviderContainer();
+        final updater = scope.read(commonActionProvider.notifier)
+          ..detectAppUpdateTarget = () async => UpdateTarget.iosDirect;
+        await updater.startUpdateDiscovery();
+        final status = scope.read(appUpdateStatusProvider);
+        expect(status.phase, AppUpdatePhase.announcement);
+        expect(status.release?.tag, 'v1.0.1');
+        expect(status.plan, isNull);
+        scope.dispose();
+      }
+      expect(server.checks, 2);
+      expect(server.downloads, 0);
+    },
+  );
   test(
     'published release stages verified bytes, cashier/background exit cannot install Android, corrupt update offers a notice',
     () async {

@@ -4,6 +4,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
+import 'package:zolnit_client/zolnit_client.dart'
+    show ClientDistribution, ClientPaymentPolicy;
 
 import 'system.dart' show ProcessRunner;
 
@@ -11,6 +13,8 @@ const websiteReleaseManifestUrl =
     'https://link.zolmid.com/client/releases.json';
 const _websiteDownloadRoot = 'https://link.zolmid.com/client/downloads';
 const websiteReleasePageUrl = 'https://link.zolmid.com';
+const websiteDownloadsPageUrl =
+    'https://link.zolmid.com/theme/ZolNit/downloads.html';
 const maxWebsiteManifestBytes = 1024 * 1024;
 
 const _buildArch = String.fromEnvironment('APP_ARCH');
@@ -25,6 +29,7 @@ enum UpdatePackage {
   linuxRpm,
   linuxPacman,
   linuxPortable,
+  iosDirect,
   unsupported;
 
   bool get installsInPlace => switch (this) {
@@ -47,6 +52,7 @@ class UpdateTarget {
   const UpdateTarget(this.package, this.arch);
 
   static const unsupported = UpdateTarget(UpdatePackage.unsupported, '');
+  static const iosDirect = UpdateTarget(UpdatePackage.iosDirect, '');
 
   String? get assetSuffix => switch (package) {
     UpdatePackage.windowsInstaller => '-windows-$arch-setup.exe',
@@ -58,7 +64,7 @@ class UpdateTarget {
     UpdatePackage.linuxRpm => '-linux-$arch.rpm',
     UpdatePackage.linuxPacman => '-linux-$arch.tar.zst',
     UpdatePackage.linuxPortable => '-linux-$arch.zip',
-    UpdatePackage.unsupported => null,
+    UpdatePackage.unsupported || UpdatePackage.iosDirect => null,
   };
 
   @override
@@ -105,8 +111,16 @@ Future<UpdateTarget> detectUpdateTarget({
   Map<String, String>? environment,
   bool Function(String path)? exists,
   ProcessRunner runProcess = Process.run,
+  ClientDistribution? distribution,
 }) async {
   final os = operatingSystem ?? Platform.operatingSystem;
+  if (os == 'ios') {
+    final channel =
+        distribution ?? ClientPaymentPolicy.fromEnvironment().distribution;
+    return channel == ClientDistribution.direct
+        ? UpdateTarget.iosDirect
+        : UpdateTarget.unsupported;
+  }
   if (!const {'android', 'windows', 'macos', 'linux'}.contains(os)) {
     return UpdateTarget.unsupported;
   }
@@ -472,7 +486,10 @@ class _WebsiteJSON {
 bool _validPackageName(String name, String tag) {
   final version = tag.replaceFirst(RegExp(r'^[vV]'), '');
   for (final package in UpdatePackage.values) {
-    if (package == UpdatePackage.unsupported) continue;
+    if (package == UpdatePackage.unsupported ||
+        package == UpdatePackage.iosDirect) {
+      continue;
+    }
     final arches = package == UpdatePackage.androidApk
         ? const ['arm64-v8a', 'armeabi-v7a', 'x86_64']
         : package == UpdatePackage.macosDmg
@@ -534,7 +551,7 @@ AppUpdatePlan? planAppUpdate(ReleaseManifest release, UpdateTarget target) {
 
 Uri browserDownloadUri(AppUpdatePlan? plan, {ReleaseManifest? release}) =>
     plan == null
-    ? release?.releaseUri ?? Uri.parse(websiteReleasePageUrl)
+    ? Uri.parse(websiteDownloadsPageUrl)
     : Uri.parse(plan.asset.url);
 
 Future<String> sha256OfFile(File file) async {

@@ -5,6 +5,7 @@ import 'package:fl_clash/common/app_installer.dart';
 import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/system.dart' show ProcessRunner;
 import 'package:test/test.dart';
+import 'package:zolnit_client/zolnit_client.dart' show ClientDistribution;
 
 const _hashA =
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -59,24 +60,34 @@ Future<UpdateTarget> _detect({
 
 void main() {
   test(
-    'rejects unsupported or mismatched build architectures including iOS',
+    'iOS direct discovery is distinct from App Store and TestFlight',
     () async {
-      for (final buildArch in ['arm64', 'x64-v4', '../x64']) {
-        expect(
-          await _detect(
-            os: 'windows',
-            abi: Abi.windowsX64,
-            buildArch: buildArch,
-          ),
-          UpdateTarget.unsupported,
-        );
-      }
       expect(
-        await _detect(os: 'ios', abi: Abi.iosArm64),
+        await detectUpdateTarget(
+          operatingSystem: 'ios',
+          distribution: ClientDistribution.direct,
+        ),
+        UpdateTarget.iosDirect,
+      );
+      expect(
+        await detectUpdateTarget(
+          operatingSystem: 'ios',
+          distribution: ClientDistribution.appleAppStore,
+        ),
         UpdateTarget.unsupported,
       );
+      expect(UpdateTarget.iosDirect.assetSuffix, isNull);
+      expect(planAppUpdate(_release, UpdateTarget.iosDirect), isNull);
     },
   );
+  test('rejects unsupported or mismatched build architectures', () async {
+    for (final buildArch in ['arm64', 'x64-v4', '../x64']) {
+      expect(
+        await _detect(os: 'windows', abi: Abi.windowsX64, buildArch: buildArch),
+        UpdateTarget.unsupported,
+      );
+    }
+  });
 
   test(
     'refuses duplicate targets, mismatched releases and unsafe asset metadata',
@@ -397,7 +408,7 @@ void main() {
       browserDownloadUri(plan).toString(),
       'https://link.zolmid.com/client/downloads/v0.9.4/ZolNit-0.9.4-windows-x64.zip',
     );
-    expect(browserDownloadUri(null).toString(), 'https://link.zolmid.com');
+    expect(browserDownloadUri(null).toString(), websiteDownloadsPageUrl);
   });
 
   group('package manager update', () {

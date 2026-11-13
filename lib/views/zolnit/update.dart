@@ -18,9 +18,7 @@ import 'kit.dart';
 import 'motion.dart';
 import 'skin.dart';
 
-final zolnitDownloadsPage = Uri.parse(
-  websiteReleasePageUrl,
-).replace(path: '/theme/ZolNit/downloads.html');
+final zolnitDownloadsPage = Uri.parse(websiteDownloadsPageUrl);
 
 enum ZolnitUpdateKind {
   readyOnRestart,

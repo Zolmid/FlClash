@@ -145,6 +145,22 @@ void main() {
 
     final banner = find.byKey(const ValueKey('zolnit-update-banner'));
 
+    testWidgets(
+      'announcement without a package opens the canonical downloads page',
+      (tester) async {
+        await mount(tester);
+        set(_status(AppUpdatePhase.announcement));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('zolnit-update-install')),
+          findsNothing,
+        );
+        await tester.tap(find.byKey(const ValueKey('zolnit-update-download')));
+        await tester.pumpAndSettle();
+        expect(find.text(websiteDownloadsPageUrl), findsOneWidget);
+      },
+    );
+
     testWidgets('stays away for an ordinary launch', (tester) async {
       await mount(tester);
       set(_status(AppUpdatePhase.checking));

@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 class Request {
   final AppUpdateClient _updateClient;
+  final Future<UpdateTarget> Function() _detectUpdateTarget;
   late final Dio dio;
   late final Dio _clashDio;
   String? userAgent;
@@ -22,8 +23,11 @@ class Request {
     _read = read;
   }
 
-  Request({AppUpdateClient? updateClient})
-    : _updateClient = updateClient ?? appUpdateClient {
+  Request({
+    AppUpdateClient? updateClient,
+    Future<UpdateTarget> Function()? detectTarget,
+  }) : _updateClient = updateClient ?? appUpdateClient,
+       _detectUpdateTarget = detectTarget ?? detectUpdateTarget {
     dio = Dio(BaseOptions(headers: {'User-Agent': browserUa}));
     _clashDio = Dio();
     _clashDio.httpClientAdapter = IOHttpClientAdapter(
@@ -90,7 +94,7 @@ class Request {
   Future<ReleaseManifest?> checkForUpdate() async =>
       _updateClient.checkForUpdate(
         currentVersion: globalState.packageInfo.version,
-        target: await detectUpdateTarget(),
+        target: await _detectUpdateTarget(),
       );
 
   @visibleForTesting

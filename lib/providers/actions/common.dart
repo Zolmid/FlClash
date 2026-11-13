@@ -602,6 +602,7 @@ class CommonAction extends _$CommonAction {
         }
       case UpdatePackage.windowsPortable ||
           UpdatePackage.linuxPortable ||
+          UpdatePackage.iosDirect ||
           UpdatePackage.unsupported:
         throw StateError('$package cannot be installed in place');
     }

@@ -9,6 +9,8 @@ import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_client.dart';
 import 'package:fl_clash/common/constant.dart' show browserUa;
 import 'package:fl_clash/common/request.dart';
+import 'package:fl_clash/state.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:test/test.dart';
 
 const _hash =
@@ -84,6 +86,66 @@ AppUpdateClient _client(
 }
 
 void main() {
+  test(
+    'direct iOS discovers a four-platform release without an install plan',
+    () async {
+      final assets = [
+        'ZolNit-0.9.4-android-arm64-v8a.apk',
+        'ZolNit-0.9.4-windows-x64-setup.exe',
+        'ZolNit-0.9.4-macos-arm64.dmg',
+        'ZolNit-0.9.4-linux-arm64.AppImage',
+      ];
+      var requests = 0;
+      final client = _client((options) {
+        requests++;
+        expect(options.uri.toString(), _metadataUrl);
+        return _json({
+          ..._enabledMetadata,
+          'releases': [
+            {
+              'tag': 'v0.9.4',
+              'notes': '',
+              'assets': [
+                for (final name in assets)
+                  {
+                    'name': name,
+                    'url':
+                        'https://link.zolmid.com/client/downloads/v0.9.4/$name',
+                    'size': 3,
+                    'sha256': _hash,
+                  },
+              ],
+            },
+          ],
+        });
+      });
+      final release = await client.latestRelease(
+        target: UpdateTarget.iosDirect,
+      );
+      expect(release?.tag, 'v0.9.4');
+      expect(planAppUpdate(release!, UpdateTarget.iosDirect), isNull);
+      expect(
+        browserDownloadUri(null, release: release).toString(),
+        websiteDownloadsPageUrl,
+      );
+      globalState.packageInfo = PackageInfo(
+        appName: 'ZolNit',
+        packageName: 'com.zolmid.zolnit',
+        version: '0.9.3',
+        buildNumber: '1',
+      );
+      final aboutRequest = Request(
+        updateClient: client,
+        detectTarget: () async => UpdateTarget.iosDirect,
+      );
+      expect((await aboutRequest.checkForUpdate())?.tag, 'v0.9.4');
+      expect(requests, 2);
+      expect(
+        await client.latestRelease(target: UpdateTarget.unsupported),
+        isNull,
+      );
+    },
+  );
   test(
     'website JSON rejects duplicate keys, oversized input and nonstable tags',
     () {

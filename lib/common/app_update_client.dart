@@ -98,7 +98,7 @@ class AppUpdateClient {
           return null;
         }
       }
-      return target == null
+      return target == null || target == UpdateTarget.iosDirect
           ? releases.first
           : releases
                 .where((release) => planAppUpdate(release, target) != null)
