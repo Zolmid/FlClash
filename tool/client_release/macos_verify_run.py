@@ -143,6 +143,8 @@ def main():
             release.require(os.environ.get('MACOS_SIGNING_REQUIRED') == 'true', 'formal signing disabled')
         else:
             check_dispatch(os.environ)
+        signing.phase('credentials')
+        signing.check_secret_presence(os.environ)
         verify_and_sign(GitHub(), args.source_run_id, args.source_tag, args.arch, args.output,
                         pending_output=args.pending_output, resume_artifact=args.resume_artifact_id,
                         start_new=args.start_new == 'true', mode=args.mode, official=official)

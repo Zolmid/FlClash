@@ -21,6 +21,17 @@ on:
       resume_artifact_id:
         type: string
         default: ''
+    secrets:
+      MACOS_DEVELOPER_ID_P12_BASE64:
+        required: true
+      MACOS_DEVELOPER_ID_P12_PASSWORD:
+        required: true
+      APPLE_ASC_API_KEY_ID:
+        required: true
+      APPLE_ASC_ISSUER_ID:
+        required: true
+      APPLE_ASC_P8_BASE64:
+        required: true
 
 permissions:
   contents: read

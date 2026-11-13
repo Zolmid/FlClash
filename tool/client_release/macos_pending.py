@@ -197,8 +197,13 @@ def previous_dmg_stage_ran(github, run_id, attempt, arch):
         require(all(job.get('run_id') == int(run_id) and job.get('run_attempt') == previous for job in jobs), unavailable)
         stage_name = 'Verify and perform dmg stage'
         for job in jobs:
+            name = job.get('name', '').split(' / ')[-1]
+            if name.startswith('macOS dmg · ') and name not in ('macOS dmg · arm64', 'macOS dmg · x64'):
+                require(job.get('status') == 'completed' and job.get('conclusion') == 'skipped' and
+                        all(step.get('conclusion') == 'skipped' for step in job.get('steps', [])), unavailable)
+                continue
             if any(step.get('name') == stage_name for step in job.get('steps', [])):
-                require(job.get('name', '').split(' / ')[-1] in ('macOS dmg · arm64', 'macOS dmg · x64'), unavailable)
+                require(name in ('macOS dmg · arm64', 'macOS dmg · x64'), unavailable)
         target = f'macOS dmg · {arch}'
         matches = [job for job in jobs if job.get('name', '').split(' / ')[-1] == target]
         require(len(matches) <= 1, unavailable)

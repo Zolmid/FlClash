@@ -50,6 +50,12 @@ jobs:
       matrix:
         arch: [arm64, x64]
     uses: ./.github/workflows/macos-notarization-pipeline.yml
+    secrets:
+      MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+      MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+      APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+      APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+      APPLE_ASC_P8_BASE64: ${{ secrets.APPLE_ASC_P8_BASE64 }}
     with:
       arch: ${{ matrix.arch }}
       source_run_id: ${{ inputs.source_run_id }}

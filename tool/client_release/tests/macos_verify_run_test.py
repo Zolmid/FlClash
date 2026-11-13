@@ -21,6 +21,7 @@ def dispatch(**changes):
               'GITHUB_REPOSITORY_ID': release.REPOSITORY_ID, 'GITHUB_REF': verify.BRANCH,
               'GITHUB_WORKFLOW_REF': f'{release.REPOSITORY}/{verify.WORKFLOW}@{verify.BRANCH}',
               'MACOS_NOTARIZATION_VERIFY_ENABLED': 'true'}
+    values.update({name: 'synthetic-value-' + name for name in verify.signing.SIGNING_SECRETS})
     values.update(changes)
     return values
 
@@ -186,6 +187,24 @@ class VerifyRunTest(unittest.TestCase):
                 self.assertNotIn('secret', receipt)
                 self.assertNotIn('/tmp/private', receipt)
                 self.assertNotIn('12345678-1234-1234-1234-123456789abc', receipt)
+
+    def test_entry_preflight_rejects_empty_secret_before_source_download_without_values(self):
+        env = dispatch(MACOS_DEVELOPER_ID_P12_PASSWORD='')
+        args = ['macos_verify_run.py', '--source-run-id', str(RUN_ID), '--source-tag', TAG,
+                '--arch', 'arm64', '--output', str(self.output), '--pending-output', str(self.root / 'pending')]
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(sys, 'argv', args), \
+                mock.patch.object(verify, 'verify_and_sign') as sign, \
+                mock.patch('sys.stdout', new_callable=io.StringIO) as out, \
+                mock.patch('sys.stderr', new_callable=io.StringIO) as err:
+            self.assertEqual(verify.main(), 1)
+        sign.assert_not_called()
+        text = out.getvalue() + err.getvalue()
+        self.assertIn('"MACOS_DEVELOPER_ID_P12_PASSWORD": false', text)
+        self.assertIn('phase=credentials', text)
+        self.assertIn('required signing secrets unavailable', text)
+        for name in verify.signing.SIGNING_SECRETS:
+            self.assertIn(name, text)
+            self.assertNotIn('synthetic-value-' + name, text)
 
     def test_dispatch_gate_cannot_be_bypassed(self):
         for changes in ({'MACOS_NOTARIZATION_VERIFY_ENABLED': ''}, {'GITHUB_EVENT_NAME': 'push'},

@@ -53,6 +53,7 @@ def safe_signing_error(error):
     allowed = {
         'version or architecture mismatch', 'same-run app archive missing',
         'output directory already exists', 'missing or invalid signing credentials',
+        'required signing secrets unavailable',
         'could not capture the original keychain search list', 'invalid keychain input',
         'keychain operation failed', 'app archive has no ZolNit.app',
         'unexpected Core manifest: macOS helper hash binding requires review',
@@ -84,6 +85,19 @@ def safe_signing_error(error):
     if notary:
         return f'notarization not accepted: {notary.group(1)}'
     return 'details withheld'
+
+
+SIGNING_SECRETS = (
+    'MACOS_DEVELOPER_ID_P12_BASE64', 'MACOS_DEVELOPER_ID_P12_PASSWORD',
+    'APPLE_ASC_API_KEY_ID', 'APPLE_ASC_ISSUER_ID', 'APPLE_ASC_P8_BASE64',
+)
+
+
+def check_secret_presence(env):
+    presence = {name: bool(env.get(name)) for name in SIGNING_SECRETS}
+    print('::notice::macos credential presence ' + json.dumps(presence, sort_keys=True), flush=True)
+    if not all(presence.values()):
+        raise SigningError('required signing secrets unavailable')
 
 
 class SigningError(Exception):

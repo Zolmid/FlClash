@@ -277,6 +277,20 @@ class PendingTest(unittest.TestCase):
                 self.assertEqual(fetch.call_count, 1)
                 self.assertEqual(fetch.call_args.args[1], 9)
 
+    def test_unexpanded_rest_job_names_are_safe_only_when_skipped(self):
+        github, env, job = self.retry_fixture()
+        job['name'] = 'Notarize verification · arm64 / macOS dmg · ${{ inputs.arch }}'
+        with mock.patch.object(pending, 'download_checkpoint', return_value='verified-app') as fetch:
+            self.assertEqual(pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg'), 'verified-app')
+        self.assertEqual(fetch.call_args.args[1], 'upstream-app')
+        for steps in ([], [{'name': 'Verify and perform dmg stage', 'status': 'completed', 'conclusion': 'failure'}]):
+            with self.subTest(steps=steps):
+                job.update(conclusion='failure', steps=steps)
+                with mock.patch.object(pending, 'download_checkpoint') as fetch, \
+                        self.assertRaisesRegex(pending.PendingError, 'history unavailable'):
+                    pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+                fetch.assert_not_called()
+
     def test_final_retry_can_reuse_explicit_dmg_without_submission_history(self):
         github, env, _ = self.retry_fixture()
         with mock.patch.object(pending, 'download_checkpoint', return_value='verified-dmg') as fetch:
