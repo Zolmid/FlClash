@@ -92,3 +92,63 @@ archive downloads, and lease-bound multipart uploads to R2. It refreshes its
 caller-provided OIDC token for every request, rejects redirects, and reports
 errors without response bodies or credentials. Its synthetic tests do not
 enable the production signing runner or prove an end-to-end device install.
+
+## Device signer (disabled by default)
+
+`device_signer.py` connects the modules above into two opt-in operations. Every mode exits
+with status 3 unless `ZOLNIT_APPLE_DEVICE_SIGNING_ENABLED=true`.
+
+- `archive-prepare` binds a prepared stable tag tree (tag commit, `pubspec.yaml` version and
+  build, and the `core/Clash.Meta` gitlink plus checkout equal to `--core-sha`) to an unsigned
+  direct-distribution `.xcarchive` whose Runner, NECore, and Widget versions match. It packs a
+  deterministic zip that `extract_verified_archive` accepts. Relative symlinks resolving inside the
+  archive are materialized. Absolute, escaping, dangling, or cyclic links, special files, and key
+  material fail. `_CodeSignature`, `CodeResources`, and provisioning profiles are stripped, and
+  executable bits are kept. The zip is re-extracted and revalidated before a 0600 receipt is written.
+- `archive-publish` uploads that zip and posts `signer/archive-ready` with `schema_version: 1`,
+  tag, source SHA, build, key, digest, size, and extensions exactly
+  `[com.zolmid.zolnit.NECore, com.zolmid.zolnit.Widget]`. The reply must be `state: ready` with
+  identical fields.
+- `sign-one` claims at most one job and asks `GET /__release/v1/apple/signed/status/{job_id}`
+  (lease, tag, source, archive digest, and expected artifact key in headers). On `ready`, it
+  completes with the stored metadata and skips Apple, export, and upload. Otherwise it downloads and
+  extracts the verified archive, ensures the device and three per-device Ad Hoc profiles through the
+  App Store Connect API, signs and exports a private copy, and verifies the IPA's signed entitlements
+  and embedded profile digests. It then renews the lease, uploads with `apple_device_resource_id`,
+  and completes. The artifact expiry is computed once, as the minimum of now + 7 days and every
+  profile expiry, and is used for both upload and completion.
+
+A heartbeat renews the lease every 60 seconds (retrying every 10 seconds on transient errors) and
+enforces a hard 30-minute ceiling. A 4xx renewal, an expiring or regressing deadline, or the ceiling
+marks the lease lost. The cancellable runner then kills the active process group, such as
+`xcodebuild` or `codesign`, and no upload or completion follows. Transient completion failures are
+retried three times, and a later run recovers through the status endpoint.
+
+Each multipart PUT carries `X-Content-Sha256` (lowercase hex of that part) together with
+`X-Final-Part` and, for signed uploads, `X-Signing-Lease`. A permanent provisioning, archive, or export
+failure that happens before upload starts is reported once, while the lease is still live, as
+`{outcome: failed, error_code, retryable: false}`. The `error_code` is either the stable module code,
+`export_validation_failed`, or `export_command_failed`. Transient Apple errors (5xx, 429, 401, 403, network),
+transport and OIDC errors, a lost lease, and anything after upload starts are never reported as failed.
+Those jobs recover through lease expiry or the status endpoint, so a stored ready artifact is never
+overwritten.
+
+The OIDC factory reads `ACTIONS_ID_TOKEN_REQUEST_URL`/`ACTIONS_ID_TOKEN_REQUEST_TOKEN`. It accepts only
+HTTPS `*.actions.githubusercontent.com`, appends only `audience=zolnit-apple-device-signer`, and sends
+the request token as a header. It rejects redirects, checks the audience, issuer, and expiry, and
+refreshes when less than 120 seconds of validity remain. `--config` must be an owner-only 0600 JSON
+file with exactly these keys: `schema_version`, `team_id`, `api_key_path`, `api_key_id`,
+`api_issuer_id`, `signing_keychain`, `signing_identity` (SHA-1), `certificate_resource_id`,
+`certificate_sha256` (DER), and `bundle_resource_ids` ({`app`, `necore`, `widget`}).
+The keychain identity must match the certificate digest. UDIDs never appear in argv, paths, or output.
+
+`.github/workflows/apple-device-signer.yml` runs only through `workflow_dispatch` on
+`codex/apple-distribution-prep` with the repository variable `APPLE_DEVICE_SIGNING_ENABLED == 'true'`.
+A push of the file to that branch only registers the workflow. Inputs: `operation` (`sign` |
+`archive`), plus `source_tag` for archive only. Required configuration is the existing
+`apple-distribution` secrets `APPLE_BUILD_P12_BASE64`, `APPLE_BUILD_P12_PASSWORD`,
+`APPLE_ASC_API_KEY_ID`, `APPLE_ASC_API_ISSUER_ID`, and `APPLE_ASC_API_KEY_P8_BASE64`, plus these variables:
+`APPLE_DEVICE_SIGNER_TOOLS_SHA` (must equal the dispatched commit), `APPLE_DEVICE_SIGNER_CORE_SHA`,
+`APPLE_DEVICE_CERTIFICATE_RESOURCE_ID`, `APPLE_DEVICE_CERTIFICATE_SHA256`,
+`APPLE_BUNDLE_RESOURCE_ID_APP`, `APPLE_BUNDLE_RESOURCE_ID_NECORE`, and `APPLE_BUNDLE_RESOURCE_ID_WIDGET`.
+It uploads no artifacts, never uses the App Store profiles, and never uploads to TestFlight.

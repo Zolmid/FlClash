@@ -1,0 +1,307 @@
+name: apple-device-signer
+
+# Registration: a push of this file to the approved branch registers the workflow; the job never runs on push.
+on:
+  push:
+    branches: [codex/apple-distribution-prep]
+    paths: [.github/workflows/apple-device-signer.yml]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'archive publishes one stable unsigned archive; sign processes at most one queued device job'
+        required: true
+        default: sign
+        type: choice
+        options:
+          - sign
+          - archive
+      source_tag:
+        description: 'Stable release tag vX.Y.Z (archive only; leave empty for sign)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  signer:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      vars.APPLE_DEVICE_SIGNING_ENABLED == 'true' &&
+      github.ref == 'refs/heads/codex/apple-distribution-prep'
+    runs-on: xcode-27
+    environment: apple-distribution
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: apple-device-signer
+      cancel-in-progress: false
+    env:
+      OPERATION: ${{ inputs.operation }}
+      SOURCE_TAG: ${{ inputs.source_tag }}
+      PINNED_TOOLS_SHA: ${{ vars.APPLE_DEVICE_SIGNER_TOOLS_SHA }}
+      ZOLNIT_APPLE_DEVICE_SIGNING_ENABLED: ${{ vars.APPLE_DEVICE_SIGNING_ENABLED }}
+      FLUTTER_VERSION: '3.47.6'
+      GO_VERSION: '1.27.1'
+      RUSTUP_TOOLCHAIN: '1.99.0'
+      GOTOOLCHAIN: local
+    steps:
+      - name: Validate operation, inputs, and pinned tools revision
+        run: |
+          set -euo pipefail
+          case "$OPERATION" in
+            archive)
+              if [[ ! "$SOURCE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+                echo '::error::archive requires a stable source_tag vX.Y.Z'
+                exit 1
+              fi ;;
+            sign)
+              if [[ -n "$SOURCE_TAG" ]]; then
+                echo '::error::sign takes its release from the queued job; leave source_tag empty'
+                exit 1
+              fi ;;
+            *)
+              echo '::error::operation must be archive or sign'
+              exit 1 ;;
+          esac
+          if [[ ! "$PINNED_TOOLS_SHA" =~ ^[0-9a-f]{40}$ || "$PINNED_TOOLS_SHA" != "$GITHUB_SHA" ]]; then
+            echo '::error::APPLE_DEVICE_SIGNER_TOOLS_SHA must equal the dispatched commit'
+            exit 1
+          fi
+
+      - name: Checkout trusted tools revision
+        uses: actions/checkout@v4
+        with:
+          path: tools
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify trusted tools revision
+        run: |
+          set -euo pipefail
+          tools_dir="$GITHUB_WORKSPACE/tools"
+          if [[ "$(git -C "$tools_dir" rev-parse HEAD)" != "$GITHUB_SHA" ]]; then
+            echo '::error::Tools checkout does not match GITHUB_SHA'
+            exit 1
+          fi
+          test -f "$tools_dir/tool/apple_distribution/device_signer.py"
+          echo "ZOLNIT_TOOLS_DIR=$tools_dir" >> "$GITHUB_ENV"
+
+      - name: Select Xcode 27.1 and verify iOS SDK 27
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          ios_sdk_ver=$(xcrun --sdk iphoneos --show-sdk-version)
+          if [[ "$ios_sdk_ver" != 27.* ]]; then
+            echo "::error::Expected iOS SDK 27.x but got $ios_sdk_ver"
+            exit 1
+          fi
+
+      - name: Checkout stable release source tag
+        if: env.OPERATION == 'archive'
+        uses: actions/checkout@v4
+        with:
+          path: source
+          ref: refs/tags/${{ env.SOURCE_TAG }}
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve exact stable source tag SHA
+        if: env.OPERATION == 'archive'
+        run: |
+          set -euo pipefail
+          source_dir="$GITHUB_WORKSPACE/source"
+          tag_sha=$(git -C "$source_dir" rev-parse --verify "refs/tags/$SOURCE_TAG^{commit}")
+          if [[ "$(git -C "$source_dir" rev-parse HEAD)" != "$tag_sha" ]]; then
+            echo "::error::Source checkout HEAD does not match tag $SOURCE_TAG"
+            exit 1
+          fi
+          echo "ZOLNIT_SOURCE_DIR=$source_dir" >> "$GITHUB_ENV"
+          echo "ZOLNIT_SOURCE_SHA=$tag_sha" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v5
+        if: env.OPERATION == 'archive'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: source/core/go.sum
+
+      - name: Install Rust iOS target
+        if: env.OPERATION == 'archive'
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-apple-ios
+
+      - uses: subosito/flutter-action@v2
+        if: env.OPERATION == 'archive'
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Build unsigned direct archive, pack, upload, and register archive-ready
+        if: env.OPERATION == 'archive'
+        env:
+          CORE_SHA: ${{ vars.APPLE_DEVICE_SIGNER_CORE_SHA }}
+        run: |
+          set -euo pipefail
+          signer="$ZOLNIT_TOOLS_DIR/tool/apple_distribution/device_signer.py"
+          python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/apple_distribution.py" \
+            --prepare-source \
+            --repo "$ZOLNIT_SOURCE_DIR" \
+            --source-tag "$SOURCE_TAG" \
+            --source-sha "$ZOLNIT_SOURCE_SHA" \
+            --distribution release-testing
+          (cd "$ZOLNIT_SOURCE_DIR" && flutter pub get --enforce-lockfile)
+          (cd "$ZOLNIT_SOURCE_DIR" && flutter build ios --release --config-only --no-codesign --dart-define-from-file=env.json)
+          (cd "$ZOLNIT_SOURCE_DIR/ios" && pod install)
+          work=$(mktemp -d "$RUNNER_TEMP/zolnit-archive-XXXXXX")
+          echo "ZOLNIT_ARCHIVE_WORK=$work" >> "$GITHUB_ENV"
+          xcodebuild archive \
+            -workspace "$ZOLNIT_SOURCE_DIR/ios/Runner.xcworkspace" \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$work/Runner.xcarchive" \
+            -derivedDataPath "$work/derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            DEVELOPMENT_TEAM=
+          python3 "$signer" archive-prepare \
+            --source-dir "$ZOLNIT_SOURCE_DIR" \
+            --source-tag "$SOURCE_TAG" \
+            --core-sha "$CORE_SHA" \
+            --archive-path "$work/Runner.xcarchive" \
+            --output-zip "$work/archive.zip" \
+            --receipt "$work/receipt.json"
+          python3 "$signer" archive-publish --receipt "$work/receipt.json"
+
+      - name: Provision isolated keychain, API key, and signer config
+        if: env.OPERATION == 'sign'
+        env:
+          APPLE_BUILD_P12_BASE64: ${{ secrets.APPLE_BUILD_P12_BASE64 }}
+          APPLE_BUILD_P12_PASSWORD: ${{ secrets.APPLE_BUILD_P12_PASSWORD }}
+          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+          APPLE_ASC_API_ISSUER_ID: ${{ secrets.APPLE_ASC_API_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8_BASE64: ${{ secrets.APPLE_ASC_API_KEY_P8_BASE64 }}
+          CERTIFICATE_RESOURCE_ID: ${{ vars.APPLE_DEVICE_CERTIFICATE_RESOURCE_ID }}
+          CERTIFICATE_SHA256: ${{ vars.APPLE_DEVICE_CERTIFICATE_SHA256 }}
+          BUNDLE_RESOURCE_ID_APP: ${{ vars.APPLE_BUNDLE_RESOURCE_ID_APP }}
+          BUNDLE_RESOURCE_ID_NECORE: ${{ vars.APPLE_BUNDLE_RESOURCE_ID_NECORE }}
+          BUNDLE_RESOURCE_ID_WIDGET: ${{ vars.APPLE_BUNDLE_RESOURCE_ID_WIDGET }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for var in APPLE_BUILD_P12_BASE64 APPLE_BUILD_P12_PASSWORD APPLE_ASC_API_KEY_ID APPLE_ASC_API_ISSUER_ID \
+                     APPLE_ASC_API_KEY_P8_BASE64 CERTIFICATE_RESOURCE_ID CERTIFICATE_SHA256 \
+                     BUNDLE_RESOURCE_ID_APP BUNDLE_RESOURCE_ID_NECORE BUNDLE_RESOURCE_ID_WIDGET; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error::Required signer input $var is not configured"
+              exit 1
+            fi
+          done
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/zolnit-device-signing-XXXXXX")
+          echo "ZOLNIT_APPLE_SIGNING_DIR=$signing_dir" >> "$GITHUB_ENV"
+          ZOLNIT_APPLE_SIGNING_DIR="$signing_dir" python3 - <<'PY'
+          import base64, json, os, pathlib, re, secrets, subprocess
+
+          work = pathlib.Path(os.environ['ZOLNIT_APPLE_SIGNING_DIR'])
+
+          def write_private(name, raw):
+              if not raw:
+                  raise SystemExit('::error::decoded signing input is empty')
+              target = work / name
+              fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+              with os.fdopen(fd, 'wb') as handle:
+                  handle.write(raw)
+              return target
+
+          def security_stdin(line):
+              result = subprocess.run(['security', '-i'], input=line + '\n', text=True,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              if result.returncode not in (0, 50):
+                  raise SystemExit(f'::error::security command failed with code {result.returncode}')
+
+          p12 = write_private('signing.p12', base64.b64decode(os.environ['APPLE_BUILD_P12_BASE64'], validate=True))
+          key_id = os.environ['APPLE_ASC_API_KEY_ID']
+          api_key = write_private(f'AuthKey_{key_id}.p8', base64.b64decode(os.environ['APPLE_ASC_API_KEY_P8_BASE64'], validate=True))
+          keychain = work / 'zolnit-device-signing.keychain-db'
+          keychain_pass = secrets.token_hex(32)
+          existing = subprocess.check_output(['security', 'list-keychains', '-d', 'user'], text=True)
+          chains = [line.strip().strip('"') for line in existing.splitlines() if line.strip()]
+          original = write_private('original-keychains.txt', ''.join(c + '\n' for c in chains).encode() or b'\n')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env_out:
+              env_out.write(f'ZOLNIT_ORIGINAL_KEYCHAINS={original}\n')
+              env_out.write(f'ZOLNIT_KEYCHAIN_PATH={keychain}\n')
+          security_stdin(f'create-keychain -p "{keychain_pass}" "{keychain}"')
+          subprocess.run(['security', 'set-keychain-settings', '-lut', '2700', str(keychain)], check=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          security_stdin(f'unlock-keychain -p "{keychain_pass}" "{keychain}"')
+          security_stdin(f'import "{p12}" -k "{keychain}" -P "{os.environ["APPLE_BUILD_P12_PASSWORD"]}" -T /usr/bin/codesign -T /usr/bin/security')
+          security_stdin(f'set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "{keychain_pass}" "{keychain}"')
+          p12.unlink()
+          subprocess.run(['security', 'list-keychains', '-d', 'user', '-s', str(keychain), *chains], check=True)
+          listed = subprocess.check_output(['security', 'find-identity', '-v', '-p', 'codesigning', str(keychain)], text=True)
+          identities = sorted(set(re.findall(r'\b([0-9A-F]{40})\b', listed)))
+          if len(identities) != 1:
+              raise SystemExit('::error::temporary keychain must contain exactly one codesigning identity')
+          config = {
+              'schema_version': 1,
+              'team_id': '52QSDX4Y94',
+              'api_key_path': str(api_key),
+              'api_key_id': key_id,
+              'api_issuer_id': os.environ['APPLE_ASC_API_ISSUER_ID'],
+              'signing_keychain': str(keychain),
+              'signing_identity': identities[0],
+              'certificate_resource_id': os.environ['CERTIFICATE_RESOURCE_ID'],
+              'certificate_sha256': os.environ['CERTIFICATE_SHA256'].lower(),
+              'bundle_resource_ids': {
+                  'app': os.environ['BUNDLE_RESOURCE_ID_APP'],
+                  'necore': os.environ['BUNDLE_RESOURCE_ID_NECORE'],
+                  'widget': os.environ['BUNDLE_RESOURCE_ID_WIDGET'],
+              },
+          }
+          config_path = write_private('signer-config.json', json.dumps(config).encode())
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env_out:
+              env_out.write(f'ZOLNIT_SIGNER_CONFIG={config_path}\n')
+          PY
+
+      - name: Sign one queued device job
+        if: env.OPERATION == 'sign'
+        run: |
+          set -euo pipefail
+          sign_root=$(mktemp -d "$RUNNER_TEMP/zolnit-device-sign-root-XXXXXX")
+          echo "ZOLNIT_SIGN_ROOT=$sign_root" >> "$GITHUB_ENV"
+          python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/device_signer.py" sign-one \
+            --config "$ZOLNIT_SIGNER_CONFIG" \
+            --workdir-root "$sign_root"
+
+      - name: Clean temporary signing material and keychain
+        if: always()
+        run: |
+          if [[ -n "${ZOLNIT_ORIGINAL_KEYCHAINS:-}" && -f "$ZOLNIT_ORIGINAL_KEYCHAINS" ]]; then
+            python3 - <<'PY' || echo '::warning::Could not restore the original keychain search list'
+          import os, pathlib, subprocess
+          chains = [line for line in pathlib.Path(os.environ['ZOLNIT_ORIGINAL_KEYCHAINS']).read_text().splitlines() if line]
+          subprocess.run(['security', 'list-keychains', '-d', 'user', '-s', *chains], check=True)
+          PY
+          fi
+          if [[ -n "${ZOLNIT_KEYCHAIN_PATH:-}" && -f "$ZOLNIT_KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$ZOLNIT_KEYCHAIN_PATH" || true
+          fi
+          for owned in "${ZOLNIT_APPLE_SIGNING_DIR:-}" "${ZOLNIT_SIGN_ROOT:-}" "${ZOLNIT_ARCHIVE_WORK:-}"; do
+            if [[ -n "$owned" && "$owned" == "$RUNNER_TEMP"/zolnit-* && "$owned" != *..* && -d "$owned" && ! -L "$owned" ]]; then
+              rm -rf -- "$owned"
+            fi
+          done
