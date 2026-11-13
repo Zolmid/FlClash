@@ -56,6 +56,12 @@ class _VpnContainerState extends ConsumerState<VpnManager>
         _checkActiveOptions();
       });
       ref.listenManual(vpnOptionsProvider, (_, _) => _checkActiveOptions());
+      if (!_isAndroid) {
+        ref.listenManual(
+          effectiveProfileTunProvider,
+          (_, _) => _checkActiveOptions(),
+        );
+      }
       _checkActiveOptions();
       return;
     }
@@ -93,17 +99,36 @@ class _VpnContainerState extends ConsumerState<VpnManager>
       if (!mounted ||
           revision != _checkRevision ||
           !ref.read(isStartProvider) ||
+          ref.read(safeModeProvider) ||
+          (!_isAndroid &&
+              _service?.tunnelState.value != TunnelState.connected) ||
           active == null) {
         return;
       }
       ref.read(runningVpnOptionsProvider.notifier).value = active;
-      final options = ref.read(vpnOptionsProvider).value?.effective;
-      if (options == null || options == (requested ?? active).effective) {
+      final projected = ref.read(vpnOptionsProvider);
+      if (projected.isLoading || projected.hasError) return;
+      var options = projected.value;
+      if (options == null) return;
+      if (!_isAndroid && ref.read(effectiveProfileTunProvider) == null) {
+        // The TUN projection is only a fallback until the profile is built.
+        options = options.copyWith(
+          routeAddress: active.routeAddress,
+          mtu: active.mtu,
+          congestionController: active.congestionController,
+          recvMsgX: active.recvMsgX,
+          sendMsgX: active.sendMsgX,
+          disableIcmpForwarding: active.disableIcmpForwarding,
+        );
+      }
+      final effective = options.effectiveForPlatform(isIOS: !_isAndroid);
+      if (effective ==
+          (requested ?? active).effectiveForPlatform(isIOS: !_isAndroid)) {
         _lastNotifiedOptions = null;
         return;
       }
-      if (options != _lastNotifiedOptions) {
-        _lastNotifiedOptions = options;
+      if (effective != _lastNotifiedOptions) {
+        _lastNotifiedOptions = effective;
         _showRestartTip();
       }
     } catch (error) {

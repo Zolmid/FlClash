@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fl_clash/common/common.dart';
@@ -29,12 +30,16 @@ class _RestartRecordingSetupAction extends SetupAction {
 void main() {
   late ProviderContainer container;
   late _RestartRecordingSetupAction setupAction;
+  var iosPlatform = false;
 
   setUp(() {
+    iosPlatform = false;
     setupAction = _RestartRecordingSetupAction();
     container = ProviderContainer(
       overrides: [
         setupActionProvider.overrideWith(() => setupAction),
+        currentProfileProvider.overrideWithValue(null),
+        vpnOptionsIOSProvider.overrideWith((ref) => iosPlatform),
         // Bypassing private addresses computes the routes in Isolate.run, which
         // the fake clock never lets finish.
         networkSettingProvider.overrideWithBuild(
@@ -50,6 +55,7 @@ void main() {
   Future<void> pumpVpnManager(
     WidgetTester tester, {
     Service? mobileService,
+    bool isAndroid = true,
   }) async {
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -68,7 +74,7 @@ void main() {
                   ? VpnManager(child: child!)
                   : VpnManager.forTesting(
                       mobileService: mobileService,
-                      isAndroid: true,
+                      isAndroid: isAndroid,
                       child: child!,
                     ),
             );
@@ -106,6 +112,135 @@ void main() {
   }
 
   Finder tip() => find.text(currentAppLocalizations.vpnConfigChangeDetected);
+
+  testWidgets('iOS resume across a profile TUN rebuild', (tester) async {
+    iosPlatform = true;
+    const channel = MethodChannel('$packageName/service');
+    final mobileService = Service.forTesting(isIOS: true);
+    addTearDown(mobileService.dispose);
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    final identity = profileTunIdentity(
+      container.read(currentProfileProvider),
+      container.read(patchClashConfigProvider),
+      container.read(networkSettingProvider),
+    );
+    void snapshot(int mtu) {
+      container.read(builtProfileTunProvider.notifier).value = (
+        generation: Object(),
+        identity: identity,
+        tun: ProfileTun(mtu: mtu),
+      );
+    }
+
+    snapshot(1400);
+    final initial = await tester.runAsync(
+      () => container.read(vpnOptionsProvider.future),
+    );
+    container.read(builtProfileTunProvider.notifier).value = null;
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          channel,
+          (call) async => json.encode(
+            initial!.copyWith(
+              allowBypass: true,
+              accessControlProps: const AccessControlProps(enable: true),
+            ),
+          ),
+        );
+    await pumpVpnManager(
+      tester,
+      mobileService: mobileService,
+      isAndroid: false,
+    );
+    container.read(runTimeProvider.notifier).value = 1234;
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            const MethodCall('tunnelState', 'connected'),
+          ),
+          null,
+        );
+    await settle(tester);
+    expect(tip(), findsNothing);
+    snapshot(1400);
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    await settle(tester);
+    expect(tip(), findsNothing);
+    container.read(builtProfileTunProvider.notifier).value = null;
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    await settle(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    expect(tip(), findsNothing);
+    snapshot(1400);
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    await settle(tester);
+    expect(tip(), findsNothing);
+    snapshot(1500);
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    await settle(tester);
+    expect(tip(), findsOneWidget);
+    await outlastTip(tester);
+    snapshot(1400);
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    await settle(tester);
+    container.read(builtProfileTunProvider.notifier).value = null;
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    updateVpn((state) => state.copyWith(ipv6: !state.ipv6));
+    await tester.runAsync(() => container.read(vpnOptionsProvider.future));
+    await settle(tester);
+    expect(tip(), findsOneWidget);
+    await drainTimers(tester);
+  });
+
+  testWidgets('iOS ignores a late native snapshot after disconnect', (
+    tester,
+  ) async {
+    iosPlatform = true;
+    const channel = MethodChannel('$packageName/service');
+    const codec = StandardMethodCodec();
+    final mobileService = Service.forTesting(isIOS: true);
+    final response = Completer<String?>();
+    addTearDown(mobileService.dispose);
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    final options = await tester.runAsync(
+      () => container.read(vpnOptionsProvider.future),
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (_) => response.future);
+    await pumpVpnManager(
+      tester,
+      mobileService: mobileService,
+      isAndroid: false,
+    );
+    container.read(runTimeProvider.notifier).value = 1234;
+    Future<void> state(String value) => TestDefaultBinaryMessengerBinding
+        .instance
+        .defaultBinaryMessenger
+        .handlePlatformMessage(
+          channel.name,
+          codec.encodeMethodCall(MethodCall('tunnelState', value)),
+          null,
+        );
+    await state('connected');
+    await settle(tester);
+    await state('disconnected');
+    response.complete(json.encode(options!.copyWith(ipv6: !options.ipv6)));
+    await settle(tester);
+    expect(tip(), findsNothing);
+    expect(container.read(runningVpnOptionsProvider), isNull);
+    await drainTimers(tester);
+  });
 
   group('Android native run state refresh', () {
     const channel = MethodChannel('$packageName/service');

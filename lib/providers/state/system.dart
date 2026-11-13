@@ -1,5 +1,8 @@
 part of '../state.dart';
 
+@visibleForTesting
+final vpnOptionsIOSProvider = Provider<bool>((ref) => system.isIOS);
+
 @riverpod
 UpdateParams updateParams(Ref ref) {
   final authentication = ref.watch(
@@ -306,6 +309,7 @@ Future<List<String>> vpnRouteAddress(Ref ref) {
 
 @Riverpod(keepAlive: true)
 Future<VpnOptions> vpnOptions(Ref ref) async {
+  final isIOS = ref.watch(vpnOptionsIOSProvider);
   final networkSetting = ref.watch(
     networkSettingProvider.select(
       (state) => (
@@ -338,7 +342,7 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
           tun: clashConfig.tunOverride,
           tunOverrideKeys: clashConfig.tunOverrideKeys,
         );
-  final profileTun = system.isIOS
+  final profileTun = isIOS
       ? ref.watch(effectiveProfileTunProvider) ??
             ProfileTun.fromJson(
               overrides.tun.overrideJson(overrides.tunOverrideKeys),
@@ -357,7 +361,7 @@ Future<VpnOptions> vpnOptions(Ref ref) async {
         ),
       );
   return VpnOptions(
-    enable: (system.isIOS || vpnSetting.enable) && !safeMode,
+    enable: (isIOS || vpnSetting.enable) && !safeMode,
     stack: tun.stack.name,
     // VpnService.setHttpProxy cannot carry credentials, so an authenticated
     // mixed port is left to TUN instead of declared as the system proxy.

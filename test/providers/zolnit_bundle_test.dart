@@ -1038,6 +1038,7 @@ void main() {
         expect(fixture.session.clientBundle!.bundleId, 'renewal-$i');
         expect(zolnitConnectionConfigReady(container.read), isTrue);
         if (i == 1) {
+          container.read(runTimeProvider.notifier).value = 1234;
           fixture.onBundle = (_) async =>
               http.Response('{"error":{"code":"client_api_unavailable"}}', 503);
           await expectLater(
@@ -1045,6 +1046,8 @@ void main() {
             throwsA(isA<ClientFailure>()),
           );
           expect(zolnitConnectionConfigReady(container.read), isTrue);
+          expect(container.read(runTimeProvider), 1234);
+          verifyNever(() => core.stopListener());
         }
       }
     },
