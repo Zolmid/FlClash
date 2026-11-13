@@ -157,14 +157,14 @@ def failure_payload(job: dict, error_code: str) -> dict:
             'error_code': error_code, 'retryable': False}
 
 
-def permanent_error_code(error):
+def permanent_error_code(error, phase='export'):
     """Stable code for errors that retrying the same job cannot fix; None leaves the job to lease expiry."""
     if isinstance(error, (LeaseLost, TransportError, ConfigError)):
         return None
     if isinstance(error, subprocess.CalledProcessError):
-        return 'export_command_failed'
+        return phase + '_command_failed'
     if isinstance(error, ValidationError):
-        return 'export_validation_failed'
+        return phase + '_validation_failed'
     if isinstance(error, ProvisioningError):
         code = str(error)
         if TRANSIENT_APPLE.fullmatch(code):
@@ -203,6 +203,7 @@ def sign_one(transport, provision, export, workdir: Path, *, now=time.time, keep
     keeper = (keeper_factory or (lambda t, j: LeaseKeeper(t, j, now=now)))(transport, job)
     keeper.start()
     upload_started = False
+    phase = 'archive'
     try:
         stored = transport.signed_status(keeper.snapshot())
         reused = stored is not None
@@ -215,8 +216,10 @@ def sign_one(transport, provision, export, workdir: Path, *, now=time.time, keep
                 archive = extract_verified_archive(downloaded, workdir / 'archive', release)
                 validate_archive_release(archive, release['tag'], release['build'])
                 keeper.check()
+                phase = 'profile'
                 device_resource, profiles = provision(keeper.snapshot(), workdir / 'profiles', runner)
                 expires = artifact_expiry(profiles, now())
+                phase = 'export'
                 ipa = export(archive, profiles, workdir / 'export', runner)
                 keeper.check()
                 if ipa.is_symlink() or not ipa.is_file() or not 1024 <= ipa.stat().st_size <= MAX_BYTES:
@@ -224,7 +227,7 @@ def sign_one(transport, provision, export, workdir: Path, *, now=time.time, keep
                 digest, size = file_digest(ipa), ipa.stat().st_size
                 keeper.renew()
             except Exception as error:
-                code = permanent_error_code(error)
+                code = permanent_error_code(error, phase)
                 if code is not None:
                     _report_failure(transport, keeper, code, complete_attempts, sleep)
                 raise

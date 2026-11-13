@@ -316,6 +316,18 @@ class AppleDistributionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValidationError, 'CreationDate is in the future'):
                 read_profile('widget', p_future, None, noop, distribution='release-testing')
 
+            p_fresh = self.profile(
+                directory, 'necore',
+                CreationDate=datetime.now(timezone.utc) + timedelta(seconds=30),
+            )
+            self.assertEqual(read_profile('necore', p_fresh, None, noop, distribution='release-testing').target, 'necore')
+            p_skewed = self.profile(
+                directory, 'app',
+                CreationDate=datetime.now(timezone.utc) + timedelta(minutes=6),
+            )
+            with self.assertRaisesRegex(ValidationError, 'CreationDate is in the future'):
+                read_profile('app', p_skewed, None, noop, distribution='release-testing')
+
     def test_validate_source_accepts_future_stable_tags_and_rejects_arbitrary_refs(self) -> None:
         repo = Path('/tmp/repo')
 

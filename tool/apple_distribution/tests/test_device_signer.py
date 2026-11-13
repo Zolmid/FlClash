@@ -412,10 +412,14 @@ class SignOneTests(unittest.TestCase):
         def bad_device(job, directory, runner):
             raise ProvisioningErrorType('device_disabled_or_wrong_platform')
 
+        def bad_profile(job, directory, runner):
+            raise ValidationError('widget profile CreationDate is in the future')
+
         def bad_export(archive, profiles, directory, runner):
             raise ValidationError('widget profile SHA-256 mismatch at ' + str(directory) + ' ' + UDID)
         for name, provision, export, code in [
                 ('device', bad_device, self.export, 'device_disabled_or_wrong_platform'),
+                ('profile', bad_profile, self.export, 'profile_validation_failed'),
                 ('export', self.provision, bad_export, 'export_validation_failed')]:
             with self.subTest(name):
                 self.transport.payloads.clear()

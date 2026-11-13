@@ -19,7 +19,7 @@ import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Mapping, Optional, Sequence
 
@@ -53,6 +53,8 @@ SYMBOL_FILE_RE = re.compile(r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9
 MAX_IPA_ENTRIES = 4096
 MAX_IPA_MEMBER_BYTES = 512 * 1024 * 1024
 MAX_IPA_TOTAL_BYTES = 1024 * 1024 * 1024
+# Apple stamps CreationDate on its own clock; a profile minted seconds ago must survive small runner skew.
+PROFILE_CLOCK_SKEW = timedelta(minutes=5)
 
 
 class ValidationError(ValueError):
@@ -231,7 +233,7 @@ def read_profile(
     creation_raw = payload.get('CreationDate')
     if creation_raw is not None:
         created = _date(creation_raw)
-        if created > now:
+        if created > now + PROFILE_CLOCK_SKEW:
             raise ValidationError(f'{target} profile CreationDate is in the future')
     expires = _date(payload.get('ExpirationDate'))
     if expires <= now:
