@@ -1517,7 +1517,7 @@
   "zolnitManageRenewals": "Manage automatic renewal",
   "zolnitBundleFetchHint": "Fetch connection configuration",
   "zolnitBundleExpired": "Automatic server choice is out of date. Refresh to update it; manual and direct choices remain available.",
-  "zolnitBundleRefreshFailed": "Couldn't update connection settings. Try again later.",
+  "zolnitBundleRefreshFailed": "Connection information can't be updated right now.",
   "zolnitBundleForbidden": "Connection configuration is unavailable for this account. Check the plan and traffic allowance.",
   "zolnitBundleInvalid": "Connection configuration validation failed. Automatic selection is paused.",
   "zolnitBundleInvalidWhenStopped": "The VPN configuration could not be verified. Select Connect to fetch it again.",

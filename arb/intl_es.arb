@@ -1517,7 +1517,7 @@
   "zolnitManageRenewals": "Gestionar renovación automática",
   "zolnitBundleFetchHint": "Obtener configuración de conexión",
   "zolnitBundleExpired": "La selección automática de servidor está desactualizada. Actualízala; las opciones manual y directa siguen disponibles.",
-  "zolnitBundleRefreshFailed": "No se pudieron actualizar los ajustes de conexión. Inténtalo de nuevo más tarde.",
+  "zolnitBundleRefreshFailed": "No se puede actualizar la información de conexión en este momento.",
   "zolnitBundleForbidden": "La configuración no está disponible para esta cuenta. Revisa el plan y el tráfico restante.",
   "zolnitBundleInvalid": "La validación de la configuración falló. La selección automática está en pausa.",
   "zolnitBundleInvalidWhenStopped": "No se pudo verificar la configuración de la VPN. Selecciona Conectar para obtenerla de nuevo.",

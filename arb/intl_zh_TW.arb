@@ -1517,7 +1517,7 @@
   "zolnitManageRenewals": "管理自動續費",
   "zolnitBundleFetchHint": "取得連線設定",
   "zolnitBundleExpired": "自動選擇線路的資訊已過期，請重新整理後更新；仍可手動選擇或直連。",
-  "zolnitBundleRefreshFailed": "連線資訊更新失敗，請稍後重試。",
+  "zolnitBundleRefreshFailed": "暫時無法更新連線資訊。",
   "zolnitBundleForbidden": "目前帳號暫時無法取得連線設定，請檢查方案與流量。",
   "zolnitBundleInvalid": "連線設定驗證失敗，自動選擇已暫停。",
   "zolnitBundleInvalidWhenStopped": "VPN 設定未通過驗證，點選「連線」會重新取得。",

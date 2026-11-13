@@ -2047,7 +2047,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "暂无可供自动选择的已确认线路，请手动选择线路或使用直连。",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
-      "连接信息更新失败，请稍后重试。",
+      "暂时无法更新连接信息。",
     ),
     "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
       "暂时无法获取连接配置，请稍后重试。",

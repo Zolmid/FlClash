@@ -2945,7 +2945,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Aún no hay servidores confirmados para la selección automática. Elige un servidor tú mismo o usa la conexión directa.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
-      "No se pudieron actualizar los ajustes de conexión. Inténtalo de nuevo más tarde.",
+      "No se puede actualizar la información de conexión en este momento.",
     ),
     "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
       "No se pudo cargar la configuración de conexión. Inténtalo de nuevo en un momento.",

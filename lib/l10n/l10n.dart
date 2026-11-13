@@ -13094,10 +13094,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Couldn't update connection settings. Try again later.`
+  /// `Connection information can't be updated right now.`
   String get zolnitBundleRefreshFailed {
     return Intl.message(
-      'Couldn\'t update connection settings. Try again later.',
+      'Connection information can\'t be updated right now.',
       name: 'zolnitBundleRefreshFailed',
       desc: '',
       args: [],

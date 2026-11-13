@@ -558,7 +558,7 @@ void main() {
             .read(zolnitBundleStatusProvider.notifier)
             .set(ZolnitBundleStatus.refreshFailed);
         final message = cached
-            ? "Couldn't update connection settings. Try again later."
+            ? "Connection information can't be updated right now."
             : "Connection settings couldn't be loaded. Try again shortly.";
         await mount(tester);
         expect(
