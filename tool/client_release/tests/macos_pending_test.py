@@ -195,6 +195,95 @@ class PendingTest(unittest.TestCase):
         with self.assertRaisesRegex(pending.PendingError, 'no checkpoint'):
             pending.select_checkpoint(github, '', None, 'arm64', self.root, env)
 
+    def retry_fixture(self, records=(), jobs=None):
+        github = FakeGitHub()
+        github.artifacts = lambda run_id: list(records)
+        job = {'run_id': 100, 'run_attempt': 1, 'status': 'completed', 'conclusion': 'skipped',
+               'name': 'Notarize verification · arm64 / macOS dmg · arm64', 'steps': []}
+        history = [job] if jobs is None else jobs
+        github.get = mock.Mock(return_value={'total_count': len(history), 'jobs': history})
+        return github, {'GITHUB_RUN_ID': '100', 'GITHUB_RUN_ATTEMPT': '2'}, job
+
+    def test_dmg_retry_prefers_saved_dmg_or_final_over_explicit_upstream_app(self):
+        saved = self.root / 'saved-dmg'
+        saved.mkdir()
+        (saved / pending.RECEIPT).write_text(json.dumps({'stage': 'dmg', 'submission_id': ID2}))
+        for stages in (('app', 'dmg'), ('app', 'dmg', 'final')):
+            with self.subTest(stages=stages):
+                records = [{'name': f'macos-notary-checkpoint-arm64-100-1-{stage}', 'id': i}
+                           for i, stage in enumerate(stages, 1)]
+                github, env, _ = self.retry_fixture(records)
+                with mock.patch.object(pending, 'download_checkpoint', return_value=saved) as fetch:
+                    result = pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+                self.assertEqual(result, saved)
+                self.assertEqual(fetch.call_args.args[1], len(stages))
+                github.get.assert_not_called()
+
+    def test_dmg_retry_reconciles_if_previous_signing_step_ran_without_checkpoint(self):
+        for conclusion in ('success', 'failure', 'cancelled'):
+            with self.subTest(conclusion=conclusion):
+                github, env, job = self.retry_fixture()
+                job.update(conclusion=conclusion, steps=[{'name': 'Verify and perform dmg stage',
+                                                        'status': 'completed', 'conclusion': conclusion}])
+                with mock.patch.object(pending, 'download_checkpoint') as fetch, \
+                        self.assertRaisesRegex(pending.PendingError, 'DMG stage ran without a checkpoint'):
+                    pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+                fetch.assert_not_called()
+                github.get.assert_called_once_with('repos/Zolmid/FlClash/actions/runs/100/attempts/1/jobs?per_page=100&page=1')
+
+    def test_wait_app_only_retry_permits_first_dmg_submission(self):
+        for skipped_job in ('job-skipped', 'step-skipped', 'not-scheduled'):
+            with self.subTest(skipped_job=skipped_job):
+                github, env, job = self.retry_fixture()
+                if skipped_job == 'step-skipped':
+                    job.update(conclusion='failure', steps=[{'name': 'Verify and perform dmg stage',
+                                                            'status': 'completed', 'conclusion': 'skipped'}])
+                elif skipped_job == 'not-scheduled':
+                    job.update(name='Await Apple app acceptance · arm64', conclusion='failure')
+                with mock.patch.object(pending, 'download_checkpoint', return_value='verified-app') as fetch:
+                    result = pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+                self.assertEqual(result, 'verified-app')
+                self.assertEqual(fetch.call_args.args[1], 'upstream-app')
+
+    def test_dmg_history_is_paginated_and_unknown_history_fails_closed(self):
+        github, env, job = self.retry_fixture()
+        job.update(conclusion='failure', steps=[{'name': 'Verify and perform dmg stage',
+                                                'status': 'completed', 'conclusion': 'failure'}])
+        other = {**job, 'name': 'Notarize verification · x64 / macOS dmg · x64'}
+        github.get.side_effect = [{'total_count': 2, 'jobs': [other]}, {'total_count': 2, 'jobs': [job]}]
+        with mock.patch.object(pending, 'download_checkpoint') as fetch, self.assertRaisesRegex(pending.PendingError, 'DMG stage ran'):
+            pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+        fetch.assert_not_called()
+        self.assertTrue(github.get.call_args.args[0].endswith('page=2'))
+        github.get.side_effect = None
+        github.get.return_value = {'total_count': 1, 'jobs': [{**job, 'steps': []}]}
+        with self.assertRaisesRegex(pending.PendingError, 'history unavailable'):
+            pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+        github.get.return_value = {'total_count': 1, 'jobs': [{**job, 'name': 'Unidentified DMG job'}]}
+        with self.assertRaisesRegex(pending.PendingError, 'history unavailable'):
+            pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+
+    def test_dmg_named_checkpoint_without_saved_submission_does_not_repeat_upload(self):
+        records = [{'name': 'macos-notary-checkpoint-arm64-100-1-dmg', 'id': 9}]
+        github, env, _ = self.retry_fixture(records)
+        saved = self.root / 'saved'
+        saved.mkdir()
+        for data in ({'stage': 'app', 'submission_id': ID1}, {'stage': 'dmg', 'submission_id': None}):
+            with self.subTest(data=data):
+                (saved / pending.RECEIPT).write_text(json.dumps(data))
+                with mock.patch.object(pending, 'download_checkpoint', return_value=saved) as fetch, \
+                        self.assertRaises(pending.PendingError):
+                    pending.select_checkpoint(github, 'upstream-app', None, 'arm64', self.root, env, mode='dmg')
+                self.assertEqual(fetch.call_count, 1)
+                self.assertEqual(fetch.call_args.args[1], 9)
+
+    def test_final_retry_can_reuse_explicit_dmg_without_submission_history(self):
+        github, env, _ = self.retry_fixture()
+        with mock.patch.object(pending, 'download_checkpoint', return_value='verified-dmg') as fetch:
+            self.assertEqual(pending.select_checkpoint(github, 'upstream-dmg', None, 'arm64', self.root, env, mode='final'), 'verified-dmg')
+        self.assertEqual(fetch.call_args.args[1], 'upstream-dmg')
+        github.get.assert_not_called()
+
     def test_pending_producer_and_outer_digest_are_verified(self):
         self.saved()
         github = FakeGitHub()

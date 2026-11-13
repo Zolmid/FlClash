@@ -32,6 +32,8 @@ def safe_error(error):
         'checkpoint source evidence missing', 'notarization rejected; checkpoint cannot be resubmitted',
         'duplicate submission blocked', 'notary status unavailable', 'checkpoint producer workflow rejected',
         'checkpoint repository mismatch', 'checkpoint artifact name mismatch',
+        'previous DMG stage ran without a checkpoint; reconcile with Apple before retrying',
+        'previous DMG stage history unavailable; reconcile with Apple before retrying',
     }
     return message if message in allowed else 'details withheld'
 
@@ -179,8 +181,50 @@ def source_evidence(directory, context, arch):
                                          'source_provenance_sha256', 'input_sha256')}
 
 
+def previous_dmg_stage_ran(github, run_id, attempt, arch):
+    unavailable = 'previous DMG stage history unavailable; reconcile with Apple before retrying'
+    for previous in range(1, attempt):
+        jobs, page, total = [], 1, None
+        while total is None or len(jobs) < total:
+            body = github.get(f'repos/{release.REPOSITORY}/actions/runs/{run_id}/attempts/{previous}/jobs?per_page=100&page={page}')
+            batch, count = body.get('jobs'), body.get('total_count')
+            require(isinstance(batch, list) and isinstance(count, int) and count > 0 and batch and
+                    (total is None or total == count), unavailable)
+            total = count
+            jobs.extend(batch)
+            require(len(jobs) <= total, unavailable)
+            page += 1
+        require(all(job.get('run_id') == int(run_id) and job.get('run_attempt') == previous for job in jobs), unavailable)
+        stage_name = 'Verify and perform dmg stage'
+        for job in jobs:
+            if any(step.get('name') == stage_name for step in job.get('steps', [])):
+                require(job.get('name', '').split(' / ')[-1] in ('macOS dmg · arm64', 'macOS dmg · x64'), unavailable)
+        target = f'macOS dmg · {arch}'
+        matches = [job for job in jobs if job.get('name', '').split(' / ')[-1] == target]
+        require(len(matches) <= 1, unavailable)
+        if not matches:
+            continue
+        job = matches[0]
+        if job.get('status') == 'completed' and job.get('conclusion') == 'skipped':
+            continue
+        stages = [step for step in job.get('steps', []) if step.get('name') == stage_name]
+        require(len(stages) == 1, unavailable)
+        if stages[0].get('status') != 'completed' or stages[0].get('conclusion') != 'skipped':
+            return True
+    return False
+
+
+def require_dmg_checkpoint(directory):
+    data = json.loads((Path(directory) / RECEIPT).read_text())
+    require(data.get('stage') == 'dmg',
+            'previous DMG stage ran without a checkpoint; reconcile with Apple before retrying')
+    submission = data.get('submission_id')
+    require(isinstance(submission, str) and UUID.fullmatch(submission),
+            'submission outcome unknown; reconcile with Apple before retrying')
+
+
 def select_checkpoint(github, explicit, context, arch, work, env, mode='app'):
-    if explicit and mode != 'app':
+    if explicit and mode == 'final':
         return download_checkpoint(github, explicit, context, arch, work)
     attempt = env.get('GITHUB_RUN_ATTEMPT', '1')
     require(re.fullmatch(r'[1-9][0-9]*', attempt), 'invalid workflow attempt')
@@ -192,9 +236,19 @@ def select_checkpoint(github, explicit, context, arch, work, env, mode='app'):
             match = re.fullmatch(rf'macos-notary-checkpoint-{arch}-{run_id}-([1-9][0-9]*)-(app|dmg|final)', record.get('name', ''))
             if match and int(match[1]) < int(attempt):
                 matches.append(((int(match[1]), {'app': 1, 'dmg': 2, 'final': 3}[match[2]]), record['id']))
+        if mode == 'dmg':
+            matches = [(rank, artifact) for rank, artifact in matches if rank[1] >= 2]
+            if not matches:
+                require(not previous_dmg_stage_ran(github, run_id, int(attempt), arch),
+                        'previous DMG stage ran without a checkpoint; reconcile with Apple before retrying')
+                require(explicit, 'retry has no checkpoint; reconcile with Apple before retrying')
+                return download_checkpoint(github, explicit, context, arch, work)
         require(matches, 'retry has no checkpoint; reconcile with Apple before retrying')
         latest = max(a for a, _ in matches)
         candidates = [i for a, i in matches if a == latest]
         require(len(candidates) == 1, 'ambiguous retry checkpoint')
-        return download_checkpoint(github, candidates[0], context, arch, work)
+        directory = download_checkpoint(github, candidates[0], context, arch, work)
+        if mode == 'dmg':
+            require_dmg_checkpoint(directory)
+        return directory
     return download_checkpoint(github, explicit, context, arch, work) if explicit else None
