@@ -136,6 +136,34 @@ class VerifyRunTest(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.root.iterdir()), [])
 
+    def test_failure_receipt_is_safe_and_identifies_phase(self):
+        args = ['macos_verify_run.py', '--source-run-id', str(RUN_ID), '--source-tag', TAG,
+                '--arch', 'arm64', '--output', str(self.output)]
+        samples = [
+            (verify.signing.SigningError('expected exactly one valid Developer ID Application identity for the team'),
+             'expected exactly one valid Developer ID Application identity for the team'),
+            (verify.signing.SigningError('notary-app.zip notarization not accepted: Invalid'),
+             'notarization not accepted: Invalid'),
+            (verify.signing.SigningError('secret /tmp/private 12345678-1234-1234-1234-123456789abc'),
+             'details withheld'),
+            (RuntimeError('secret /tmp/private 12345678-1234-1234-1234-123456789abc'), 'details withheld'),
+        ]
+        for failure, expected in samples:
+            with self.subTest(failure=type(failure).__name__), mock.patch.dict(os.environ, dispatch(), clear=True), \
+                    mock.patch.object(sys, 'argv', args), mock.patch('sys.stderr', new_callable=io.StringIO) as err, \
+                    mock.patch('sys.stdout', new_callable=io.StringIO) as out:
+                def fail(*_args):
+                    verify.signing.phase('identity-selection')
+                    raise failure
+                with mock.patch.object(verify, 'verify_and_sign', side_effect=fail):
+                    self.assertEqual(verify.main(), 1)
+                receipt = err.getvalue() + out.getvalue()
+                self.assertIn('phase=identity-selection', receipt)
+                self.assertIn(expected, receipt)
+                self.assertNotIn('secret', receipt)
+                self.assertNotIn('/tmp/private', receipt)
+                self.assertNotIn('12345678-1234-1234-1234-123456789abc', receipt)
+
     def test_dispatch_gate_cannot_be_bypassed(self):
         for changes in ({'MACOS_NOTARIZATION_VERIFY_ENABLED': ''}, {'GITHUB_EVENT_NAME': 'push'},
                         {'GITHUB_REF': 'refs/heads/main'}, {'GITHUB_REPOSITORY_ID': '1'},

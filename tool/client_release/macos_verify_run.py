@@ -97,7 +97,9 @@ def verify_and_sign(github, run_id, tag, arch, output):
     release.require(not output.exists() and not output.is_symlink(), 'output already exists')
     with tempfile.TemporaryDirectory(prefix='zolnit-verify-', dir=output.parent) as tmp:
         scratch = Path(tmp)
+        signing.phase('source-context')
         context, entitlements = verified_context(github, run_id, tag, scratch)
+        signing.phase('artifact-verification')
         name = f'flclash-macos-{arch}-{context.run_number}'
         records = [item for item in github.artifacts(context.run_id) if item.get('name') == name]
         release.require(len(records) == 1, f'expected exactly one {name} artifact')
@@ -124,10 +126,13 @@ def main():
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGHUP, interrupted)
     try:
+        signing.phase('dispatch')
         check_dispatch(os.environ)
         verify_and_sign(GitHub(), args.source_run_id, args.source_tag, args.arch, args.output)
     except Exception as error:
-        print(f'::error::Verification failed: {type(error).__name__}', file=sys.stderr)
+        code = 'signing' if isinstance(error, signing.SigningError) else ('source' if isinstance(error, release.ReleaseError) else 'unexpected')
+        detail = signing.safe_signing_error(error) if code == 'signing' else 'details withheld'
+        print(f'::error::macos-verification phase={signing.current_phase} code={code}: {detail}', file=sys.stderr)
         return 1
     return 0
 

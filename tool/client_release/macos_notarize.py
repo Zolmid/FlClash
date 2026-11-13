@@ -23,6 +23,51 @@ MACHO_MAGIC = {bytes.fromhex(x) for x in ('feedface', 'cefaedfe', 'feedfacf', 'c
 BUNDLES = {'.framework', '.app', '.xpc', '.appex', '.bundle', '.plugin'}
 
 
+PHASES = frozenset({
+    'dispatch', 'source-context', 'artifact-verification', 'credentials', 'keychain-create',
+    'keychain-unlock', 'keychain-import', 'keychain-partition', 'keychain-search', 'identity-selection',
+    'app-extraction', 'nested-signing', 'app-signing', 'app-notarization', 'app-stapling',
+    'app-gatekeeper', 'dmg-creation', 'dmg-signing', 'dmg-notarization', 'dmg-stapling',
+    'dmg-gatekeeper', 'output', 'keychain-cleanup',
+})
+current_phase = 'dispatch'
+
+
+def phase(name):
+    global current_phase
+    if name not in PHASES:
+        raise ValueError('unknown verification phase')
+    current_phase = name
+    print(f'::notice::macos-verification phase={name}', flush=True)
+
+
+def safe_signing_error(error):
+    message = str(error)
+    allowed = {
+        'version or architecture mismatch', 'same-run app archive missing',
+        'output directory already exists', 'missing or invalid signing credentials',
+        'could not capture the original keychain search list', 'invalid keychain input',
+        'keychain operation failed', 'app archive has no ZolNit.app',
+        'unexpected Core manifest: macOS helper hash binding requires review',
+        'unexpected privileged Helper: embedded Core hash requires review',
+        'bundled FlClashCore Mach-O is missing', 'app executable is missing',
+        'MACOS_TEAM_ID must be a ten-character Apple team ID',
+        'expected exactly one valid Developer ID Application identity for the team',
+        'notarytool returned invalid JSON', 'final DMG is missing or empty',
+        'MACOS_DEVELOPER_ID_P12_BASE64 missing or invalid base64',
+        'APPLE_ASC_P8_BASE64 missing or invalid base64',
+        'MACOS_DEVELOPER_ID_P12_BASE64 is empty', 'APPLE_ASC_P8_BASE64 is empty',
+    }
+    if message in allowed:
+        return message
+    if re.fullmatch(r'(?:security|codesign|ditto|hdiutil|spctl|xcrun (?:notarytool submit|stapler (?:staple|validate))) (?:timed out|failed with exit status [0-9]{1,3})', message):
+        return message
+    notary = re.fullmatch(r'(?:notary-app\.zip|ZolNit-[0-9.]+-macos-(?:arm64|x64)\.dmg) notarization not accepted: (Invalid|Rejected|In Progress|unknown)', message)
+    if notary:
+        return f'notarization not accepted: {notary.group(1)}'
+    return 'details withheld'
+
+
 class SigningError(Exception):
     pass
 
@@ -111,30 +156,40 @@ def submit(path, key, key_id, issuer):
 
 
 def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements):
+    phase('nested-signing')
     for item in nested_code(app):
         run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp', item])
+    phase('app-signing')
     run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp',
          '--entitlements', entitlements, app])
     run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
     zipped = scratch / 'notary-app.zip'
     run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, zipped])
+    phase('app-notarization')
     app_id = submit(zipped, key, key_id, issuer)
+    phase('app-stapling')
     run(['xcrun', 'stapler', 'staple', app])
     run(['xcrun', 'stapler', 'validate', app])
     run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
+    phase('app-gatekeeper')
     run(['spctl', '--assess', '--type', 'execute', '--verbose=2', app])
+    phase('dmg-creation')
     staging = scratch / 'dmg-content'
     staging.mkdir()
     run(['ditto', app, staging / 'ZolNit.app'])
     (staging / 'Applications').symlink_to('/Applications')
     run(['hdiutil', 'create', '-volname', 'ZolNit', '-srcfolder', staging, '-format', 'UDZO', dmg])
+    phase('dmg-signing')
     run(['codesign', '--force', '--sign', identity, '--timestamp', dmg])
     run(['codesign', '--verify', '--strict', '--verbose=2', dmg])
+    phase('dmg-notarization')
     dmg_id = submit(dmg, key, key_id, issuer)
+    phase('dmg-stapling')
     run(['xcrun', 'stapler', 'staple', dmg])
     run(['xcrun', 'stapler', 'validate', dmg])
     run(['codesign', '--verify', '--strict', '--verbose=2', dmg])
     run(['hdiutil', 'verify', dmg])
+    phase('dmg-gatekeeper')
     run(['spctl', '--assess', '--type', 'open', '--context', 'context:primary-signature', '--verbose=2', dmg])
     return app_id, dmg_id
 
@@ -152,6 +207,7 @@ def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=
         raise SigningError('same-run app archive missing')
     if output_dir.exists():
         raise SigningError('output directory already exists')
+    phase('credentials')
     team = os.environ.get('MACOS_TEAM_ID', '')
     key_id = os.environ.get('APPLE_ASC_API_KEY_ID', '')
     issuer = os.environ.get('APPLE_ASC_ISSUER_ID', '')
@@ -169,12 +225,19 @@ def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=
         if not original:
             raise SigningError('could not capture the original keychain search list')
         try:
+            phase('keychain-create')
             security_command('create-keychain', '-p', keychain_password, keychain)
+            phase('keychain-unlock')
             security_command('unlock-keychain', '-p', keychain_password, keychain)
+            phase('keychain-import')
             security_command('import', p12, '-k', keychain, '-P', password, '-T', '/usr/bin/codesign')
+            phase('keychain-partition')
             security_command('set-key-partition-list', '-S', 'apple-tool:,apple:', '-s', '-k', keychain_password, keychain)
+            phase('keychain-search')
             run(['security', 'list-keychains', '-d', 'user', '-s', keychain, *original])
+            phase('identity-selection')
             identity = select_identity(run(['security', 'find-identity', '-v', '-p', 'codesigning', keychain]), team)
+            phase('app-extraction')
             unpacked = scratch / 'unpacked'
             unpacked.mkdir()
             run(['ditto', '-x', '-k', input_dir / zip_name, unpacked])
@@ -192,6 +255,7 @@ def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=
                        'dmg': dmg_name, 'dmg_sha256': release.sha256_file(dmg),
                        'team_id': team, 'identity_sha1': identity, 'app_notary_id': app_id,
                        'dmg_notary_id': dmg_id, 'verification': 'developer-id-notarized-stapled'}
+            phase('output')
             output_dir.mkdir(parents=True)
             shutil.copyfile(dmg, output_dir / dmg_name)
             (output_dir / 'signing-receipt.json').write_text(json.dumps(receipt, sort_keys=True) + '\n')
@@ -199,10 +263,14 @@ def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=
                 f'{release.sha256_file(p)}  {p.name}\n' for p in sorted(output_dir.iterdir())))
         finally:
             try:
-                run(['security', 'list-keychains', '-d', 'user', '-s', *original])
-            finally:
-                if keychain.exists():
-                    run(['security', 'delete-keychain', keychain])
+                try:
+                    run(['security', 'list-keychains', '-d', 'user', '-s', *original])
+                finally:
+                    if keychain.exists():
+                        run(['security', 'delete-keychain', keychain])
+            except Exception:
+                phase('keychain-cleanup')
+                raise
 
 
 def main():
