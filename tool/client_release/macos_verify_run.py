@@ -17,26 +17,12 @@ from types import SimpleNamespace
 
 import assemble_release as release
 import macos_notarize as signing
+import macos_pending as pending
+from macos_pending import GitHub
 
 BRANCH = 'refs/heads/codex/native-client-shared'
 WORKFLOW = '.github/workflows/macos-notarization-verify.yml'
 
-
-class GitHub(release.GitHub):
-    def get(self, path):
-        try:
-            result = subprocess.run(['gh', 'api', '-H', 'Accept: application/vnd.github+json', path],
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            return json.loads(result.stdout)
-        except (subprocess.CalledProcessError, ValueError) as error:
-            raise release.ReleaseError('GitHub API request failed or returned invalid JSON') from error
-
-    def download(self, path, destination):
-        try:
-            with open(destination, 'xb') as handle:
-                subprocess.run(['gh', 'api', path], check=True, stdout=handle, stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as error:
-            raise release.ReleaseError('GitHub artifact download failed') from error
 
 
 def check_dispatch(env):
@@ -92,33 +78,57 @@ def verified_context(github, run_id, tag, scratch):
     return context, entitlements
 
 
-def verify_and_sign(github, run_id, tag, arch, output):
+def verify_and_sign(github, run_id, tag, arch, output, *, pending_output=None, resume_artifact='',
+                    start_new=False, mode='all', official=False):
     release.require(arch in ('arm64', 'x64'), 'unsupported architecture')
     release.require(not output.exists() and not output.is_symlink(), 'output already exists')
     with tempfile.TemporaryDirectory(prefix='zolnit-verify-', dir=output.parent) as tmp:
         scratch = Path(tmp)
         signing.phase('source-context')
-        context, entitlements = verified_context(github, run_id, tag, scratch)
+        if official:
+            context = release.Context(os.environ, '.')
+            release.require(not run_id and not tag, 'formal signing uses the current run only')
+            release.require(github.tag_commit(context.tag) == context.sha, 'formal tag moved')
+            entitlements = Path('macos/Runner/Release.entitlements')
+        else:
+            context, entitlements = verified_context(github, run_id, tag, scratch)
         signing.phase('artifact-verification')
-        name = f'flclash-macos-{arch}-{context.run_number}'
-        records = [item for item in github.artifacts(context.run_id) if item.get('name') == name]
-        release.require(len(records) == 1, f'expected exactly one {name} artifact')
-        directory, names, _ = release.fetch_artifact(github, records[0], context, name, scratch)
-        listed = release.verify_sums(directory, names)
-        release.require('source-provenance.txt' in listed, 'source provenance missing')
-        release.check_provenance((directory / 'source-provenance.txt').read_text(encoding='utf-8'),
-                                 context, 'macos', arch)
+        resume = pending.select_checkpoint(github, resume_artifact, context, arch, scratch, os.environ, mode)
+        pending.require(resume is not None or start_new and mode in ('all', 'app'),
+                        'new app submission requires explicit approval')
+        directory = None
+        if resume is None:
+            name = f'flclash-macos-{arch}-{context.run_number}'
+            records = [item for item in github.artifacts(context.run_id) if item.get('name') == name]
+            release.require(len(records) == 1, f'expected exactly one {name} artifact')
+            directory, names, outer = release.fetch_artifact(github, records[0], context, name, scratch)
+            listed = release.verify_sums(directory, names)
+            release.require('source-provenance.txt' in listed, 'source provenance missing')
+            release.check_provenance((directory / 'source-provenance.txt').read_text(encoding='utf-8'),
+                                     context, 'macos', arch)
+            evidence = {'source_artifact_id': records[0]['id'], 'source_artifact_sha256': outer,
+                        'source_provenance_sha256': listed['source-provenance.txt'],
+                        'input_sha256': listed.get(f'FlClash-macos-{arch}-release.zip')}
+        else:
+            evidence = pending.source_evidence(resume, context, arch)
         signed = scratch / 'signed'
-        signing.prepare(directory, signed, context.version, arch, context=context, entitlements=entitlements)
-        os.rename(signed, output)
+        signing.prepare(directory, signed, context.version, arch, context=context, entitlements=entitlements,
+                        pending_dir=pending_output, resume=resume, mode=mode, source_evidence=evidence)
+        if mode in ('all', 'final'):
+            os.rename(signed, output)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source-run-id', required=True)
-    parser.add_argument('--source-tag', required=True)
+    parser.add_argument('--source-run-id', default='')
+    parser.add_argument('--source-tag', default='')
     parser.add_argument('--arch', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--pending-output', type=Path, required=True)
+    parser.add_argument('--resume-artifact-id', default='')
+    parser.add_argument('--start-new', choices=('true', 'false'), default='false')
+    parser.add_argument('--mode', choices=('app', 'dmg', 'final'), default='app')
+    parser.add_argument('--official', choices=('true', 'false'), default='false')
     args = parser.parse_args()
     os.umask(0o077)
     def interrupted(signum, _frame):
@@ -127,11 +137,18 @@ def main():
     signal.signal(signal.SIGHUP, interrupted)
     try:
         signing.phase('dispatch')
-        check_dispatch(os.environ)
-        verify_and_sign(GitHub(), args.source_run_id, args.source_tag, args.arch, args.output)
+        official = args.official == 'true'
+        if official:
+            release.Context(os.environ, '.')
+            release.require(os.environ.get('MACOS_SIGNING_REQUIRED') == 'true', 'formal signing disabled')
+        else:
+            check_dispatch(os.environ)
+        verify_and_sign(GitHub(), args.source_run_id, args.source_tag, args.arch, args.output,
+                        pending_output=args.pending_output, resume_artifact=args.resume_artifact_id,
+                        start_new=args.start_new == 'true', mode=args.mode, official=official)
     except Exception as error:
-        code = 'signing' if isinstance(error, signing.SigningError) else ('source' if isinstance(error, release.ReleaseError) else 'unexpected')
-        detail = signing.safe_signing_error(error) if code == 'signing' else 'details withheld'
+        code = 'pending' if isinstance(error, pending.PendingError) else ('signing' if isinstance(error, signing.SigningError) else ('source' if isinstance(error, release.ReleaseError) else 'unexpected'))
+        detail = pending.safe_error(error) if code == 'pending' else (signing.safe_signing_error(error) if code == 'signing' else 'details withheld')
         print(f'::error::macos-verification phase={signing.current_phase} code={code}: {detail}', file=sys.stderr)
         return 1
     return 0

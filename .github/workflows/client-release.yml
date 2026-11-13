@@ -75,9 +75,6 @@ jobs:
     name: Developer ID and notarization · ${{ matrix.arch }}
     needs: [preflight, builds]
     if: needs.preflight.outputs.macos_signing_required == 'true'
-    runs-on: xcode-27
-    environment: macos-distribution
-    timeout-minutes: 100
     permissions:
       contents: read
       actions: read
@@ -85,36 +82,11 @@ jobs:
       fail-fast: false
       matrix:
         arch: [arm64, x64]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Select Xcode 27.1
-        run: |
-          sudo xcode-select -s /Applications/Xcode_27.1.app
-          xcodebuild -version
-          [[ "$(xcrun --sdk macosx --show-sdk-version)" == 27.* ]]
-      - uses: actions/download-artifact@v4
-        with:
-          name: flclash-macos-${{ matrix.arch }}-${{ github.run_number }}
-          path: ${{ runner.temp }}/macos-input
-      - name: Sign, notarize, and verify
-        env:
-          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
-          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          MACOS_TEAM_ID: ${{ vars.MACOS_TEAM_ID }}
-          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
-          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
-          APPLE_ASC_P8_BASE64: ${{ secrets.APPLE_ASC_P8_BASE64 }}
-          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
-          RELEASE_ARCH: ${{ matrix.arch }}
-        run: python3 tool/client_release/macos_notarize.py --input "$RUNNER_TEMP/macos-input" --output "$RUNNER_TEMP/macos-signed" --version "$RELEASE_VERSION" --arch "$RELEASE_ARCH"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-distribution-${{ matrix.arch }}-${{ github.run_number }}
-          path: ${{ runner.temp }}/macos-signed/
-          if-no-files-found: error
-          retention-days: 14
+    uses: ./.github/workflows/macos-notarization-pipeline.yml
+    with:
+      arch: ${{ matrix.arch }}
+      official: true
+      start_new: true
 
   publish:
     name: Publish ${{ needs.preflight.outputs.version }}

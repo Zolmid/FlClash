@@ -45,7 +45,11 @@ class SigningTest(unittest.TestCase):
         cmd = [str(a) for a in args]
         self.commands.append(cmd)
         if cmd[:3] == ['xcrun', 'notarytool', 'submit']:
-            return json.dumps({'status': 'Accepted', 'id': f'id-{len(self.commands)}'})
+            return json.dumps({'status': 'In Progress', 'id': f'00000000-0000-0000-0000-{len(self.commands):012d}'})
+        if cmd[:3] in (['xcrun', 'notarytool', 'wait'], ['xcrun', 'notarytool', 'info']):
+            return json.dumps({'status': 'Accepted', 'id': cmd[3]})
+        if cmd[:3] == ['ditto', '-c', '-k']:
+            Path(cmd[-1]).write_bytes(b'signed app zip')
         if cmd[:2] == ['hdiutil', 'create']:
             self.dmg.write_bytes(b'dmg')
         return ''
@@ -275,9 +279,9 @@ class SigningTest(unittest.TestCase):
             with self.subTest(failure=failure):
                 self.commands.clear()
                 self.dmg.unlink(missing_ok=True)
+                shutil.rmtree(self.root / 'pending', ignore_errors=True)
                 stage = self.root / 'dmg-content'
                 if stage.exists():
-                    import shutil
                     shutil.rmtree(stage)
                 count = 0
                 def runner(args, **kwargs):
@@ -285,10 +289,11 @@ class SigningTest(unittest.TestCase):
                     cmd = [str(x) for x in args]
                     if cmd[:3] == ['xcrun', 'notarytool', 'submit']:
                         count += 1
+                    if cmd[:3] in (['xcrun', 'notarytool', 'wait'], ['xcrun', 'notarytool', 'info']):
                         if failure == 'timeout' and count == 1:
-                            raise signing.SigningError('xcrun timed out')
+                            raise signing.SigningError('xcrun notarytool wait timed out')
                         if failure == 'reject' and count == 1:
-                            return json.dumps({'status': 'Invalid', 'id': 'rejected'})
+                            return json.dumps({'status': 'Invalid', 'id': cmd[3]})
                     if cmd[:3] == ['xcrun', 'stapler', 'validate'] and (
                             (failure == 'app_ticket' and count == 1) or (failure == 'dmg_ticket' and count == 2)):
                         raise signing.SigningError('invalid ticket')
@@ -322,8 +327,9 @@ class SigningTest(unittest.TestCase):
                'APPLE_ASC_P8_BASE64': base64.b64encode(b'p8').decode()}
         context = SimpleNamespace(version='1.2.3', sha='c' * 40, run_id=42,
                                   run_url='https://github.com/Zolmid/FlClash/actions/runs/42')
-        for fail in (None, 'app', 'dmg'):
+        for fail in (None, 'app', 'dmg', 'pending'):
             output = self.root / (fail or 'success')
+            pending_output = self.root / ((fail or 'success') + '-pending')
             commands = []
             submissions = []
             def runner(args, **kwargs):
@@ -346,7 +352,11 @@ class SigningTest(unittest.TestCase):
                     shutil.copytree(self.app, Path(cmd[-1]) / 'ZolNit.app')
                 if cmd[:3] == ['xcrun', 'notarytool', 'submit']:
                     submissions.append(cmd)
-                    return json.dumps({'status': 'Accepted', 'id': 'accepted-id'})
+                    return json.dumps({'status': 'In Progress', 'id': f'00000000-0000-0000-0000-{len(submissions):012d}'})
+                if cmd[:3] in (['xcrun', 'notarytool', 'wait'], ['xcrun', 'notarytool', 'info']):
+                    return json.dumps({'status': 'In Progress' if fail == 'pending' else 'Accepted', 'id': cmd[3]})
+                if cmd[:3] == ['ditto', '-c', '-k']:
+                    Path(cmd[-1]).write_bytes(b'signed app zip')
                 if cmd[:3] == ['xcrun', 'stapler', 'validate'] and (
                         (fail == 'app' and len(submissions) == 1) or (fail == 'dmg' and len(submissions) == 2)):
                     raise signing.SigningError('invalid ticket')
@@ -357,14 +367,18 @@ class SigningTest(unittest.TestCase):
                     mock.patch.object(signing, 'run', side_effect=runner):
                 if fail:
                     with self.assertRaises(signing.SigningError):
-                        signing.prepare(inputs, output, '1.2.3', 'arm64')
+                        signing.prepare(inputs, output, '1.2.3', 'arm64', pending_dir=pending_output)
                     self.assertFalse(output.exists())
                 else:
-                    signing.prepare(inputs, output, '1.2.3', 'arm64')
+                    signing.prepare(inputs, output, '1.2.3', 'arm64', pending_dir=pending_output)
                     receipt = json.loads((output / 'signing-receipt.json').read_text())
                     dmg = output / receipt['dmg']
                     self.assertEqual(receipt['dmg_sha256'], hashlib.sha256(dmg.read_bytes()).hexdigest())
                     self.assertEqual(receipt['input_sha256'], hashlib.sha256(archive.read_bytes()).hexdigest())
+            if fail == 'pending':
+                self.assertEqual({p.name for p in pending_output.iterdir()}, {'pending-receipt.json', 'notary-app.zip'})
+            if fail is None:
+                self.assertFalse(pending_output.exists())
             self.assertTrue(any(cmd == ['security', 'list-keychains', '-d', 'user', '-s',
                                        '/tmp/original.keychain-db'] for cmd in commands))
             self.assertTrue(any(cmd[:2] == ['security', 'delete-keychain'] for cmd in commands))

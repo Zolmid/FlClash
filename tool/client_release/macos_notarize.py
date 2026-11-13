@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import posixpath
 import re
 import secrets
 import signal
@@ -20,6 +21,7 @@ import tempfile
 import zipfile
 
 import assemble_release as release
+import macos_pending as pending
 
 MACHO_MAGIC = {bytes.fromhex(x) for x in ('feedface', 'cefaedfe', 'feedfacf', 'cffaedfe',
                                              'cafebabe', 'bebafeca', 'cafebabf', 'bfbafeca')}
@@ -33,7 +35,7 @@ PHASES = frozenset({
     'keychain-unlock', 'keychain-import', 'keychain-partition', 'keychain-search', 'identity-selection',
     'app-extraction', 'nested-signing', 'app-signing', 'app-notarization', 'app-stapling',
     'app-gatekeeper', 'dmg-creation', 'dmg-signing', 'dmg-notarization', 'dmg-stapling',
-    'dmg-gatekeeper', 'output', 'keychain-cleanup',
+    'dmg-gatekeeper', 'output', 'keychain-cleanup', 'checkpoint-verification', 'awaiting-app-acceptance', 'awaiting-dmg-acceptance',
 })
 current_phase = 'dispatch'
 
@@ -66,13 +68,17 @@ def safe_signing_error(error):
         'MACOS_TEAM_ID must be a ten-character Apple team ID',
         'expected exactly one valid Developer ID Application identity for the team',
         'notarytool returned invalid JSON', 'final DMG is missing or empty',
+        'notarization pending or status unavailable; resume saved checkpoint',
+        'notarization rejected; checkpoint cannot be resubmitted',
+        'checkpoint signature or team mismatch', 'unsafe checkpoint app archive',
+        'notary response does not match submission',
         'MACOS_DEVELOPER_ID_P12_BASE64 missing or invalid base64',
         'APPLE_ASC_P8_BASE64 missing or invalid base64',
         'MACOS_DEVELOPER_ID_P12_BASE64 is empty', 'APPLE_ASC_P8_BASE64 is empty',
     }
     if message in allowed:
         return message
-    if re.fullmatch(r'(?:security|codesign|ditto|hdiutil|spctl|xcrun (?:notarytool submit|stapler (?:staple|validate))) (?:timed out|failed with exit status [0-9]{1,3})', message):
+    if re.fullmatch(r'(?:security|codesign|ditto|hdiutil|spctl|xcrun (?:notarytool (?:submit|wait|info)|stapler (?:staple|validate))) (?:timed out|failed with exit status [0-9]{1,3})', message):
         return message
     notary = re.fullmatch(r'(?:notary-app\.zip|ZolNit-[0-9.]+-macos-(?:arm64|x64)\.dmg) notarization not accepted: (Invalid|Rejected|In Progress|unknown)', message)
     if notary:
@@ -84,7 +90,7 @@ class SigningError(Exception):
     pass
 
 
-def run(args, *, stdin=None, timeout=1800):
+def run(args, *, stdin=None, timeout=1800, capture_stderr=False):
     label = ' '.join(str(x) for x in args[:3]) if str(args[0]) == 'xcrun' else str(args[0])
     try:
         result = subprocess.run([str(a) for a in args], input=stdin, stdout=subprocess.PIPE,
@@ -93,7 +99,7 @@ def run(args, *, stdin=None, timeout=1800):
         raise SigningError(f'{label} timed out') from error
     if result.returncode:
         raise SigningError(f'{label} failed with exit status {result.returncode}')
-    return result.stdout
+    return result.stdout + result.stderr if capture_stderr else result.stdout
 
 
 def security_command(*args):
@@ -260,54 +266,168 @@ def select_identity(output, team):
     return matches[0]
 
 
-def submit(path, key, key_id, issuer):
-    output = run(['xcrun', 'notarytool', 'submit', path, '--key', key, '--key-id', key_id,
-                  '--issuer', issuer, '--wait', '--timeout', '20m', '--output-format', 'json'], timeout=1320)
+def notary_response(output, submission_id):
     try:
         result = json.loads(output)
     except ValueError as error:
         raise SigningError('notarytool returned invalid JSON') from error
-    if result.get('status') != 'Accepted' or not isinstance(result.get('id'), str) or not result['id']:
-        status = result.get('status')
-        status = status if isinstance(status, str) and re.fullmatch(r'[A-Za-z ]{1,40}', status) else 'unknown'
-        raise SigningError(f'{path.name} notarization not accepted: {status}')
-    return result['id']
+    if not isinstance(result, dict) or result.get('id') != submission_id:
+        raise SigningError('notary response does not match submission')
+    return result.get('status')
 
 
-def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements):
-    phase('nested-signing')
-    helper, helper_entitlements = materialize_legacy_helper(app, scratch)
-    remove_launch_at_login_build_archives(app)
-    for item in nested_code(app):
-        command = ['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp']
-        if item == helper:
-            command.extend(['--entitlements', helper_entitlements])
-        run([*command, item])
-    phase('app-signing')
-    run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp',
-         '--entitlements', entitlements, app])
-    run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
-    zipped = scratch / 'notary-app.zip'
-    run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, zipped])
-    phase('app-notarization')
-    app_id = submit(zipped, key, key_id, issuer)
-    phase('app-stapling')
-    run(['xcrun', 'stapler', 'staple', app])
-    run(['xcrun', 'stapler', 'validate', app])
-    run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
-    phase('app-gatekeeper')
-    run(['spctl', '--assess', '--type', 'execute', '--verbose=2', app])
-    phase('dmg-creation')
-    staging = scratch / 'dmg-content'
-    staging.mkdir()
-    run(['ditto', app, staging / 'ZolNit.app'])
-    (staging / 'Applications').symlink_to('/Applications')
-    run(['hdiutil', 'create', '-volname', 'ZolNit', '-srcfolder', staging, '-format', 'UDZO', dmg])
-    phase('dmg-signing')
-    run(['codesign', '--force', '--sign', identity, '--timestamp', dmg])
-    run(['codesign', '--verify', '--strict', '--verbose=2', dmg])
+def submit(path, key, key_id, issuer, checkpoint, stage, app_id=None, wait_mode='wait'):
+    auth = ['--key', key, '--key-id', key_id, '--issuer', issuer, '--output-format', 'json']
+    if checkpoint.data is None or checkpoint.data['stage'] != stage:
+        submitted_path = checkpoint.reserve(path, stage, app_id)
+        output = run(['xcrun', 'notarytool', 'submit', submitted_path, '--no-wait', *auth], timeout=600)
+        try:
+            result = json.loads(output)
+            checkpoint.submitted(result.get('id'))
+        except (ValueError, AttributeError) as error:
+            raise SigningError('notarytool returned invalid JSON') from error
+    submission_id = checkpoint.data['submission_id']
+    pending.require(submission_id is not None, 'submission outcome unknown; reconcile with Apple before retrying')
+    pending.require(checkpoint.data['state'] != 'invalid', 'notarization rejected; checkpoint cannot be resubmitted')
+    if wait_mode == 'none':
+        return submission_id
+    try:
+        if wait_mode == 'info':
+            output = run(['xcrun', 'notarytool', 'info', submission_id, *auth], timeout=60)
+        else:
+            output = run(['xcrun', 'notarytool', 'wait', submission_id, '--timeout', '20m', *auth], timeout=1320)
+        status = notary_response(output, submission_id)
+    except SigningError:
+        try:
+            output = run(['xcrun', 'notarytool', 'info', submission_id, *auth], timeout=60)
+            status = notary_response(output, submission_id)
+        except SigningError as error:
+            raise SigningError('notarization pending or status unavailable; resume saved checkpoint') from error
+    checkpoint.status(status)
+    if status in ('Invalid', 'Rejected'):
+        raise SigningError('notarization rejected; checkpoint cannot be resubmitted')
+    if status != 'Accepted':
+        raise SigningError('notarization pending or status unavailable; resume saved checkpoint')
+    return submission_id
+
+
+def validate_app_zip(archive):
+    with zipfile.ZipFile(archive) as source:
+        names, total = set(), 0
+        for item in source.infolist():
+            name = item.filename.rstrip('/')
+            parts = name.split('/')
+            total += item.file_size
+            if (not parts or parts[0] not in ('ZolNit.app', '__MACOSX') or '\\' in name
+                    or any(p in ('', '.', '..') for p in parts) or name in names or item.flag_bits & 1
+                    or total > release.MAX_ARTIFACT_BYTES):
+                raise SigningError('unsafe checkpoint app archive')
+            names.add(name)
+            mode = item.external_attr >> 16
+            if stat.S_ISLNK(mode):
+                target = source.read(item).decode('utf-8')
+                resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
+                if target.startswith('/') or not resolved.startswith('ZolNit.app/'):
+                    raise SigningError('unsafe checkpoint app archive')
+            elif stat.S_IFMT(mode) not in (0, stat.S_IFDIR, stat.S_IFREG):
+                raise SigningError('unsafe checkpoint app archive')
+        links = {item.filename.rstrip('/') for item in source.infolist() if stat.S_ISLNK(item.external_attr >> 16)}
+        for name in names:
+            ancestors = name.split('/')[:-1]
+            if any('/'.join(ancestors[:i]) in links for i in range(1, len(ancestors) + 1)):
+                raise SigningError('unsafe checkpoint app archive')
+
+
+def verify_signature(path, team, *, runtime):
+    requirement = ('anchor apple generic and certificate leaf[subject.OU] = "' + team +
+                   '" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists')
+    run(['codesign', '--verify', '--strict', '-R', requirement, path])
+    detail = run(['codesign', '-d', '--verbose=4', path], capture_stderr=True)
+    if (f'TeamIdentifier={team}' not in detail.splitlines() or not re.search(r'^Timestamp=.+$', detail, re.M)
+            or (runtime and not re.search(r'^.*flags=.*\bruntime\b', detail, re.M))):
+        raise SigningError('checkpoint signature or team mismatch')
+
+
+def verify_app(app, team):
+    run(['codesign', '--verify', '--deep', '--strict', app])
+    for item in [*nested_code(app), app]:
+        verify_signature(item, team, runtime=True)
+
+
+def verify_pending_dmg(dmg, scratch, team):
+    verify_signature(dmg, team, runtime=False)
+    run(['hdiutil', 'verify', dmg])
+    mount = scratch / 'mounted-checkpoint'
+    mount.mkdir()
+    run(['hdiutil', 'attach', '-readonly', '-nobrowse', '-mountpoint', mount, dmg])
+    try:
+        app = mount / 'ZolNit.app'
+        if not app.is_dir() or app.is_symlink():
+            raise SigningError('checkpoint signature or team mismatch')
+        verify_app(app, team)
+        run(['xcrun', 'stapler', 'validate', app])
+    finally:
+        run(['hdiutil', 'detach', mount])
+
+
+def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements, checkpoint=None, mode='all'):
+    checkpoint = checkpoint or pending.Checkpoint(scratch / 'pending', {})
+    resumed = checkpoint.data is not None
+    stage = checkpoint.data['stage'] if resumed else None
+    pending.require(mode in ('all', 'app', 'dmg', 'final'), 'invalid signing stage')
+    pending.require(mode != 'final' or stage == 'dmg', 'finalization requires a DMG checkpoint')
+    pending.require(mode != 'dmg' or resumed, 'DMG stage requires an app checkpoint')
+    if mode == 'app' and stage == 'dmg':
+        phase('awaiting-app-acceptance')
+        return None
+    if stage != 'dmg':
+        zipped = scratch / 'notary-app.zip'
+        if not resumed:
+            phase('nested-signing')
+            helper, helper_entitlements = materialize_legacy_helper(app, scratch)
+            remove_launch_at_login_build_archives(app)
+            for item in nested_code(app):
+                command = ['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp']
+                if item == helper:
+                    command.extend(['--entitlements', helper_entitlements])
+                run([*command, item])
+            phase('app-signing')
+            run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp',
+                 '--entitlements', entitlements, app])
+            run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
+            run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, zipped])
+        else:
+            zipped = checkpoint.directory / pending.PAYLOADS['app']
+        phase('app-notarization')
+        app_id = submit(zipped, key, key_id, issuer, checkpoint, 'app',
+                        wait_mode='none' if mode == 'app' else ('info' if mode == 'dmg' else 'wait'))
+        if mode == 'app':
+            phase('awaiting-app-acceptance')
+            return None
+        phase('app-stapling')
+        run(['xcrun', 'stapler', 'staple', app])
+        run(['xcrun', 'stapler', 'validate', app])
+        run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
+        phase('app-gatekeeper')
+        run(['spctl', '--assess', '--type', 'execute', '--verbose=2', app])
+        phase('dmg-creation')
+        staging = scratch / 'dmg-content'
+        staging.mkdir()
+        run(['ditto', app, staging / 'ZolNit.app'])
+        (staging / 'Applications').symlink_to('/Applications')
+        run(['hdiutil', 'create', '-volname', 'ZolNit', '-srcfolder', staging, '-format', 'UDZO', dmg])
+        phase('dmg-signing')
+        run(['codesign', '--force', '--sign', identity, '--timestamp', dmg])
+        run(['codesign', '--verify', '--strict', '--verbose=2', dmg])
+    else:
+        app_id = checkpoint.data['app_notary_id']
+        shutil.copyfile(checkpoint.directory / pending.PAYLOADS['dmg'], dmg)
     phase('dmg-notarization')
-    dmg_id = submit(dmg, key, key_id, issuer)
+    dmg_id = submit(dmg, key, key_id, issuer, checkpoint, 'dmg', app_id,
+                    wait_mode='none' if mode == 'dmg' else ('info' if mode == 'final' else 'wait'))
+    if mode == 'dmg':
+        phase('awaiting-dmg-acceptance')
+        return None
     phase('dmg-stapling')
     run(['xcrun', 'stapler', 'staple', dmg])
     run(['xcrun', 'stapler', 'validate', dmg])
@@ -318,17 +438,23 @@ def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements)
     return app_id, dmg_id
 
 
-def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=None):
+def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=None, pending_dir=None, resume=None, mode='all', source_evidence=None):
     if context is None:
         context = release.Context(os.environ, '.')
     if version != context.version or arch not in ('arm64', 'x64'):
         raise SigningError('version or architecture mismatch')
-    names = {p.name for p in input_dir.iterdir() if p.is_file() and not p.is_symlink()}
-    listed = release.verify_sums(input_dir, names)
-    release.check_provenance((input_dir / 'source-provenance.txt').read_text(), context, 'macos', arch)
     zip_name = f'FlClash-macos-{arch}-release.zip'
-    if zip_name not in listed:
-        raise SigningError('same-run app archive missing')
+    if resume is None:
+        names = {p.name for p in input_dir.iterdir() if p.is_file() and not p.is_symlink()}
+        listed = release.verify_sums(input_dir, names)
+        release.check_provenance((input_dir / 'source-provenance.txt').read_text(), context, 'macos', arch)
+        if zip_name not in listed:
+            raise SigningError('same-run app archive missing')
+        input_digest = listed[zip_name]
+    else:
+        evidence = pending.source_evidence(resume, context, arch)
+        pending.require(source_evidence == evidence, 'checkpoint source or signer mismatch')
+        input_digest = evidence['input_sha256']
     if output_dir.exists():
         raise SigningError('output directory already exists')
     phase('credentials')
@@ -361,21 +487,41 @@ def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=
             run(['security', 'list-keychains', '-d', 'user', '-s', keychain, *original])
             phase('identity-selection')
             identity = select_identity(run(['security', 'find-identity', '-v', '-p', 'codesigning', keychain]), team)
+            binding = {'source_repository': release.REPOSITORY, 'core_sha': release.CORE, 'source_commit': context.sha,
+                       'source_run_id': context.run_id, 'version': version, 'arch': arch,
+                       'input_archive': zip_name, 'input_sha256': input_digest,
+                       'team_id': team, 'identity_sha1': identity}
+            if source_evidence is not None:
+                pending.require(source_evidence.get('input_sha256') == input_digest, 'checkpoint source or signer mismatch')
+                binding.update(source_evidence)
+            phase('checkpoint-verification')
+            checkpoint = pending.Checkpoint(pending_dir or scratch / 'pending', binding, resume)
             phase('app-extraction')
             unpacked = scratch / 'unpacked'
             unpacked.mkdir()
-            run(['ditto', '-x', '-k', input_dir / zip_name, unpacked])
             app = unpacked / 'ZolNit.app'
+            if checkpoint.data is None:
+                run(['ditto', '-x', '-k', input_dir / zip_name, unpacked])
+            else:
+                zipped = checkpoint.directory / pending.PAYLOADS['app']
+                validate_app_zip(zipped)
+                run(['ditto', '-x', '-k', zipped, unpacked])
+                verify_app(app, team)
+                if checkpoint.data['stage'] == 'dmg':
+                    verify_pending_dmg(checkpoint.directory / pending.PAYLOADS['dmg'], scratch, team)
             if not app.is_dir() or app.is_symlink():
                 raise SigningError('app archive has no ZolNit.app')
             dmg_name = f'ZolNit-{version}-macos-{arch}.dmg'
             dmg = scratch / dmg_name
-            app_id, dmg_id = sign_package(app, dmg, scratch, identity, key, key_id, issuer,
-                                          entitlements or Path('macos/Runner/Release.entitlements'))
+            result = sign_package(app, dmg, scratch, identity, key, key_id, issuer,
+                                  entitlements or Path('macos/Runner/Release.entitlements'), checkpoint, mode)
+            if result is None:
+                return
+            app_id, dmg_id = result
             if not dmg.is_file() or not dmg.stat().st_size:
                 raise SigningError('final DMG is missing or empty')
             receipt = {'schema_version': 1, 'source_commit': context.sha, 'run_id': context.run_id,
-                       'arch': arch, 'input_archive': zip_name, 'input_sha256': listed[zip_name],
+                       'arch': arch, 'input_archive': zip_name, 'input_sha256': input_digest,
                        'dmg': dmg_name, 'dmg_sha256': release.sha256_file(dmg),
                        'team_id': team, 'identity_sha1': identity, 'app_notary_id': app_id,
                        'dmg_notary_id': dmg_id, 'verification': 'developer-id-notarized-stapled'}
@@ -395,6 +541,8 @@ def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=
             except Exception:
                 phase('keychain-cleanup')
                 raise
+        if pending_dir is not None and Path(pending_dir).exists():
+            shutil.rmtree(pending_dir)
 
 
 def main():
@@ -403,6 +551,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--version', required=True)
     parser.add_argument('--arch', required=True)
+    parser.add_argument('--pending-output', type=Path)
     args = parser.parse_args()
     os.umask(0o077)
     def interrupted(signum, _frame):
@@ -410,9 +559,11 @@ def main():
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGHUP, interrupted)
     try:
-        prepare(args.input, args.output, args.version, args.arch)
-    except (SigningError, release.ReleaseError, OSError, ValueError, KeyError) as error:
-        print(f'::error::{error}', file=sys.stderr)
+        prepare(args.input, args.output, args.version, args.arch,
+                pending_dir=args.pending_output or args.output.with_name(args.output.name + '-pending'))
+    except Exception as error:
+        detail = safe_signing_error(error) if isinstance(error, SigningError) else 'details withheld'
+        print(f'::error::macos-signing phase={current_phase}: {detail}', file=sys.stderr)
         return 1
     return 0
 

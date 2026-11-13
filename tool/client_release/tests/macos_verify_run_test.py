@@ -57,7 +57,7 @@ class VerifyRunTest(unittest.TestCase):
         self.output = self.root / 'result'
         self.github = SourceGitHub()
 
-    def signer(self, directory, output, version, arch, *, context, entitlements):
+    def signer(self, directory, output, version, arch, *, context, entitlements, **kwargs):
         self.assertEqual(context.sha, SHA)
         self.assertEqual(context.run_id, RUN_ID)
         self.assertEqual(context.run_number, RUN_NUMBER)
@@ -68,7 +68,7 @@ class VerifyRunTest(unittest.TestCase):
         (output / 'signed.dmg').write_bytes(b'verified')
 
     def execute(self, arch='arm64'):
-        verify.verify_and_sign(self.github, str(RUN_ID), TAG, arch, self.output)
+        verify.verify_and_sign(self.github, str(RUN_ID), TAG, arch, self.output, start_new=True)
 
     def test_both_architectures_use_verified_context_and_artifact(self):
         for arch in ('arm64', 'x64'):
@@ -78,6 +78,29 @@ class VerifyRunTest(unittest.TestCase):
                         mock.patch.object(verify.signing, 'prepare', side_effect=self.signer):
                     self.execute(arch)
                 self.assertEqual((self.output / 'signed.dmg').read_bytes(), b'verified')
+
+    def test_resume_does_not_download_expired_original_artifacts(self):
+        from macos_pending_test import BINDING, ID1
+        checkpoint = self.root / 'checkpoint'
+        checkpoint.mkdir()
+        (checkpoint / 'pending-receipt.json').write_text(json.dumps({'binding': {
+            **BINDING, 'source_commit': SHA, 'source_run_id': RUN_ID}}))
+        self.github.artifacts = lambda _run: self.fail('original artifacts must not be listed on resume')
+        def resumed(directory, output, version, arch, **kwargs):
+            self.assertIsNone(directory)
+            self.assertEqual(kwargs['resume'], checkpoint)
+            self.assertEqual(kwargs['source_evidence']['source_artifact_id'], 100)
+            output.mkdir()
+        with mock.patch.object(verify.pending, 'select_checkpoint', return_value=checkpoint), \
+                mock.patch.object(verify.signing, 'prepare', side_effect=resumed):
+            verify.verify_and_sign(self.github, str(RUN_ID), TAG, 'arm64', self.output,
+                                   pending_output=self.root / 'pending', resume_artifact='123')
+        self.assertTrue(self.output.exists())
+
+    def test_first_manual_submission_requires_explicit_start_new(self):
+        with mock.patch.object(verify.signing, 'prepare') as signer, self.assertRaisesRegex(verify.pending.PendingError, 'explicit approval'):
+            verify.verify_and_sign(self.github, str(RUN_ID), TAG, 'arm64', self.output)
+        signer.assert_not_called()
 
     def test_rejects_failed_foreign_and_wrong_run_before_signing(self):
         cases = [
@@ -138,7 +161,7 @@ class VerifyRunTest(unittest.TestCase):
 
     def test_failure_receipt_is_safe_and_identifies_phase(self):
         args = ['macos_verify_run.py', '--source-run-id', str(RUN_ID), '--source-tag', TAG,
-                '--arch', 'arm64', '--output', str(self.output)]
+                '--arch', 'arm64', '--output', str(self.output), '--pending-output', str(self.root / 'pending')]
         samples = [
             (verify.signing.SigningError('expected exactly one valid Developer ID Application identity for the team'),
              'expected exactly one valid Developer ID Application identity for the team'),
@@ -152,7 +175,7 @@ class VerifyRunTest(unittest.TestCase):
             with self.subTest(failure=type(failure).__name__), mock.patch.dict(os.environ, dispatch(), clear=True), \
                     mock.patch.object(sys, 'argv', args), mock.patch('sys.stderr', new_callable=io.StringIO) as err, \
                     mock.patch('sys.stdout', new_callable=io.StringIO) as out:
-                def fail(*_args):
+                def fail(*_args, **_kwargs):
                     verify.signing.phase('identity-selection')
                     raise failure
                 with mock.patch.object(verify, 'verify_and_sign', side_effect=fail):
@@ -172,7 +195,7 @@ class VerifyRunTest(unittest.TestCase):
                 with self.assertRaises(release.ReleaseError):
                     verify.check_dispatch(dispatch(**changes))
                 args = ['macos_verify_run.py', '--source-run-id', str(RUN_ID), '--source-tag', TAG,
-                        '--arch', 'arm64', '--output', str(self.output)]
+                        '--arch', 'arm64', '--output', str(self.output), '--pending-output', str(self.root / 'pending')]
                 with mock.patch.dict(os.environ, dispatch(**changes), clear=True), mock.patch.object(sys, 'argv', args), \
                         mock.patch.object(verify, 'verify_and_sign') as sign, mock.patch('sys.stderr', new_callable=io.StringIO):
                     self.assertEqual(verify.main(), 1)
