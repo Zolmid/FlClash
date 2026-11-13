@@ -1517,7 +1517,7 @@
   "zolnitManageRenewals": "自動更新を管理",
   "zolnitBundleFetchHint": "接続設定を取得",
   "zolnitBundleExpired": "自動サーバー選択の情報が古くなっています。更新してください。手動選択と直接接続は引き続き使えます。",
-  "zolnitBundleRefreshFailed": "接続設定を更新できませんでした。手動・直接接続は利用できます。",
+  "zolnitBundleRefreshFailed": "接続設定を更新できませんでした。しばらくしてからもう一度お試しください。",
   "zolnitBundleForbidden": "このアカウントの接続設定を取得できません。プランと通信量を確認してください。",
   "zolnitBundleInvalid": "接続設定の検証に失敗したため、自動選択を一時停止しました。",
   "zolnitBundleInvalidWhenStopped": "VPN 設定を検証できませんでした。「接続」を選ぶと再取得します。",

@@ -86,7 +86,10 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
       ZolnitBundleStatus.expired => l10n.zolnitBundleExpired,
       ZolnitBundleStatus.forbidden => l10n.zolnitBundleForbidden,
       ZolnitBundleStatus.invalid => l10n.zolnitBundleInvalid,
-      ZolnitBundleStatus.refreshFailed => l10n.zolnitBundleRefreshFailed,
+      ZolnitBundleStatus.refreshFailed =>
+        bundle == null
+            ? l10n.zolnitBundleUnavailable
+            : l10n.zolnitBundleRefreshFailed,
       ZolnitBundleStatus.unavailable => l10n.zolnitBundleUnavailable,
       ZolnitBundleStatus.loading => l10n.loading,
       _ =>

@@ -2868,7 +2868,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Пока нет подтверждённых серверов для автовыбора. Выберите сервер вручную или используйте прямое подключение.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
-      "Не удалось обновить настройки подключения. Ручной выбор и прямое подключение доступны.",
+      "Не удалось обновить настройки подключения. Повторите попытку позже.",
     ),
     "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
       "Не удалось загрузить настройки подключения. Повторите попытку чуть позже.",

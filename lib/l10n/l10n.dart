@@ -13094,10 +13094,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Could not refresh the connection configuration. Manual and direct choices remain available.`
+  /// `Couldn't update connection settings. Try again later.`
   String get zolnitBundleRefreshFailed {
     return Intl.message(
-      'Could not refresh the connection configuration. Manual and direct choices remain available.',
+      'Couldn\'t update connection settings. Try again later.',
       name: 'zolnitBundleRefreshFailed',
       desc: '',
       args: [],

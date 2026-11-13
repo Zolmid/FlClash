@@ -2702,7 +2702,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
-      "Could not refresh the connection configuration. Manual and direct choices remain available.",
+      "Couldn\'t update connection settings. Try again later.",
     ),
     "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
       "Connection settings couldn\'t be loaded. Try again shortly.",

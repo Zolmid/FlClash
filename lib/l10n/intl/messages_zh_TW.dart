@@ -2065,7 +2065,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "暫無可供自動選擇的已確認線路，請手動選擇線路或使用直連。",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
-      "連線設定更新失敗。手動或直連仍可使用。",
+      "連線資訊更新失敗，請稍後重試。",
     ),
     "zolnitBundleUnavailable": MessageLookupByLibrary.simpleMessage(
       "暫時無法取得連線設定，請稍後重試。",

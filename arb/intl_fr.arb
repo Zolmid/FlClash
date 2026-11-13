@@ -1517,7 +1517,7 @@
   "zolnitManageRenewals": "Gérer le renouvellement automatique",
   "zolnitBundleFetchHint": "Obtenir la configuration de connexion",
   "zolnitBundleExpired": "Le choix automatique de serveur n’est plus à jour. Actualisez-le ; les choix manuel et direct restent disponibles.",
-  "zolnitBundleRefreshFailed": "Impossible d’actualiser la configuration. Les choix manuel et direct restent disponibles.",
+  "zolnitBundleRefreshFailed": "Impossible de mettre à jour les paramètres de connexion. Réessayez plus tard.",
   "zolnitBundleForbidden": "La configuration n’est pas disponible pour ce compte. Vérifiez le forfait et le trafic restant.",
   "zolnitBundleInvalid": "La validation de la configuration a échoué. La sélection automatique est suspendue.",
   "zolnitBundleInvalidWhenStopped": "La configuration VPN n’a pas pu être vérifiée. Sélectionnez « Se connecter » pour la récupérer à nouveau.",

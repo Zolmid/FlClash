@@ -11,6 +11,7 @@ import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:fl_clash/views/zolnit/bundle_routing.dart';
+import 'package:fl_clash/views/zolnit/data.dart';
 import 'package:fl_clash/views/zolnit/node_groups.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -170,9 +171,10 @@ void main() {
     WidgetTester tester, {
     ZolnitSkin skin = ZolnitSkin.macos,
   }) async {
-    await tester.runAsync(
-      () => loadZolnitRouteMetadata(fixture.session.clientBundle!),
-    );
+    final bundle = fixture.session.clientBundle;
+    if (bundle != null) {
+      await tester.runAsync(() => loadZolnitRouteMetadata(bundle));
+    }
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -546,6 +548,44 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final cached in [true, false]) {
+    testWidgets(
+      'refresh failure copy distinguishes retained settings ($cached)',
+      (tester) async {
+        if (!cached) await tester.runAsync(() => fixture.session.logout());
+        container
+            .read(zolnitBundleStatusProvider.notifier)
+            .set(ZolnitBundleStatus.refreshFailed);
+        final message = cached
+            ? "Couldn't update connection settings. Try again later."
+            : "Connection settings couldn't be loaded. Try again shortly.";
+        await mount(tester);
+        expect(
+          tester.widget<Text>(find.byKey(const ValueKey('bundle-status'))).data,
+          message,
+        );
+        await tester.pumpWidget(
+          TestApp(
+            includeNavigatorKey: false,
+            locale: const Locale('en'),
+            child: Builder(
+              builder: (context) => Text(
+                zolnitConfigurationMessage(
+                  context,
+                  fixture.session,
+                  ZolnitBundleStatus.refreshFailed,
+                  privateTransport: true,
+                )!,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(message), findsOneWidget);
+      },
+    );
+  }
 
   testWidgets(
     'expired failed refresh disables auto but keeps manual and direct controls',
