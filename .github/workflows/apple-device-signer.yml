@@ -129,27 +129,40 @@ jobs:
           echo "ZOLNIT_SOURCE_DIR=$source_dir" >> "$GITHUB_ENV"
           echo "ZOLNIT_SOURCE_SHA=$tag_sha" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-go@v5
+      - name: Reuse an archive already uploaded for this exact source
+        id: resume
         if: env.OPERATION == 'archive'
+        env:
+          CORE_SHA: ${{ vars.APPLE_DEVICE_SIGNER_CORE_SHA }}
+        run: |
+          set -euo pipefail
+          python3 "$ZOLNIT_TOOLS_DIR/tool/apple_distribution/device_signer.py" archive-resume \
+            --source-dir "$ZOLNIT_SOURCE_DIR" \
+            --source-tag "$SOURCE_TAG" \
+            --core-sha "$CORE_SHA" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        if: env.OPERATION == 'archive' && steps.resume.outputs.prepared == 'false'
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: source/core/go.sum
 
       - name: Install Rust iOS target
-        if: env.OPERATION == 'archive'
+        if: env.OPERATION == 'archive' && steps.resume.outputs.prepared == 'false'
         run: |
           rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
           rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-apple-ios
 
       - uses: subosito/flutter-action@v2
-        if: env.OPERATION == 'archive'
+        if: env.OPERATION == 'archive' && steps.resume.outputs.prepared == 'false'
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Build unsigned direct archive, pack, upload, and register archive-ready
-        if: env.OPERATION == 'archive'
+        if: env.OPERATION == 'archive' && steps.resume.outputs.prepared == 'false'
         env:
           CORE_SHA: ${{ vars.APPLE_DEVICE_SIGNER_CORE_SHA }}
         run: |

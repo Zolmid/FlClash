@@ -11,6 +11,8 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
+import urllib.error
 from datetime import datetime, timedelta, timezone
 import zipfile
 
@@ -123,6 +125,20 @@ class FakeTransport:
 class Profile:
     def __init__(self, days):
         self.expires = datetime.now(timezone.utc) + timedelta(days=days)
+
+
+class ResumeTransport:
+    def __init__(self, status, error):
+        self.status, self.error, self.registered = status, error, []
+
+    def archive_status(self, tag, source_sha, build):
+        if self.error:
+            raise self.error
+        return dict(self.status) if self.status else None
+
+    def register_archive(self, tag, source_sha, build, stored):
+        self.registered.append((tag, source_sha, build, stored))
+        return {**stored, 'state': 'ready'}
 
 
 class PackerTests(unittest.TestCase):
@@ -546,6 +562,67 @@ class ExportDirectTests(unittest.TestCase):
 
 
 class TransportRecoveryTests(unittest.TestCase):
+    def head(self, status=200, **headers):
+        values = {'X-Archive-Tag': TAG, 'X-Source-Sha': SOURCE, 'X-Archive-Sha256': 'e' * 64, 'Content-Length': '2048'}
+        values.update(headers)
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            if status != 200:
+                raise urllib.error.HTTPError(request.full_url, status, 'x', {}, None)
+            return Response(request, b'', headers={k: v for k, v in values.items() if v is not None})
+        client = SigningTransport(lambda: 'oidc-token', Opener(handle), now=lambda: 1000)
+        return client, requests
+
+    def test_archive_status_head_contract(self):
+        client, requests = self.head()
+        self.assertEqual(client.archive_status(TAG, SOURCE, BUILD), {
+            'archive_key': 'apple-adhoc/archives/v1.1.4/ZolNit-1.1.4-ios-arm64.xcarchive.zip',
+            'archive_sha256': 'e' * 64, 'archive_size': 2048})
+        request = requests[0]
+        self.assertEqual((request.get_method(), request.full_url), ('HEAD', ORIGIN + '/__release/v1/apple/archives/' + TAG))
+        self.assertEqual(request.get_header('Authorization'), 'Bearer oidc-token')
+        client, _ = self.head(404)
+        self.assertIsNone(client.archive_status(TAG, SOURCE, BUILD))
+
+    def test_archive_status_fails_closed_on_wrong_metadata_or_other_http(self):
+        bad = [{'X-Archive-Tag': 'v1.1.3'}, {'X-Source-Sha': 'a' * 40}, {'X-Archive-Sha256': 'E' * 64},
+               {'X-Archive-Sha256': None}, {'Content-Length': '100'}, {'Content-Length': None}, {'Content-Length': '01024'}]
+        for headers in bad:
+            with self.subTest(headers=headers):
+                client, _ = self.head(**headers)
+                with self.assertRaisesRegex(TransportError, 'archive_status_mismatch'):
+                    client.archive_status(TAG, SOURCE, BUILD)
+        for status in [403, 409, 410, 500, 503]:
+            with self.subTest(status=status):
+                client, _ = self.head(status)
+                with self.assertRaisesRegex(TransportError, 'signing_http_' + str(status)):
+                    client.archive_status(TAG, SOURCE, BUILD)
+        redirected = Opener(lambda r: Response(r, b'', url='https://evil.example.com/x'))
+        with self.assertRaisesRegex(TransportError, 'signing_redirect_rejected'):
+            SigningTransport(lambda: 'oidc', redirected, now=lambda: 1000).archive_status(TAG, SOURCE, BUILD)
+
+    def test_archive_resume_registers_existing_ready_without_building(self):
+        ready = {'archive_key': 'apple-adhoc/archives/v1.1.4/ZolNit-1.1.4-ios-arm64.xcarchive.zip', 'archive_sha256': 'e' * 64, 'archive_size': 2048}
+        identity = {'tag': TAG, 'source_sha': SOURCE, 'build': BUILD, 'core_sha': CORE}
+        for status, expected in [(ready, True), (None, False)]:
+            transport = ResumeTransport(status, None)
+            with mock.patch.object(device_signer, 'release_identity', return_value=dict(identity)) as identity_check:
+                result = device_signer.archive_resume(Path('/src'), TAG, CORE, transport)
+            identity_check.assert_called_once()
+            self.assertEqual(result['prepared'], expected)
+            self.assertEqual(transport.registered, [(TAG, SOURCE, BUILD, ready)] if expected else [])
+        for error in [TransportError('archive_status_mismatch'), TransportError('signing_http_503')]:
+            transport = ResumeTransport(None, error)
+            with mock.patch.object(device_signer, 'release_identity', return_value=dict(identity)), self.assertRaises(TransportError):
+                device_signer.archive_resume(Path('/src'), TAG, CORE, transport)
+            self.assertEqual(transport.registered, [])
+        transport = ResumeTransport(ready, None)
+        with mock.patch.object(device_signer, 'release_identity', side_effect=PackError('source_core_mismatch')), self.assertRaises(PackError):
+            device_signer.archive_resume(Path('/src'), TAG, CORE, transport)
+        self.assertEqual(transport.registered, [])
+
     def test_multipart_signed_upload_satisfies_worker_part_contract(self):
         job = self.job()
         now = 1000
@@ -615,6 +692,25 @@ class TransportRecoveryTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_archive_resume_cli_writes_plain_boolean_only_after_success(self):
+        identity = {'tag': TAG, 'source_sha': SOURCE, 'build': BUILD, 'core_sha': CORE}
+        ready = {'archive_key': 'apple-adhoc/archives/v1.1.4/ZolNit-1.1.4-ios-arm64.xcarchive.zip', 'archive_sha256': 'e' * 64, 'archive_size': 2048}
+        cases = [(ready, None, 0, 'prepared=true\n'), (None, None, 0, 'prepared=false\n'),
+                 (None, TransportError('archive_status_mismatch'), 2, ''), (None, TransportError('signing_http_503'), 2, '')]
+        for status, error, code, written in cases:
+            with self.subTest(written=written, error=str(error)), tempfile.TemporaryDirectory() as temp:
+                output = Path(temp) / 'github_output'
+                output.write_text('')
+                transport = ResumeTransport(status, error)
+                with mock.patch.object(device_signer, 'release_identity', return_value=dict(identity)), \
+                        mock.patch.object(device_signer, 'SigningTransport', return_value=transport), \
+                        mock.patch.object(device_signer, 'GitHubOIDC'):
+                    result = device_signer.main(['archive-resume', '--source-dir', temp, '--source-tag', TAG,
+                                                 '--core-sha', CORE, '--github-output', str(output)],
+                                                environ={'ZOLNIT_APPLE_DEVICE_SIGNING_ENABLED': 'true'})
+                self.assertEqual((result, output.read_text()), (code, written))
+                self.assertEqual(transport.registered, [(TAG, SOURCE, BUILD, ready)] if status else [])
+
     def test_every_mode_is_disabled_by_default(self):
         for argv in [['sign-one', '--config', '/x', '--workdir-root', '/tmp'], ['archive-publish', '--receipt', '/x']]:
             self.assertEqual(device_signer.main(argv, environ={}), 3)

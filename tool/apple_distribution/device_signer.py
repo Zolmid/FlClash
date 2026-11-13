@@ -291,6 +291,17 @@ def archive_publish(receipt_path: Path, transport) -> dict:
     return transport.register_archive(receipt['tag'], receipt['source_sha'], receipt['build'], stored)
 
 
+def archive_resume(source: Path, tag: str, core_sha: str, transport, runner=run_argv) -> dict:
+    """Register an archive the edge already holds for this exact source instead of rebuilding a new binary."""
+    identity = release_identity(source, tag, core_sha, runner)
+    existing = transport.archive_status(identity['tag'], identity['source_sha'], identity['build'])
+    if existing is None:
+        return {'prepared': False, **identity}
+    data = transport.register_archive(identity['tag'], identity['source_sha'], identity['build'], existing)
+    return {'prepared': True, **identity, 'archive_key': data['archive_key'],
+            'archive_sha256': data['archive_sha256'], 'archive_size': data['archive_size']}
+
+
 def run_sign_one(args, env) -> dict:
     config = load_config(Path(args.config))
     verify_signing_identity(config, run_argv)
@@ -324,6 +335,11 @@ def parse_args(argv):
     prepare.add_argument('--receipt', required=True)
     publish = modes.add_parser('archive-publish', help='upload the packed archive and register it archive-ready')
     publish.add_argument('--receipt', required=True)
+    resume = modes.add_parser('archive-resume', help='before building, register an already uploaded archive for this exact source')
+    resume.add_argument('--source-dir', required=True)
+    resume.add_argument('--source-tag', required=True)
+    resume.add_argument('--core-sha', required=True)
+    resume.add_argument('--github-output')
     sign = modes.add_parser('sign-one', help='claim and process at most one queued device job')
     sign.add_argument('--config', required=True)
     sign.add_argument('--workdir-root', required=True)
@@ -344,6 +360,12 @@ def main(argv=None, environ=None) -> int:
         elif args.mode == 'archive-publish':
             data = archive_publish(Path(args.receipt), SigningTransport(GitHubOIDC(env)))
             print(json.dumps({'mode': args.mode, 'state': data['state'], 'archive_key': data['archive_key'], 'archive_sha256': data['archive_sha256']}))
+        elif args.mode == 'archive-resume':
+            result = archive_resume(Path(args.source_dir), args.source_tag, args.core_sha, SigningTransport(GitHubOIDC(env)))
+            if args.github_output:
+                with open(args.github_output, 'a', encoding='utf-8') as output:
+                    output.write('prepared=' + ('true' if result['prepared'] else 'false') + '\n')
+            print(json.dumps({'mode': args.mode, **result}))
         else:
             result = run_sign_one(args, env)
             print(json.dumps({'mode': args.mode, **result}))

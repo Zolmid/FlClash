@@ -124,6 +124,12 @@ marks the lease lost. The cancellable runner then kills the active process group
 `xcodebuild` or `codesign`, and no upload or completion follows. Transient completion failures are
 retried three times, and a later run recovers through the status endpoint.
 
+`archive-resume` runs before any build. It first proves the clean source checkout (tag commit,
+pubspec build, and Core gitlink), then sends `HEAD /__release/v1/apple/archives/{tag}`. Only a 404 allows
+a rebuild (`prepared=false`). A 200 must carry exactly this tag and source SHA, a lowercase digest, and a
+bounded length. That archive is then registered archive-ready under the canonical key, and nothing is
+rebuilt (`prepared=true`). Any other status, header mismatch, or redirect fails the run without building.
+
 Each multipart PUT carries `X-Content-Sha256` (lowercase hex of that part) together with
 `X-Final-Part` and, for signed uploads, `X-Signing-Lease`. A permanent provisioning, archive, or export
 failure that happens before upload starts is reported once, while the lease is still live, as

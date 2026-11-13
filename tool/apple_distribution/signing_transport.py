@@ -135,6 +135,27 @@ class SigningTransport:
             raise TransportError('archive_registration_mismatch')
         return data
 
+    def archive_status(self, tag, source_sha, build):
+        """Metadata of the ready archive for this exact source, None only on 404; every other answer fails closed."""
+        if (not isinstance(tag, str) or not TAG.fullmatch(tag) or not isinstance(source_sha, str)
+                or not re.fullmatch(r'[a-f0-9]{40}', source_sha) or type(build) is not int or not 1 <= build <= 2147483647):
+            raise TransportError('release_identity_invalid')
+        try:
+            response = self._open(EDGE + '/archives/' + tag, 'HEAD')
+        except TransportError as error:
+            if str(error) == 'signing_http_404':
+                return None
+            raise
+        with response:
+            headers = response.headers
+            length = headers.get('Content-Length') or ''
+            digest = headers.get('X-Archive-Sha256') or ''
+            if (response.status != 200 or headers.get('X-Archive-Tag') != tag or headers.get('X-Source-Sha') != source_sha
+                    or not SHA.fullmatch(digest) or not re.fullmatch(r'[1-9][0-9]{0,9}', length)
+                    or not 1024 <= int(length) <= MAX_BYTES):
+                raise TransportError('archive_status_mismatch')
+        return {'archive_key': expected_archive_key(tag), 'archive_sha256': digest, 'archive_size': int(length)}
+
     def signed_status(self, job):
         """Return stored signed metadata for a live lease, or None when the Worker reports state missing."""
         validate_job(job, int(self.now()))
