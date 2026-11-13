@@ -2,6 +2,60 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.5",
+      "tag": "v1.1.5",
+      "date": "2026-11-14",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "6e60440",
+              "text": "Install signed and notarized Mac updates."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "622b700",
+              "text": "Avoid unnecessary retry instructions when connection information is temporarily unavailable."
+            },
+            {
+              "id": "ae3ebe9",
+              "text": "Show consistent connection information on the home and server pages."
+            },
+            {
+              "id": "1f67d38",
+              "text": "Restore launch at login support on macOS 12."
+            },
+            {
+              "id": "b07fcf7",
+              "text": "Improve Mac installer compatibility."
+            },
+            {
+              "id": "43cc308",
+              "text": "Improve the checks used to prepare Mac installers."
+            },
+            {
+              "id": "ae79772",
+              "text": "Improve background connection refreshes on iPhone and iPad."
+            },
+            {
+              "id": "29fe94e",
+              "text": "Find iPhone and iPad updates automatically and open the correct installation page."
+            },
+            {
+              "id": "479db01",
+              "text": "Avoid unnecessary VPN restart reminders after returning to the app on iPhone or iPad."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.4",
       "tag": "v1.1.4",
       "date": "2026-11-08",

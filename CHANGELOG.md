@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.1.5 (2026-11-14)
+
+**Features**
+
+- Install signed and notarized Mac updates. (6e60440)
+
+**Bug Fixes**
+
+- Avoid unnecessary retry instructions when connection information is temporarily unavailable. (622b700)
+- Show consistent connection information on the home and server pages. (ae3ebe9)
+- Restore launch at login support on macOS 12. (1f67d38)
+- Improve Mac installer compatibility. (b07fcf7)
+- Improve the checks used to prepare Mac installers. (43cc308)
+- Improve background connection refreshes on iPhone and iPad. (ae79772)
+- Find iPhone and iPad updates automatically and open the correct installation page. (29fe94e)
+- Avoid unnecessary VPN restart reminders after returning to the app on iPhone or iPad. (479db01)
+
 ## v1.1.4 (2026-11-08)
 
 **Bug Fixes**
