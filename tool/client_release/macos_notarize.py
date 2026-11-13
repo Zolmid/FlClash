@@ -139,8 +139,9 @@ def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements)
     return app_id, dmg_id
 
 
-def prepare(input_dir, output_dir, version, arch):
-    context = release.Context(os.environ, '.')
+def prepare(input_dir, output_dir, version, arch, *, context=None, entitlements=None):
+    if context is None:
+        context = release.Context(os.environ, '.')
     if version != context.version or arch not in ('arm64', 'x64'):
         raise SigningError('version or architecture mismatch')
     names = {p.name for p in input_dir.iterdir() if p.is_file() and not p.is_symlink()}
@@ -183,7 +184,7 @@ def prepare(input_dir, output_dir, version, arch):
             dmg_name = f'ZolNit-{version}-macos-{arch}.dmg'
             dmg = scratch / dmg_name
             app_id, dmg_id = sign_package(app, dmg, scratch, identity, key, key_id, issuer,
-                                          Path('macos/Runner/Release.entitlements'))
+                                          entitlements or Path('macos/Runner/Release.entitlements'))
             if not dmg.is_file() or not dmg.stat().st_size:
                 raise SigningError('final DMG is missing or empty')
             receipt = {'schema_version': 1, 'source_commit': context.sha, 'run_id': context.run_id,

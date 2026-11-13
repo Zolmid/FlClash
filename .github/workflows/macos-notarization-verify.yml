@@ -1,0 +1,70 @@
+name: macOS notarization verification
+run-name: macOS notarization verification · ${{ inputs.source_tag || 'disabled' }}
+
+on:
+  push:
+    branches: [codex/native-client-shared]
+    paths:
+      - .github/workflows/macos-notarization-verify.yml
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful formal release run containing the source artifacts
+        type: string
+        required: true
+        default: '42474933687'
+      source_tag:
+        description: Tag that must resolve to the source run commit
+        type: string
+        required: true
+        default: v1.1.4
+
+permissions: {}
+
+jobs:
+  verify:
+    name: Notarize verification · ${{ matrix.arch }}
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref == 'refs/heads/codex/native-client-shared' && vars.MACOS_NOTARIZATION_VERIFY_ENABLED == 'true'
+    runs-on: xcode-27
+    environment: macos-distribution
+    timeout-minutes: 100
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Select Xcode 27.1
+        run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          [[ "$(xcrun --sdk macosx --show-sdk-version)" == 27.* ]]
+      - name: Verify source, sign and notarize
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_NOTARIZATION_VERIFY_ENABLED: ${{ vars.MACOS_NOTARIZATION_VERIFY_ENABLED }}
+          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          MACOS_TEAM_ID: ${{ vars.MACOS_TEAM_ID }}
+          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_P8_BASE64: ${{ secrets.APPLE_ASC_P8_BASE64 }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+          SOURCE_ARCH: ${{ matrix.arch }}
+        run: python3 tool/client_release/macos_verify_run.py --source-run-id "$SOURCE_RUN_ID" --source-tag "$SOURCE_TAG" --arch "$SOURCE_ARCH" --output "$RUNNER_TEMP/macos-verification"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-notarization-verification-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/macos-verification/
+          if-no-files-found: error
+          retention-days: 7
