@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,16 +12,20 @@ import plistlib
 import re
 import secrets
 import signal
+import stat
 import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 
 import assemble_release as release
 
 MACHO_MAGIC = {bytes.fromhex(x) for x in ('feedface', 'cefaedfe', 'feedfacf', 'cffaedfe',
                                              'cafebabe', 'bebafeca', 'cafebabf', 'bfbafeca')}
 BUNDLES = {'.framework', '.app', '.xpc', '.appex', '.bundle', '.plugin'}
+LEGACY_HELPER_SHA256 = '0a3d09438fb595802d554ce0a7c4ba8e1d2d91d5170362adc965da82e70d74cb'
+HELPER_NAME = 'LaunchAtLoginHelper.app'
 
 
 PHASES = frozenset({
@@ -51,6 +56,10 @@ def safe_signing_error(error):
         'unexpected Core manifest: macOS helper hash binding requires review',
         'unexpected privileged Helper: embedded Core hash requires review',
         'bundled FlClashCore Mach-O is missing', 'app executable is missing',
+        'invalid main app metadata', 'legacy helper path must not be a symlink',
+        'legacy helper archive path must not be a symlink',
+        'legacy helper archive missing or checksum mismatch', 'unsafe legacy helper archive',
+        'invalid legacy helper archive', 'invalid legacy helper metadata or entitlements',
         'LaunchAtLogin resource directory must not be a symlink',
         'LaunchAtLogin build archive must not be a symlink',
         'LaunchAtLogin build archive must be a regular file',
@@ -107,6 +116,96 @@ def decode_secret(name, destination):
         raise SigningError(f'{name} is empty')
     destination.write_bytes(value)
     destination.chmod(0o600)
+
+
+def materialize_legacy_helper(app, scratch):
+    try:
+        main_info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+        identifier = main_info['CFBundleIdentifier']
+        minimum = main_info['LSMinimumSystemVersion']
+        if not isinstance(identifier, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]*', identifier):
+            raise ValueError('invalid identifier')
+        if not isinstance(minimum, str) or not re.fullmatch(r'[0-9]+(?:\.[0-9]+){0,2}', minimum):
+            raise ValueError('invalid minimum')
+        version = tuple(int(x) for x in minimum.split('.'))
+    except (OSError, ValueError, KeyError, TypeError, plistlib.InvalidFileException) as error:
+        raise SigningError('invalid main app metadata') from error
+    helper = app / 'Contents/Library/LoginItems' / HELPER_NAME
+    for part in (app / 'Contents', app / 'Contents/Library', helper.parent, helper):
+        if part.is_symlink():
+            raise SigningError('legacy helper path must not be a symlink')
+    resources = app / 'Contents/Resources/LaunchAtLogin_LaunchAtLogin.bundle/Contents/Resources'
+    created = False
+    if not helper.exists() and version < (13,):
+        archive = resources / 'LaunchAtLoginHelper.zip'
+        for part in (app / 'Contents/Resources', resources.parent.parent, resources.parent, resources, archive):
+            if part.is_symlink():
+                raise SigningError('legacy helper archive path must not be a symlink')
+        if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != LEGACY_HELPER_SHA256:
+            raise SigningError('legacy helper archive missing or checksum mismatch')
+        try:
+            with zipfile.ZipFile(archive) as source:
+                members, seen, total = source.infolist(), set(), 0
+                for item in members:
+                    path = item.filename.rstrip('/')
+                    parts = path.split('/')
+                    mode = item.external_attr >> 16
+                    if (not path or parts[0] != HELPER_NAME or any(part in ('', '.', '..') for part in parts)
+                            or '\\' in path or path in seen or item.flag_bits & 1
+                            or stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)
+                            or (item.is_dir() != (stat.S_IFMT(mode) == stat.S_IFDIR))):
+                        raise SigningError('unsafe legacy helper archive')
+                    seen.add(path)
+                    total += item.file_size
+                    if total > 16 * 1024 * 1024:
+                        raise SigningError('unsafe legacy helper archive')
+                helper.parent.mkdir(parents=True, exist_ok=True)
+                for item in members:
+                    destination = helper.parent.joinpath(*item.filename.rstrip('/').split('/'))
+                    if item.is_dir():
+                        destination.mkdir(parents=True, exist_ok=True)
+                    else:
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        with source.open(item) as reader, destination.open('xb') as writer:
+                            shutil.copyfileobj(reader, writer)
+                        destination.chmod(0o755 if item.external_attr >> 16 & 0o111 else 0o644)
+        except (OSError, zipfile.BadZipFile) as error:
+            raise SigningError('invalid legacy helper archive') from error
+        created = True
+    if not helper.exists():
+        return None, None
+    info_path = helper / 'Contents/Info.plist'
+    if any(path.is_symlink() for path in (helper / 'Contents', info_path, helper / 'Contents/MacOS')):
+        raise SigningError('legacy helper path must not be a symlink')
+    try:
+        info = plistlib.loads(info_path.read_bytes())
+        executable = info['CFBundleExecutable']
+        if executable != 'LaunchAtLoginHelper' or info.get('CFBundlePackageType') != 'APPL':
+            raise ValueError('invalid helper')
+        binary = helper / 'Contents/MacOS' / executable
+        if binary.is_symlink() or not binary.is_file() or binary.read_bytes()[:4] not in MACHO_MAGIC:
+            raise ValueError('invalid helper executable')
+        expected_id = identifier + '-LaunchAtLoginHelper'
+        if created:
+            info['CFBundleIdentifier'] = expected_id
+            info_path.write_bytes(plistlib.dumps(info))
+            entitlements = plistlib.loads((resources / 'LaunchAtLogin.entitlements').read_bytes())
+            if not isinstance(entitlements, dict) or entitlements.get('com.apple.security.app-sandbox') is not True:
+                raise ValueError('invalid helper entitlements')
+        else:
+            if info.get('CFBundleIdentifier') != expected_id:
+                raise ValueError('wrong helper identifier')
+            raw = run(['codesign', '-d', '--entitlements', ':-', helper])
+            entitlements = plistlib.loads(raw.encode()) if raw.strip() else {}
+            if not isinstance(entitlements, dict):
+                raise ValueError('invalid helper entitlements')
+        entitlements['com.apple.security.get-task-allow'] = False
+        entitlement_path = scratch / 'legacy-helper-entitlements.plist'
+        entitlement_path.write_bytes(plistlib.dumps(entitlements))
+        entitlement_path.chmod(0o600)
+        return helper, entitlement_path
+    except (OSError, ValueError, KeyError, TypeError, plistlib.InvalidFileException) as error:
+        raise SigningError('invalid legacy helper metadata or entitlements') from error
 
 
 def remove_launch_at_login_build_archives(app):
@@ -177,9 +276,13 @@ def submit(path, key, key_id, issuer):
 
 def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements):
     phase('nested-signing')
+    helper, helper_entitlements = materialize_legacy_helper(app, scratch)
     remove_launch_at_login_build_archives(app)
     for item in nested_code(app):
-        run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp', item])
+        command = ['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp']
+        if item == helper:
+            command.extend(['--entitlements', helper_entitlements])
+        run([*command, item])
     phase('app-signing')
     run(['codesign', '--force', '--sign', identity, '--options', 'runtime', '--timestamp',
          '--entitlements', entitlements, app])

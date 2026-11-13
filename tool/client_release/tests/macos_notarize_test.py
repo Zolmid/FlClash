@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -25,7 +27,7 @@ class SigningTest(unittest.TestCase):
         self.app = self.root / 'ZolNit.app'
         self.macos = self.app / 'Contents/MacOS'
         self.macos.mkdir(parents=True)
-        (self.app / 'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable': 'ZolNit'}))
+        (self.app / 'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable': 'ZolNit', 'CFBundleIdentifier': 'com.zolmid.zolnit', 'LSMinimumSystemVersion': '13.0'}))
         (self.macos / 'ZolNit').write_bytes(bytes.fromhex('cffaedfe'))
         (self.macos / 'FlClashCore').write_bytes(bytes.fromhex('cffaedfe'))
         framework = self.app / 'Contents/Frameworks/Test.framework/Versions/A'
@@ -150,6 +152,113 @@ class SigningTest(unittest.TestCase):
             self.package()
         self.assertEqual(marker.read_bytes(), b'keep')
         self.assertFalse(self.commands)
+
+    def legacy_fixture(self, extra=None):
+        info_path = self.app / 'Contents/Info.plist'
+        info = plistlib.loads(info_path.read_bytes())
+        info['LSMinimumSystemVersion'] = '12.0'
+        info_path.write_bytes(plistlib.dumps(info))
+        resources = self.app / 'Contents/Resources/LaunchAtLogin_LaunchAtLogin.bundle/Contents/Resources'
+        resources.mkdir(parents=True, exist_ok=True)
+        (resources / 'LaunchAtLogin.entitlements').write_bytes(plistlib.dumps({'com.apple.security.app-sandbox': True,
+                                                                               'com.apple.security.get-task-allow': True}))
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, 'w') as archive:
+            for name, data in (
+                ('LaunchAtLoginHelper.app/Contents/Info.plist', plistlib.dumps({
+                    'CFBundleIdentifier': 'upstream.placeholder', 'CFBundleExecutable': 'LaunchAtLoginHelper',
+                    'CFBundlePackageType': 'APPL'})),
+                ('LaunchAtLoginHelper.app/Contents/MacOS/LaunchAtLoginHelper', bytes.fromhex('cffaedfe')),
+                *((extra,) if extra else ()),
+            ):
+                item = zipfile.ZipInfo(name)
+                item.create_system = 3
+                item.external_attr = (0o100755 if '/MacOS/' in name else 0o100644) << 16
+                archive.writestr(item, data)
+        data = payload.getvalue()
+        (resources / 'LaunchAtLoginHelper.zip').write_bytes(data)
+        (resources / 'LaunchAtLoginHelper-with-runtime.zip').write_bytes(b'other template')
+        return resources, hashlib.sha256(data).hexdigest()
+
+    def test_legacy_helper_materialized_with_correct_identifier_and_entitlements(self):
+        resources, digest = self.legacy_fixture()
+        helper = self.app / 'Contents/Library/LoginItems/LaunchAtLoginHelper.app'
+        with mock.patch.object(signing, 'LEGACY_HELPER_SHA256', digest), mock.patch.object(signing, 'run', side_effect=self.runner):
+            self.package()
+        info = plistlib.loads((helper / 'Contents/Info.plist').read_bytes())
+        self.assertEqual(info['CFBundleIdentifier'], 'com.zolmid.zolnit-LaunchAtLoginHelper')
+        self.assertEqual(helper.parents[3], self.app)
+        entitlement_file = self.root / 'legacy-helper-entitlements.plist'
+        entitlements = plistlib.loads(entitlement_file.read_bytes())
+        self.assertTrue(entitlements['com.apple.security.app-sandbox'])
+        self.assertFalse(entitlements['com.apple.security.get-task-allow'])
+        commands = [cmd for cmd in self.commands if cmd[:2] == ['codesign', '--force']]
+        helper_cmd = next(cmd for cmd in commands if cmd[-1] == str(helper))
+        self.assertIn('--timestamp', helper_cmd)
+        self.assertIn('runtime', helper_cmd)
+        self.assertEqual(helper_cmd[helper_cmd.index('--entitlements') + 1], str(entitlement_file))
+        self.assertLess(commands.index(helper_cmd), next(i for i, cmd in enumerate(commands) if cmd[-1] == str(self.app)))
+        self.assertFalse((resources / 'LaunchAtLoginHelper.zip').exists())
+        self.assertFalse((resources / 'LaunchAtLoginHelper-with-runtime.zip').exists())
+
+    def test_existing_valid_legacy_helper_preserved_with_safe_entitlements(self):
+        resources, digest = self.legacy_fixture()
+        helper = self.app / 'Contents/Library/LoginItems/LaunchAtLoginHelper.app'
+        binary = helper / 'Contents/MacOS/LaunchAtLoginHelper'
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(bytes.fromhex('cffaedfe') + b'existing')
+        info = {'CFBundleIdentifier': 'com.zolmid.zolnit-LaunchAtLoginHelper',
+                'CFBundleExecutable': 'LaunchAtLoginHelper', 'CFBundlePackageType': 'APPL'}
+        (helper / 'Contents/Info.plist').write_bytes(plistlib.dumps(info))
+        def runner(args, **kwargs):
+            if [str(x) for x in args[:3]] == ['codesign', '-d', '--entitlements']:
+                return plistlib.dumps({'com.apple.security.app-sandbox': True,
+                                       'com.apple.security.get-task-allow': True,
+                                       'com.example.keep': True}).decode()
+            return self.runner(args, **kwargs)
+        with mock.patch.object(signing, 'LEGACY_HELPER_SHA256', digest), mock.patch.object(signing, 'run', side_effect=runner):
+            self.package()
+        self.assertEqual(binary.read_bytes(), bytes.fromhex('cffaedfe') + b'existing')
+        self.assertEqual(plistlib.loads((helper / 'Contents/Info.plist').read_bytes()), info)
+        entitlements = plistlib.loads((self.root / 'legacy-helper-entitlements.plist').read_bytes())
+        self.assertTrue(entitlements['com.example.keep'])
+        self.assertFalse(entitlements['com.apple.security.get-task-allow'])
+        self.assertFalse((resources / 'LaunchAtLoginHelper.zip').exists())
+
+    def test_legacy_helper_archive_rejects_tampering_and_unsafe_entries(self):
+        for extra in (('../outside', b'bad'), ('LaunchAtLoginHelper.app/../../outside', b'bad')):
+            with self.subTest(extra=extra):
+                shutil.rmtree(self.app / 'Contents/Resources', ignore_errors=True)
+                resources, digest = self.legacy_fixture(extra)
+                with mock.patch.object(signing, 'LEGACY_HELPER_SHA256', digest), mock.patch.object(signing, 'run', side_effect=self.runner), \
+                        self.assertRaisesRegex(signing.SigningError, 'unsafe legacy helper archive'):
+                    self.package()
+                self.assertFalse((self.root / 'outside').exists())
+                self.assertTrue((resources / 'LaunchAtLoginHelper.zip').exists())
+        with mock.patch.object(signing, 'LEGACY_HELPER_SHA256', '0' * 64), mock.patch.object(signing, 'run', side_effect=self.runner), \
+                self.assertRaisesRegex(signing.SigningError, 'checksum mismatch'):
+            self.package()
+
+    def test_legacy_helper_rejects_symlink_and_duplicate_members(self):
+        for name, mode in (('LaunchAtLoginHelper.app/Contents/link', 0o120777),
+                           ('LaunchAtLoginHelper.app/Contents/Info.plist', 0o100644)):
+            with self.subTest(name=name):
+                shutil.rmtree(self.app / 'Contents/Resources', ignore_errors=True)
+                resources, _ = self.legacy_fixture()
+                archive_path = resources / 'LaunchAtLoginHelper.zip'
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', UserWarning)
+                    with zipfile.ZipFile(archive_path, 'a') as archive:
+                        item = zipfile.ZipInfo(name)
+                        item.create_system = 3
+                        item.external_attr = mode << 16
+                        archive.writestr(item, b'data')
+                digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+                with mock.patch.object(signing, 'LEGACY_HELPER_SHA256', digest), mock.patch.object(signing, 'run', side_effect=self.runner), \
+                        self.assertRaisesRegex(signing.SigningError, 'unsafe legacy helper archive'):
+                    self.package()
+                self.assertTrue(archive_path.exists())
 
     def test_identity_requires_single_valid_team_developer_id(self):
         valid = '  1) ' + 'A' * 40 + ' "Developer ID Application: Example (ABCDE12345)"\n'
