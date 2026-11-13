@@ -27,6 +27,7 @@ jobs:
     outputs:
       version: ${{ steps.check.outputs.version }}
       build: ${{ steps.check.outputs.build }}
+      macos_signing_required: ${{ steps.macos-mode.outputs.required }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,6 +37,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tool/client_release/assemble_release.py preflight
+
+      - id: macos-mode
+        env:
+          MACOS_SIGNING_REQUIRED: ${{ vars.MACOS_SIGNING_REQUIRED }}
+        run: |
+          case "$MACOS_SIGNING_REQUIRED" in
+            true) echo 'required=true' >> "$GITHUB_OUTPUT" ;;
+            ''|false) echo 'required=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo '::error::MACOS_SIGNING_REQUIRED must be true, false, or unset'; exit 1 ;;
+          esac
 
   ci:
     name: Standard CI
@@ -60,10 +71,55 @@ jobs:
       ZOLNIT_ANDROID_KEY_ALIAS: ${{ secrets.ZOLNIT_ANDROID_KEY_ALIAS }}
       ZOLNIT_ANDROID_KEY_PASSWORD: ${{ secrets.ZOLNIT_ANDROID_KEY_PASSWORD }}
 
+  macos-sign:
+    name: Developer ID and notarization · ${{ matrix.arch }}
+    needs: [preflight, builds]
+    if: needs.preflight.outputs.macos_signing_required == 'true'
+    runs-on: xcode-27
+    environment: macos-distribution
+    timeout-minutes: 100
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select Xcode 27.1
+        run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          [[ "$(xcrun --sdk macosx --show-sdk-version)" == 27.* ]]
+      - uses: actions/download-artifact@v4
+        with:
+          name: flclash-macos-${{ matrix.arch }}-${{ github.run_number }}
+          path: ${{ runner.temp }}/macos-input
+      - name: Sign, notarize, and verify
+        env:
+          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          MACOS_TEAM_ID: ${{ vars.MACOS_TEAM_ID }}
+          APPLE_ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_P8_BASE64: ${{ secrets.APPLE_ASC_P8_BASE64 }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          RELEASE_ARCH: ${{ matrix.arch }}
+        run: python3 tool/client_release/macos_notarize.py --input "$RUNNER_TEMP/macos-input" --output "$RUNNER_TEMP/macos-signed" --version "$RELEASE_VERSION" --arch "$RELEASE_ARCH"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-distribution-${{ matrix.arch }}-${{ github.run_number }}
+          path: ${{ runner.temp }}/macos-signed/
+          if-no-files-found: error
+          retention-days: 14
+
   publish:
     name: Publish ${{ needs.preflight.outputs.version }}
-    needs: [ preflight, ci, builds ]
-    if: needs.preflight.result == 'success' && needs.ci.result == 'success' && needs.builds.result == 'success'
+    needs: [ preflight, ci, builds, macos-sign ]
+    if: always() && needs.preflight.result == 'success' && needs.ci.result == 'success' && needs.builds.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:
@@ -84,6 +140,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ZOLNIT_CI_RESULT: ${{ needs.ci.result }}
           ZOLNIT_BUILDS_RESULT: ${{ needs.builds.result }}
+          MACOS_SIGNING_REQUIRED: ${{ needs.preflight.outputs.macos_signing_required }}
+          MACOS_TEAM_ID: ${{ vars.MACOS_TEAM_ID }}
+          ZOLNIT_MACOS_SIGNING_RESULT: ${{ needs.macos-sign.result }}
         run: |
           echo "STAGE=$RUNNER_TEMP/zolnit-release" >> "$GITHUB_ENV"
           apksigner=$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -1)

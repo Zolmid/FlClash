@@ -309,6 +309,12 @@ def public_notes(raw):
 def assemble(context, github, stage, env, apksigner):
     require(env.get('ZOLNIT_CI_RESULT') == 'success' and env.get('ZOLNIT_BUILDS_RESULT') == 'success',
             'standard CI and every release build must succeed first')
+    signing_flag = env.get('MACOS_SIGNING_REQUIRED', '')
+    require(signing_flag in ('', 'false', 'true'), 'MACOS_SIGNING_REQUIRED must be true, false, or unset')
+    signing_required = signing_flag == 'true'
+    if signing_required:
+        require(env.get('ZOLNIT_MACOS_SIGNING_RESULT') == 'success', 'required macOS signing job did not succeed')
+        require(re.fullmatch(r'[A-Z0-9]{10}', env.get('MACOS_TEAM_ID', '')), 'macOS team ID is missing or invalid')
     require(github.tag_commit(context.tag) == context.sha, f'{context.tag} no longer points at {context.sha}')
     stage = Path(stage)
     stage.mkdir(parents=True)
@@ -318,13 +324,14 @@ def assemble(context, github, stage, env, apksigner):
 
     wanted = {template.format(run=context.run_number): (platform, arch) for platform, arch, template in TARGETS}
     notes_name = NOTES_ARTIFACT.format(run=context.run_number)
+    signed_names = {f'macos-distribution-{arch}-{context.run_number}': arch for arch in ('arm64', 'x64')} if signing_required else {}
     records = {}
     for record in github.artifacts(context.run_id):
         name = record.get('name')
-        if name in wanted or name == notes_name:
+        if name in wanted or name in signed_names or name == notes_name:
             require(name not in records, f'run {context.run_id} has more than one {name}')
             records[name] = record
-    missing = sorted((set(wanted) | {notes_name}) - set(records))
+    missing = sorted((set(wanted) | set(signed_names) | {notes_name}) - set(records))
     require(not missing, f'missing release evidence: {missing}')
 
     assets, receipts, evidence = [], [], []
@@ -348,20 +355,46 @@ def assemble(context, github, stage, env, apksigner):
             require(apk in listed, 'Android artifact has no release APK')
             if apksigner:
                 run_android_verifier(apksigner, directory / apk)
+        package_directory, package_listed = directory, listed
+        package_record, package_outer = record, outer
+        if platform == 'macos' and signing_required:
+            signed_name = f'macos-distribution-{arch}-{context.run_number}'
+            package_record = records[signed_name]
+            package_directory, signed_members, package_outer = fetch_artifact(github, package_record, context, signed_name, work)
+            package_listed = verify_sums(package_directory, signed_members)
+            filename = public_names(context.version, platform, arch)[0]
+            require(signed_members == {filename, 'signing-receipt.json', 'SHA256SUMS'}, 'unexpected signed macOS artifact members')
+            receipt = json.loads((package_directory / 'signing-receipt.json').read_text(encoding='utf-8'))
+            archive = f'FlClash-macos-{arch}-release.zip'
+            expected = {'schema_version': 1, 'source_commit': context.sha, 'run_id': context.run_id,
+                        'arch': arch, 'input_archive': archive, 'input_sha256': listed.get(archive),
+                        'dmg': filename, 'dmg_sha256': package_listed.get(filename),
+                        'team_id': env['MACOS_TEAM_ID'], 'verification': 'developer-id-notarized-stapled'}
+            require(all(receipt.get(k) == v and v is not None for k, v in expected.items()), 'macOS signing receipt mismatch')
+            require(re.fullmatch(r'[0-9A-F]{40}', receipt.get('identity_sha1', '')),
+                    'macOS signing identity is missing')
+            require(all(isinstance(receipt.get(k), str) and receipt[k] for k in ('app_notary_id', 'dmg_notary_id')),
+                    'macOS notarization identifiers are missing')
+            evidence.append({'artifact_name': signed_name, 'artifact_id': package_record['id'],
+                             'artifact_sha256': package_outer, 'kind': 'macos-distribution-signing',
+                             'sha256': package_listed[filename], 'distributed': True})
         for filename in public_names(context.version, platform, arch):
-            require(filename in listed, f'{name} lacks {filename}')
+            require(filename in package_listed, f'{name} lacks {filename}')
             destination = packages / filename
-            shutil.copyfile(directory / filename, destination)
+            shutil.copyfile(package_directory / filename, destination)
             size, digest = destination.stat().st_size, sha256_file(destination)
-            require(digest == listed[filename], f'{filename} changed while staging')
+            require(digest == package_listed[filename], f'{filename} changed while staging')
             require(0 < size <= MAX_ASSET_BYTES, f'{filename} size {size} is outside the distribution limit')
             assets.append({'name': filename, 'url': f'{DOWNLOADS}/{context.tag}/{filename}', 'size': size,
                            'sha256': digest})
             receipts.append({'name': filename, 'size': size, 'sha256': digest, 'platform': platform, 'arch': arch,
-                             'ci_run_id': context.run_id, 'artifact_id': record['id'],
-                             'artifact_sha256': outer})
-        evidence.append({**item, 'kind': 'package-build', 'distributed': True})
+                             'ci_run_id': context.run_id, 'artifact_id': package_record['id'],
+                             'artifact_sha256': package_outer})
+        evidence.append({**item, 'kind': 'package-build',
+                         'distributed': not (platform == 'macos' and signing_required)})
         shutil.rmtree(directory)
+        if package_directory != directory:
+            shutil.rmtree(package_directory)
 
     directory, names, outer = fetch_artifact(github, records[notes_name], context, notes_name, work)
     require(names == {NOTES_FILE}, f'{notes_name} must contain only {NOTES_FILE}')
@@ -381,7 +414,8 @@ def assemble(context, github, stage, env, apksigner):
                'build': context.build, 'core_sha': CORE, 'ci_run_id': context.run_id, 'assets': receipts,
                'evidence': evidence,
                'checks': {'all_platform_builds': True, 'standard_ci': True, 'package_hashes': True,
-                          'android_production_certificate': True, 'ios_unsigned_compile': True}}
+                          'android_production_certificate': True, 'ios_unsigned_compile': True,
+                          'macos_notarized': signing_required}}
     (stage / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
     (stage / 'receipt.json').write_text(json.dumps(receipt, ensure_ascii=False), encoding='utf-8')
     (stage / NOTES_FILE).write_text(notes, encoding='utf-8')

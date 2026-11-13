@@ -82,6 +82,8 @@ def target_files(platform, arch, version=VERSION):
         files[f'ZolNit-{version}-ios-arm64-unsigned.ipa'] = ipa_bytes()
     if platform in ('linux', 'windows', 'macos'):
         files[f'FlClash-{platform}-{arch}-release.zip'] = b'development archive'
+    if platform == 'linux':
+        files['FlClash-linux-x64-release.tar.gz'] = b'linux bundle archive'
     files['source-provenance.txt'] = provenance(platform, arch).encode()
     return files
 
@@ -180,6 +182,78 @@ class Workspace(unittest.TestCase):
 
 
 class AssembleTest(Workspace):
+    def signed_github(self, *, corrupt_input=False):
+        github = standard()
+        for arch in ('arm64', 'x64'):
+            filename = ar.public_names(VERSION, 'macos', arch)[0]
+            zipname = f'FlClash-macos-{arch}-release.zip'
+            data = f'signed-{arch}'.encode()
+            receipt = {'schema_version': 1, 'source_commit': SHA, 'run_id': RUN_ID, 'arch': arch,
+                       'input_archive': zipname,
+                       'input_sha256': '0' * 64 if corrupt_input else hashlib.sha256(b'development archive').hexdigest(),
+                       'dmg': filename, 'dmg_sha256': hashlib.sha256(data).hexdigest(),
+                       'team_id': 'ABCDE12345', 'identity_sha1': 'A' * 40,
+                       'app_notary_id': 'app-id', 'dmg_notary_id': 'dmg-id',
+                       'verification': 'developer-id-notarized-stapled'}
+            github.add(f'macos-distribution-{arch}-{RUN_NUMBER}',
+                       archive({filename: data, 'signing-receipt.json': json.dumps(receipt).encode()}))
+        return github
+
+    def test_disabled_macos_signing_preserves_existing_release(self):
+        for flag in ('', 'false'):
+            with self.subTest(flag=flag):
+                shutil.rmtree(self.stage, ignore_errors=True)
+                self.assemble(standard(), environment(MACOS_SIGNING_REQUIRED=flag,
+                                                       ZOLNIT_MACOS_SIGNING_RESULT='skipped'))
+                receipt = json.loads((self.stage / 'receipt.json').read_text())
+                self.assertFalse(receipt['checks']['macos_notarized'])
+                for arch in ('arm64', 'x64'):
+                    filename = ar.public_names(VERSION, 'macos', arch)[0]
+                    self.assertEqual((self.stage / 'packages' / TAG / filename).read_bytes(),
+                                     f'{filename} bytes'.encode())
+
+    def test_linux_bundle_tar_is_covered_by_source_artifact_checksums(self):
+        name = f'flclash-linux-x64-{RUN_NUMBER}'
+        github = standard(skip=(name,))
+        files = target_files('linux', 'x64')
+        recorded_sums = sums(files)
+        files['FlClash-linux-x64-release.tar.gz'] = b'tampered bundle archive'
+        github.add(name, archive(files, with_sums=False, raw=[('SHA256SUMS', recorded_sums)]))
+        self.rejects(github, 'FlClash-linux-x64-release.tar.gz does not match SHA256SUMS')
+        self.assertFalse((self.stage / 'manifest.json').exists())
+
+    def test_invalid_macos_signing_flag_fails_closed(self):
+        self.rejects(standard(), 'must be true, false, or unset',
+                     environment(MACOS_SIGNING_REQUIRED='TRUE'))
+        self.assertFalse((self.stage / 'manifest.json').exists())
+
+    def test_required_macos_signing_stages_final_bytes(self):
+        env = environment(MACOS_SIGNING_REQUIRED='true', ZOLNIT_MACOS_SIGNING_RESULT='success',
+                          MACOS_TEAM_ID='ABCDE12345')
+        self.assemble(self.signed_github(), env)
+        receipt = json.loads((self.stage / 'receipt.json').read_text())
+        for arch in ('arm64', 'x64'):
+            filename = ar.public_names(VERSION, 'macos', arch)[0]
+            self.assertEqual((self.stage / 'packages' / TAG / filename).read_bytes(), f'signed-{arch}'.encode())
+            asset = next(item for item in receipt['assets'] if item['name'] == filename)
+            self.assertEqual(asset['sha256'], hashlib.sha256(f'signed-{arch}'.encode()).hexdigest())
+        self.assertTrue(receipt['checks']['macos_notarized'])
+
+    def test_required_macos_signing_rejects_missing_or_wrong_evidence(self):
+        for result, github, message in (
+            ('skipped', standard(), 'signing job did not succeed'),
+            ('failure', standard(), 'signing job did not succeed'),
+            ('cancelled', standard(), 'signing job did not succeed'),
+            ('success', standard(), 'missing release evidence'),
+            ('success', self.signed_github(corrupt_input=True), 'signing receipt mismatch'),
+        ):
+            with self.subTest(message=message):
+                shutil.rmtree(self.stage, ignore_errors=True)
+                env = environment(MACOS_SIGNING_REQUIRED='true', ZOLNIT_MACOS_SIGNING_RESULT=result,
+                                  MACOS_TEAM_ID='ABCDE12345')
+                self.rejects(github, message, env)
+                self.assertFalse((self.stage / 'manifest.json').exists())
+
     def test_formal_run_stages_only_verified_public_packages(self):
         github = standard()
         result = self.assemble(github)
