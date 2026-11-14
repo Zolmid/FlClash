@@ -48,6 +48,15 @@ void main() {
           .map((key) => '$key:${prefs.get(key)}')
           .join();
       expect(persisted.toLowerCase(), isNot(contains('secret123')));
+      final otherOrigin = ZolnitGiftCardAttempt(
+        ZolnitRewardsClient(api),
+        store: ZolnitGiftPreferencesStore(
+          Uri.parse('https://other-panel.example'),
+          'account-a',
+        ),
+      )..edit('secret123');
+      await otherOrigin.recover();
+      expect(otherOrigin.canRetry, isFalse);
       api.setAuthorization('Bearer accountB');
       await expectLater(first.recover(), throwsA(isA<ClientFailure>()));
       final other = ZolnitGiftCardAttempt(

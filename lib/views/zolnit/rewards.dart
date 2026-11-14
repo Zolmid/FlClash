@@ -36,7 +36,7 @@ class _ZolnitRewardsPageState extends State<ZolnitRewardsPage> {
     widget.session.api,
   );
   late final ZolnitGiftAttemptStore? _store =
-      widget.attemptStore ?? _accountStore();
+      widget.attemptStore ?? zolnitGiftAccountStore(widget.session);
   late final ZolnitGiftCardAttempt _attempt = ZolnitGiftCardAttempt(
     _client,
     store: _store,
@@ -54,12 +54,6 @@ class _ZolnitRewardsPageState extends State<ZolnitRewardsPage> {
       mounted &&
       widget.session.authenticated &&
       widget.session.api.generation == _generation;
-
-  ZolnitGiftAttemptStore? _accountStore() {
-    final uuid = widget.session.account?['uuid'];
-    if (uuid is! String || uuid.isEmpty) return null;
-    return ZolnitGiftPreferencesStore(widget.session.api.origin, uuid);
-  }
 
   @override
   void initState() {

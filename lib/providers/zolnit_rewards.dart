@@ -4,6 +4,14 @@ import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
+ZolnitGiftAttemptStore? zolnitGiftAccountStore(
+  ZolnitSessionController session,
+) {
+  final uuid = session.account?['uuid'];
+  if (uuid is! String || uuid.isEmpty) return null;
+  return ZolnitGiftPreferencesStore(session.api.origin, uuid);
+}
+
 class ZolnitGiftPreferencesStore implements ZolnitGiftAttemptStore {
   ZolnitGiftPreferencesStore(Uri origin, String accountUuid)
     : _storageKey =

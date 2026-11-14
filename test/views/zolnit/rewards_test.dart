@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zolnit_client/zolnit_client.dart';
 
 import 'harness.dart';
 
@@ -19,9 +20,122 @@ http.Response rewardFixture(http.Request request) =>
       })
     : zolnitPanelFixture(request);
 
+class _AttemptStore implements ZolnitGiftAttemptStore {
+  int reads = 0;
+
+  @override
+  Future<String?> read(String cardHash) async {
+    reads++;
+    return null;
+  }
+
+  @override
+  Future<void> write(String cardHash, String requestId) async {}
+
+  @override
+  Future<void> remove(String cardHash, String requestId) async {}
+}
+
 void main() {
   final harness = ZolnitHarness.register();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('missing UUID blocks check unless a store is supplied', (
+    tester,
+  ) async {
+    var checks = 0;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/user/info')) {
+        return zolnitJson({'email': 'lin@example.com', 'balance': 0});
+      }
+      if (request.url.path.endsWith('/gift-card/check')) {
+        checks++;
+        return zolnitJson({
+          'template': {'name': 'Gift', 'type': 1},
+          'can_redeem': true,
+        });
+      }
+      if (request.url.path.endsWith('/gift-card/history')) {
+        return zolnitJson({'records': [], 'current_page': 1, 'last_page': 1});
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    final store = _AttemptStore();
+    Future<void> open({ZolnitGiftAttemptStore? override}) => harness.mount(
+      tester,
+      ZolnitSkin.macos,
+      child: ZolnitRewardsPage(
+        session: harness.session,
+        onRedeemed: () async {},
+        attemptStore: override,
+      ),
+    );
+    await open();
+    await tester.enterText(find.byType(TextField), 'CARD123');
+    await tester.tap(find.text('查看礼品'));
+    await tester.pumpAndSettle();
+    expect(checks, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await open(override: store);
+    await tester.enterText(find.byType(TextField), 'CARD123');
+    await tester.tap(find.text('查看礼品'));
+    await tester.pumpAndSettle();
+    expect(store.reads, 1);
+    expect(checks, 1);
+    expect(find.text('确认兑换'), findsOneWidget);
+  });
+
+  testWidgets('store identity is fixed at build before account refresh', (
+    tester,
+  ) async {
+    var hasUuid = false;
+    var checks = 0;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/user/info')) {
+        return zolnitJson({
+          'email': 'lin@example.com',
+          'balance': 0,
+          if (hasUuid) 'uuid': 'refreshed-account',
+        });
+      }
+      if (request.url.path.endsWith('/gift-card/check')) {
+        checks++;
+        return zolnitJson({
+          'template': {'name': 'Gift', 'type': 1},
+          'can_redeem': true,
+        });
+      }
+      if (request.url.path.endsWith('/gift-card/history')) {
+        return zolnitJson({'records': [], 'current_page': 1, 'last_page': 1});
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    Future<void> open() => harness.mount(
+      tester,
+      ZolnitSkin.macos,
+      child: ZolnitRewardsPage(
+        session: harness.session,
+        onRedeemed: () async {},
+      ),
+    );
+    await open();
+    hasUuid = true;
+    await harness.session.refresh();
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'CARD123');
+    await tester.tap(find.text('查看礼品'));
+    await tester.pumpAndSettle();
+    expect(checks, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await open();
+    await tester.enterText(find.byType(TextField), 'CARD123');
+    await tester.tap(find.text('查看礼品'));
+    await tester.pumpAndSettle();
+    expect(checks, 1);
+    expect(find.text('确认兑换'), findsOneWidget);
+  });
 
   testWidgets('reopening a page recovers the same pending redemption', (
     tester,
