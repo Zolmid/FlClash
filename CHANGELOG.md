@@ -4,6 +4,7 @@
 
 **Bug Fixes**
 
+- Retry if a Mac installer cannot be created on the first attempt. (b551482)
 - Keep the connection screen in place when returning to the app on iPhone and iPad. (ebafce8)
 
 ## v1.1.6 (2026-11-14)

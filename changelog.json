@@ -11,6 +11,10 @@
           "type": "fix",
           "entries": [
             {
+              "id": "b551482",
+              "text": "Retry if a Mac installer cannot be created on the first attempt."
+            },
+            {
               "id": "ebafce8",
               "text": "Keep the connection screen in place when returning to the app on iPhone and iPad."
             }
