@@ -295,10 +295,10 @@ class AssembleTest(Workspace):
         subprocess.run([node, '--input-type=module', '-e', script, str(self.stage / 'manifest.json')], check=True)
 
     def test_rerun_produces_identical_session_inputs(self):
-        self.assemble(standard())
+        github = standard()
+        self.assemble(github)
         first = [(self.stage / name).read_bytes() for name in ('manifest.json', 'receipt.json')]
         shutil.rmtree(self.stage)
-        github = standard()
         github.records.reverse()
         self.assemble(github)
         self.assertEqual(first, [(self.stage / name).read_bytes() for name in ('manifest.json', 'receipt.json')])

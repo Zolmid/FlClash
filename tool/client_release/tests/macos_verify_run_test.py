@@ -52,6 +52,9 @@ class SourceGitHub(FakeGitHub):
 
 class VerifyRunTest(unittest.TestCase):
     def setUp(self):
+        env = mock.patch.dict(os.environ, {'GITHUB_RUN_ATTEMPT': '1'})
+        env.start()
+        self.addCleanup(env.stop)
         self.tmp = tempfile.TemporaryDirectory(prefix='zolnit-macos-verify-test-')
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
