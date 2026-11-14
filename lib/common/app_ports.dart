@@ -1,6 +1,7 @@
 import 'dart:ui' show Brightness, Color;
 
 import 'package:fl_clash/common/provider_reader.dart';
+import 'package:fl_clash/common/ios_device_update.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter/widgets.dart' show BuildContext, TextSpan, Widget;
 
@@ -45,6 +46,13 @@ abstract interface class ReleaseNotesPort {
   Widget content({required String heading, required TextSpan span});
 }
 
+typedef IosUpdateDevicePicker =
+    Future<String?> Function(
+      BuildContext context,
+      List<IosUpdateDevice> devices,
+    );
+
+IosUpdateDevicePicker? iosUpdateDevicePicker;
 ReleaseNotesPort? releaseNotesPort;
 WindowPort? windowPort;
 TrayPort? trayPort;

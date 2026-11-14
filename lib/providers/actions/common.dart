@@ -199,12 +199,11 @@ class CommonAction extends _$CommonAction {
     if (retryAt != null && DateTime.now().isBefore(retryAt)) {
       final context = globalState.navigatorKey.currentContext;
       if (context != null && context.mounted) {
-        await showZolnitDialog<bool>(
-          context,
-          (_) => ZolnitAlert(
-            title: currentAppLocalizations.checkUpdate,
-            message: currentAppLocalizations.zolnitRateLimited,
-          ),
+        await dialogs.showMessage(
+          context: context,
+          title: currentAppLocalizations.checkUpdate,
+          message: TextSpan(text: currentAppLocalizations.zolnitRateLimited),
+          cancelable: false,
         );
       }
       return;
@@ -246,16 +245,16 @@ class CommonAction extends _$CommonAction {
     final context = globalState.navigatorKey.currentContext;
     if (context == null || !context.mounted) return;
     final text = currentAppLocalizations;
-    final useWebsite = await showZolnitDialog<bool>(
-      context,
-      (_) => ZolnitAlert(
-        title: text.checkUpdate,
-        message: result == IosDeviceUpdateResult.throttled
+    final useWebsite = await dialogs.showMessage(
+      context: context,
+      title: text.checkUpdate,
+      message: TextSpan(
+        text: result == IosDeviceUpdateResult.throttled
             ? text.zolnitRateLimited
             : text.updateInstallFailed,
-        cancelLabel: text.updateInstallLater,
-        confirmLabel: text.goDownload,
       ),
+      cancelText: text.updateInstallLater,
+      confirmText: text.goDownload,
     );
     if (useWebsite == true &&
         ref.mounted &&
@@ -271,29 +270,7 @@ class CommonAction extends _$CommonAction {
     if (context == null || !context.mounted || !ref.read(appVisibleProvider)) {
       return null;
     }
-    final text = currentAppLocalizations;
-    return showZolnitDialog<String>(
-      context,
-      (dialog) => SimpleDialog(
-        title: Text(text.zolnitIosUpdateSelectDevice),
-        children: [
-          for (final (index, device) in devices.indexed)
-            SimpleDialogOption(
-              onPressed: () => zolnitCloseDialog(dialog, device.id),
-              child: Text(
-                [
-                  '${index + 1}. ${device.product ?? text.zolnitUnknownDevice}',
-                  if (device.osVersion case final String value) '· $value',
-                ].join(' '),
-              ),
-            ),
-          SimpleDialogOption(
-            onPressed: () => zolnitCloseDialog<String>(dialog),
-            child: Text(text.cancel),
-          ),
-        ],
-      ),
-    );
+    return iosUpdateDevicePicker?.call(context, devices);
   }
 
   void cancelAppUpdateStaging() => _stagingCancelToken?.cancel();

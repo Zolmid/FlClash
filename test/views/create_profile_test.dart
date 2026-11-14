@@ -36,7 +36,8 @@ void main() {
     AppPath.supportDirectory = () async => root;
     AppPath.temporaryDirectory = () async => Directory('${root.path}/temp');
     AppPath.cacheDirectory = () async => Directory('${root.path}/cache');
-    await appPath.homeDirPath;
+    AppPath.downloadDirectory = () async => root;
+    await appPath.rebind();
     await initEditorNative();
   });
 

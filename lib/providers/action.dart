@@ -25,7 +25,6 @@ import 'package:fl_clash/providers/zolnit_web_session.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/update_progress.dart';
 import 'package:fl_clash/ui/ui.dart';
-import 'package:fl_clash/views/zolnit/motion.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/services.dart';

@@ -18,6 +18,7 @@ import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:fl_clash/views/zolnit/notes.dart';
+import 'package:fl_clash/views/zolnit/update.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,6 +50,7 @@ class Bootstrap {
     trayPort = appTray;
     navigationPort = navigation;
     releaseNotesPort = const ZolnitReleaseNotesPort();
+    iosUpdateDevicePicker = showIosUpdateDevicePicker;
     final dynamicColor = await _initDynamicColor();
     return _initData(version, dynamicColor, overrides);
   }

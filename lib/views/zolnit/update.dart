@@ -5,6 +5,7 @@ import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_status.dart';
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/common/exception.dart';
+import 'package:fl_clash/common/ios_device_update.dart';
 import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit_web_session.dart';
@@ -22,6 +23,32 @@ import 'motion.dart';
 import 'skin.dart';
 
 final zolnitDownloadsPage = Uri.parse(websiteDownloadsPageUrl);
+
+Future<String?> showIosUpdateDevicePicker(
+  BuildContext context,
+  List<IosUpdateDevice> devices,
+) => showZolnitDialog<String>(context, (dialog) {
+  final text = dialog.appLocalizations;
+  return SimpleDialog(
+    title: Text(text.zolnitIosUpdateSelectDevice),
+    children: [
+      for (final (index, device) in devices.indexed)
+        SimpleDialogOption(
+          onPressed: () => zolnitCloseDialog(dialog, device.id),
+          child: Text(
+            [
+              '${index + 1}. ${device.product ?? text.zolnitUnknownDevice}',
+              if (device.osVersion case final String value) '· $value',
+            ].join(' '),
+          ),
+        ),
+      SimpleDialogOption(
+        onPressed: () => zolnitCloseDialog<String>(dialog),
+        child: Text(text.cancel),
+      ),
+    ],
+  );
+});
 
 enum ZolnitUpdateKind {
   readyOnRestart,
