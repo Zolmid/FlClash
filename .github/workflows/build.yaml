@@ -52,7 +52,7 @@ jobs:
           python3 -m unittest discover -s tool/ci/tests -p '*_test.py'
           echo "::$marker::"
           trap - EXIT
-          node --test tool/client_release/tests/publish_release_test.mjs
+          node --test tool/client_release/tests/*_test.mjs
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2

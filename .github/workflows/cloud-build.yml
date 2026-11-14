@@ -475,6 +475,8 @@ jobs:
           fi
 
       - name: Record source and toolchain
+        env:
+          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}
         run: |
           compiled_env="$CLIENT_BUILD_ENV"
           if [[ "$CLIENT_SAFE_PREVIEW" == true || ( "$TARGET_PLATFORM" == android && "$ANDROID_RELEASE" != true ) ]]; then
@@ -483,6 +485,12 @@ jobs:
           {
             echo "source_repository=$GITHUB_REPOSITORY"
             echo "source_commit=$(git rev-parse HEAD)"
+            echo "build_profile=$BUILD_PROFILE"
+            echo "event_sha=$GITHUB_SHA"
+            echo "workflow_revision=$GITHUB_WORKFLOW_SHA"
+            echo "workflow_ref=$GITHUB_WORKFLOW_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "target=$TARGET_PLATFORM-$TARGET_ARCH"
             echo "client_safe_preview=$CLIENT_SAFE_PREVIEW"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
@@ -691,6 +699,8 @@ jobs:
           fi
 
       - name: Collect IPA and provenance
+        env:
+          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}
         run: |
           shopt -s nullglob
           ipas=(dist/*-ios-arm64-unsigned.ipa)
@@ -714,6 +724,12 @@ jobs:
             echo "source_commit=$(git rev-parse HEAD)"
             echo "workflow_repository=$GITHUB_REPOSITORY"
             echo "workflow_commit=$GITHUB_SHA"
+            echo "build_profile=$BUILD_PROFILE"
+            echo "event_sha=$GITHUB_SHA"
+            echo "workflow_revision=$GITHUB_WORKFLOW_SHA"
+            echo "workflow_ref=$GITHUB_WORKFLOW_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
             echo "routing_observation=$IOS_OBSERVER_ACCEPTANCE"

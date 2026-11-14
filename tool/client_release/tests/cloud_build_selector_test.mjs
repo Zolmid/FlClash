@@ -477,10 +477,12 @@ test('unknown profiles are rejected before anything is written', () => {
   }
 });
 
-test('only the select job reads the profile and trust and signing gates ignore it', () => {
+test('only selection and provenance read the profile while signing gates ignore it', () => {
   const workflow = readFileSync(WORKFLOW, 'utf8');
   assert.deepEqual(workflow.split('\n').filter(line => /build_profile/i.test(line)),
-    ['      build_profile:', '      BUILD_PROFILE: ${{ inputs.build_profile }}']);
+    ['      build_profile:', '      BUILD_PROFILE: ${{ inputs.build_profile }}',
+      "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"',
+      "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"']);
   const dispatchInputs = workflow.slice(workflow.indexOf('\n  workflow_dispatch:\n'), workflow.indexOf('\n  workflow_call:\n'));
   assert.match(dispatchInputs, /\n {6}build_profile:\n {8}description: [^\n]+\n {8}type: choice\n {8}required: false\n {8}default: auto\n {8}options: \[auto, zolnit\]$/);
   const select = workflow.slice(workflow.indexOf('\n  select:\n'), workflow.indexOf('\n  project:\n'));
@@ -508,4 +510,32 @@ test('only the select job reads the profile and trust and signing gates ignore i
     "  if (zolnitProfile && (official || env.ANDROID_RELEASE_REQUESTED === 'true' ||",
     "      env.ANDROID_RELEASE === 'true' || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.IOS_SOURCE !== 'project')) {",
     "    targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});", legacyGates[5]]);
+});
+
+test('standard CI runs the selector suite and both artifact producers bind their profile and execution', () => {
+  const standardWorkflow = readFileSync(new URL('../../../.github/workflows/build.yaml', import.meta.url), 'utf8');
+  assert.match(standardWorkflow, /node --test tool\/client_release\/tests\/\*_test\.mjs/);
+  const workflow = readFileSync(WORKFLOW, 'utf8');
+  const fields = [['build_profile', 'BUILD_PROFILE'], ['event_sha', 'GITHUB_SHA'],
+    ['workflow_revision', 'GITHUB_WORKFLOW_SHA'], ['workflow_ref', 'GITHUB_WORKFLOW_REF'],
+    ['run_id', 'GITHUB_RUN_ID'], ['run_attempt', 'GITHUB_RUN_ATTEMPT']];
+  for (const name of ['Record source and toolchain', 'Collect IPA and provenance']) {
+    const offset = workflow.indexOf('      - name: ' + name + '\n');
+    assert.ok(offset > 0, name);
+    const step = workflow.slice(offset).split('\n      - ')[0];
+    assert.ok(step.includes("          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}"), name);
+    const statements = fields.map(([key, variable]) => {
+      const statement = 'echo "' + key + '=$' + variable + '"';
+      assert.ok(step.split('\n').some(line => line.trim() === statement), name + ': ' + key);
+      return statement;
+    });
+    for (const profile of ['auto', 'zolnit']) {
+      const env = {BUILD_PROFILE: profile, GITHUB_SHA: '1'.repeat(40), GITHUB_WORKFLOW_SHA: '2'.repeat(40),
+        GITHUB_WORKFLOW_REF: 'Zolmid/FlClash/.github/workflows/cloud-build.yml@refs/heads/candidate',
+        GITHUB_RUN_ID: '42', GITHUB_RUN_ATTEMPT: '3'};
+      const output = spawnSync('/bin/bash', ['-eu', '-c', statements.join('\n')], {env, encoding: 'utf8'});
+      assert.equal(output.status, 0, output.stderr);
+      assert.equal(output.stdout, fields.map(([key, variable]) => key + '=' + env[variable] + '\n').join(''));
+    }
+  }
 });
