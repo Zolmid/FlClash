@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.8 (2026-11-14)
+
+**Bug Fixes**
+
+- Open checkout more reliably for one-time purchases, even when the VPN is off. WeChat Pay remains unavailable on mobile. (a8ebedc)
+
 ## v1.1.7 (2026-11-14)
 
 **Bug Fixes**
