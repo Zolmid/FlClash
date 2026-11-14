@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import plistlib
 import shutil
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -136,7 +137,26 @@ class PendingTest(unittest.TestCase):
             signing.verify_signature(self.payload, 'ABCDE12345', runtime=True)
         requirement = run.call_args_list[0].args[0]
         self.assertIn('-R', requirement)
+        self.assertTrue(requirement[requirement.index('-R') + 1].startswith('='))
         self.assertIn('certificate leaf[field.1.2.840.113635.100.6.1.13] exists', requirement[requirement.index('-R') + 1])
+
+    @unittest.skipUnless(shutil.which('csreq'), 'macOS requirement compiler unavailable')
+    def test_resume_requirement_uses_inline_codesign_syntax(self):
+        verified = []
+        def runner(args, **kwargs):
+            if '-R' in args:
+                requirement = args[args.index('-R') + 1]
+                parsed = subprocess.run(['csreq', '-r', requirement, '-t'], capture_output=True)
+                self.assertEqual(parsed.returncode, 0, 'codesign requirement must parse as inline text')
+                self.assertTrue(requirement.startswith('='))
+                file_form = subprocess.run(['csreq', '-r', requirement[1:], '-t'], capture_output=True)
+                self.assertNotEqual(file_form.returncode, 0, 'bare requirement text must not be treated as a file')
+                verified.append(requirement)
+                return ''
+            return 'TeamIdentifier=ABCDE12345\nTimestamp=t\nflags=0x10000(runtime)\n'
+        with mock.patch.object(signing, 'run', side_effect=runner):
+            signing.verify_signature(self.payload, 'ABCDE12345', runtime=True)
+        self.assertEqual(len(verified), 1)
 
     def test_prepare_resumes_with_expired_original_zip_and_no_app_resubmission(self):
         with zipfile.ZipFile(self.payload, 'w') as z:

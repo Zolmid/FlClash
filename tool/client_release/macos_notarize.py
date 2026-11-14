@@ -353,7 +353,7 @@ def validate_app_zip(archive):
 
 
 def verify_signature(path, team, *, runtime):
-    requirement = ('anchor apple generic and certificate leaf[subject.OU] = "' + team +
+    requirement = ('=anchor apple generic and certificate leaf[subject.OU] = "' + team +
                    '" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists')
     run(['codesign', '--verify', '--strict', '-R', requirement, path])
     detail = run(['codesign', '-d', '--verbose=4', path], capture_stderr=True)
