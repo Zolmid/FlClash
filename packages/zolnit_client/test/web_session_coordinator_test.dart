@@ -33,12 +33,15 @@ class TestBrowser implements ZolnitWebSessionBrowser {
   String? receivedCode;
   String? destination;
   bool result = true;
+  Completer<bool>? openResult;
+  Completer<void>? openStarted;
   @override
   Future<bool> open(String code, String destination) async {
     opens++;
     receivedCode = code;
     this.destination = destination;
-    return result;
+    openStarted?.complete();
+    return openResult == null ? result : await openResult!.future;
   }
 
   @override
@@ -83,6 +86,7 @@ void main() {
     expect(browser.destination, '/#/dashboard');
     expect(fallback, isEmpty);
     controller.dispose();
+    expect(browser.closes, 1);
     session.dispose();
     api.close();
   });
@@ -115,7 +119,9 @@ void main() {
     expect(calls, 0);
     expect(browser.opens, 0);
     expect(fallback.length, 3);
+    controller.cancel();
     controller.dispose();
+    expect(browser.closes, 0);
     session.dispose();
     api.close();
   });
@@ -190,7 +196,7 @@ void main() {
       expect(await second, isFalse);
       expect(calls, 1);
       expect(browser.opens, 0);
-      expect(browser.closes, greaterThan(0));
+      expect(browser.closes, 0);
       expect(fallback, isEmpty);
       controller.dispose();
       session.dispose();
@@ -226,4 +232,122 @@ void main() {
     session.dispose();
     api.close();
   });
+  test('only canonical destinations request grants', () async {
+    final seen = <Uri>[];
+    var grants = 0;
+    final api = XboardClient(
+      origin: Uri.parse(zolnitWebOrigin),
+      client: MockClient((_) async {
+        grants++;
+        return http.Response(
+          jsonEncode({
+            'data': {'code': code},
+          }),
+          200,
+        );
+      }),
+    )..setAuthorization('Bearer current');
+    final session = TestSession(api, true);
+    final browser = TestBrowser();
+    final controller = ZolnitWebSessionCoordinator(
+      session: session,
+      browser: browser,
+      fallback: (uri) async {
+        seen.add(uri);
+        return true;
+      },
+    );
+    for (final path in ['/', '/#/dashboard', '/theme/ZolNit/downloads.html']) {
+      expect(await controller.open(Uri.parse('$zolnitWebOrigin$path')), isTrue);
+      expect(browser.destination, path);
+    }
+    for (final url in [
+      'https://link.zolmid.com.evil.example/',
+      'https://link.zolmid.com/?x=1',
+      'https://link.zolmid.com/#/dashboard?x=1',
+      'https://link.zolmid.com/theme/ZolNit/downloads.html#other',
+      'mailto:someone@example.com',
+    ]) {
+      await controller.open(Uri.parse(url));
+    }
+    expect(grants, 3);
+    expect(seen.length, 5);
+    controller.dispose();
+    session.dispose();
+    api.close();
+  });
+
+  test(
+    'browser failure closes its window before uncredentialed fallback',
+    () async {
+      final api = XboardClient(
+        origin: Uri.parse(zolnitWebOrigin),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'data': {'code': code},
+            }),
+            200,
+          ),
+        ),
+      )..setAuthorization('Bearer current');
+      final session = TestSession(api, true);
+      final browser = TestBrowser()..result = false;
+      final seen = <Uri>[];
+      final controller = ZolnitWebSessionCoordinator(
+        session: session,
+        browser: browser,
+        fallback: (uri) async {
+          expect(browser.closes, 1);
+          seen.add(uri);
+          return true;
+        },
+      );
+      expect(await controller.open(Uri.parse('$zolnitWebOrigin/')), isTrue);
+      expect(seen.single.toString(), '$zolnitWebOrigin/');
+      controller.dispose();
+      expect(browser.closes, 1);
+      session.dispose();
+      api.close();
+    },
+  );
+  test(
+    'account switch closes an opening browser and ignores its late success',
+    () async {
+      final api = XboardClient(
+        origin: Uri.parse(zolnitWebOrigin),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'data': {'code': code},
+            }),
+            200,
+          ),
+        ),
+      )..setAuthorization('Bearer current');
+      final session = TestSession(api, true);
+      final browser = TestBrowser()
+        ..openStarted = Completer<void>()
+        ..openResult = Completer<bool>();
+      var fallbacks = 0;
+      final controller = ZolnitWebSessionCoordinator(
+        session: session,
+        browser: browser,
+        fallback: (_) async {
+          fallbacks++;
+          return true;
+        },
+      );
+      final opened = controller.open(Uri.parse('$zolnitWebOrigin/'));
+      await browser.openStarted!.future;
+      session.switchAccount();
+      browser.openResult!.complete(true);
+      expect(await opened, isFalse);
+      expect(browser.closes, 1);
+      expect(fallbacks, 0);
+      controller.dispose();
+      session.dispose();
+      api.close();
+    },
+  );
 }

@@ -1,4 +1,5 @@
 #include "my_application.h"
+#include "web_session.h"
 
 #include <flutter_linux/flutter_linux.h>
 #ifdef GDK_WINDOWING_X11
@@ -86,6 +87,9 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  g_autoptr(FlPluginRegistrar) web_registrar = fl_plugin_registry_get_registrar_for_plugin(
+      FL_PLUGIN_REGISTRY(view), "ZolnitWebSession");
+  register_web_session(fl_plugin_registrar_get_messenger(web_registrar));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -144,6 +148,7 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  close_web_session();
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }

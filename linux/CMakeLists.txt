@@ -57,6 +57,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+pkg_check_modules(ZolnitWebKit IMPORTED_TARGET webkit2gtk-4.1)
+if(NOT ZolnitWebKit_FOUND)
+  pkg_check_modules(ZolnitWebKit REQUIRED IMPORTED_TARGET webkit2gtk-4.0)
+endif()
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")

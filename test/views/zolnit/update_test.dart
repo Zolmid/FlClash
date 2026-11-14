@@ -46,6 +46,8 @@ class _Actions extends CommonAction {
   }
 }
 
+Future<bool> _unavailableWebsite(Uri uri) async => false;
+
 void main() {
   ZolnitUpdateKind? kind(AppUpdateStatus status) =>
       zolnitUpdateNoticeOf(status, currentVersion: '1.2.0')?.kind;
@@ -131,7 +133,10 @@ void main() {
               child: const ZolnitSkinScope(
                 skin: ZolnitSkin.android,
                 child: Material(
-                  child: ZolnitUpdateBanner(currentVersion: '1.2.0'),
+                  child: ZolnitUpdateBanner(
+                    currentVersion: '1.2.0',
+                    openWebsite: _unavailableWebsite,
+                  ),
                 ),
               ),
             ),

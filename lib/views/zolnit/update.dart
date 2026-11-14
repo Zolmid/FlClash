@@ -13,6 +13,8 @@ import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:zolnit_client/zolnit_client.dart'
+    show ZolnitWebSessionCoordinator;
 
 import 'kit.dart';
 import 'motion.dart';
@@ -97,11 +99,13 @@ class ZolnitUpdateBanner extends ConsumerStatefulWidget {
     this.padding = EdgeInsets.zero,
     this.dismissible = true,
     this.currentVersion,
+    this.openWebsite,
   });
 
   final EdgeInsetsGeometry padding;
   final bool dismissible;
   final String? currentVersion;
+  final Future<bool> Function(Uri)? openWebsite;
 
   @override
   ConsumerState<ZolnitUpdateBanner> createState() => _ZolnitUpdateBannerState();
@@ -110,6 +114,23 @@ class ZolnitUpdateBanner extends ConsumerStatefulWidget {
 class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
   String? _dismissed;
   bool _installing = false;
+  ZolnitWebSessionCoordinator? _webSession;
+
+  Future<bool> _openWebsite() {
+    final open = widget.openWebsite;
+    if (open != null) return open(zolnitDownloadsPage);
+    final ZolnitWebSessionCoordinator browser =
+        _webSession ??
+        ref.read<ZolnitWebSessionCoordinator>(zolnitWebSessionProvider);
+    _webSession = browser;
+    return browser.open(zolnitDownloadsPage);
+  }
+
+  @override
+  void dispose() {
+    _webSession?.cancel();
+    super.dispose();
+  }
 
   Future<void> _install() async {
     if (_installing) return;
@@ -152,9 +173,7 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
                   busy: _installing,
                   failure: ref.watch(appUpdateStatusProvider).failure,
                   onInstall: _install,
-                  onOpenDownload: () => ref
-                      .read(zolnitWebSessionProvider)
-                      .open(zolnitDownloadsPage),
+                  onOpenDownload: _openWebsite,
                   onDismiss: widget.dismissible
                       ? () => setState(() => _dismissed = key)
                       : null,

@@ -14,8 +14,17 @@ import 'zolnit.dart';
 final zolnitWebSessionProvider = Provider<ZolnitWebSessionCoordinator>((ref) {
   final coordinator = ZolnitWebSessionCoordinator(
     session: ref.read(zolnitSessionProvider),
-    canAuthorize: Platform.isAndroid || Platform.isIOS || Platform.isWindows,
-    browser: Platform.isAndroid || Platform.isIOS
+    canAuthorize:
+        Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isWindows ||
+        Platform.isMacOS ||
+        Platform.isLinux,
+    browser:
+        Platform.isAndroid ||
+            Platform.isIOS ||
+            Platform.isMacOS ||
+            Platform.isLinux
         ? _MobileWebSessionBrowser()
         : _DesktopWebSessionBrowser(),
     fallback: (uri) async {

@@ -71,7 +71,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   bool _foreground = true;
   late final ZolnitSessionController _session;
   late final ZolnitRegistrationCoordinator _registration;
-  late final ZolnitWebSessionCoordinator _webSession;
+  ZolnitWebSessionCoordinator? _webSession;
   final ZolnitRealtimePreferencesStore _realtimeStore =
       ZolnitRealtimePreferencesStore();
   ZolnitRealtimeChannel? _realtime;
@@ -108,7 +108,6 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     WidgetsBinding.instance.addObserver(this);
     _session = ref.read(zolnitSessionProvider)..addListener(_sessionChanged);
     _registration = ref.read(zolnitRegistrationProvider);
-    _webSession = ref.read(zolnitWebSessionProvider);
     ref.listenManual(initProvider, (_, ready) {
       if (ready) unawaited(_refreshData(force: true));
     });
@@ -356,7 +355,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     _popupContent.dispose();
     _canonicalNotices.dispose();
     _registration.cancel();
-    _webSession.cancel();
+    _webSession?.cancel();
     _session.removeListener(_sessionChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -794,7 +793,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   Future<void> _website([String path = '/']) async {
     if (path == '/' && _session.authenticated) {
-      await _webSession.open(Uri.parse('https://link.zolmid.com/'));
+      final ZolnitWebSessionCoordinator browser =
+          _webSession ??
+          ref.read<ZolnitWebSessionCoordinator>(zolnitWebSessionProvider);
+      _webSession = browser;
+      await browser.open(Uri.parse('https://link.zolmid.com/'));
       return;
     }
     final mode = await supportsLaunchMode(LaunchMode.inAppBrowserView)

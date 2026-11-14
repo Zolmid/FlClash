@@ -35,6 +35,20 @@ class ZolnitWebSessionCoordinator {
   int _epoch = 0;
   bool _disposed = false;
   Future<bool>? _flight;
+  bool _browserActive = false;
+  Future<void>? _closing;
+
+  Future<void> _closeBrowser() {
+    final closing = _closing;
+    if (closing != null) return closing;
+    if (!_browserActive) return Future.value();
+    _browserActive = false;
+    final operation = browser.close();
+    _closing = operation;
+    return operation.whenComplete(() {
+      if (identical(_closing, operation)) _closing = null;
+    });
+  }
 
   void _sessionChanged() {
     if (_generation == session.api.generation &&
@@ -45,7 +59,7 @@ class ZolnitWebSessionCoordinator {
     _generation = session.api.generation;
     _accountGeneration = session.accountGeneration;
     _epoch++;
-    unawaited(browser.close().catchError((Object _) {}));
+    unawaited(_closeBrowser().catchError((Object _) {}));
   }
 
   Future<bool> open(Uri target) {
@@ -80,31 +94,35 @@ class ZolnitWebSessionCoordinator {
         session.accountGeneration == accountGeneration &&
         _epoch == epoch;
     try {
-      await browser.close();
+      await _closeBrowser();
       if (!current()) return false;
       final code = await session.api.authorizeWebSession();
       if (!current()) return false;
+      _browserActive = true;
       final opened = await browser
           .open(code, destination)
           .timeout(
             const Duration(seconds: 18),
             onTimeout: () async {
-              await browser.close();
+              await _closeBrowser();
               return false;
             },
           );
       if (!current()) {
-        await browser.close();
+        await _closeBrowser();
         return false;
       }
       if (opened) return true;
-    } catch (_) {}
+      await _closeBrowser();
+    } catch (_) {
+      await _closeBrowser().catchError((Object _) {});
+    }
     return current() ? fallback(target) : false;
   }
 
   void cancel() {
     _epoch++;
-    unawaited(browser.close().catchError((Object _) {}));
+    unawaited(_closeBrowser().catchError((Object _) {}));
   }
 
   void dispose() {
@@ -112,6 +130,6 @@ class ZolnitWebSessionCoordinator {
     _disposed = true;
     _epoch++;
     session.removeListener(_sessionChanged);
-    unawaited(browser.close().catchError((Object _) {}));
+    unawaited(_closeBrowser().catchError((Object _) {}));
   }
 }
