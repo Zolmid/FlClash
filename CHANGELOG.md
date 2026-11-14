@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.6 (2026-11-14)
+
+**Features**
+
+- Use a separate browser session when opening ZolNit on your computer. (ba6e5ea)
+- Open the ZolNit website from the app without signing in again. (d6a5083)
+
 ## v1.1.5 (2026-11-14)
 
 **Features**

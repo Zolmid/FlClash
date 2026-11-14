@@ -2,6 +2,27 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.6",
+      "tag": "v1.1.6",
+      "date": "2026-11-14",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "ba6e5ea",
+              "text": "Use a separate browser session when opening ZolNit on your computer."
+            },
+            {
+              "id": "d6a5083",
+              "text": "Open the ZolNit website from the app without signing in again."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.5",
       "tag": "v1.1.5",
       "date": "2026-11-14",
