@@ -72,35 +72,11 @@ jobs:
       OFFICIAL_REQUESTED: ${{ inputs.official_release == true }}
       OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - id: select
-        run: |
-          node <<'JS'
-          const fs = require('fs');
-          const official = process.env.OFFICIAL_REQUESTED === 'true';
-          if (official && (process.env.OFFICIAL_TRUSTED !== 'true' || process.env.PLATFORM !== 'all' || process.env.IOS_SOURCE !== 'project')) {
-            throw new Error('Official builds run only from client-release.yml on a Zolmid/FlClash tag push, for every platform');
-          }
-          if (process.env.ANDROID_RELEASE_REQUESTED === 'true' &&
-              (process.env.CLIENT_BRANCH !== 'true' || !['all', 'android'].includes(process.env.PLATFORM))) {
-            throw new Error('Android release requires a client branch and an Android target');
-          }
-          const targets = [
-            {platform: 'linux', os: 'ubuntu-22.04', arch: 'x64'},
-            {platform: 'windows', os: 'windows-2022', arch: 'x64'},
-            {platform: 'android', os: 'ubuntu-24.04', arch: 'arm64'},
-            {platform: 'macos', os: 'xcode-27', arch: 'arm64'},
-            {platform: 'macos', os: 'xcode-27', arch: 'x64', flutter_arch: 'x64'},
-          ].map(t => ({...t, safe_preview: false}))
-            .filter(t => process.env.PLATFORM === 'all' || t.platform === process.env.PLATFORM);
-          if (process.env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(process.env.PLATFORM)) {
-            targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});
-          }
-          const clientBranch = process.env.CLIENT_BRANCH === 'true' || official;
-          const androidRelease = process.env.ANDROID_RELEASE === 'true' || official;
-          const nativeUi = process.env.NATIVE_BRANCH === 'true' || official;
-          fs.appendFileSync(process.env.GITHUB_OUTPUT,
-            `platform=${process.env.PLATFORM}\nios_source=${process.env.IOS_SOURCE}\nandroid_release=${androidRelease}\nofficial=${official}\nclient_branch=${clientBranch}\nnative_ui=${nativeUi}\nmatrix=${JSON.stringify({include: targets})}\nenabled=${targets.length > 0}\n`);
-          JS
+        run: node tool/ci/cloud_build_selector.mjs
 
   project:
     name: FlClash · ${{ matrix.platform }} · ${{ matrix.arch }}${{ matrix.safe_preview && ' · safe debug' || '' }}
