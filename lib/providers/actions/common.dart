@@ -411,7 +411,12 @@ class CommonAction extends _$CommonAction {
       );
       if (res == true) {
         if (plan == null || !updatesInApp) {
-          unawaited(launchUrl(browserDownloadUri(plan, release: release)));
+          final target = browserDownloadUri(plan, release: release);
+          if (target.toString() == websiteDownloadsPageUrl) {
+            unawaited(ref.read(zolnitWebSessionProvider).open(target));
+          } else {
+            unawaited(launchUrl(target));
+          }
         } else {
           await globalState.safeRun(
             () => applyAppUpdate(plan),

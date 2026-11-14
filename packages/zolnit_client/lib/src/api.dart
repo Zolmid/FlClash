@@ -376,6 +376,20 @@ class XboardClient {
     });
   }
 
+  Future<String> authorizeWebSession() async {
+    final value = await request(
+      '/api/v1/zolnit/client/web-session/authorize',
+      method: 'POST',
+      body: const {},
+    );
+    if (value is! Json ||
+        value['code'] is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(value['code'] as String)) {
+      throw const ClientFailure('invalid_web_session');
+    }
+    return value['code'] as String;
+  }
+
   Future<ZolnitRealtimeTicket> realtimeTicket() async {
     final value = await request(
       '/api/v1/zolnit/client/realtime/ticket',

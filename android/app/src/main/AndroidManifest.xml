@@ -86,6 +86,9 @@
             </intent-filter>
         </activity>
 
+        <service android:name=".WebSessionService" android:exported="false" />
+        <activity android:name=".WebSessionActivity" android:exported="false" android:excludeFromRecents="true" android:process=":websession" />
+
         <activity
             android:name=".QuickActionActivity"
             android:excludeFromRecents="true"

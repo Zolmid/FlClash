@@ -6,13 +6,13 @@ import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/common/exception.dart';
 import 'package:fl_clash/common/package.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/providers/zolnit_web_session.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'kit.dart';
 import 'motion.dart';
@@ -152,6 +152,9 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
                   busy: _installing,
                   failure: ref.watch(appUpdateStatusProvider).failure,
                   onInstall: _install,
+                  onOpenDownload: () => ref
+                      .read(zolnitWebSessionProvider)
+                      .open(zolnitDownloadsPage),
                   onDismiss: widget.dismissible
                       ? () => setState(() => _dismissed = key)
                       : null,
@@ -168,6 +171,7 @@ class _UpdateCard extends StatelessWidget {
     required this.notice,
     required this.busy,
     required this.onInstall,
+    required this.onOpenDownload,
     required this.failure,
     required this.onDismiss,
   });
@@ -176,20 +180,11 @@ class _UpdateCard extends StatelessWidget {
   final bool busy;
   final Object? failure;
   final VoidCallback onInstall;
+  final Future<bool> Function() onOpenDownload;
   final VoidCallback? onDismiss;
 
   Future<void> _openDownload(BuildContext context) async {
-    for (final mode in [
-      LaunchMode.inAppBrowserView,
-      LaunchMode.externalApplication,
-    ]) {
-      try {
-        if (await supportsLaunchMode(mode) &&
-            await launchUrl(zolnitDownloadsPage, mode: mode)) {
-          return;
-        }
-      } catch (_) {}
-    }
+    if (await onOpenDownload()) return;
     if (!context.mounted) return;
     await showZolnitDialog<void>(
       context,

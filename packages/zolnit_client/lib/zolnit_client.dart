@@ -29,3 +29,4 @@ export 'src/routing_probe_scheduler.dart';
 export 'src/routing_provider_health.dart';
 export 'src/realtime.dart';
 export 'src/rewards.dart';
+export 'src/web_session.dart';
