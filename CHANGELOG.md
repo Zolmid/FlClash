@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.7 (2026-11-14)
+
+**Bug Fixes**
+
+- Keep the connection screen in place when returning to the app on iPhone and iPad. (ebafce8)
+
 ## v1.1.6 (2026-11-14)
 
 **Features**
