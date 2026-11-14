@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,118 +26,30 @@ void main() {
     messenger.setMockMethodCallHandler(channel, null);
   });
 
-  test('Android WeChat uses the dedicated native SDK bridge', () async {
-    final methods = <String>[];
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      methods.add(call.method);
-      return call.method == 'isBusy' ? false : null;
-    });
-    await NativeCheckoutPlatform(
-      merchantName: 'ZolNit',
-      wechatAppId: 'wxdemo',
-    ).confirmStripe(action(), isCurrent: () => true);
-    expect(methods, ['isBusy', 'confirm']);
-  });
-
-  test('WeChat uses the fixed client AppID when checkout omits it', () async {
-    Object? confirmed;
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'confirm') confirmed = call.arguments;
-      return call.method == 'isBusy' ? false : null;
-    });
-    await NativeCheckoutPlatform(
-      merchantName: 'ZolNit',
-      wechatAppId: 'wxdemo',
-    ).confirmStripe(action(appId: null), isCurrent: () => true);
-    expect((confirmed as Map)['appId'], 'wxdemo');
-  });
-
-  for (final configuredId in ['', 'wxtrusted']) {
-    test(
-      'unconfigured or mismatched WeChat AppID never invokes the SDK ($configuredId)',
-      () async {
-        var calls = 0;
-        messenger.setMockMethodCallHandler(channel, (call) async {
-          calls++;
-          return false;
-        });
-        await expectLater(
-          NativeCheckoutPlatform(
-            merchantName: 'ZolNit',
-            wechatAppId: configuredId,
-          ).confirmStripe(action(), isCurrent: () => true),
-          throwsA(
-            isA<ClientFailure>().having(
-              (e) => e.code,
-              'code',
-              'sdk_unavailable',
-            ),
-          ),
-        );
-        expect(calls, 0);
-      },
-    );
-  }
-
-  test(
-    'account invalidation during SDK preparation prevents native confirmation',
-    () async {
-      final ready = Completer<bool>();
-      final queried = Completer<void>();
-      var current = true;
-      var confirmations = 0;
+  for (final target in [TargetPlatform.android, TargetPlatform.iOS]) {
+    test('WeChat cannot invoke the native bridge on $target', () async {
+      debugDefaultTargetPlatformOverride = target;
+      var calls = 0;
       messenger.setMockMethodCallHandler(channel, (call) async {
-        if (call.method == 'isBusy') {
-          queried.complete();
-          return ready.future;
-        }
-        confirmations++;
-        return null;
+        calls++;
+        return false;
       });
-      final operation = NativeCheckoutPlatform(
-        merchantName: 'ZolNit',
-        wechatAppId: 'wxdemo',
-      ).confirmStripe(action(), isCurrent: () => current);
-      final assertion = expectLater(operation, throwsA(isA<ClientFailure>()));
-      await queried.future;
-      current = false;
-      ready.complete(false);
-      await assertion;
-      expect(confirmations, 0);
-    },
-  );
-
-  test('SDK gate spans separate platform instances', () async {
-    final ready = Completer<bool>();
-    final queried = Completer<void>();
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'isBusy') {
-        queried.complete();
-        return ready.future;
-      }
-      return null;
-    });
-    final first = NativeCheckoutPlatform(
-      merchantName: 'ZolNit',
-      wechatAppId: 'wxdemo',
-    ).confirmStripe(action(), isCurrent: () => true);
-    await queried.future;
-    await expectLater(
-      NativeCheckoutPlatform(
-        merchantName: 'ZolNit',
-        wechatAppId: 'wxdemo',
-      ).confirmStripe(action(), isCurrent: () => true),
-      throwsA(
-        isA<ClientFailure>().having(
-          (e) => e.code,
-          'code',
-          'purchase_in_progress',
+      await expectLater(
+        NativeCheckoutPlatform(
+          merchantName: 'ZolNit',
+          wechatAppId: 'wxdemo',
+        ).confirmStripe(action(), isCurrent: () => true),
+        throwsA(
+          isA<ClientFailure>().having(
+            (error) => error.code,
+            'code',
+            'wallet_unavailable',
+          ),
         ),
-      ),
-    );
-    ready.complete(false);
-    await first;
-  });
+      );
+      expect(calls, 0);
+    });
+  }
 
   test('store policy separates Apple IAP from direct-distribution Stripe', () {
     const apple = ClientPaymentPolicy(

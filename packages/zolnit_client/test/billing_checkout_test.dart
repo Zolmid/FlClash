@@ -94,6 +94,22 @@ class _Harness {
 }
 
 void main() {
+  test(
+    'an explicit one-time order never depends on the recurring probe',
+    () async {
+      final h = _Harness(
+        detail: const {'trade_no': 'orderA', 'period': 'onetime_price'},
+        probe: (_) async => http.Response('{}', 503),
+        ordinary: {
+          'type': 1,
+          'data': 'https://checkout.stripe.com/c/pay/fixture',
+        },
+      );
+      expect(await h.backend.start('orderA', 2), isA<HostedCheckout>());
+      expect(h.paths, [_detail, _checkout]);
+    },
+  );
+
   Json native(String wallet) => {
     'trade_no': 'orderA',
     'kind': 'stripe_android',
@@ -182,6 +198,18 @@ void main() {
       expect(h.posts.length, 1);
     },
   );
+
+  test('WeChat selector fails before billing requests', () async {
+    final h = _Harness(
+      probe: (_) async => http.Response('{}', 404),
+      nativeWalletForMethod: (_) => 'wechat_pay',
+    );
+    await expectLater(
+      Future.sync(() => h.backend.start('orderA', 2)),
+      throwsA(_failure('wallet_unavailable')),
+    );
+    expect(h.paths, isEmpty);
+  });
 
   test('untrusted wallet selector cannot add a checkout hint', () async {
     final h = _Harness(

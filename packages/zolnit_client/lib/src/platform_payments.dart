@@ -37,13 +37,10 @@ class NativeCheckoutPlatform implements CheckoutPlatform {
     required bool Function() isCurrent,
   }) async {
     if (!isCurrent()) throw const ClientFailure('superseded');
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      throw const ClientFailure('sdk_unavailable');
+    if (action.wallet == StripeWallet.wechatPay) {
+      throw const ClientFailure('wallet_unavailable');
     }
-    if (action.wallet == StripeWallet.wechatPay &&
-        (!RegExp(r'^wx[A-Za-z0-9]+$').hasMatch(wechatAppId) ||
-            (action.wechatAppId != null &&
-                action.wechatAppId != wechatAppId))) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       throw const ClientFailure('sdk_unavailable');
     }
     if (_confirming) throw const ClientFailure('purchase_in_progress');
@@ -53,14 +50,6 @@ class NativeCheckoutPlatform implements CheckoutPlatform {
         throw const ClientFailure('purchase_in_progress');
       }
       if (!isCurrent()) throw const ClientFailure('superseded');
-      if (action.wallet == StripeWallet.wechatPay) {
-        await ZolnitWechatPay().confirm(
-          publishableKey: action.publishableKey,
-          clientSecret: action.clientSecret,
-          appId: wechatAppId,
-        );
-        return;
-      }
       Stripe.publishableKey = action.publishableKey;
       Stripe.urlScheme = action.returnUri.scheme;
       Stripe.setReturnUrlSchemeOnAndroid = true;

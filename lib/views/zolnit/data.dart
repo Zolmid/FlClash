@@ -127,6 +127,7 @@ String zolnitFailureText(
     'rate_limited' => text.zolnitRateLimited,
     'recurring_unavailable' => text.zolnitRecurringUnavailable,
     'payment_disallowed' ||
+    'wallet_unavailable' ||
     'stripe_disabled_for_distribution' => text.zolnitPaymentUnavailable,
     'network' || 'timeout' => text.networkException,
     'registration_browser_unavailable' =>

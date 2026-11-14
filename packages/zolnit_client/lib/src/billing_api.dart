@@ -55,7 +55,7 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
   String? _nativeWallet(int methodId) =>
       switch (nativeWalletForMethod?.call(methodId)) {
         'payment_sheet' => 'payment_sheet',
-        'wechat_pay' => 'wechat_pay',
+        'wechat_pay' => throw const ClientFailure('wallet_unavailable'),
         _ => null,
       };
 
@@ -103,6 +103,25 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     if (detail is! Json || detail['trade_no'] != tradeNo) {
       throw const ClientFailure('invalid_billing_response');
     }
+    Future<CheckoutAction> startOneTime() async {
+      final response = await api.checkout(
+        tradeNo,
+        methodId,
+        nativeWallet: nativeWallet,
+      );
+      ensureCurrent();
+      return _checkout(response, tradeNo, nativeWallet: nativeWallet);
+    }
+
+    if (!recurring &&
+        const {
+          'onetime',
+          'onetime_price',
+          'reset_traffic',
+          'reset_price',
+        }.contains(detail['period'])) {
+      return startOneTime();
+    }
     dynamic intent;
     try {
       intent = await api.request(
@@ -112,13 +131,7 @@ class XboardCheckoutBackend implements RecurringCheckoutBackend {
     } on ClientFailure catch (error) {
       ensureCurrent();
       if (error.statusCode != 404 || recurring) rethrow;
-      final response = await api.checkout(
-        tradeNo,
-        methodId,
-        nativeWallet: nativeWallet,
-      );
-      ensureCurrent();
-      return _checkout(response, tradeNo, nativeWallet: nativeWallet);
+      return startOneTime();
     }
     if (intent is! Json ||
         intent['recurring'] != true ||
