@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show compute;
 
@@ -988,7 +989,58 @@ class ZolnitRouting with WidgetsBindingObserver {
     _resuming = true;
     final generation = _session?.api.generation;
     try {
+      final observation = _nativeObservation;
       await _pollNative();
+      final plan = _active;
+      final session = _session;
+      final native = _nativeClient.snapshot;
+      if (session != null &&
+          plan != null &&
+          session.api.clientPlatform == 'ios' &&
+          _nativeObservation != observation) {
+        bool stillCurrent() {
+          final bundle = session.clientBundle;
+          final profile = ref.read(currentProfileProvider);
+          final currentNative = _nativeClient.snapshot;
+          return !_disposed &&
+              identical(session, _session) &&
+              identical(plan, _active) &&
+              session.authenticated &&
+              session.api.generation == generation &&
+              _nativeGeneration == generation &&
+              _nativeOwned &&
+              native.sessionEpoch != null &&
+              native.sessionEpoch == _nativeSessionEpoch &&
+              currentNative.sessionEpoch == native.sessionEpoch &&
+              currentNative.ownerId == native.ownerId &&
+              currentNative.ownsRenewal &&
+              currentNative.ready &&
+              ref.read(isStartProvider) &&
+              ref.read(coreStatusProvider) == CoreStatus.connected &&
+              ref.read(currentProfileIdProvider) == plan.profileId &&
+              ref.read(zolnitBundleStatusProvider) ==
+                  ZolnitBundleStatus.ready &&
+              profile != null &&
+              isCurrentZolnitBundleProfile(profile, session) &&
+              bundle != null &&
+              bundle.isFresh(_now) &&
+              bundle.bundleId == plan.bundleId &&
+              bundle.accountId == plan.accountId &&
+              bundle.expiresAt == plan.expiresAt;
+        }
+
+        if (stillCurrent()) {
+          try {
+            final guard = await ref.read(coreHandlerProvider).getRoutingLease();
+            if (stillCurrent() && _matchesCoreLease(guard, plan)) return;
+          } catch (_) {}
+        }
+      }
+      if (_disposed ||
+          session?.authenticated != true ||
+          session?.api.generation != generation) {
+        return;
+      }
       await ref.read(zolnitSyncClientBundleProvider)();
       if (!_disposed &&
           _session?.authenticated == true &&

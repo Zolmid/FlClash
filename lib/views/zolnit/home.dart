@@ -337,11 +337,26 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasForeground = _foreground;
     _foreground = state == AppLifecycleState.resumed;
     if (!_foreground) _reportUpdateHints(false);
     _armRefresh();
     _realtime?.setForeground(_foreground);
-    if (_foreground) unawaited(_refreshData(force: true));
+    if (!_foreground) return;
+    if (_session.api.clientPlatform != 'ios') {
+      unawaited(_refreshData(force: true));
+      return;
+    }
+    if (wasForeground) return;
+    if (_session.authenticated) {
+      _reconcileCheckout(_session.api.generation);
+      final pending = _pendingOrders();
+      if (pending.isNotEmpty) {
+        _nextOrderCheck = _now.add(const Duration(seconds: 60));
+        unawaited(_reconcileOrders(pending));
+      }
+    }
+    unawaited(_refreshData(force: _nextRefresh?.isAfter(_now) != true));
   }
 
   @override

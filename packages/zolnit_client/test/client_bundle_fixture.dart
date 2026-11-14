@@ -52,12 +52,13 @@ class _BundlePlatform implements CheckoutPlatform {
 class ClientBundleSessionFixture {
   ClientBundleSessionFixture({
     ZolnitSessionVault? vault,
+    String clientPlatform = 'macos',
     ZolnitSignedSubscriptions? signedSubscriptions,
     Future<http.Response?> Function(http.Request)? onRequest,
   }) {
     api = XboardClient(
       origin: Uri.parse('https://panel.example.invalid'),
-      clientPlatform: 'macos',
+      clientPlatform: clientPlatform,
       distribution: 'direct',
       userAgent: 'ZolNit/fixture',
       client: MockClient((request) async {

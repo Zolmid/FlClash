@@ -37,6 +37,19 @@ class _Core extends Mock implements CoreHandlerInterface {}
 
 class _Downloader extends Mock implements Dio {}
 
+class _ResumeSetup extends SetupAction {
+  int applies = 0;
+  @override
+  Future<bool> applyProfile({
+    bool silence = false,
+    bool force = false,
+    Future<void> Function()? preloadInvoke,
+  }) async {
+    applies++;
+    return true;
+  }
+}
+
 class _NativeSigned extends Fake implements ZolnitSignedSubscriptions {
   int serial = 1;
   Completer<Json?>? next;
@@ -111,6 +124,7 @@ void main() {
   late DateTime now;
   late bool safe;
   late bool nativeSupported;
+  _ResumeSetup? resumeSetup;
   late ZolnitNativeRenewalClient native;
   late Map<String, Object?> nativeReceipt;
   Future<Map<String, dynamic>?> Function()? leaseOverride;
@@ -143,6 +157,8 @@ void main() {
         currentProfileIdProvider.overrideWithBuild((_, _) => null),
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
         safeModeProvider.overrideWith((_) => safe),
+        if (resumeSetup != null)
+          setupActionProvider.overrideWith(() => resumeSetup!),
         tunnelStateProvider.overrideWith((_) => tunnelState),
       ],
     );
@@ -172,6 +188,7 @@ void main() {
     now = bundleTime(1001);
     safe = true;
     nativeSupported = false;
+    resumeSetup = null;
     leaseOverride = null;
     nativeReceipt = {
       'supported': true,
@@ -1052,6 +1069,93 @@ void main() {
       }
     },
   );
+
+  for (final scenario in ['matching', 'changed', 'disconnected']) {
+    test('iOS resume handles a $scenario native lease', () async {
+      container.dispose();
+      fixture.dispose();
+      fixture = ClientBundleSessionFixture(clientPlatform: 'ios');
+      await fixture.login();
+      nativeSupported = true;
+      resumeSetup = _ResumeSetup();
+      createContainer();
+      final profile = await sync();
+      container.read(currentProfileIdProvider.notifier).value = profile.id;
+      final built = await build(profile);
+      final routing = container.read(zolnitRoutingProvider);
+      safe = false;
+      container.invalidate(safeModeProvider);
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      container.read(runTimeProvider.notifier).value = 1234;
+      routing.activate(profile.id, built.md5);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await native.poll();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(container.read(zolnitCoreLeaseReadyProvider), isTrue);
+      if (scenario == 'changed') {
+        leaseOverride = () async => null;
+      } else if (scenario == 'disconnected') {
+        container.read(coreStatusProvider.notifier).value =
+            CoreStatus.disconnected;
+      }
+      fixture.requests.clear();
+      routing.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      for (
+        var i = 0;
+        i < 50 && scenario != 'matching' && resumeSetup!.applies == 0;
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      final reads = fixture.requests
+          .where((r) => r.url.path.endsWith('/client/bundle'))
+          .length;
+      expect(reads, scenario == 'matching' ? 0 : 1);
+      expect(resumeSetup!.applies, scenario == 'matching' ? 0 : 1);
+      expect(container.read(runTimeProvider), 1234);
+      verifyNever(() => core.stopListener());
+    });
+  }
+
+  test('iOS resume discards a lease check completed after logout', () async {
+    container.dispose();
+    fixture.dispose();
+    fixture = ClientBundleSessionFixture(clientPlatform: 'ios');
+    await fixture.login();
+    nativeSupported = true;
+    resumeSetup = _ResumeSetup();
+    createContainer();
+    final profile = await sync();
+    container.read(currentProfileIdProvider.notifier).value = profile.id;
+    final built = await build(profile);
+    final routing = container.read(zolnitRoutingProvider);
+    safe = false;
+    container.invalidate(safeModeProvider);
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    container.read(runTimeProvider.notifier).value = 1234;
+    routing.activate(profile.id, built.md5);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await native.poll();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    final entered = Completer<void>();
+    final held = Completer<Map<String, dynamic>?>();
+    leaseOverride = () {
+      if (!entered.isCompleted) entered.complete();
+      return held.future;
+    };
+    fixture.requests.clear();
+    routing.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await entered.future.timeout(const Duration(seconds: 2));
+    await fixture.session.logout();
+    held.complete(null);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(resumeSetup!.applies, 0);
+    expect(
+      fixture.requests.where((r) => r.url.path.endsWith('/client/bundle')),
+      isEmpty,
+    );
+  });
 
   test('new valid bundle waits for its matching native Core lease', () async {
     nativeSupported = true;
