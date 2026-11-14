@@ -51,7 +51,7 @@ class SigningTest(unittest.TestCase):
         if cmd[:3] == ['ditto', '-c', '-k']:
             Path(cmd[-1]).write_bytes(b'signed app zip')
         if cmd[:2] == ['hdiutil', 'create']:
-            self.dmg.write_bytes(b'dmg')
+            Path(cmd[-1]).write_bytes(b'dmg')
         return ''
 
     def package(self):
@@ -80,6 +80,33 @@ class SigningTest(unittest.TestCase):
         self.assertLess(submits[1], staples[1])
         self.assertEqual(sum(cmd[:3] == ['xcrun', 'stapler', 'validate'] for cmd in self.commands), 2)
         self.assertEqual(sum(cmd[:2] == ['spctl', '--assess'] for cmd in self.commands), 2)
+
+    def test_dmg_creation_retries_once_with_a_fresh_output_path(self):
+        for failures in (1, 2):
+            with self.subTest(failures=failures), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                staging = root / 'content'
+                staging.mkdir()
+                dmg = root / 'final.dmg'
+                attempts = []
+                def create(args):
+                    path = Path(args[-1])
+                    self.assertEqual(args[:2], ['hdiutil', 'create'])
+                    self.assertFalse(path.exists())
+                    attempts.append(path)
+                    if len(attempts) <= failures:
+                        path.write_bytes(b'partial')
+                        raise signing.SigningError('hdiutil failed with exit status 1')
+                    path.write_bytes(b'complete')
+                with mock.patch.object(signing, 'run', side_effect=create), mock.patch.object(signing.time, 'sleep'):
+                    if failures == 2:
+                        with self.assertRaisesRegex(signing.SigningError, 'hdiutil failed'):
+                            signing.create_dmg(staging, dmg)
+                    else:
+                        signing.create_dmg(staging, dmg)
+                        self.assertEqual(dmg.read_bytes(), b'complete')
+                self.assertEqual(len(set(attempts)), 2)
+                self.assertFalse(attempts[0].exists())
 
     def test_signing_changes_core_bytes_without_inventing_helper_hash_binding(self):
         core = self.macos / 'FlClashCore'

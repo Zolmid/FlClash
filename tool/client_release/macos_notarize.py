@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 
 import assemble_release as release
@@ -384,6 +385,20 @@ def verify_pending_dmg(dmg, scratch, team):
         run(['hdiutil', 'detach', mount])
 
 
+def create_dmg(staging, dmg):
+    with tempfile.TemporaryDirectory(prefix='dmg-attempt-', dir=dmg.parent) as tmp:
+        first = Path(tmp) / dmg.name
+        command = ['hdiutil', 'create', '-volname', 'ZolNit', '-srcfolder', staging, '-format', 'UDZO']
+        try:
+            run([*command, first])
+        except SigningError:
+            print('::notice::Disk image creation failed before signing; retrying once with a new output path', flush=True)
+            time.sleep(3)
+            run([*command, dmg])
+        else:
+            first.rename(dmg)
+
+
 def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements, checkpoint=None, mode='all'):
     checkpoint = checkpoint or pending.Checkpoint(scratch / 'pending', {})
     resumed = checkpoint.data is not None
@@ -429,7 +444,7 @@ def sign_package(app, dmg, scratch, identity, key, key_id, issuer, entitlements,
         staging.mkdir()
         run(['ditto', app, staging / 'ZolNit.app'])
         (staging / 'Applications').symlink_to('/Applications')
-        run(['hdiutil', 'create', '-volname', 'ZolNit', '-srcfolder', staging, '-format', 'UDZO', dmg])
+        create_dmg(staging, dmg)
         phase('dmg-signing')
         run(['codesign', '--force', '--sign', identity, '--timestamp', dmg])
         run(['codesign', '--verify', '--strict', '--verbose=2', dmg])
