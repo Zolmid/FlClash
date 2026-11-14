@@ -505,5 +505,7 @@ test('only the select job reads the profile and trust and signing gates ignore i
   ];
   for (const line of legacyGates) assert.equal(lines.filter(l => l === line).length, 1, line);
   assert.deepEqual(lines.filter(l => /OFFICIAL_|ANDROID_RELEASE|safe_preview: true/.test(l)), [...legacyGates.slice(0, 3),
+    "  if (zolnitProfile && (official || env.ANDROID_RELEASE_REQUESTED === 'true' ||",
+    "      env.ANDROID_RELEASE === 'true' || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.IOS_SOURCE !== 'project')) {",
     "    targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});", legacyGates[5]]);
 });
