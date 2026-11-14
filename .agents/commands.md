@@ -23,6 +23,21 @@ and writes an unsigned IPA under `dist/`. Install Rust's `aarch64-apple-ios`
 target first. `docs/cloud-build.md` describes the matching cloud build job and
 the signing requirements for device testing.
 
+To compile any other ref as a ZolNit development candidate, dispatch the cloud
+build with the `zolnit` profile:
+
+```bash
+gh workflow run cloud-build.yml --ref <branch> -f platform=all -f ios_source=project -f build_profile=zolnit
+```
+
+The profile only sets the `client_branch` and `native_ui` outputs, so the run
+compiles with the ZolNit distribution, native UI and client bundle defines. It
+is accepted only from a manual dispatch with `ios_source=project`. It never
+grants `official`, Android release signing or the macOS safe preview target, so
+`android_release=true` outside the two client branches is still rejected, and
+its debug APK and unsigned IPA are development artifacts, not distribution. The
+default `auto` keeps the ref-derived behavior.
+
 The desktop Go core and the Rust helper build automatically: Flutter runs
 `plugins/setup/hook/build.dart` on every `flutter build` and `flutter test`,
 and the hook drives `CoreBuilder` from the `setup_hooks` package in

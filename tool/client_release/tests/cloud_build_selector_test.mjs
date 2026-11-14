@@ -77,6 +77,8 @@ function githubEnv({event, ref, refType = 'branch', repository = 'Zolmid/FlClash
     OFFICIAL_TRUSTED: and(eq(event, 'push'), eq(repository, 'Zolmid/FlClash'), eq(repositoryId, '1420254999'),
       eq(refType, 'tag'), ref.toLowerCase().startsWith('refs/tags/v'),
       eq(workflowRef, `Zolmid/FlClash/.github/workflows/client-release.yml@${ref}`)),
+    BUILD_PROFILE: input('build_profile'),
+    GITHUB_EVENT_NAME: event,
   }).map(([k, v]) => [k, str(v)]));
 }
 
@@ -306,6 +308,7 @@ test('select job keeps its env expressions and only runs the checked-out selecto
     "      ANDROID_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.android_release && (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') }}",
     '      OFFICIAL_REQUESTED: ${{ inputs.official_release == true }}',
     "      OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}",
+    '      BUILD_PROFILE: ${{ inputs.build_profile }}',
     '    steps:',
     '      - uses: actions/checkout@v5',
     '        with:',
@@ -330,4 +333,175 @@ test('importing the selector writes nothing and it reaches no process or network
   const source = readFileSync(MODULE, 'utf8');
   assert.deepEqual([...source.matchAll(/from '([^']+)'/g)].map(m => m[1]), ['node:fs', 'node:url']);
   assert.doesNotMatch(source, /import\(|require\(|child_process|fetch|https?:|node:net|spawn|exec/);
+});
+const PROFILE_ERROR = 'The zolnit build profile runs only from a manual dispatch with the project iOS source';
+const NEW_REF = 'refs/heads/codex/refactor-candidate';
+const PLATFORMS = ['all', 'macos', 'windows', 'android', 'ios', 'linux'];
+const PUSH_REFS = ['main', 'codex/patched-integration', 'codex/ios-support', 'codex/upstream-0.9.1', 'codex/zolnit-client',
+  'codex/native-client-shared'].map(branch => `refs/heads/${branch}`);
+const dispatch = (ref, inputs) => githubEnv({event: 'workflow_dispatch', ref, inputs});
+const outcome = run => {
+  try {
+    return {output: run()};
+  } catch (error) {
+    return {error: error.message};
+  }
+};
+
+function runBaseSelector(env) {
+  let written = '';
+  const fs = {appendFileSync(file, data) {
+    assert.equal(file, 'github-output');
+    written += data;
+  }};
+  new Function('require', 'process', BASE_SELECTOR)(name => {
+    assert.equal(name, 'fs');
+    return fs;
+  }, {env: {...env, GITHUB_OUTPUT: 'github-output'}});
+  return written;
+}
+
+test('auto, empty and absent profiles keep every legacy byte', () => {
+  for (const {name, env} of cases) {
+    const base = outcome(() => runBaseSelector(env));
+    const {base: spawned} = resultOf(name);
+    assert.deepEqual(base, spawned.status === 0 ? {output: spawned.bytes.toString('utf8')}
+      : {error: spawned.error.slice('Error: '.length)}, name);
+    for (const value of [undefined, '', 'auto']) {
+      const profiled = {...env, BUILD_PROFILE: value};
+      if (value === undefined) delete profiled.BUILD_PROFILE;
+      assert.deepEqual(outcome(() => selectCloudBuild(profiled)), base, `${name} ${value}`);
+    }
+  }
+});
+
+test('zolnit dispatch only turns on the client product flags', () => {
+  const tally = {accepted: 0, android: 0, profile: 0};
+  for (const ref of [...PUSH_REFS, NEW_REF, TAG]) {
+    const clientRef = ref === ZC || ref === NCS;
+    for (const platform of PLATFORMS) {
+      for (const iosSource of ['project', 'patched-reference']) {
+        for (const androidRelease of [false, true]) {
+          const name = `${ref} ${platform} ${iosSource} android=${androidRelease}`;
+          const inputs = {platform, ios_source: iosSource, android_release: androidRelease};
+          const auto = dispatch(ref, {...inputs, build_profile: 'auto'});
+          const base = outcome(() => runBaseSelector(auto));
+          assert.deepEqual(outcome(() => selectCloudBuild(auto)), base, name);
+          const current = outcome(() => selectCloudBuild(dispatch(ref, {...inputs, build_profile: 'zolnit'})));
+          if (androidRelease && !(clientRef && ['all', 'android'].includes(platform))) {
+            assert.deepEqual(current, {error: ANDROID_ERROR}, name);
+            tally.android++;
+          } else if (iosSource !== 'project') {
+            assert.deepEqual(current, {error: PROFILE_ERROR}, name);
+            tally.profile++;
+          } else {
+            const parsed = parse(Buffer.from(current.output));
+            assert.deepEqual(Object.keys(parsed), KEYS, name);
+            assert.deepEqual(parsed, {...parse(Buffer.from(base.output)), client_branch: 'true', native_ui: 'true'}, name);
+            assert.equal(parsed.official, 'false', name);
+            assert.equal(parsed.android_release, String(androidRelease), name);
+            assert.equal(JSON.parse(parsed.matrix).include.some(t => t.safe_preview),
+              clientRef && ['all', 'macos'].includes(platform), name);
+            tally.accepted++;
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(tally, {accepted: 52, android: 88, profile: 52});
+});
+
+test('the CLI writes zolnit candidate outputs and rejects what the profile cannot unlock', () => {
+  const zolnit = (ref, platform, iosSource = 'project', androidRelease = false) => execute([MODULE], undefined,
+    dispatch(ref, {platform, ios_source: iosSource, android_release: androidRelease, build_profile: 'zolnit'}));
+  const bytes = (platform, androidRelease, matrix) => `platform=${platform}\nios_source=project\n` +
+    `android_release=${androidRelease}\nofficial=false\nclient_branch=true\nnative_ui=true\n` +
+    `matrix=${JSON.stringify({include: matrix})}\nenabled=${matrix.length > 0}\n`;
+  for (const [run, expected] of [
+    [zolnit(NEW_REF, 'all'), bytes('all', false, ALL)],
+    [zolnit(NEW_REF, 'macos'), bytes('macos', false, [MAC_ARM, MAC_X64])],
+    [zolnit(NEW_REF, 'android'), bytes('android', false, [ANDROID])],
+    [zolnit(NEW_REF, 'ios'), bytes('ios', false, [])],
+    [zolnit('refs/heads/main', 'windows'), bytes('windows', false, [WINDOWS])],
+    [zolnit(ZC, 'macos'), bytes('macos', false, [MAC_ARM, MAC_X64, MAC_PREVIEW])],
+    [zolnit(ZC, 'android', 'project', true), bytes('android', true, [ANDROID])],
+  ]) {
+    assert.equal(run.status, 0);
+    assert.equal(run.stdout, '');
+    assert.equal(run.bytes.toString('utf8'), expected);
+  }
+  for (const [run, message] of [
+    [zolnit(NEW_REF, 'android', 'project', true), ANDROID_ERROR],
+    [zolnit(NEW_REF, 'all', 'project', true), ANDROID_ERROR],
+    [zolnit(TAG, 'android', 'project', true), ANDROID_ERROR],
+    [zolnit(NEW_REF, 'all', 'patched-reference'), PROFILE_ERROR],
+    [zolnit(NEW_REF, 'ios', 'patched-reference'), PROFILE_ERROR],
+  ]) {
+    assert.equal(run.status, 1);
+    assert.equal(run.error, `Error: ${message}`);
+    assert.equal(run.bytes.length, 0);
+  }
+});
+
+test('the zolnit profile needs a manual dispatch and no official request', () => {
+  const env = dispatch(NEW_REF, {platform: 'all', ios_source: 'project', build_profile: 'zolnit'});
+  assert.equal(parse(Buffer.from(selectCloudBuild(env))).client_branch, 'true');
+  for (const event of ['push', 'workflow_call', 'pull_request', 'schedule', 'WORKFLOW_DISPATCH', '', undefined]) {
+    const moved = {...env, GITHUB_EVENT_NAME: event};
+    if (event === undefined) delete moved.GITHUB_EVENT_NAME;
+    assert.throws(() => selectCloudBuild(moved), {message: PROFILE_ERROR}, String(event));
+  }
+  for (const ref of [...PUSH_REFS, NEW_REF]) {
+    assert.throws(() => selectCloudBuild({...githubEnv({event: 'push', ref}), BUILD_PROFILE: 'zolnit'}),
+      {message: PROFILE_ERROR}, ref);
+  }
+  assert.throws(() => selectCloudBuild({...release(), BUILD_PROFILE: 'zolnit'}), {message: PROFILE_ERROR});
+  assert.throws(() => selectCloudBuild({...release(), BUILD_PROFILE: 'zolnit', GITHUB_EVENT_NAME: 'workflow_dispatch'}),
+    {message: PROFILE_ERROR});
+  assert.throws(() => selectCloudBuild({...release({event: 'workflow_dispatch'}), BUILD_PROFILE: 'zolnit'}),
+    {message: OFFICIAL_ERROR});
+  const called = githubEnv({event: 'workflow_dispatch', ref: NEW_REF, inputs: {official_release: false}});
+  assert.equal(called.BUILD_PROFILE, '');
+  assert.equal(parse(Buffer.from(selectCloudBuild(called))).client_branch, 'false');
+});
+
+test('unknown profiles are rejected before anything is written', () => {
+  const env = dispatch(NEW_REF, {platform: 'all', ios_source: 'project'});
+  for (const value of ['ZOLNIT', 'Zolnit', ' zolnit', 'zolnit ', 'Auto', 'official', 'release', 'true', 'null']) {
+    const run = execute([MODULE], undefined, {...env, BUILD_PROFILE: value});
+    assert.equal(run.status, 1, value);
+    assert.equal(run.error, `Error: Unknown build profile ${JSON.stringify(value)}; expected auto or zolnit`, value);
+    assert.equal(run.bytes.length, 0, value);
+  }
+});
+
+test('only the select job reads the profile and trust and signing gates ignore it', () => {
+  const workflow = readFileSync(WORKFLOW, 'utf8');
+  assert.deepEqual(workflow.split('\n').filter(line => /build_profile/i.test(line)),
+    ['      build_profile:', '      BUILD_PROFILE: ${{ inputs.build_profile }}']);
+  const dispatchInputs = workflow.slice(workflow.indexOf('\n  workflow_dispatch:\n'), workflow.indexOf('\n  workflow_call:\n'));
+  assert.match(dispatchInputs, /\n {6}build_profile:\n {8}description: [^\n]+\n {8}type: choice\n {8}required: false\n {8}default: auto\n {8}options: \[auto, zolnit\]$/);
+  const select = workflow.slice(workflow.indexOf('\n  select:\n'), workflow.indexOf('\n  project:\n'));
+  const gates = select.split('\n')
+    .filter(line => /^ {6}(PLATFORM|IOS_SOURCE|CLIENT_BRANCH|NATIVE_BRANCH|ANDROID_RELEASE(_REQUESTED)?|OFFICIAL_(REQUESTED|TRUSTED)):/.test(line));
+  assert.equal(gates.length, 8);
+  for (const line of gates) assert.doesNotMatch(line, /profile/i);
+  const secretSteps = workflow.slice(workflow.indexOf('\njobs:\n')).split('\n      - ').filter(step => step.includes('secrets.'));
+  assert.deepEqual(secretSteps.map(step => step.split('\n').slice(0, 2).join('\n')), [
+    "name: Provision Android release signing\n        if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'",
+    "name: Compile Android release\n        if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'",
+  ]);
+  assert.match(workflow, /\n {6}ANDROID_RELEASE: \$\{\{ needs\.select\.outputs\.android_release \}\}\n/);
+  const lines = readFileSync(MODULE, 'utf8').split('\n');
+  const legacyGates = [
+    "  const official = env.OFFICIAL_REQUESTED === 'true';",
+    "  if (official && (env.OFFICIAL_TRUSTED !== 'true' || env.PLATFORM !== 'all' || env.IOS_SOURCE !== 'project')) {",
+    "  if (env.ANDROID_RELEASE_REQUESTED === 'true' &&",
+    "      (env.CLIENT_BRANCH !== 'true' || !['all', 'android'].includes(env.PLATFORM))) {",
+    "  if (env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(env.PLATFORM)) {",
+    "  const androidRelease = env.ANDROID_RELEASE === 'true' || official;",
+  ];
+  for (const line of legacyGates) assert.equal(lines.filter(l => l === line).length, 1, line);
+  assert.deepEqual(lines.filter(l => /OFFICIAL_|ANDROID_RELEASE|safe_preview: true/.test(l)), [...legacyGates.slice(0, 3),
+    "    targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});", legacyGates[5]]);
 });

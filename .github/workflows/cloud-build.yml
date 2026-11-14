@@ -26,6 +26,12 @@ on:
         type: boolean
         required: false
         default: false
+      build_profile:
+        description: Build profile (zolnit compiles this ref as a ZolNit development candidate)
+        type: choice
+        required: false
+        default: auto
+        options: [auto, zolnit]
   workflow_call:
     inputs:
       official_release:
@@ -71,6 +77,7 @@ jobs:
       ANDROID_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.android_release && (github.ref == 'refs/heads/codex/zolnit-client' || github.ref == 'refs/heads/codex/native-client-shared') }}
       OFFICIAL_REQUESTED: ${{ inputs.official_release == true }}
       OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}
+      BUILD_PROFILE: ${{ inputs.build_profile }}
     steps:
       - uses: actions/checkout@v5
         with:
