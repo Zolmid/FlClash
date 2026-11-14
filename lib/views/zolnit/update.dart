@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:fl_clash/common/app_update.dart';
 import 'package:fl_clash/common/app_update_status.dart';
@@ -14,7 +15,7 @@ import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart'
-    show ZolnitWebSessionCoordinator;
+    show ClientDistribution, ClientPaymentPolicy, ZolnitWebSessionCoordinator;
 
 import 'kit.dart';
 import 'motion.dart';
@@ -136,6 +137,15 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
     if (_installing) return;
     setState(() => _installing = true);
     try {
+      if (_directIos) {
+        final release = ref.read(appUpdateStatusProvider).release;
+        if (release != null) {
+          await ref
+              .read(commonActionProvider.notifier)
+              .installIosDeviceUpdate(release);
+        }
+        return;
+      }
       final android = app;
       if (android != null &&
           !await confirmUpdateInstallation(context, android.canInstallApk)) {
@@ -149,6 +159,11 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
       if (mounted) setState(() => _installing = false);
     }
   }
+
+  bool get _directIos =>
+      Platform.isIOS &&
+      ClientPaymentPolicy.fromEnvironment().distribution ==
+          ClientDistribution.direct;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +187,10 @@ class _ZolnitUpdateBannerState extends ConsumerState<ZolnitUpdateBanner> {
                   notice: notice,
                   busy: _installing,
                   failure: ref.watch(appUpdateStatusProvider).failure,
+                  directIos: _directIos,
+                  onCancelIosUpdate: () => ref
+                      .read(commonActionProvider.notifier)
+                      .cancelIosDeviceUpdate(),
                   onInstall: _install,
                   onOpenDownload: _openWebsite,
                   onDismiss: widget.dismissible
@@ -193,6 +212,8 @@ class _UpdateCard extends StatelessWidget {
     required this.onOpenDownload,
     required this.failure,
     required this.onDismiss,
+    required this.directIos,
+    required this.onCancelIosUpdate,
   });
 
   final ZolnitUpdateNotice notice;
@@ -201,6 +222,8 @@ class _UpdateCard extends StatelessWidget {
   final VoidCallback onInstall;
   final Future<bool> Function() onOpenDownload;
   final VoidCallback? onDismiss;
+  final bool directIos;
+  final VoidCallback onCancelIosUpdate;
 
   Future<void> _openDownload(BuildContext context) async {
     if (await onOpenDownload()) return;
@@ -232,7 +255,8 @@ class _UpdateCard extends StatelessWidget {
         null => text.zolnitUpdateReadyInstall(notice.version),
         _ => text.updateInstallFailed,
       },
-      ZolnitUpdateKind.installing => text.zolnitUpdateInstalling,
+      ZolnitUpdateKind.installing =>
+        directIos ? text.zolnitIosUpdatePreparing : text.zolnitUpdateInstalling,
       ZolnitUpdateKind.available => text.zolnitUpdateAvailable(notice.version),
       ZolnitUpdateKind.manual => text.zolnitUpdateManual(notice.version),
     };
@@ -253,10 +277,20 @@ class _UpdateCard extends StatelessWidget {
           ),
         ],
       ),
+      ZolnitUpdateKind.available when directIos => ZolnitButton(
+        key: const ValueKey('zolnit-update-install'),
+        label: text.zolnitUpdateInstall,
+        primary: true,
+        onPressed: busy ? null : onInstall,
+      ),
       ZolnitUpdateKind.available || ZolnitUpdateKind.manual => ZolnitButton(
         key: const ValueKey('zolnit-update-download'),
         label: text.goDownload,
         onPressed: () => unawaited(_openDownload(context)),
+      ),
+      ZolnitUpdateKind.installing when directIos => ZolnitButton(
+        label: text.cancel,
+        onPressed: onCancelIosUpdate,
       ),
       _ => null,
     };

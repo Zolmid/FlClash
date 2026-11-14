@@ -2197,6 +2197,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
       "邀请好友注册并开通套餐，收获一份奖励。",
     ),
+    "zolnitIosUpdatePreparing": MessageLookupByLibrary.simpleMessage(
+      "正在为此设备准备更新…",
+    ),
+    "zolnitIosUpdateSelectDevice": MessageLookupByLibrary.simpleMessage(
+      "请选择当前使用的已登记设备",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("延迟"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage("最新公告"),
     "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(

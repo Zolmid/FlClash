@@ -439,6 +439,11 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   }) async {
     if (!_currentRealtime(gen) || scope != _realtimeScope()) return;
     switch (type) {
+      case 'apple.archive.changed' || 'apple.device.status':
+        ref
+            .read(commonActionProvider.notifier)
+            .notifyIosUpdateEvent(type, data);
+        return;
       case 'config.changed':
         await _sync();
         if (_syncFailed) throw StateError('config refresh failed');

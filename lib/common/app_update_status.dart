@@ -18,20 +18,24 @@ class AppUpdateStatus {
     this.release,
     this.plan,
     this.failure,
+    this.iosDeviceOperation = false,
   });
 
   final AppUpdatePhase phase;
   final ReleaseManifest? release;
   final AppUpdatePlan? plan;
   final Object? failure;
+  final bool iosDeviceOperation;
 
-  AppUpdateApplyMode get applyMode => switch (plan?.target.package) {
-    UpdatePackage.windowsInstaller ||
-    UpdatePackage.macosDmg ||
-    UpdatePackage.linuxAppImage => AppUpdateApplyMode.onRestart,
-    UpdatePackage.androidApk => AppUpdateApplyMode.userAction,
-    _ => AppUpdateApplyMode.announcementOnly,
-  };
+  AppUpdateApplyMode get applyMode => iosDeviceOperation
+      ? AppUpdateApplyMode.userAction
+      : switch (plan?.target.package) {
+          UpdatePackage.windowsInstaller ||
+          UpdatePackage.macosDmg ||
+          UpdatePackage.linuxAppImage => AppUpdateApplyMode.onRestart,
+          UpdatePackage.androidApk => AppUpdateApplyMode.userAction,
+          _ => AppUpdateApplyMode.announcementOnly,
+        };
 
   bool get isTerminal => switch (phase) {
     AppUpdatePhase.idle ||

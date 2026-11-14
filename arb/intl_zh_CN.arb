@@ -1586,6 +1586,8 @@
   "zolnitUpdateReadyRestart": "更新已准备好，重启 ZolNit 后生效",
   "zolnitUpdateReadyInstall": "ZolNit {version} 已下载，可以安装",
   "zolnitUpdateInstall": "安装更新",
+  "zolnitIosUpdatePreparing": "正在为此设备准备更新…",
+  "zolnitIosUpdateSelectDevice": "请选择当前使用的已登记设备",
   "zolnitUpdateInstalling": "正在打开安装程序…",
   "zolnitUpdateAvailable": "ZolNit {version} 已发布",
   "zolnitUpdateManual": "自动更新未完成，请从官网下载 ZolNit {version}。",

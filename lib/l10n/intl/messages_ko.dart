@@ -2437,6 +2437,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
       "친구를 초대해 가입하고 구독하면 보상을 받습니다.",
     ),
+    "zolnitIosUpdatePreparing": MessageLookupByLibrary.simpleMessage(
+      "이 기기의 업데이트를 준비하는 중…",
+    ),
+    "zolnitIosUpdateSelectDevice": MessageLookupByLibrary.simpleMessage(
+      "현재 사용 중인 등록 기기를 선택하세요",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("지연 시간"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage("최신 공지"),
     "zolnitLoginDescription": MessageLookupByLibrary.simpleMessage(

@@ -17,11 +17,17 @@ final _internalDetail = RegExp(
 );
 
 class ClientFailure implements Exception {
-  const ClientFailure(this.code, {this.statusCode, this.serverMessage});
+  const ClientFailure(
+    this.code, {
+    this.statusCode,
+    this.serverMessage,
+    this.retryAfter,
+  });
 
   final String code;
   final int? statusCode;
   final String? serverMessage;
+  final Duration? retryAfter;
 
   @override
   String toString() => 'ClientFailure($code)';
@@ -248,6 +254,19 @@ class XboardClient {
         throw const ClientFailure('superseded');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (response.statusCode == 429 &&
+            path.startsWith('/api/v1/zolnit/client/apple/')) {
+          final seconds = int.tryParse(response.headers['retry-after'] ?? '');
+          throw ClientFailure(
+            'rate_limited',
+            statusCode: 429,
+            retryAfter: Duration(
+              seconds: seconds != null && seconds > 0
+                  ? seconds.clamp(1, 86400)
+                  : 60,
+            ),
+          );
+        }
         throw _classifyError(
           path: path,
           statusCode: response.statusCode,

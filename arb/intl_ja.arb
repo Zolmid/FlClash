@@ -1586,6 +1586,8 @@
   "zolnitUpdateReadyRestart": "アップデートの準備ができました。ZolNit を再起動すると適用されます",
   "zolnitUpdateReadyInstall": "ZolNit {version} をインストールできます",
   "zolnitUpdateInstall": "インストール",
+  "zolnitIosUpdatePreparing": "このデバイス用のアップデートを準備中…",
+  "zolnitIosUpdateSelectDevice": "現在使用中の登録済みデバイスを選んでください",
   "zolnitUpdateInstalling": "インストーラーを開いています…",
   "zolnitUpdateAvailable": "ZolNit {version} が公開されました",
   "zolnitUpdateManual": "自動アップデートが完了しませんでした。公式サイトから ZolNit {version} をダウンロードしてください。",

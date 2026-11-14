@@ -1586,6 +1586,8 @@
   "zolnitUpdateReadyRestart": "Update ready. It takes effect after you restart ZolNit",
   "zolnitUpdateReadyInstall": "ZolNit {version} is ready to install",
   "zolnitUpdateInstall": "Install update",
+  "zolnitIosUpdatePreparing": "Preparing the update for this device…",
+  "zolnitIosUpdateSelectDevice": "Which registered device is this?",
   "zolnitUpdateInstalling": "Opening the installer…",
   "zolnitUpdateAvailable": "ZolNit {version} is available",
   "zolnitUpdateManual": "The automatic update didn't finish. Download ZolNit {version} from the website.",

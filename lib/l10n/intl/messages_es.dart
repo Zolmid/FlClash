@@ -3183,6 +3183,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
       "Invita a amigos a registrarse y suscribirse a través de tu enlace.",
     ),
+    "zolnitIosUpdatePreparing": MessageLookupByLibrary.simpleMessage(
+      "Preparando la actualización para este dispositivo…",
+    ),
+    "zolnitIosUpdateSelectDevice": MessageLookupByLibrary.simpleMessage(
+      "¿Cuál es este dispositivo registrado?",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("Latencia"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
       "Últimos avisos",

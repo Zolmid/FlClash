@@ -1586,6 +1586,8 @@
   "zolnitUpdateReadyRestart": "Обновление готово. Оно вступит в силу после перезапуска ZolNit",
   "zolnitUpdateReadyInstall": "ZolNit {version} готов к установке",
   "zolnitUpdateInstall": "Установить",
+  "zolnitIosUpdatePreparing": "Подготовка обновления для этого устройства…",
+  "zolnitIosUpdateSelectDevice": "Выберите зарегистрированное устройство, которым вы пользуетесь",
   "zolnitUpdateInstalling": "Открываем установщик…",
   "zolnitUpdateAvailable": "Доступна версия ZolNit {version}",
   "zolnitUpdateManual": "Автоматическое обновление не завершилось. Скачайте ZolNit {version} с сайта.",

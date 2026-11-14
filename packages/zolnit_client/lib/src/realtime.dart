@@ -151,6 +151,7 @@ Future<ZolnitRealtimeSocket> connectZolnitRealtimeSocket(String ticket) async {
 }
 
 const zolnitLiveReadMethods = {
+  'apple.device.status',
   'order.status',
   'inbox.list',
   'notice.list',

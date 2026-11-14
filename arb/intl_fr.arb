@@ -1586,6 +1586,8 @@
   "zolnitUpdateReadyRestart": "Mise à jour prête. Elle prendra effet au redémarrage de ZolNit",
   "zolnitUpdateReadyInstall": "ZolNit {version} est prêt à être installé",
   "zolnitUpdateInstall": "Installer",
+  "zolnitIosUpdatePreparing": "Préparation de la mise à jour pour cet appareil…",
+  "zolnitIosUpdateSelectDevice": "Quel appareil enregistré utilisez-vous ?",
   "zolnitUpdateInstalling": "Ouverture du programme d’installation…",
   "zolnitUpdateAvailable": "ZolNit {version} est disponible",
   "zolnitUpdateManual": "La mise à jour automatique n’a pas abouti. Téléchargez ZolNit {version} sur le site.",

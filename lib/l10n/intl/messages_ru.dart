@@ -3098,6 +3098,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitInviteSubtitle": MessageLookupByLibrary.simpleMessage(
       "Пригласите друзей зарегистрироваться и подписаться по вашей ссылке.",
     ),
+    "zolnitIosUpdatePreparing": MessageLookupByLibrary.simpleMessage(
+      "Подготовка обновления для этого устройства…",
+    ),
+    "zolnitIosUpdateSelectDevice": MessageLookupByLibrary.simpleMessage(
+      "Выберите зарегистрированное устройство, которым вы пользуетесь",
+    ),
     "zolnitLatency": MessageLookupByLibrary.simpleMessage("Задержка"),
     "zolnitLatestNotices": MessageLookupByLibrary.simpleMessage(
       "Последние объявления",

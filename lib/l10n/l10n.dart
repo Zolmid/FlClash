@@ -13694,6 +13694,26 @@ class AppLocalizations {
     );
   }
 
+  /// `Preparing the update for this device…`
+  String get zolnitIosUpdatePreparing {
+    return Intl.message(
+      'Preparing the update for this device…',
+      name: 'zolnitIosUpdatePreparing',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Which registered device is this?`
+  String get zolnitIosUpdateSelectDevice {
+    return Intl.message(
+      'Which registered device is this?',
+      name: 'zolnitIosUpdateSelectDevice',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Opening the installer…`
   String get zolnitUpdateInstalling {
     return Intl.message(

@@ -7,6 +7,8 @@ class CommonAction extends _$CommonAction {
   CoreController get _core => ref.read(coreHandlerProvider);
   bool _isUpdatingTraffic = false;
   Future<void>? _appUpdateOperation;
+  IosDeviceUpdater? _iosDeviceUpdater;
+  DateTime? _iosUpdateRetryAt;
   Future<void>? _appUpdateCheckOperation;
   File? _stagedUpdate;
   CancelToken? _stagingCancelToken;
@@ -16,14 +18,18 @@ class CommonAction extends _$CommonAction {
   ReleaseManifest? _pendingUpdateHint;
   DateTime? _lastUpdateDiscovery;
 
-  void _setUpdateStatus(AppUpdateStatus value) =>
-      ref.read(appUpdateStatusProvider.notifier).set(value);
+  void _setUpdateStatus(AppUpdateStatus value) {
+    if (_iosDeviceUpdater != null && !value.iosDeviceOperation) return;
+    ref.read(appUpdateStatusProvider.notifier).set(value);
+  }
 
   @override
   void build() {
     appUpdateClient.attach(ref.read);
     ref.onDispose(() => _updateDiscoveryTimer?.cancel());
+    ref.onDispose(() => _iosDeviceUpdater?.cancel());
     ref.listen(appVisibleProvider, (_, visible) {
+      if (visible) _iosDeviceUpdater?.wake();
       if (visible &&
           _updateDiscoveryTimer != null &&
           !_realtimeUpdateHintsHealthy) {
@@ -155,8 +161,139 @@ class CommonAction extends _$CommonAction {
   }
 
   void setAppUpdateRealtimeHintsHealthy(bool healthy) {
+    if (healthy != _realtimeUpdateHintsHealthy) _iosDeviceUpdater?.wake();
     _realtimeUpdateHintsHealthy = healthy;
     if (!healthy) unawaited(checkForAppUpdate());
+  }
+
+  void notifyIosUpdateEvent(String type, Map<String, dynamic> data) =>
+      _iosDeviceUpdater?.notify(type, data);
+
+  void cancelIosDeviceUpdate() => _iosDeviceUpdater?.cancel();
+
+  Future<void> installIosDeviceUpdate(ReleaseManifest release) async {
+    if (ref.read(safeModeProvider) ||
+        _iosDeviceUpdater != null ||
+        await detectAppUpdateTarget() != UpdateTarget.iosDirect ||
+        !ref.mounted ||
+        _iosDeviceUpdater != null) {
+      return;
+    }
+    final session = ref.read(zolnitSessionProvider);
+    final generation = session.api.generation;
+    bool current() =>
+        ref.mounted &&
+        session.authenticated &&
+        session.api.generation == generation;
+    final updater = IosDeviceUpdater(
+      api: session.api,
+      isCurrent: current,
+      realtimeHealthy: () => _realtimeUpdateHintsHealthy,
+      selectDevice: _selectIosUpdateDevice,
+      canLaunch: () => ref.mounted && ref.read(appVisibleProvider),
+      launch: (uri) async =>
+          ref.read(appVisibleProvider) &&
+          await launchUrl(uri, mode: LaunchMode.externalApplication),
+    );
+    final retryAt = _iosUpdateRetryAt;
+    if (retryAt != null && DateTime.now().isBefore(retryAt)) {
+      final context = globalState.navigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        await showZolnitDialog<bool>(
+          context,
+          (_) => ZolnitAlert(
+            title: currentAppLocalizations.checkUpdate,
+            message: currentAppLocalizations.zolnitRateLimited,
+          ),
+        );
+      }
+      return;
+    }
+    _iosDeviceUpdater = updater;
+    _setUpdateStatus(
+      AppUpdateStatus(
+        phase: AppUpdatePhase.applying,
+        release: release,
+        iosDeviceOperation: true,
+      ),
+    );
+    final IosDeviceUpdateResult result;
+    try {
+      result = session.authenticated
+          ? await updater.install(
+              releaseTag: release.tag,
+              installedRelease: globalState.packageInfo.version,
+              installedBuild:
+                  int.tryParse(globalState.packageInfo.buildNumber) ?? 0,
+            )
+          : IosDeviceUpdateResult.useWebsite;
+    } finally {
+      _iosUpdateRetryAt = updater.retryAt;
+      _iosDeviceUpdater = null;
+      if (ref.mounted) {
+        _setUpdateStatus(
+          AppUpdateStatus(phase: AppUpdatePhase.announcement, release: release),
+        );
+      }
+    }
+    if (!ref.mounted ||
+        !ref.read(appVisibleProvider) ||
+        session.api.generation != generation ||
+        result == IosDeviceUpdateResult.cancelled ||
+        result == IosDeviceUpdateResult.handedOff) {
+      return;
+    }
+    final context = globalState.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    final text = currentAppLocalizations;
+    final useWebsite = await showZolnitDialog<bool>(
+      context,
+      (_) => ZolnitAlert(
+        title: text.checkUpdate,
+        message: result == IosDeviceUpdateResult.throttled
+            ? text.zolnitRateLimited
+            : text.updateInstallFailed,
+        cancelLabel: text.updateInstallLater,
+        confirmLabel: text.goDownload,
+      ),
+    );
+    if (useWebsite == true &&
+        ref.mounted &&
+        session.api.generation == generation) {
+      await ref
+          .read(zolnitWebSessionProvider)
+          .open(Uri.parse(websiteDownloadsPageUrl));
+    }
+  }
+
+  Future<String?> _selectIosUpdateDevice(List<IosUpdateDevice> devices) async {
+    final context = globalState.navigatorKey.currentContext;
+    if (context == null || !context.mounted || !ref.read(appVisibleProvider)) {
+      return null;
+    }
+    final text = currentAppLocalizations;
+    return showZolnitDialog<String>(
+      context,
+      (dialog) => SimpleDialog(
+        title: Text(text.zolnitIosUpdateSelectDevice),
+        children: [
+          for (final (index, device) in devices.indexed)
+            SimpleDialogOption(
+              onPressed: () => zolnitCloseDialog(dialog, device.id),
+              child: Text(
+                [
+                  '${index + 1}. ${device.product ?? text.zolnitUnknownDevice}',
+                  if (device.osVersion case final String value) '· $value',
+                ].join(' '),
+              ),
+            ),
+          SimpleDialogOption(
+            onPressed: () => zolnitCloseDialog<String>(dialog),
+            child: Text(text.cancel),
+          ),
+        ],
+      ),
+    );
   }
 
   void cancelAppUpdateStaging() => _stagingCancelToken?.cancel();
@@ -392,7 +529,11 @@ class CommonAction extends _$CommonAction {
         release.notes,
       );
       final plan = await _planAppUpdate(release);
-      final updatesInApp = plan?.target.package.updatesInApp ?? false;
+      final directIos =
+          system.isIOS &&
+          await detectAppUpdateTarget() == UpdateTarget.iosDirect;
+      final updatesInApp =
+          directIos || (plan?.target.package.updatesInApp ?? false);
       final res = await dialogs.showMessage(
         title: currentAppLocalizations.discoverNewVersion,
         message: message,
@@ -410,7 +551,9 @@ class CommonAction extends _$CommonAction {
         cancelText: isUser ? null : currentAppLocalizations.noLongerRemind,
       );
       if (res == true) {
-        if (plan == null || !updatesInApp) {
+        if (directIos) {
+          await installIosDeviceUpdate(release);
+        } else if (plan == null || !updatesInApp) {
           final target = browserDownloadUri(plan, release: release);
           if (target.toString() == websiteDownloadsPageUrl) {
             unawaited(ref.read(zolnitWebSessionProvider).open(target));
