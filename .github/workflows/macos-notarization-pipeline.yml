@@ -49,7 +49,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -82,7 +82,7 @@ jobs:
       - name: Retain exact signed checkpoint
         id: checkpoint
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-notary-checkpoint-${{ inputs.arch }}-${{ github.run_id }}-${{ github.run_attempt }}-app
           path: |
@@ -99,14 +99,14 @@ jobs:
     environment: macos-distribution
     timeout-minutes: 310
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           artifact-ids: ${{ needs.submit-app.outputs.checkpoint }}
           merge-multiple: true
@@ -131,7 +131,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -164,7 +164,7 @@ jobs:
       - name: Retain exact signed checkpoint
         id: checkpoint
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-notary-checkpoint-${{ inputs.arch }}-${{ github.run_id }}-${{ github.run_attempt }}-dmg
           path: |
@@ -181,14 +181,14 @@ jobs:
     environment: macos-distribution
     timeout-minutes: 310
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           artifact-ids: ${{ needs.submit-dmg.outputs.checkpoint }}
           merge-multiple: true
@@ -213,7 +213,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -246,7 +246,7 @@ jobs:
       - name: Retain exact signed checkpoint
         id: checkpoint
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-notary-checkpoint-${{ inputs.arch }}-${{ github.run_id }}-${{ github.run_attempt }}-final
           path: |
@@ -256,7 +256,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload verified final DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.official && format('macos-distribution-{0}-{1}', inputs.arch, github.run_number) || format('macos-notarization-verification-{0}-{1}-{2}', inputs.arch, github.run_id, github.run_attempt) }}
           path: ${{ runner.temp }}/macos-signed/
