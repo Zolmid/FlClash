@@ -334,7 +334,7 @@ test('importing the selector writes nothing and it reaches no process or network
   assert.deepEqual([...source.matchAll(/from '([^']+)'/g)].map(m => m[1]), ['node:fs', 'node:url']);
   assert.doesNotMatch(source, /import\(|require\(|child_process|fetch|https?:|node:net|spawn|exec/);
 });
-const PROFILE_ERROR = 'The zolnit build profile runs only from a manual dispatch with the project iOS source';
+const PROFILE_ERROR = 'The zolnit build profile requires a manual project candidate without release signing';
 const NEW_REF = 'refs/heads/codex/refactor-candidate';
 const PLATFORMS = ['all', 'macos', 'windows', 'android', 'ios', 'linux'];
 const PUSH_REFS = ['main', 'codex/patched-integration', 'codex/ios-support', 'codex/upstream-0.9.1', 'codex/zolnit-client',
@@ -391,7 +391,7 @@ test('zolnit dispatch only turns on the client product flags', () => {
           if (androidRelease && !(clientRef && ['all', 'android'].includes(platform))) {
             assert.deepEqual(current, {error: ANDROID_ERROR}, name);
             tally.android++;
-          } else if (iosSource !== 'project') {
+          } else if (iosSource !== 'project' || androidRelease) {
             assert.deepEqual(current, {error: PROFILE_ERROR}, name);
             tally.profile++;
           } else {
@@ -399,7 +399,7 @@ test('zolnit dispatch only turns on the client product flags', () => {
             assert.deepEqual(Object.keys(parsed), KEYS, name);
             assert.deepEqual(parsed, {...parse(Buffer.from(base.output)), client_branch: 'true', native_ui: 'true'}, name);
             assert.equal(parsed.official, 'false', name);
-            assert.equal(parsed.android_release, String(androidRelease), name);
+            assert.equal(parsed.android_release, 'false', name);
             assert.equal(JSON.parse(parsed.matrix).include.some(t => t.safe_preview),
               clientRef && ['all', 'macos'].includes(platform), name);
             tally.accepted++;
@@ -408,7 +408,7 @@ test('zolnit dispatch only turns on the client product flags', () => {
       }
     }
   }
-  assert.deepEqual(tally, {accepted: 52, android: 88, profile: 52});
+  assert.deepEqual(tally, {accepted: 48, android: 88, profile: 56});
 });
 
 test('the CLI writes zolnit candidate outputs and rejects what the profile cannot unlock', () => {
@@ -424,7 +424,6 @@ test('the CLI writes zolnit candidate outputs and rejects what the profile canno
     [zolnit(NEW_REF, 'ios'), bytes('ios', false, [])],
     [zolnit('refs/heads/main', 'windows'), bytes('windows', false, [WINDOWS])],
     [zolnit(ZC, 'macos'), bytes('macos', false, [MAC_ARM, MAC_X64, MAC_PREVIEW])],
-    [zolnit(ZC, 'android', 'project', true), bytes('android', true, [ANDROID])],
   ]) {
     assert.equal(run.status, 0);
     assert.equal(run.stdout, '');
@@ -434,6 +433,8 @@ test('the CLI writes zolnit candidate outputs and rejects what the profile canno
     [zolnit(NEW_REF, 'android', 'project', true), ANDROID_ERROR],
     [zolnit(NEW_REF, 'all', 'project', true), ANDROID_ERROR],
     [zolnit(TAG, 'android', 'project', true), ANDROID_ERROR],
+    [zolnit(ZC, 'android', 'project', true), PROFILE_ERROR],
+    [zolnit(NCS, 'all', 'project', true), PROFILE_ERROR],
     [zolnit(NEW_REF, 'all', 'patched-reference'), PROFILE_ERROR],
     [zolnit(NEW_REF, 'ios', 'patched-reference'), PROFILE_ERROR],
   ]) {
@@ -446,6 +447,7 @@ test('the CLI writes zolnit candidate outputs and rejects what the profile canno
 test('the zolnit profile needs a manual dispatch and no official request', () => {
   const env = dispatch(NEW_REF, {platform: 'all', ios_source: 'project', build_profile: 'zolnit'});
   assert.equal(parse(Buffer.from(selectCloudBuild(env))).client_branch, 'true');
+  assert.throws(() => selectCloudBuild({...env, ANDROID_RELEASE: 'true'}), {message: PROFILE_ERROR});
   for (const event of ['push', 'workflow_call', 'pull_request', 'schedule', 'WORKFLOW_DISPATCH', '', undefined]) {
     const moved = {...env, GITHUB_EVENT_NAME: event};
     if (event === undefined) delete moved.GITHUB_EVENT_NAME;

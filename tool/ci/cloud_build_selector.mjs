@@ -24,8 +24,9 @@ export function selectCloudBuild(env) {
     throw new Error('Android release requires a client branch and an Android target');
   }
   const zolnitProfile = profile === 'zolnit';
-  if (zolnitProfile && (official || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.IOS_SOURCE !== 'project')) {
-    throw new Error('The zolnit build profile runs only from a manual dispatch with the project iOS source');
+  if (zolnitProfile && (official || env.ANDROID_RELEASE_REQUESTED === 'true' ||
+      env.ANDROID_RELEASE === 'true' || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.IOS_SOURCE !== 'project')) {
+    throw new Error('The zolnit build profile requires a manual project candidate without release signing');
   }
   const targets = TARGETS.map(t => ({...t, safe_preview: false}))
     .filter(t => env.PLATFORM === 'all' || t.platform === env.PLATFORM);

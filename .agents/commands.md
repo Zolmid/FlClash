@@ -30,6 +30,9 @@ build with the `zolnit` profile:
 gh workflow run cloud-build.yml --ref <branch> -f platform=all -f ios_source=project -f build_profile=zolnit
 ```
 
+The `zolnit` profile rejects release-signing requests even on the legacy signing
+refs. Signed Android validation stays on `auto` with its existing authorization.
+
 The profile only sets the `client_branch` and `native_ui` outputs, so the run
 compiles with the ZolNit distribution, native UI and client bundle defines. It
 is accepted only from a manual dispatch with `ios_source=project`. It never
