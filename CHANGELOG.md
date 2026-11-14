@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.9 (2026-11-14)
+
+**Bug Fixes**
+
+- Install iPhone and iPad updates directly from the app instead of opening the download page. (772b9f0)
+- Show the device selection prompt reliably when installing an update on iPhone or iPad. (628bfe3)
+
 ## v1.1.8 (2026-11-14)
 
 **Bug Fixes**
