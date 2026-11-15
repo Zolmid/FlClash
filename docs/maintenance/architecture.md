@@ -30,7 +30,7 @@ flowchart LR
 | Android VPN | `ServiceState`（外观）→`ServiceStateMachine`（裁决） | Flutter 的 `ServicePlugin` 发送带版本号的乐观命令；`AndroidServiceStateHost` 只报告真实宿主结果 | 无（内存中的 `RunIntentArbiter` 令牌） | [ServiceState.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ServiceState.kt)，[ServiceStateMachine.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ServiceStateMachine.kt) |
 | iOS VPN | `TunnelCoordinator` | Flutter 观察 `tunnelState`；Widget 读取共享存储快照，不直接驱动隧道 | App Group 共享容器（[PacketTunnelSharedStateStore.swift](../../ios/NECore/PacketTunnelSharedStateStore.swift)） | [TunnelCoordinator.swift](../../ios/Runner/Tunnel/TunnelCoordinator.swift)，[WidgetSharedState.swift](../../ios/Widget/WidgetSharedState.swift) |
 | 启动守护 | `BootGuard` | `Bootstrap._initData` 在迁移之后、容器创建之前求值一次 | 偏好存储的 `BootRecord`（JSON） | [boot_guard.dart](../../lib/common/boot_guard.dart)，[boot_record.dart](../../lib/common/boot_record.dart)，[bootstrap.dart](../../lib/bootstrap.dart) |
-| Windows 特权操作 | `ZolNitHelperService`（Windows 服务） | `services/helper` 的 `service::windows` 模块通过 SCM 分发；应用侧只通过命名管道发请求 | 无；仅服务控制管理器（SCM）持有注册状态 | [windows.rs](../../services/helper/src/service/windows.rs) |
+| Windows 特权操作 | `ZolNitHelperService`（Windows 服务） | `services/helper` 的 `service::windows` 模块通过 SCM 分发；应用通过本地 HTTP/TCP 动态端口请求，并由 Helper 校验连接进程的 SID | 无；仅服务控制管理器（SCM）持有注册状态 | [windows.rs](../../services/helper/src/service/windows.rs) |
 | 桌面 Core | `DesktopCoreLifecycle` | RPC 客户端只转发请求 | 无 | [lifecycle.dart](../../lib/core/desktop/lifecycle.dart)，[rpc_client.dart](../../lib/core/desktop/rpc_client.dart) |
 
 ## 3. 入口到存储的完整路径
@@ -115,7 +115,7 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 
 - 进程级身份：`windows/runner/main.cpp` 在 `wWinMain` 开头调用 `SetCurrentProcessExplicitAppUserModelID`，`_DEBUG` 构建写入 `com.zolmid.zolnit.debug`，否则写入 `com.zolmid.zolnit`（第 19–23 行）。这一步只影响任务栏分组与通知来源的 AUMID，不改变安装路径或数据目录。
 - 单实例与清理：同一文件中 `WindowPluginFindRunningWindow()` 检测到已运行实例时，新进程只转发深链（`SendAppLink`）并激活窗口；`--remove-user-registrations` 与 `--clear-stale-proxy` 是卸载与异常退出后的清理入口，分别调用 `autostart::RemoveOriginalUserTask` 与 `ProxyPluginClearStaleProxy`/向已运行窗口发送 `PROXY_PLUGIN_RELEASE_PROXY_MESSAGE`。
-- Helper 的安装和运行有不同入口：[system.dart](../../lib/common/system.dart) 的 `registerHelperService` 先查 readiness；需要安装时，`registerService` 通过 `runas` 请求提权运行 `install --owner-pid <当前进程>`，随后等待服务就绪。安装程序的 `install_service` 解析所属用户 SID，调用 SCM 创建/启动 `ZolNitHelperService`；`Run` 的 `service_dispatcher::start` 则连接 SCM 分发 `service_main` 和控制事件，不是注册动作。已运行 Helper 的请求通信使用命名管道。应用可以发起提权安装，但不能把界面状态当成服务或 Core 已运行的证明。
+- Helper 的安装和运行有不同入口：[system.dart](../../lib/common/system.dart) 的 `registerHelperService` 先查 readiness；需要安装时，`registerService` 通过 `runas` 请求提权运行 `install --owner-pid <当前进程>`，随后等待服务就绪。安装程序的 `install_service` 解析所属用户 SID，调用 SCM 创建/启动 `ZolNitHelperService`；`Run` 的 `service_dispatcher::start` 则连接 SCM 分发 `service_main` 和控制事件，不是注册动作。已运行 Helper 在 loopback 动态 TCP 端口提供 HTTP 接口，经注册表公布端口并核对连接进程 SID（`services/helper/src/service/peer.rs`）。桌面 Core 的命名管道 IPC 是另一条链路。应用可以发起提权安装，但不能把界面状态当成服务或 Core 已运行的证明。
 
 ### 3.11 启动守护、迁移与数据恢复
 

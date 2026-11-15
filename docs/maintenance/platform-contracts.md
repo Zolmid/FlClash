@@ -40,9 +40,9 @@ Dart 侧的 `packageName` 来自 `PackageInfo`，在 iOS 上用于拼接 App Gro
 | Windows Helper 服务 | `ZolNitHelperService`（[constant.dart](../../lib/common/constant.dart) 第 13 行），可执行文件名 `ZolNitHelperService.exe` | 源码确认 |
 | Windows Helper 工程 | [services/helper/](../../services/helper/) | 源码确认 |
 | Linux Helper | 可执行文件仍由 appHelperService 命名；服务名 `zolnit-helper`，unit `/etc/systemd/system/zolnit-helper.service`，socket `/run/zolnit/helper.sock`，模式 0660；所属 UID/GID 与 peer 访问另校验 | [linux.rs](../../services/helper/src/service/linux.rs)，安装/卸载会操作 systemd，不能由 SAFE_MODE UI 单测代验 |
-| Windows Helper 的 SCM 边界 | 应用经 readiness 检查和 `runas install --owner-pid` 发起提权安装；安装程序调用 SCM 注册/启动。`service_dispatcher::start` 是运行时连接 SCM 分发控制事件；已有 Helper 通过命名管道接请求，不能由 UI 状态冒充宿主结果 | [system.dart](../../lib/common/system.dart)、[windows.rs](../../services/helper/src/service/windows.rs) |
+| Windows Helper 的 SCM 边界 | 应用经 readiness 检查和 `runas install --owner-pid` 发起提权安装；安装程序调用 SCM 注册/启动。`service_dispatcher::start` 是运行时连接 SCM 分发控制事件；已有 Helper 通过 loopback 动态 TCP/HTTP 接请求，注册表发现端口，连接进程 SID 校验所有者，不能由 UI 状态冒充宿主结果 | [system.dart](../../lib/common/system.dart)、[windows.rs](../../services/helper/src/service/windows.rs) |
 | Windows 进程身份（AUMID） | `SetCurrentProcessExplicitAppUserModelID`：`_DEBUG` 构建为 `com.zolmid.zolnit.debug`，release 为 `com.zolmid.zolnit`（与第 1 节表格一致，这里是运行时设置点，不是资源声明） | [main.cpp](../../windows/runner/main.cpp) 第 19–23 行 |
-| 桌面 IPC | Unix domain socket（macOS、Linux）与命名管道（Windows），见 [architecture.md](../../.agents/architecture.md) | 原有机制，ZolNit 未改动 |
+| 桌面 Core IPC（与 Helper HTTP 分开） | Unix domain socket（macOS、Linux）与命名管道（Windows），见 [architecture.md](../../.agents/architecture.md) | 原有机制，ZolNit 未改动 |
 
 ## 5. 原生视图：已实现但未挂载
 

@@ -50,7 +50,7 @@ Focused tests live at the narrowest layer, and the matching commands are in `.ag
 - Android Kotlin: compile each touched Gradle module with JDK 17.
 - Helper: `cargo fmt --check` and `cargo test`; the `windows-service` feature only builds on Windows.
 
-State host gaps explicitly. Always-on VPN, VPN permission, system revoke, named-pipe peer identity, polkit and systemd
+State host gaps explicitly. Always-on VPN, VPN permission, system revoke, Windows Helper TCP/SID authentication, desktop named-pipe IPC, polkit and systemd
 on Linux, and Windows Service Control Manager behavior need their real platform even when portable tests pass.
 
 ## Pitfalls
