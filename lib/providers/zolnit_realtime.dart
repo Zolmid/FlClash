@@ -82,11 +82,14 @@ final class ZolnitRealtimePreferencesStore implements ZolnitRealtimeStore {
     }
   }
 
-  Future<void> _put(String key, Object data) async {
-    if (!await (await SharedPreferences.getInstance()).setString(
-      key,
-      jsonEncode(data),
-    )) {
+  Future<void> _put(
+    String key,
+    Object data, {
+    bool Function()? isCurrent,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (isCurrent?.call() == false) return;
+    if (!await prefs.setString(key, jsonEncode(data))) {
       throw StateError('notification storage unavailable');
     }
   }
@@ -137,43 +140,56 @@ final class ZolnitRealtimePreferencesStore implements ZolnitRealtimeStore {
     };
   }
 
-  Future<void> withdrawInbox(String scope, Iterable<String> ids) =>
-      _ordered(() async {
-        final tombstones = await _withdrawals(scope),
-            now = DateTime.now().millisecondsSinceEpoch;
-        for (final id in ids) {
-          if (RegExp(r'^[a-f0-9]{32}$').hasMatch(id)) tombstones[id] = now;
-        }
-        if (tombstones.length > 8192) throw StateError('withdrawal limit');
-        await _put('${_key(scope)}.withdrawn', tombstones);
-        final list = await readInbox(scope);
-        await _put(
-          '${_key(scope)}.inbox',
-          list
-              .where((e) => !tombstones.containsKey(e.id))
-              .map((e) => e.toJson())
-              .toList(),
-        );
-      });
+  Future<void> withdrawInbox(
+    String scope,
+    Iterable<String> ids, {
+    bool Function()? isCurrent,
+  }) => _ordered(() async {
+    if (isCurrent?.call() == false) return;
+    final tombstones = await _withdrawals(scope),
+        now = DateTime.now().millisecondsSinceEpoch;
+    for (final id in ids) {
+      if (RegExp(r'^[a-f0-9]{32}$').hasMatch(id)) tombstones[id] = now;
+    }
+    if (tombstones.length > 8192) throw StateError('withdrawal limit');
+    if (isCurrent?.call() == false) return;
+    await _put('${_key(scope)}.withdrawn', tombstones, isCurrent: isCurrent);
+    final list = await readInbox(scope);
+    if (isCurrent?.call() == false) return;
+    await _put(
+      '${_key(scope)}.inbox',
+      list
+          .where((e) => !tombstones.containsKey(e.id))
+          .map((e) => e.toJson())
+          .toList(),
+      isCurrent: isCurrent,
+    );
+  });
 
-  Future<bool> appendInbox(String scope, ZolnitRealtimeInboxItem item) =>
-      _ordered(() async {
-        if ((await _withdrawals(scope)).containsKey(item.id)) return false;
-        final list = await readInbox(scope);
-        final i = list.indexWhere((e) => e.id == item.id);
-        if (i >= 0) {
-          if (!item.read || list[i].read) return false;
-          list[i] = list[i].asRead();
-        } else {
-          list.add(item);
-          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        }
-        await _put(
-          '${_key(scope)}.inbox',
-          list.take(128).map((e) => e.toJson()).toList(),
-        );
-        return i < 0;
-      });
+  Future<bool> appendInbox(
+    String scope,
+    ZolnitRealtimeInboxItem item, {
+    bool Function()? isCurrent,
+  }) => _ordered(() async {
+    if (isCurrent?.call() == false) return false;
+    if ((await _withdrawals(scope)).containsKey(item.id)) return false;
+    final list = await readInbox(scope);
+    final i = list.indexWhere((e) => e.id == item.id);
+    if (i >= 0) {
+      if (!item.read || list[i].read) return false;
+      list[i] = list[i].asRead();
+    } else {
+      list.add(item);
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    if (isCurrent?.call() == false) return false;
+    await _put(
+      '${_key(scope)}.inbox',
+      list.take(128).map((e) => e.toJson()).toList(),
+      isCurrent: isCurrent,
+    );
+    return i < 0;
+  });
 
   Future<ZolnitInboxMerge> applyCanonicalInbox(
     String scope,
@@ -211,6 +227,7 @@ final class ZolnitRealtimePreferencesStore implements ZolnitRealtimeStore {
     await _put(
       '${_key(scope)}.inbox',
       list.take(128).map((e) => e.toJson()).toList(),
+      isCurrent: isCurrent,
     );
     return index < 0 ? ZolnitInboxMerge.inserted : ZolnitInboxMerge.updated;
   });

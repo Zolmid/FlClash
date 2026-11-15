@@ -1,11 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:collection';
 
-import 'package:package_info_plus/package_info_plus.dart';
-
 import 'package:fl_clash/common/context.dart';
-import 'package:fl_clash/common/package.dart';
+import 'package:fl_clash/common/inbox_coordinator.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
@@ -72,30 +69,15 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
   late final ZolnitSessionController _session;
   late final ZolnitRegistrationCoordinator _registration;
   ZolnitWebSessionCoordinator? _webSession;
-  final ZolnitRealtimePreferencesStore _realtimeStore =
-      ZolnitRealtimePreferencesStore();
+  late final ZolnitInboxCoordinator _inbox;
   ZolnitRealtimeChannel? _realtime;
-  String? _realtimeSubject;
-  Future<void>? _inboxFlight;
-  int? _inboxGeneration;
-  int? _inboxFlightEpoch;
-  int _inboxEpoch = 0;
   RawDialogRoute<void>? _popupRoute;
   String? _popupItemId;
   final _popupContent = ValueNotifier<ZolnitRealtimeInboxItem?>(null);
-  final _canonicalNotices = ValueNotifier<Map<String, ZolnitRealtimeInboxItem>>(
-    {},
-  );
-  final _noticeRevision = ValueNotifier<int>(0);
-  final _withdrawn = <String>{};
   final _popups = Queue<ZolnitRealtimeInboxItem>();
-  Future<PackageInfo?>? _installedPackage;
   int? _inviteRate;
   int? _inviteRateGeneration;
   int? _inviteLoadingGeneration;
-  final _automaticReadFlights = <(String, int, String)>{};
-  Timer? _automaticReadRetry;
-  int _unread = 0;
   CommonAction? _cachedActions;
   bool _updateHintsHealthy = false;
   final _brandKey = GlobalKey();
@@ -108,6 +90,26 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     WidgetsBinding.instance.addObserver(this);
     _session = ref.read(zolnitSessionProvider)..addListener(_sessionChanged);
     _registration = ref.read(zolnitRegistrationProvider);
+    _inbox = ZolnitInboxCoordinator(
+      api: () => _session.api,
+      current: _currentRealtime,
+      foreground: () => _foreground,
+      liveRead: (id) async => await _realtime?.markInboxRead(id) ?? false,
+      updateTitle: () => context.appLocalizations.discoverNewVersion,
+      onConnect: _connectRealtime,
+      onPopup: (item, scope, gen) {
+        if (_popups.length < 8) _popups.add(item);
+        _showNextPopup(scope, gen);
+      },
+      onUpdated: _updatePopup,
+      onWithdrawn: _removeWithdrawnPopups,
+      onUnread: () => setState(() {}),
+      onUpdateHint: (version) => unawaited(
+        _updateActions
+            .notifyAppUpdateHint(version: version)
+            .catchError((Object _) => false),
+      ),
+    );
     ref.listenManual(initProvider, (_, ready) {
       if (ready) unawaited(_refreshData(force: true));
     });
@@ -143,32 +145,21 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   void _sessionChanged() {
     if (!_session.authenticated) {
-      _automaticReadRetry?.cancel();
-      if (_observedGeneration != null) _inboxEpoch++;
+      if (_observedGeneration != null) _inbox.reset();
       _reportUpdateHints(false);
       if (_observedGeneration != null) _nextRefresh = null;
       _observedGeneration = null;
       _inviteRate = null;
       _inviteRateGeneration = null;
       _clearPopups();
-      _realtimeSubject = null;
-      _withdrawn.clear();
-      _canonicalNotices.value = {};
-      _unread = 0;
       unawaited(_realtime?.dispose() ?? Future<void>.value());
       _realtime = null;
       return;
     }
     if (_observedGeneration != _session.api.generation) {
-      _automaticReadRetry?.cancel();
-      _automaticReadRetry = null;
-      _inboxEpoch++;
+      _inbox.reset();
       _reportUpdateHints(false);
       _clearPopups();
-      _realtimeSubject = null;
-      _withdrawn.clear();
-      _canonicalNotices.value = {};
-      _unread = 0;
       final old = _realtime;
       _realtime = null;
       unawaited(old?.dispose() ?? Future.value());
@@ -244,9 +235,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     work = () async {
       try {
         if (_realtime?.healthy != true) {
-          unawaited(
-            _refreshRealtimeInbox(generation).catchError((Object _) {}),
-          );
+          unawaited(_inbox.refresh(generation).catchError((Object _) {}));
         }
         await _session.refresh();
         if (!mounted ||
@@ -361,14 +350,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 
   @override
   void dispose() {
-    _automaticReadRetry?.cancel();
     _refreshTimer?.cancel();
     _reportUpdateHints(false);
     unawaited(_realtime?.dispose() ?? Future<void>.value());
     _clearPopups();
-    _noticeRevision.dispose();
     _popupContent.dispose();
-    _canonicalNotices.dispose();
+    _inbox.dispose();
     _registration.cancel();
     _webSession?.cancel();
     _session.removeListener(_sessionChanged);
@@ -376,10 +363,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     super.dispose();
   }
 
-  String? _realtimeScope() {
-    final subject = _realtimeSubject;
-    return subject == null ? null : '${_session.api.origin.origin}:$subject';
-  }
+  String? _realtimeScope() => _inbox.scope;
 
   bool _currentRealtime(int gen) =>
       mounted && _session.authenticated && _session.api.generation == gen;
@@ -390,7 +374,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     channel = ZolnitRealtimeChannel(
       api: _session.api,
       scopeKey: () => scope,
-      store: _realtimeStore,
+      store: _inbox.store,
       connect: ref.read(zolnitRealtimeConnectorProvider),
       onHealthChanged: () {
         if (!_currentRealtime(gen) || !identical(channel, _realtime)) return;
@@ -408,11 +392,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       },
       onResync: () async {
         if (!_currentRealtime(gen)) return;
-        _inboxEpoch++;
-        await Future.wait([
-          _refreshData(force: true),
-          _refreshRealtimeInbox(gen),
-        ]);
+        _inbox.invalidate();
+        await Future.wait([_refreshData(force: true), _inbox.refresh(gen)]);
         if (_session.failure != null ||
             _session.billingFailure != null ||
             _syncFailed) {
@@ -433,10 +414,8 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     String scope,
     int gen,
     DateTime at,
-    bool read, {
-    bool canonical = false,
-    bool Function()? isCurrentSnapshot,
-  }) async {
+    bool read,
+  ) async {
     if (!_currentRealtime(gen) || scope != _realtimeScope()) return;
     switch (type) {
       case 'apple.archive.changed' || 'apple.device.status':
@@ -465,130 +444,30 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         _session.applyRealtimeUsage(data);
         return;
     }
-    final String title, body;
-    String? updateVersion;
-    var installedUpdate = false;
-    if (type == 'client.update') {
-      final target = data['platform'],
-          build = data['build'],
-          version = data['version'];
-      if ((target != 'all' && target != _session.api.clientPlatform) ||
-          build is! int ||
-          build <= 0 ||
-          version is! String ||
-          !RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version) ||
-          version.length > 32) {
-        return;
-      }
-      _installedPackage ??= PackageInfo.fromPlatform()
-          .then<PackageInfo?>((info) => info)
-          .catchError((Object _) => null);
-      final package = await _installedPackage;
-      final current = int.tryParse(package?.buildNumber ?? '');
-      if (current == null || current <= 0 || package == null) {
-        _installedPackage = null;
-        return;
-      }
-      if (!_currentRealtime(gen)) return;
-      final int comparison;
-      try {
-        comparison = compareVersions(package.version.split('+').first, version);
-      } on FormatException {
-        return;
-      }
-      installedUpdate = comparison > 0 || (comparison == 0 && current >= build);
-      if (!mounted) return;
-      if (!installedUpdate) updateVersion = version;
-      title = '${context.appLocalizations.discoverNewVersion} · $version';
-      body = data['body'] is String
-          ? data['body'] as String
-          : 'ZolNit $version ($build)';
-    } else if ({
-      'notice.published',
-      'notice.popup',
-      'account.notice',
-    }.contains(type)) {
-      if (data['title'] is! String || data['body'] is! String) return;
-      title = data['title'] as String;
-      body = data['body'] as String;
-    } else {
-      return;
-    }
-    if (title.trim().isEmpty ||
-        body.trim().isEmpty ||
-        utf8.encode(title).length > 200 ||
-        utf8.encode(body).length > 2048) {
-      return;
-    }
-    final item = ZolnitRealtimeInboxItem(
-      id: id,
-      title: title,
-      body: body,
-      createdAt: at,
-      popup: type == 'notice.popup',
-      read: read,
-    );
-    final merge = canonical
-        ? await _realtimeStore.applyCanonicalInbox(
-            scope,
-            item,
-            isCurrent: () =>
-                _currentRealtime(gen) &&
-                scope == _realtimeScope() &&
-                (isCurrentSnapshot?.call() ?? false),
-          )
-        : (await _realtimeStore.appendInbox(scope, item)
-              ? ZolnitInboxMerge.inserted
-              : ZolnitInboxMerge.unchanged);
-    final fresh = merge == ZolnitInboxMerge.inserted;
-    final automaticReadKey = (scope, gen, id);
-    if (installedUpdate &&
-        !read &&
-        _currentRealtime(gen) &&
-        _automaticReadFlights.add(automaticReadKey)) {
-      try {
-        final stored = await _realtimeStore.readInbox(scope);
-        final existing = stored.where((entry) => entry.id == id).firstOrNull;
-        if (existing != null && !existing.read && _currentRealtime(gen)) {
-          final confirmed = await _markRead(existing, scope, gen);
-          if (!confirmed && _currentRealtime(gen)) {
-            _automaticReadRetry ??= Timer(const Duration(minutes: 1), () {
-              _automaticReadRetry = null;
-              if (_currentRealtime(gen)) {
-                unawaited(_refreshRealtimeInbox(gen).catchError((Object _) {}));
-              }
-            });
-          }
-        }
-      } finally {
-        _automaticReadFlights.remove(automaticReadKey);
+    await _inbox.apply(id, type, data, scope, gen, at, read);
+  }
+
+  void _updatePopup(ZolnitRealtimeInboxItem item) {
+    if (_popupItemId == item.id) _popupContent.value = item;
+    final queued = _popups.toList();
+    _popups.clear();
+    for (final pending in queued) {
+      if (pending.id != item.id) {
+        _popups.add(pending);
+      } else if (item.popup) {
+        _popups.add(item);
       }
     }
-    if (merge == ZolnitInboxMerge.updated && _currentRealtime(gen)) {
-      _canonicalNotices.value = {..._canonicalNotices.value, item.id: item};
-      if (_popupItemId == item.id) _popupContent.value = item;
-      final queued = _popups.toList();
-      _popups.clear();
-      for (final pending in queued) {
-        if (pending.id != item.id) {
-          _popups.add(pending);
-        } else if (item.popup) {
-          _popups.add(item);
-        }
-      }
-      await _updateUnread(scope, gen);
-    }
-    if (fresh && updateVersion != null && _currentRealtime(gen)) {
-      unawaited(
-        _updateActions
-            .notifyAppUpdateHint(version: updateVersion)
-            .catchError((Object _) => false),
-      );
-    }
-    if (fresh && _currentRealtime(gen)) await _updateUnread(scope, gen);
-    if (fresh && !read && _currentRealtime(gen) && _foreground && item.popup) {
-      if (_popups.length < 8) _popups.add(item);
-      _showNextPopup(scope, gen);
+  }
+
+  void _removeWithdrawnPopups(Set<String> ids) {
+    _popups.removeWhere((e) => ids.contains(e.id));
+    if (ids.contains(_popupItemId)) {
+      final route = _popupRoute;
+      _popupRoute = null;
+      _popupItemId = null;
+      _popupContent.value = null;
+      if (route?.isActive == true) route?.navigator?.removeRoute(route);
     }
   }
 
@@ -618,7 +497,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       if (!_currentRealtime(gen) || !_foreground || scope != _realtimeScope()) {
         return;
       }
-      if (_withdrawn.contains(item.id)) {
+      if (_inbox.withdrawn.contains(item.id)) {
         _showNextPopup(scope, gen);
         return;
       }
@@ -626,7 +505,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
         _popups.addFirst(item);
         return;
       }
-      final latest = _canonicalNotices.value[item.id] ?? item;
+      final latest = _inbox.canonicalNotices.value[item.id] ?? item;
       if (!latest.popup) {
         _showNextPopup(scope, gen);
         return;
@@ -645,7 +524,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                 onPressed: () {
                   if (ModalRoute.of(dialog)?.isCurrent != true) return;
                   zolnitCloseDialog<void>(dialog);
-                  unawaited(_markRead(item, scope, gen));
+                  unawaited(_inbox.markRead(item, scope, gen));
                 },
                 child: Text(dialog.appLocalizations.zolnitGotIt),
               ),
@@ -670,144 +549,27 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  Future<void> _updateUnread(String scope, int gen) async {
-    final inbox = await _realtimeStore.readInbox(scope);
-    final count = inbox.where((item) => !item.read).length;
-    if (_currentRealtime(gen) &&
-        scope == _realtimeScope() &&
-        _unread != count) {
-      setState(() => _unread = count);
-    }
-  }
-
-  Future<bool> _markRead(
-    ZolnitRealtimeInboxItem item,
-    String scope,
-    int gen,
-  ) async {
-    if (item.read || !_currentRealtime(gen) || scope != _realtimeScope()) {
-      return false;
-    }
-    try {
-      final live = await _realtime?.markInboxRead(item.id) ?? false;
-      if (!_currentRealtime(gen)) return false;
-      if (!live) await _session.api.markRealtimeInboxRead(item.id);
-      if (_currentRealtime(gen)) {
-        await _realtimeStore.appendInbox(scope, item.asRead());
-      }
-      if (_currentRealtime(gen)) await _updateUnread(scope, gen);
-      return _currentRealtime(gen);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _withdrawMessages(
-    String scope,
-    int gen,
-    List<String> ids,
-  ) async {
-    if (ids.isEmpty || !_currentRealtime(gen)) return;
-    await _realtimeStore.withdrawInbox(scope, ids);
-    if (!_currentRealtime(gen)) return;
-    _withdrawn.addAll(ids);
-    _popups.removeWhere((e) => _withdrawn.contains(e.id));
-    if (_withdrawn.contains(_popupItemId)) {
-      final route = _popupRoute;
-      _popupRoute = null;
-      _popupItemId = null;
-      _popupContent.value = null;
-      if (route?.isActive == true) route?.navigator?.removeRoute(route);
-    }
-    _noticeRevision.value++;
-    await _updateUnread(scope, gen);
-  }
-
-  Future<void> _refreshRealtimeInbox(int gen) {
-    if (_inboxGeneration == gen && _inboxFlight != null) {
-      final activeEpoch = _inboxFlightEpoch;
-      return _inboxFlight!.then((_) {
-        if (_currentRealtime(gen) && activeEpoch != _inboxEpoch) {
-          return _refreshRealtimeInbox(gen);
-        }
-      });
-    }
-    _inboxGeneration = gen;
-    final epoch = _inboxEpoch;
-    _inboxFlightEpoch = epoch;
-    bool currentSnapshot() => _currentRealtime(gen) && epoch == _inboxEpoch;
-    late final Future<void> job;
-    job =
-        Future<void>.microtask(() async {
-          final inbox = await _session.api.realtimeInbox();
-          if (!currentSnapshot()) return;
-          final scope = '${_session.api.origin.origin}:${inbox.subject}';
-          if (_realtimeSubject != null && _realtimeSubject != inbox.subject) {
-            throw StateError('account binding changed');
-          }
-          _realtimeSubject = inbox.subject;
-          await _withdrawMessages(scope, gen, inbox.withdrawn);
-          for (final e in inbox.events.take(100)) {
-            if (!currentSnapshot()) return;
-            final id = e['id'],
-                type = e['type'],
-                data = e['data'],
-                seconds = e['created_at'];
-            if (id is! String ||
-                !RegExp(r'^[a-f0-9]{32}$').hasMatch(id) ||
-                type is! String ||
-                !{
-                  'notice.published',
-                  'notice.popup',
-                  'client.update',
-                  'account.notice',
-                }.contains(type) ||
-                data is! Json ||
-                seconds is! int ||
-                seconds < 0 ||
-                seconds > 253402300799) {
-              continue;
-            }
-            await _applyEvent(
-              id,
-              type,
-              data,
-              scope,
-              gen,
-              DateTime.fromMillisecondsSinceEpoch(seconds * 1000),
-              e['read'] == true,
-              canonical: true,
-              isCurrentSnapshot: currentSnapshot,
-            );
-          }
-          await _updateUnread(scope, gen);
-          _connectRealtime(scope, gen);
-        }).whenComplete(() {
-          if (identical(_inboxFlight, job)) _inboxFlight = null;
-        });
-    return _inboxFlight = job;
-  }
-
   Future<void> _openNotices() async {
     final scope = _realtimeScope(), gen = _session.api.generation;
     List<ZolnitRealtimeInboxItem> inbox = [];
     try {
-      if (scope != null) inbox = await _realtimeStore.readInbox(scope);
+      if (scope != null) inbox = await _inbox.read(scope);
     } catch (_) {}
     if (!_currentRealtime(gen)) return;
     if (!mounted) return;
-    final noticeRevision = _noticeRevision.value;
+    final noticeRevision = _inbox.noticeRevision.value;
     await showZolnitNotices(
       _brandContext,
       _session.noticeList,
       inbox,
       session: _session,
       isCurrent: () =>
-          _currentRealtime(gen) && _noticeRevision.value == noticeRevision,
-      invalidation: _noticeRevision,
-      canonicalNotices: _canonicalNotices,
+          _currentRealtime(gen) &&
+          _inbox.noticeRevision.value == noticeRevision,
+      invalidation: _inbox.noticeRevision,
+      canonicalNotices: _inbox.canonicalNotices,
       onOpen: (item) async =>
-          scope != null && await _markRead(item, scope, gen),
+          scope != null && await _inbox.markRead(item, scope, gen),
     );
   }
 
@@ -1252,7 +1014,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                                 showBrand:
                                     _selected == 0 && !_showingPreferences,
                                 initial: name.characters.first,
-                                unread: _unread,
+                                unread: _inbox.unread,
                                 onNotices: () => unawaited(_openNotices()),
                                 onHelp: () => _openHelp(context),
                                 onAccount: () => _select(3),
