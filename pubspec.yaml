@@ -1,7 +1,7 @@
 name: fl_clash
 description: ZolNit VPN client for connecting to locations included in your plan.
 publish_to: 'none'
-version: 1.1.9+2026111406
+version: 1.1.10+2026111501
 environment:
   sdk: '>=3.10.0 <4.0.0'
 
