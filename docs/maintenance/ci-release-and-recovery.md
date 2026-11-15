@@ -230,7 +230,7 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 
 - **R14 的 V3 为用户明确延期、NOT_RUN**：A1 基线的 V0/V1、双 profile 托管构建及 iOS 开发包 V2 已有记录；C 新候选仍须单独验收。真机安装、系统 TUN/VPN、升级和运行行为不能标为 N/A 或 PASS，按 [设备执行单](device-validation.md) 补验。
 - **R16/R17 当前结论**：A1 的五个托管流程和 12 份候选 artifact 已通过来源/摘要核验，main 已快进至 `d0af9d83`。这取代早期“远端候选 NOT_RUN”的记录；新正式发行仍 NO-GO。公开客户端仍为 v1.1.9/`bfb49ed8`，其历史 V4 与本次 main 的 V2 分开。
-- **CI 精简去重**：第 3.5 节的六项正式 tag 同源观察复用已在本地候选实现并经独立复核；C 新候选尚未 dispatch 托管验证。第 3.4 节的 debug/release 编译去重仍未实施，两者不能混为一项。
+- **CI 精简去重**：第 3.5 节的六项正式 tag 同源观察复用已在本地候选实现并经独立复核；旧候选49657d08的标准/Cloud流程已成功，但R15发现跨层清理P2，最终修正必须绑定自己的受验SHA与run/attempt，不能复用旧绿灯。第 3.4 节的 debug/release 编译去重仍未实施，两者不能混为一项。
 - **分支级 required checks**：已确认当前 main 无保护规则（第 1 节）；但这不等于"可以安全放松其他隐含的消费者期望"，`pages.yaml` 对 build workflow 名称的依赖、`workflow_run` 触发链路仍需在改动前核对。
 - **Apple 运行条件**：已确认的非秘密 GitHub 配置见第 9 节；外部 dispatcher 的有效信任配置、当前队列和后续设备/签名资格仍需在实际执行窗口复核。不得用本地源码或过期观察替代实时条件。
 - **client-release-edge/ZolnitSuite 的部署状态、密钥配置、实际 D1/R2 绑定**：本次只读取了源码职责和字段契约用于交叉验证，没有读取任何密钥、.env、数据库连接串或部署配置，这些运行时细节保持 UNKNOWN。
