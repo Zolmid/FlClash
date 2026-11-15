@@ -195,13 +195,14 @@ extension CrossEntry {
       try await until { !manager.saveCallbacks.isEmpty }
       let lock = open(directory.appendingPathComponent("intent.lock").path, O_RDWR)
       precondition(lock >= 0 && flock(lock, LOCK_EX | LOCK_NB) == 0)
+      precondition(!runner.submitTunnelRequest(target: .stopped))
       try await Task.sleep(nanoseconds: 200_000_000)
       precondition(runner.hasPendingWork)
       flock(lock, LOCK_UN)
       close(lock)
       manager.saveCallbacks.removeFirst()(nil)
       try await until { manager.connection.starts == 1 }
-      print("PASS: Runner retains accepted request during temporary authority contention")
+      print("PASS: Runner retains accepted request after failed registration and temporary contention")
     }
     for phase in ["reload", "retry", "wait", "settle", "authority-failure", "repeat", "cancelled"] {
       let directory = root.appendingPathComponent(phase)

@@ -158,6 +158,21 @@ import Shared
     precondition(transitioning.connection.stops == 1 && transitioning.connection.starts == 0)
     print("PASS: toggle preserves an unfinished stop while status remains connected")
 
+    let settled = NETunnelProviderManager()
+    settled.connection.status = .disconnecting
+    settled.connection.stopUpdatesStatus = false
+    let settledClient = TunnelIntentClient(
+      authority: TunnelIntentAuthority(directory: root.appendingPathComponent("settled-stop")),
+      loadManager: { settled }, isManaged: { _ in true }, isSafeMode: { false })
+    _ = try await settledClient.request(.stop)
+    try await Task.sleep(nanoseconds: 300_000_000)
+    settled.connection.status = .disconnected
+    try await Task.sleep(nanoseconds: 300_000_000)
+    settled.connection.status = .connected
+    _ = try await settledClient.request(.toggle)
+    precondition(settled.connection.stops == 2 && settled.connection.starts == 0)
+    print("PASS: observed stop completion releases pending target before external state change")
+
     for phase in ["cancel-without-callback", "supersede-without-callback"] {
       let delayed = NETunnelProviderManager()
       let directory = root.appendingPathComponent(phase)
