@@ -178,9 +178,34 @@ extension CrossEntry {
   }
 
   @MainActor static func moreRunnerTests(_ root: URL) async throws {
-    for phase in ["reload", "retry", "wait", "settle", "authority-failure", "repeat", "expired"] {
+    do {
+      let directory = root.appendingPathComponent("temporary-contention")
+      let authority = TunnelIntentAuthority(directory: directory)
+      let manager = NETunnelProviderManager()
+      NETunnelProviderManager.manager = manager
+      NETunnelProviderManager.pauseLoad = false
+      let config = NETunnelProviderProtocol()
+      config.providerBundleIdentifier = NEHelper.providerBundleIdentifier
+      manager.protocolConfiguration = config
+      let store = TestManagerStore(manager)
+      let runner = TunnelCoordinator(managerStore: store, authority: authority, isSafeMode: { false },
+        onTunnelStateChanged: { _ in }, onConnectionStateChanged: { _ in },
+        onExternalStart: {}, onExternalStop: {})
+      precondition(runner.submitTunnelRequest(target: .running))
+      try await until { !manager.saveCallbacks.isEmpty }
+      let lock = open(directory.appendingPathComponent("intent.lock").path, O_RDWR)
+      precondition(lock >= 0 && flock(lock, LOCK_EX | LOCK_NB) == 0)
+      try await Task.sleep(nanoseconds: 200_000_000)
+      precondition(runner.hasPendingWork)
+      flock(lock, LOCK_UN)
+      close(lock)
+      manager.saveCallbacks.removeFirst()(nil)
+      try await until { manager.connection.starts == 1 }
+      print("PASS: Runner retains accepted request during temporary authority contention")
+    }
+    for phase in ["reload", "retry", "wait", "settle", "authority-failure", "repeat", "cancelled"] {
       let directory = root.appendingPathComponent(phase)
-      let authority = TunnelIntentAuthority(directory: directory, lifetime: phase == "expired" ? 0.15 : 30)
+      let authority = TunnelIntentAuthority(directory: directory)
       let manager = NETunnelProviderManager()
       let config = NETunnelProviderProtocol()
       config.providerBundleIdentifier = NEHelper.providerBundleIdentifier
@@ -230,14 +255,17 @@ extension CrossEntry {
         try await until { !manager.saveCallbacks.isEmpty }
         precondition(runner.submitTunnelRequest(target: .stopped))
         manager.saveCallbacks.removeFirst()(nil)
-      case "expired":
-        try await Task.sleep(nanoseconds: 200_000_000)
+      case "cancelled":
+        struct Snapshot: Decodable { let token: TunnelIntentAuthority.Token }
+        let data = try Data(contentsOf: directory.appendingPathComponent("intent.json"))
+        let token = try JSONDecoder().decode(Snapshot.self, from: data).token
+        try authority.finish(token)
         manager.saveCallbacks.removeFirst()(nil)
       default: fatalError()
       }
       try await until { !runner.hasPendingWork }
       precondition(manager.connection.starts == (phase == "wait" ? 1 : 0))
-      if phase != "authority-failure" && phase != "expired" { precondition(manager.connection.stops == 1) }
+      if phase != "authority-failure" && phase != "cancelled" { precondition(manager.connection.stops == 1) }
       let before = try? Data(contentsOf: directory.appendingPathComponent("intent.json"))
       runner.requestStatusRefresh(notifyExternal: true)
       runner.handleTunnelStatusNotification(Notification(name: .init("fixture-status"), object: manager.connection))

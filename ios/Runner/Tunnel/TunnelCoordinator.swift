@@ -89,22 +89,30 @@ final class TunnelCoordinator {
       case .toggle: target = nil
       }
     } catch {
-      if let request = tunnelRequest { discard(request) }
       log("intent registration failed")
       return false
     }
-    return accept(token, target: target)
+    return accept(token, target: target, checkCurrent: false)
   }
 
   @discardableResult
   func submitRegisteredIntent(_ token: TunnelIntentAuthority.Token) -> Bool {
-    accept(token, target: nil)
+    accept(token, target: nil, checkCurrent: true)
   }
 
-  private func accept(_ token: TunnelIntentAuthority.Token, target: TunnelTarget?) -> Bool {
-    guard !isSafeMode(), (try? authority.isCurrent(token)) == true else {
-      try? authority.finish(token)
+  private func accept(
+    _ token: TunnelIntentAuthority.Token, target: TunnelTarget?, checkCurrent: Bool
+  ) -> Bool {
+    guard !isSafeMode() else {
+      do { try authority.finish(token) } catch { authority.cancel(token) }
       return false
+    }
+    if checkCurrent {
+      do {
+        guard try authority.isCurrent(token) else { return false }
+      } catch {
+        return false
+      }
     }
     requestGeneration &+= 1
     let request = TunnelRequest(generation: requestGeneration, token: token, target: target)
@@ -200,6 +208,9 @@ final class TunnelCoordinator {
     while true {
       if let request = tunnelRequest {
         await reconcileTunnel(request)
+        if tunnelRequest === request {
+          try? await Task.sleep(nanoseconds: 50_000_000)
+        }
         continue
       }
 
@@ -255,6 +266,10 @@ final class TunnelCoordinator {
       } catch {
         guard isCurrent(request) else {
           return
+        }
+        if case TunnelIntentError.busy = error {
+          try? await Task.sleep(nanoseconds: 50_000_000)
+          continue
         }
         let status = observedTunnelStatus
         if request.preferenceRetryCount == 0,
@@ -557,10 +572,15 @@ final class TunnelCoordinator {
     guard isCurrent(request) else {
       return
     }
+    do { try authority.finish(request.token) }
+    catch TunnelIntentError.busy { return }
+    catch {
+      discard(request)
+      return
+    }
     tunnelRequest = nil
     intentMonitor?.cancel()
     intentMonitor = nil
-    try? authority.finish(request.token)
     defer { publishConnectionState() }
     guard let actualState else {
       log(
@@ -591,6 +611,8 @@ final class TunnelCoordinator {
     guard tunnelRequest === request, requestGeneration == request.generation else { return false }
     do {
       if !isSafeMode(), !Task.isCancelled, try authority.isCurrent(request.token) { return true }
+    } catch TunnelIntentError.busy {
+      return true
     } catch { log("intent authority unavailable") }
     discard(request)
     return false
@@ -601,7 +623,7 @@ final class TunnelCoordinator {
     tunnelRequest = nil
     intentMonitor?.cancel()
     intentMonitor = nil
-    try? authority.finish(request.token)
+    do { try authority.finish(request.token) } catch { authority.cancel(request.token) }
     request.cancelOperation?()
     request.cancelOperation = nil
     cancelTunnelWait()

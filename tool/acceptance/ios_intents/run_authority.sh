@@ -20,7 +20,7 @@ wait_file() {
 }
 swiftc -swift-version 5 -module-cache-path "$out/cache" "$root/ios/Shared/TunnelIntentAuthority.swift" "$root/tool/acceptance/ios_intents/AuthorityProcess.swift" -o "$out/authority-test"
 "$out/authority-test" unit "$out"
-mkdir "$out/invalidate" "$out/compete"
+mkdir "$out/invalidate" "$out/compete" "$out/owner"
 "$out/authority-test" pending-start "$out/invalidate" &
 pids+=("$!")
 wait_file "$out/invalidate/ready"
@@ -39,3 +39,12 @@ pids=()
 "$out/authority-test" stop "$out/compete"
 [[ -e "$out/compete/started" && -e "$out/compete/stopped" ]]
 echo 'PASS: independent processes exited; stop follows completed start critical section'
+"$out/authority-test" hold-owner "$out/owner" &
+pids+=("$!")
+wait_file "$out/owner/ready"
+sleep 31
+"$out/authority-test" observe-owner "$out/owner"
+kill -9 "${pids[0]}"
+wait "${pids[0]}" 2>/dev/null || true
+pids=()
+"$out/authority-test" observe-dead "$out/owner"

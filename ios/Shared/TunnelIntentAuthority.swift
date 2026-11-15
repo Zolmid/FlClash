@@ -5,6 +5,22 @@ public enum TunnelIntentError: Error {
   case unavailable, busy, superseded, unsafe, expired
 }
 
+@MainActor
+public final class PendingTunnelIntent {
+  public private(set) var token: TunnelIntentAuthority.Token?
+
+  public init() {}
+
+  public func register(_ operation: () throws -> TunnelIntentAuthority.Token) rethrows {
+    let accepted = try operation()
+    token = accepted
+  }
+
+  public func remove(_ expected: TunnelIntentAuthority.Token) {
+    if token == expected { token = nil }
+  }
+}
+
 public final class TunnelIntentAuthority: @unchecked Sendable {
   public enum Command { case start, stop, toggle }
   public struct Token: Codable, Equatable, Sendable {
@@ -12,26 +28,19 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
   }
 
   private struct Record: Codable {
-    var version = 1
+    var version = 2
     var token: Token
     var target: Bool?
     var inverted: Bool
     var pending = true
-    var created: Date
-    var expires: Date
   }
 
+  private static let ownersLock = NSLock()
+  private static var owners: [UUID: Int32] = [:]
   private let directory: @Sendable () throws -> URL
-  private let clock: @Sendable () -> Date
-  private let lifetime: TimeInterval
 
-  public init(
-    directory: URL, lifetime: TimeInterval = 30,
-    clock: @escaping @Sendable () -> Date = { Date() }
-  ) {
+  public init(directory: URL) {
     self.directory = { directory }
-    self.lifetime = min(30, max(0.001, lifetime))
-    self.clock = clock
   }
 
   public init(appGroup: String) {
@@ -41,14 +50,14 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
       ) else { throw TunnelIntentError.unavailable }
       return container.appendingPathComponent("tunnel-intents-v1", isDirectory: true)
     }
-    lifetime = 30
-    clock = { Date() }
   }
 
   public func register(_ command: Command) throws -> Token {
     try locked { record, file in
-      let now = clock()
-      let previous = record.flatMap { valid($0, at: now) && $0.pending ? $0 : nil }
+      var previous: Record?
+      if let record, record.pending, try alive(record, in: file.deletingLastPathComponent()) {
+        previous = record
+      }
       let target: Bool?
       let inverted: Bool
       switch command {
@@ -58,16 +67,36 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
         target = previous?.target.map { !$0 }
         inverted = target == nil ? !(previous?.inverted ?? false) : false
       }
-      let next = Record(token: Token(id: UUID()), target: target, inverted: inverted,
-        created: now, expires: now.addingTimeInterval(lifetime))
-      try write(next, to: file)
+      let next = Record(token: Token(id: UUID()), target: target, inverted: inverted)
+      let ownerURL = ownerFile(next.token, in: file.deletingLastPathComponent())
+      let descriptor = open(ownerURL.path, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
+      guard descriptor >= 0 else { throw TunnelIntentError.unavailable }
+      guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+        close(descriptor)
+        try? FileManager.default.removeItem(at: ownerURL)
+        throw TunnelIntentError.unavailable
+      }
+      do {
+        try write(next, to: file)
+      } catch {
+        close(descriptor)
+        try? FileManager.default.removeItem(at: ownerURL)
+        throw error
+      }
+      Self.ownersLock.lock()
+      Self.owners[next.token.id] = descriptor
+      Self.ownersLock.unlock()
+      if let record {
+        release(record.token)
+        try? FileManager.default.removeItem(at: ownerFile(record.token, in: file.deletingLastPathComponent()))
+      }
       return next.token
     }
   }
 
   public func resolve(_ token: Token, observedRunning: Bool) throws -> Bool {
     try locked { record, file in
-      var current = try require(token, record)
+      var current = try require(token, record, in: file.deletingLastPathComponent())
       if current.target == nil {
         current.target = observedRunning != current.inverted
         try write(current, to: file)
@@ -77,48 +106,89 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
   }
 
   public func isCurrent(_ token: Token) throws -> Bool {
-    try locked { record, _ in
-      guard let record else { return false }
-      return record.token == token && record.pending && valid(record, at: clock())
+    try locked { record, file in
+      guard let record, record.token == token, record.pending else {
+        release(token)
+        return false
+      }
+      return try alive(record, in: file.deletingLastPathComponent())
     }
   }
 
   public func isLatest(_ token: Token) throws -> Bool {
-    try locked { record, _ in
-      guard let record else { return false }
-      return record.token == token && valid(record, at: clock())
+    try locked { record, file in
+      guard let record, record.token == token else { return false }
+      if !record.pending { return true }
+      return try alive(record, in: file.deletingLastPathComponent())
     }
   }
 
   public func perform<T>(_ token: Token, running: Bool, _ effect: () throws -> T) throws -> T {
     try locked { record, file in
-      let current = try require(token, record)
+      let folder = file.deletingLastPathComponent()
+      let current = try require(token, record, in: folder)
       guard current.target == running else { throw TunnelIntentError.superseded }
-      // Verify write availability before the synchronous OS command; never hold this lock across await.
       try write(current, to: file)
-      guard valid(current, at: clock()) else { throw TunnelIntentError.expired }
+      guard try alive(current, in: folder) else { throw TunnelIntentError.expired }
       return try effect()
     }
   }
 
   public func finish(_ token: Token) throws {
-    try locked { record, file in
-      guard var current = record, current.token == token else { return }
-      current.pending = false
-      try write(current, to: file)
+    do {
+      try locked { record, file in
+        guard var current = record, current.token == token else { return }
+        current.pending = false
+        try write(current, to: file)
+        try? FileManager.default.removeItem(at: ownerFile(token, in: file.deletingLastPathComponent()))
+      }
+    } catch TunnelIntentError.busy {
+      throw TunnelIntentError.busy
+    } catch {
+      release(token)
+      throw error
     }
+    release(token)
   }
 
-  private func valid(_ record: Record, at now: Date) -> Bool {
-    record.version == 1 && now >= record.created && now < record.expires
-      && record.expires.timeIntervalSince(record.created) <= 30
+  public func cancel(_ token: Token) { release(token) }
+
+  private func ownerFile(_ token: Token, in folder: URL) -> URL {
+    folder.appendingPathComponent("owner-\(token.id.uuidString)")
   }
 
-  private func require(_ token: Token, _ record: Record?) throws -> Record {
+  private func release(_ token: Token) {
+    Self.ownersLock.lock()
+    let descriptor = Self.owners.removeValue(forKey: token.id)
+    Self.ownersLock.unlock()
+    if let descriptor { close(descriptor) }
+  }
+
+  private func alive(_ record: Record, in folder: URL) throws -> Bool {
+    guard record.version == 2 else { return false }
+    Self.ownersLock.lock()
+    let owned = Self.owners[record.token.id] != nil
+    Self.ownersLock.unlock()
+    if owned { return true }
+    let descriptor = open(ownerFile(record.token, in: folder).path, O_RDWR | O_CLOEXEC | O_NOFOLLOW)
+    if descriptor < 0 {
+      if errno == ENOENT { return false }
+      throw TunnelIntentError.unavailable
+    }
+    defer { close(descriptor) }
+    if flock(descriptor, LOCK_EX | LOCK_NB) == 0 {
+      flock(descriptor, LOCK_UN)
+      return false
+    }
+    if errno == EWOULDBLOCK || errno == EAGAIN { return true }
+    throw TunnelIntentError.unavailable
+  }
+
+  private func require(_ token: Token, _ record: Record?, in folder: URL) throws -> Record {
     guard let record, record.token == token, record.pending else {
       throw TunnelIntentError.superseded
     }
-    guard valid(record, at: clock()) else { throw TunnelIntentError.expired }
+    guard try alive(record, in: folder) else { throw TunnelIntentError.expired }
     return record
   }
 
@@ -144,7 +214,8 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     if input >= 0 {
       let handle = FileHandle(fileDescriptor: input, closeOnDealloc: true)
       guard let data = try handle.read(upToCount: 4097), data.count <= 4096,
-        let decoded = try? JSONDecoder().decode(Record.self, from: data), decoded.version == 1
+        let decoded = try? JSONDecoder().decode(Record.self, from: data),
+        decoded.version == 1 || decoded.version == 2
       else { throw TunnelIntentError.unavailable }
       record = decoded
     } else if errno != ENOENT {

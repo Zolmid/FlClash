@@ -25,7 +25,7 @@ enum QuickAction: String {
 @MainActor
 final class ServiceChannel {
   private static var instance: ServiceChannel?
-  private static var pendingQuickAction: TunnelIntentAuthority.Token?
+  private static let pendingQuickAction = PendingTunnelIntent()
   private static let quickActionAuthority = TunnelIntentAuthority(appGroup: NEHelper.appGroupIdentifier)
 
   private static let packageName = "com.zolmid.zolnit"
@@ -37,6 +37,7 @@ final class ServiceChannel {
   private let coreEventRelay: CoreEventRelay
   private lazy var bundleRenewal = ClientBundleSessionBridge(tunnel: tunnelController)
   private var isInitialized = false
+  private var quickActionDrain: Task<Void, Never>?
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "com.zolmid.zolnit",
     category: "ServiceChannel"
@@ -51,15 +52,40 @@ final class ServiceChannel {
   static func request(_ action: QuickAction) -> Bool {
     if let instance, instance.sharedStateStore.isSafeMode { return false }
     do {
-      let token = try quickActionAuthority.register(action.command)
-      guard let instance, instance.isInitialized else {
-        pendingQuickAction = token
-        return true
-      }
-      return instance.tunnelController.submitRegisteredIntent(token)
+      try pendingQuickAction.register { try quickActionAuthority.register(action.command) }
+      if let instance, instance.isInitialized { instance.drainQuickActions() }
+      return true
     } catch {
-      pendingQuickAction = nil
       return false
+    }
+  }
+
+  private func drainQuickActions() {
+    guard quickActionDrain == nil else { return }
+    quickActionDrain = Task { @MainActor [weak self] in
+      guard let self else { return }
+      defer { self.quickActionDrain = nil }
+      while let token = Self.pendingQuickAction.token {
+        if self.sharedStateStore.isSafeMode {
+          Self.pendingQuickAction.remove(token)
+          do { try Self.quickActionAuthority.finish(token) }
+          catch { Self.quickActionAuthority.cancel(token) }
+          continue
+        }
+        do {
+          guard try Self.quickActionAuthority.isCurrent(token) else {
+            Self.pendingQuickAction.remove(token)
+            continue
+          }
+          if self.tunnelController.submitRegisteredIntent(token) {
+            Self.pendingQuickAction.remove(token)
+            continue
+          }
+        } catch {
+          self.log("quick action authority unavailable; retaining accepted request")
+        }
+        do { try await Task.sleep(nanoseconds: 250_000_000) } catch { return }
+      }
     }
   }
 
@@ -172,10 +198,7 @@ final class ServiceChannel {
     case "init":
       sharedStateStore.setSafeMode(call.arguments as? Bool ?? false)
       isInitialized = true
-      if let token = Self.pendingQuickAction {
-        Self.pendingQuickAction = nil
-        tunnelController.submitRegisteredIntent(token)
-      }
+      drainQuickActions()
       tunnelController.publishConnectionState()
       coreEventRelay.drainEventQueue()
       result("")

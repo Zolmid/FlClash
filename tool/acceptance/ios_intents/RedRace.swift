@@ -14,7 +14,7 @@ import Shared
 
   @MainActor static func main() async throws {
     let root = URL(fileURLWithPath: CommandLine.arguments[1])
-    for phase in ["save-stop", "reload-toggle", "retry-stop", "cancel", "fail", "retry-once", "retry-limit", "repeat", "two-toggles", "safe", "safe-during-save", "authority-read-failure", "authority-write-failure", "foreign-manager"] {
+    for phase in ["save-stop", "reload-toggle", "retry-stop", "cancel", "fail", "retry-once", "retry-limit", "repeat", "two-toggles", "safe", "safe-during-save", "authority-read-failure", "authority-write-failure", "foreign-manager", "slow-save"] {
       let directory = root.appendingPathComponent(phase)
       let authority = TunnelIntentAuthority(directory: directory)
       let manager = NETunnelProviderManager()
@@ -65,6 +65,10 @@ import Shared
       try await until { !manager.saveCallbacks.isEmpty }
       var expectsSuccess = false
       switch phase {
+      case "slow-save":
+        try await Task.sleep(nanoseconds: 31_000_000_000)
+        manager.saveCallbacks.removeFirst()(nil)
+        expectsSuccess = true
       case "save-stop":
         _ = try await other.request(.stop)
         manager.saveCallbacks.removeFirst()(nil)
@@ -132,5 +136,46 @@ import Shared
     _ = try await first.request(.toggle)
     precondition(manager.connection.starts == 1 && manager.connection.stops == 1)
     print("PASS: repeat during connecting preserves pending target across stale status")
+
+    let completedManager = NETunnelProviderManager()
+    let completedClient = TunnelIntentClient(
+      authority: TunnelIntentAuthority(directory: root.appendingPathComponent("completed-stop")),
+      loadManager: { completedManager }, isManaged: { _ in true }, isSafeMode: { false })
+    _ = try await completedClient.request(.stop)
+    completedManager.connection.status = .connected
+    _ = try await completedClient.request(.toggle)
+    precondition(completedManager.connection.stops == 2 && completedManager.connection.starts == 0)
+    print("PASS: completed stop does not override later observed connected status")
+
+    let transitioning = NETunnelProviderManager()
+    transitioning.connection.status = .connected
+    transitioning.connection.stopUpdatesStatus = false
+    let transitioningClient = TunnelIntentClient(
+      authority: TunnelIntentAuthority(directory: root.appendingPathComponent("transitioning-stop")),
+      loadManager: { transitioning }, isManaged: { _ in true }, isSafeMode: { false })
+    _ = try await transitioningClient.request(.stop)
+    _ = try await transitioningClient.request(.toggle)
+    precondition(transitioning.connection.stops == 1 && transitioning.connection.starts == 0)
+    print("PASS: toggle preserves an unfinished stop while status remains connected")
+
+    for phase in ["cancel-without-callback", "supersede-without-callback"] {
+      let delayed = NETunnelProviderManager()
+      let directory = root.appendingPathComponent(phase)
+      let client = TunnelIntentClient(authority: TunnelIntentAuthority(directory: directory),
+        loadManager: { delayed }, isManaged: { _ in true }, isSafeMode: { false })
+      let other = TunnelIntentClient(authority: TunnelIntentAuthority(directory: directory),
+        loadManager: { delayed }, isManaged: { _ in true }, isSafeMode: { false })
+      let pending = Task { try await client.request(.start) }
+      try await until { !delayed.saveCallbacks.isEmpty }
+      if phase == "cancel-without-callback" { pending.cancel() }
+      else { _ = try await other.request(.stop) }
+      var finished = false
+      let observer = Task { _ = await pending.result; finished = true }
+      try await until { finished }
+      delayed.saveCallbacks.removeFirst()(nil)
+      _ = await observer.result
+      precondition(delayed.connection.starts == 0)
+      print("PASS: Shared \(phase) releases caller before late preference callback")
+    }
   }
 }

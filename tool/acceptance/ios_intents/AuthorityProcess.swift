@@ -1,19 +1,10 @@
 import Darwin
 import Foundation
 
-private final class DispatchClock: @unchecked Sendable {
-  let origin = Date()
-  var reads = 0
-  func now() -> Date {
-    reads += 1
-    return origin.addingTimeInterval(reads >= 4 ? 31 : 0)
-  }
-}
-
 @main struct AuthorityProcess {
   enum Failure: Error { case timeout, unexpected }
-  static func wait(_ file: URL) throws {
-    let until = Date().addingTimeInterval(5)
+  static func wait(_ file: URL, timeout: TimeInterval = 5) throws {
+    let until = Date().addingTimeInterval(timeout)
     while !FileManager.default.fileExists(atPath: file.path) {
       if Date() > until { throw Failure.timeout }
       Thread.sleep(forTimeInterval: 0.01)
@@ -52,6 +43,27 @@ private final class DispatchClock: @unchecked Sendable {
     case "expect-busy":
       do { _ = try authority.register(.stop); throw Failure.unexpected }
       catch TunnelIntentError.busy { print("PASS: competing process cannot enter check/effect critical section") }
+    case "hold-owner":
+      let token = try authority.register(.start)
+      try JSONEncoder().encode(token).write(to: root.appendingPathComponent("token"))
+      try marker(root.appendingPathComponent("ready"))
+      try wait(root.appendingPathComponent("release"), timeout: 45)
+    case "observe-owner", "observe-dead":
+      let token = try JSONDecoder().decode(TunnelIntentAuthority.Token.self,
+        from: Data(contentsOf: root.appendingPathComponent("token")))
+      if mode == "observe-owner" {
+        check(try authority.isCurrent(token))
+        print("PASS: other process observes live pending owner")
+      } else {
+        check(try !authority.isCurrent(token))
+        var issued = false
+        do { try authority.perform(token, running: true) { issued = true }; throw Failure.unexpected }
+        catch TunnelIntentError.expired {}
+        precondition(!issued)
+        let toggle = try authority.register(.toggle)
+        check(try !authority.resolve(toggle, observedRunning: true))
+        print("PASS: dead owner cannot replay; toggle uses current observed state")
+      }
     case "unit":
       try unit(root)
     default: throw Failure.unexpected
@@ -77,25 +89,14 @@ private final class DispatchClock: @unchecked Sendable {
     check(try !second.resolve(even, observedRunning: false))
     print("PASS: independent instances, toggle parity and stale completion fencing")
 
-    let expired = TunnelIntentAuthority(directory: root.appendingPathComponent("expired"), lifetime: 0.03)
-    let token = try expired.register(.start)
-    Thread.sleep(forTimeInterval: 0.05)
-    check(try !expired.isCurrent(token))
-    var expiredEffect = false
-    do { try expired.perform(token, running: true) { expiredEffect = true }; throw Failure.unexpected }
-    catch TunnelIntentError.expired {}
-    precondition(!expiredEffect)
-    print("PASS: expired token cannot dispatch")
-
-    let clock = DispatchClock()
-    let aging = TunnelIntentAuthority(directory: root.appendingPathComponent("dispatch-expiry"), clock: { clock.now() })
-    let agingToken = try aging.register(.start)
-    _ = try aging.resolve(agingToken, observedRunning: false)
-    var lateEffect = false
-    do { try aging.perform(agingToken, running: true) { lateEffect = true }; throw Failure.unexpected }
-    catch TunnelIntentError.expired {}
-    precondition(!lateEffect)
-    print("PASS: expiry during write preflight still blocks synchronous effect")
+    let cancelled = try first.register(.start)
+    try first.finish(cancelled)
+    check(try !first.isCurrent(cancelled))
+    var cancelledEffect = false
+    do { try first.perform(cancelled, running: true) { cancelledEffect = true }; throw Failure.unexpected }
+    catch TunnelIntentError.superseded {}
+    precondition(!cancelledEffect)
+    print("PASS: explicitly finished token cannot dispatch")
 
     let old = try first.register(.start)
     let lock = open(directory.appendingPathComponent("intent.lock").path, O_RDWR)
@@ -107,11 +108,22 @@ private final class DispatchClock: @unchecked Sendable {
     check(try first.isCurrent(old))
     print("PASS: lock contention is explicit rejection, not false success")
 
+    let cancelledWhileBusy = try first.register(.start)
+    let busyLock = open(directory.appendingPathComponent("intent.lock").path, O_RDWR)
+    precondition(busyLock >= 0 && flock(busyLock, LOCK_EX | LOCK_NB) == 0)
+    first.cancel(cancelledWhileBusy)
+    flock(busyLock, LOCK_UN)
+    close(busyLock)
+    check(try !first.isCurrent(cancelledWhileBusy))
+    do { try first.perform(cancelledWhileBusy, running: true) { throw Failure.unexpected }; throw Failure.unexpected }
+    catch TunnelIntentError.expired {}
+    let replacement = try first.register(.start)
+
     precondition(chmod(directory.path, 0o500) == 0)
     var writeFailed = false
     do { _ = try second.register(.stop) } catch { writeFailed = true }
     var effectFailed = false
-    do { try first.perform(old, running: true) { fatalError("unwritable authority effect") } }
+    do { try first.perform(replacement, running: true) { fatalError("unwritable authority effect") } }
     catch { effectFailed = true }
     precondition(chmod(directory.path, 0o700) == 0)
     precondition(writeFailed && effectFailed)
