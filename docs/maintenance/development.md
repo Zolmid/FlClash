@@ -12,7 +12,7 @@
 | Dart | 随 Flutter 提供，仓库未单独固定 | 3.13.5 | 根包 `sdk: '>=3.10.0 <4.0.0'`；`setup_hooks` 为 `^3.10.0` | [pubspec.yaml](../../pubspec.yaml)，[setup_hooks/pubspec.yaml](../../plugins/setup/setup_hooks/pubspec.yaml) |
 | Go | CI `GO_VERSION` 1.27.1 | 1.27.1 | `core/go.mod` 声明 `go 1.27.0` | [build.yaml](../../.github/workflows/build.yaml)，[core/go.mod](../../core/go.mod) |
 | Rust | `RUSTUP_TOOLCHAIN` 1.99.0 | 未核对 | 由 [rust-toolchain.toml](../../plugins/rust_api/rust/rust-toolchain.toml) 决定 | [cloud-build.yml](../../.github/workflows/cloud-build.yml) 第 103 行 |
-| Xcode | 27.1（`/Applications/Xcode_27.1.app`） | 27.1，build 27A9275 | iOS 部署目标见第 4 节 | [cloud-build.yml](../../.github/workflows/cloud-build.yml) 第 161 行 |
+| Xcode | 27.1（`/Applications/Xcode_27.1.app`） | 27.1，build 27A9275 | 部署目标取各 Xcode target；SDK 版本不是最低 OS 版本 | [cloud-build.yml](../../.github/workflows/cloud-build.yml) 第 161 行 |
 | Core | gitlink `core/Clash.Meta` = `8380d0e7462f061a964323e9bf3129a236fcc5d5` | 同左 | 分支 `FlClash` | [.gitmodules](../../.gitmodules) |
 
 语言约束与运行时版本不能互相替代。例如 Dart 3.13.5 满足根包的 `>=3.10.0`，但如果 CI 的 Flutter 换成另一个小版本，Dart 版本也会随之变化。升级 Flutter 前，先读 [.agents/flutter-upgrade.md](../../.agents/flutter-upgrade.md)。
@@ -67,6 +67,20 @@ iOS 与 Android 的构建需要 Xcode 与 Android SDK 本地就绪。Go 与 Rust
 - Android 的 `:core` 模块依赖 `gomobile bind` 生成 AAR，只需要 `go` 在 PATH 中，gomobile 工具来自 `core/go.mod`。
 - iOS 的 C ABI 位于 [core/ios/](../../core/ios/)，由 Runner 与 NECore 共同链接（[architecture.md](architecture.md)）。
 
+
+### 本地构建与打包入口
+
+先进入本任务隔离 checkout，核对上述工具链及构建钩子；以下只生成本地产物，不安装/启动 App，也不授予真实签名或发布权限。仓库既有完整命令说明见 [.agents/commands.md](../../.agents/commands.md)。
+
+| 目标 | 仓库已有命令 | 环境与输出边界 |
+|---|---|---|
+| macOS | `dart setup.dart macos` | macOS/Xcode27，产物在 dist；实际签名类型另验 |
+| Windows | `dart setup.dart windows` | Windows SDK/构建工具链；x64 与 WOA 运行验收分开 |
+| Linux | `dart setup.dart linux` | Linux 图形/打包依赖；编译不代表系统 Helper 已安装 |
+| Android | `dart setup.dart android` | JDK17、Gradle 版本目录和 NDK；正式签名取决于准确受控配置，不在此提供凭据 |
+| iOS 开发包 | `dart setup.dart ios --env dev --no-codesign` | macOS/Xcode、Rust aarch64-apple-ios target；输出 arm64 unsigned IPA，不能直接代表真机安装资格 |
+
+`setup.dart` 会执行完整构建并写 dist；诊断单个 Dart 行为优先相应单元测试，不重复五平台打包。Android compileSdk/targetSdk/NDK 来自 `android/gradle/libs.versions.toml` 与模块 Gradle 文件；不要只根据本机已安装版本推断编译输入。App 身份、渠道和构建开关对照平台章节及 Cloud 的显式 profile，不能把开发 APK/unsigned IPA上传为既有正式版本。
 
 ## 6. 代码生成与本地化
 

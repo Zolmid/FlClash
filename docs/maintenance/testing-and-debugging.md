@@ -47,7 +47,7 @@ Flutter 界面日志：`CommonPrint.log`（[print.dart](../../lib/common/print.d
 - 命令（V1，包内）：`cd packages/zolnit_client && flutter test test/signed_subscription_test.dart`
 - 测试名：`production empty trust map and tampering fail closed`；`v2 capability never gates legacy or third-party subscriptions`；`state is verified but never projects credentials`；`production trust asset format yields pins only when populated`。
 - 预期：全部通过。空 trust map 与篡改的信封必须失败关闭。
-- 停止条件：生产构建中 trust 资源为空。这是打包缺陷，不是运行时可接受的状态；升级给构建所有者，不要绕过校验。
+- 停止条件：需要启用签名订阅 v2 的构建却缺少预期 trust pins。核对 capability、资源打包和发布配置；空 map 会使 v2 校验失败关闭，但不能据此把 legacy/第三方订阅也禁用，更不能绕过签名校验。
 - bundle 过期与撤销：过期的 bundle 不写入 profile，撤销信封不作为 `bundle` 处理。相关 Dart 测试见 [test/providers/zolnit_bundle_test.dart](../../test/providers/zolnit_bundle_test.dart)，测试名以文件内 `test(` 的描述为准，本次未逐个列出。
 
 ### R3 路由与返回路由
@@ -67,15 +67,16 @@ Flutter 界面日志：`CommonPrint.log`（[print.dart](../../lib/common/print.d
 
 - 输入：票据响应、`wss` 连接结果、服务端的 `hello`、`resync` 与 `ping/pong`。
 - 错误：`FormatException`（生产 origin 不是 `https://link.zolmid.com`，或票据的 subject 与作用域不一致，消息为 `realtime subject`）。
-- 超时：打开 20 秒；hello 后 30 秒；ping 每 35 秒；resync 回调 22 秒；连接 12 秒；HttpClient 8 秒。
+- 超时：打开阶段 20 秒；发送 hello 后等待 ready 30 秒；ready/pulse 后默认 150 秒存活期限；RPC 默认 8 秒；ping 每 35 秒；resync/事件回调 22 秒；连接 12 秒；HttpClient 8 秒。
 - 退避：`_attempt` 上限 8，延迟 `min(180, 2^attempt)` 秒乘 0.75–1.25 的抖动。
 - 函数：`ZolnitRealtimeChannel._open`、`_fail`、`_connect`（[realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart)）。
 - 命令（V1）：`dart run tool/test.dart test/views/zolnit/realtime_withdraw_test.dart test/views/zolnit/realtime_home_test.dart`
 - 包内实时测试未在本次列出测试名。先运行 `rg -l -i realtime packages/zolnit_client/test` 找到文件，再读取其中的测试名。
-- WS→HTTP 回退（纠正）：实际机制是 [api.dart](../../packages/zolnit_client/lib/src/api.dart) 的 `XboardClient._preferLive`，`realtime/inbox`/`realtime/read` 不是独立端点，`inbox.read` 只是 WebSocket 帧里的方法名。`_preferLive` 先查 `liveReads?.supports(method)`（要求通道 `healthy`、方法未被标记不支持、`api.generation` 与通道代际一致），为真才尝试 `live.read(...)`；否则或失败都直接调用调用方传入的普通 HTTP 回调。使用这条回退的方法有 `realtimeInbox`、`notices`、`device.status`、`orderStatus`、`fetchSignedSubscriptionState`（均在 [api.dart](../../packages/zolnit_client/lib/src/api.dart)）。详见 [architecture.md](architecture.md) 第 3.4 节。
+- WS→HTTP 回退：`realtimeInbox` 用 `_preferLive('inbox.list', ...)`，失败后的 REST 路径是 `GET /api/v1/zolnit/client/realtime/inbox`；它真实存在。已读写入由 `home._markRead` 先尝试 WS 的 `inbox.read`，重核代际后才可使用 `POST /api/v1/zolnit/client/realtime/read`。其他读取方法的 fallback 见架构 3.4。`unsupported` 只影响当前协商方法集合，后续 ready 可恢复，不是永久禁用。
+- 包内确定性测试入口：`packages/zolnit_client/test/realtime_reads_test.dart`、`realtime_test.dart`；读源码确认各测试所断言的代际、回退、重连和协商条件，不只运行页面测试。
 - 预期：`liveReads` 不可用（未附加、代际不符、`supports` 为假、或 `read` 超时返回 null）时，上述方法按合同落到 HTTP；HTTP 自身仍可能报业务/网络错误。若等待 WS 时账号代际已变化，`_preferLive` 抛 `superseded`，不得继续用旧账户结果或伪造成功。
 - 复现建议：构造一个假的 `ZolnitLiveReads`，让 `supports` 返回 false 或 `read` 返回 null，断言调用方确实走了传入的 `http()` 回调；或者让 `ZolnitRealtimeChannel` 始终不建立连接，确认 `liveReads` 一直为 null。
-- 停止条件：重连循环超过 3 分钟仍不建立连接。记录 `_attempt` 的值与票据请求结果，升级给实时通道所有者。
+- 停止条件：持续无法建立连接时记录 `_attempt`、失败阶段与脱敏票据状态。退避基准上限 180 秒还要乘抖动，单次等待可接近 225 秒；“超过 3 分钟”本身不是代码违约或卡死证明。
 - 仅在授权后：连接真实 `link.zolmid.com`。
 
 ### R5 礼品卡兑换与幂等
@@ -151,7 +152,7 @@ Flutter 界面日志：`CommonPrint.log`（[print.dart](../../lib/common/print.d
 - 命令（V1）：`dart run tool/test.dart test/common/boot_guard_test.dart test/common/boot_record_test.dart`
 - 测试名：`an interrupted launch is carried into the next boot record`、`clearing the profile also drops it from the new boot record`、`a consumed exit timestamp is remembered across launches`、`a completed launch resets the failure count`、`a degraded launch keeps its failure count until a clean run`、`a clean exit closes the record and clears the failure count`、`markRunning and markClosed do nothing without a record`、`an unsupported platform never reads, writes or recovers`（均在 `test/common/boot_guard_test.dart`）。
 - 预期：连续两次异常退出（且不是外部主动停止）后，第二次启动清空 `currentProfileId`，不自动重连上次失败的 profile；一次正常退出把失败计数清零。
-- 停止条件：`markClosed` 从未被观察到调用（即每次启动都判定为异常），即使用户每次都正常退出。这说明退出路径没有走到 [providers/actions/system.dart](../../lib/providers/actions/system.dart) 的清理代码，记录平台与退出方式，升级给生命周期所有者，不要绕过阈值直接清空用户 profile。
+- 停止条件：启动实际已完成，但下次读取仍反复得到 `stage=starting`。先核对 `markRunning` 是否成功落盘以及退出时的 `markClosed`；仅缺少 markClosed 不代表异常，因为记录为 running 时不会计为未完成启动。继续检查 [providers/actions/system.dart](../../lib/providers/actions/system.dart) 的清理代码，记录平台与退出方式，升级给生命周期所有者，不要绕过阈值直接清空用户 profile。
 
 ## 4. 日志与脱敏
 

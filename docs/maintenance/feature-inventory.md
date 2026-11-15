@@ -9,14 +9,14 @@
 | 能力 | 入口（UI / 非 UI） | 状态所有者与存储 | 后台与平台 | 测试 | 证据状态 | 处置 |
 |---|---|---|---|---|---|---|
 | 登录 | [auth.dart](../../lib/views/zolnit/auth.dart)；启动恢复 | `ZolnitSessionController`；安全存储 | 全平台 | `test/views/zolnit/auth_test.dart`，`auth_restore_test.dart` | 存在、可达、验证（widget） | keep |
-| 注册返回 | `zolnit://auth/register`（[link.dart](../../lib/common/link.dart)）→ [application.dart](../../lib/application.dart) 第 139 行 | [providers/zolnit_registration.dart](../../lib/providers/zolnit_registration.dart) `accept` | 全平台 | 未在本次按名称核对 | 存在、可达、未验证 | keep |
-| 网页单点登录 | [web_session.dart](../../packages/zolnit_client/lib/src/web_session.dart)；[providers/zolnit_web_session.dart](../../lib/providers/zolnit_web_session.dart) | web session provider | 打开系统浏览器；返回路径未核对 | 包内 `web_session_coordinator_test.dart` | 存在、返回路径未核对 | unknown |
+| 注册返回 | `zolnit://auth/register`（[link.dart](../../lib/common/link.dart)）→ [application.dart](../../lib/application.dart) 第 139 行 | [providers/zolnit_registration.dart](../../lib/providers/zolnit_registration.dart) `accept` | 全平台 | `test/views/zolnit/auth_test.dart` 的 PKCE callback 与 `test/common/link_test.dart` | 存在、可达、已有单元测试 | keep |
+| 网页单点登录 | [web_session.dart](../../packages/zolnit_client/lib/src/web_session.dart)；[providers/zolnit_web_session.dart](../../lib/providers/zolnit_web_session.dart) | `ZolnitWebSessionCoordinator`；一次性授权码和浏览器短期会话 | 第一方 landing 页；账号变化关闭浏览器，失败用无凭据 fallback | 包内 `web_session_coordinator_test.dart` | 存在、首页/更新入口可达；不需要 App 深链返回 | keep |
 | 会话安全存储 | 登录与退出 | `session_vault.dart`；钥匙串（插件默认服务名） | 平台钥匙串 | `test/providers/zolnit_vault_test.dart` | 存在、可达、验证（单元） | keep |
 | 订阅 bundle 同步 | 启动与同步动作 | `zolnitSyncCurrentClientBundleProvider`；Drift profile | 自动同步由 `ZOLNIT_CLIENT_BUNDLE` 控制；全平台 | `test/providers/zolnit_bundle_test.dart`，`zolnit_profile_test.dart` | 存在、启用取决于编译参数、验证（单元） | keep |
 | 签名订阅 v2 与撤销 | bundle 同步的内部路径 | `SignedSubscriptionVerifier`；随 Core 打包的 trust 资源 | 全平台 | `packages/zolnit_client/test/signed_subscription_test.dart` | 存在、可达、验证（单元） | keep |
 | 路由与探测 | [routing 页面与节点](../../lib/views/zolnit/nodes.dart)；`ZolnitRouting` | `ZolnitRouting`；内存 | 探测 30 秒或 60 秒；前台恢复 | `test/providers/zolnit_routing_test.dart` | 存在、可达、验证（单元） | keep |
 | 返回路由（分派绑定） | Core 分组绑定 | [common/zolnit_return_route.dart](../../lib/common/zolnit_return_route.dart)；Go 的 `core/clientbundle/return_route.go` | 随 Core | `test/common/zolnit_return_route_test.dart` | 存在、可达、验证（单元） | keep |
-| 实时消息 | 首页消息入口 | `ZolnitRealtimeChannel`；偏好存储游标与去重集；WS 不健康时经 `XboardClient._preferLive` 落回 HTTP（[architecture.md](architecture.md) 3.4/3.9 节） | WebSocket；退避上限 180 秒 | `test/views/zolnit/realtime_withdraw_test.dart`，`realtime_home_test.dart` | 存在、可达、验证（widget） | keep |
+| 实时消息 | 首页消息入口 | `ZolnitRealtimeChannel`；偏好存储游标与去重集；WS 不健康时经 `XboardClient._preferLive` 落回 HTTP（[architecture.md](architecture.md) 3.4 节） | WebSocket；退避基准上限 180 秒，另加抖动 | `test/views/zolnit/realtime_withdraw_test.dart`，`realtime_home_test.dart` | 存在、可达、验证（widget） | keep |
 | 套餐与订单 | [plans.dart](../../lib/views/zolnit/plans.dart)，[orders.dart](../../packages/zolnit_client/lib/src/orders.dart) | 订单查询 | 全平台 | `test/views/zolnit/plans_test.dart` | 存在、可达、验证（widget） | keep |
 | 收银台（Hosted） | [cashier.dart](../../lib/views/zolnit/cashier.dart) | `CheckoutController` | 系统浏览器；direct 渠道 | `test/views/zolnit/cashier_test.dart` | 存在、启用需 `allowStripe`、验证（widget） | keep |
 | 连续包月 | 套餐页的续费选项 | [billing_api.dart](../../packages/zolnit_client/lib/src/billing_api.dart)；同意条款仅在进程内 | direct 渠道 | 包内 `renewal_state_test.dart` | 存在、启用需 direct、验证（单元） | keep |
@@ -27,10 +27,10 @@
 | 邀请 | [invite.dart](../../lib/views/zolnit/invite.dart)；[invite.dart](../../packages/zolnit_client/lib/src/invite.dart) | 邀请页面 | 生成邀请码为网络写操作 | `test/views/zolnit/invite_test.dart` | 存在、可达、验证（widget） | keep |
 | 推荐优惠 | [plans.dart](../../lib/views/zolnit/plans.dart) 的 `_loadReferralOffers` | 客户端 `referralOffer` | 全平台 | 未在本次核对 | 存在、可达 | keep |
 | 账户与密码 | [account.dart](../../lib/views/zolnit/account.dart)，[password.dart](../../lib/views/zolnit/password.dart) | 账户快照 | 全平台；写操作需要明确确认 | `test/views/zolnit/account_test.dart` | 存在、可达、验证（widget） | keep |
-| 工单（支持） | [help.dart](../../lib/views/zolnit/help.dart)；包内 [support.dart](../../packages/zolnit_client/lib/src/support.dart) | 包内客户端 | 网络写操作 | 包内 Mock 测试 | 存在；README 记录独立页面未接入，**可达性未核对** | unknown |
-| 流量明细 | [data.dart](../../lib/views/zolnit/data.dart)；包内 [traffic.dart](../../packages/zolnit_client/lib/src/traffic.dart) | 包内客户端 | 网络请求 | 包内测试 | 存在；README 记录独立页面未接入，**可达性未核对** | unknown |
+| 工单（支持） | [help.dart](../../lib/views/zolnit/help.dart)；包内 [support.dart](../../packages/zolnit_client/lib/src/support.dart) | 包内客户端 | 网络写操作 | `test/views/zolnit/help_test.dart`；包内 support 测试 | 首页 `_openHelp` 可达；支持工单列表/创建/回复/详情 | keep |
+| 独立每日流量明细 | 包内 [traffic.dart](../../packages/zolnit_client/lib/src/traffic.dart) 的 `ZolnitTrafficClient.log` | API 数据模型 | 网络读取 | `packages/zolnit_client/test/traffic_test.dart` | 包能力存在，检查的生产视图未见独立明细页；`views/zolnit/data.dart` 是格式化/错误文案工具，不是流量页面 | keep（保留包能力） |
 | 节点与节点组 | [nodes.dart](../../lib/views/zolnit/nodes.dart)，[node_groups.dart](../../lib/views/zolnit/node_groups.dart) | Core 选择器 | 切换需 Core 已连接且非安全模式 | `test/views/zolnit/nodes_test.dart`，`node_groups_test.dart` | 存在、可达、验证（widget） | keep |
-| 公告 | [notices.dart](../../lib/views/zolnit/notices.dart) | 未核对 | 未核对 | 未核对 | 存在，其余未核对 | unknown |
+| 公告 | 首页 `_openNotices` → [showZolnitNotices](../../lib/views/zolnit/notices.dart) | session noticeList + 账号作用域 inbox/canonicalNotices | 代际/修订失效时关闭弹窗；已读可经 WS 或 HTTP 写入 | `test/views/zolnit/realtime_home_test.dart`、`realtime_withdraw_test.dart` | 存在、可达；弹窗和撤回有 widget 测试 | keep |
 | 更新与安装 | [update.dart](../../lib/views/zolnit/update.dart)；[app_update.dart](../../lib/common/app_update.dart)；Android `ApkInstaller.kt` | 更新状态 | Android 安装需 `REQUEST_INSTALL_PACKAGES` | `test/views/zolnit/update_test.dart` | 存在、可达、验证（widget）；下载与安装未在本次执行 | keep |
 | 深链：支付返回 | `zolnit://safepay`（[link.dart](../../lib/common/link.dart)）→ [application.dart](../../lib/application.dart) 第 134 行 | `session.refreshPayment()` | Android 与 iOS 与 macOS 的 scheme | 未在本次按名称核对 | 存在、可达、支付返回未真机验证 | keep |
 | 深链：旧版安装配置 | `install-config?url=`（[link.dart](../../lib/common/link.dart)） | `addProfileFromLink` | 全协议列表 | 未在本次按名称核对 | 存在、可达 | keep |
@@ -39,10 +39,10 @@
 | iOS 快捷操作与 Widget | [ShortcutProvider.swift](../../ios/Runner/ShortcutProvider.swift)；Widget 目标 | `TunnelCoordinator` | iOS 18 Widget | 未在本次核对 | 存在，设备验证缺失 | keep |
 | 桌面托盘 | [common/tray.dart](../../lib/common/tray.dart) | 托盘状态 | 桌面 | `test/common/tray_lifecycle_test.dart` | 存在、可达、验证（单元） | keep |
 | 启动守护 | [boot_guard.dart](../../lib/common/boot_guard.dart)，[boot_record.dart](../../lib/common/boot_record.dart)；落地于 [bootstrap.dart](../../lib/bootstrap.dart) | `BootGuard`；偏好存储的 `BootRecord` | 仅 Android；影响启动流程与自动连接 | `test/common/boot_guard_test.dart`，`boot_record_test.dart`（见 [testing-and-debugging.md](testing-and-debugging.md) R11） | 存在、可达、验证（单元） | keep |
-| 自动更新配置定时器 | [profile_auto_updater.dart](../../lib/common/profile_auto_updater.dart) | 定时器 | 后台 | 未在本次核对 | 存在、可达、未验证 | unknown |
+| 自动更新配置定时器 | [profile_auto_updater.dart](../../lib/common/profile_auto_updater.dart) | `ProfileAutoUpdater`；每个 profile 的最近成功/尝试时间 | 单次串行更新；失败也记尝试时间，避免循环；dispose 取消定时器 | `test/common/profile_auto_updater_test.dart` | 存在、可达，已有失败/重调度测试 | keep |
 | 备份与恢复 | [backup.dart](../../lib/common/backup.dart) | 归档文件（zip：配置 JSON、Drift 快照、profile/脚本/非远程 provider） | 全平台 | `test/common/backup_task_test.dart`（见 [testing-and-debugging.md](testing-and-debugging.md) R9） | 存在、可达、验证（单元） | keep |
 | 旧版 Clash 导入 | [protocol.dart](../../lib/common/protocol.dart) 的协议列表；[link.dart](../../lib/common/link.dart) | profile | 全平台 | 未在本次核对 | 存在、可达 | keep |
 
 ## 未扫描的范围
 
-本清单没有穷尽调用图。以下部分在本次没有逐行核对：`lib/views/config/` 下的设置页面、`lib/views/dashboard/`、`lib/manager/`、`lib/providers/state/` 中的系统状态、`lib/plugins/battery.dart` 与 `lib/plugins/app.dart`、Android `ServicePlugin` 与 `ServiceController` 的全部调用者、iOS Widget 目标的代码、Windows 原生视图的运行路径。新增或退役任何能力前，都要先在这些区域中补充扫描。
+本清单没有穷尽调用图。以下部分在本次没有逐行核对：`lib/views/config/` 下的设置页面、`lib/views/dashboard/`、`lib/manager/`、`lib/providers/state/` 中的系统状态、`lib/plugins/battery.dart` 与 `lib/plugins/app.dart`、Android `ServicePlugin` 与 `ServiceController` 的全部调用者、iOS Widget 的全部系统运行情景、Windows 原生视图的设备运行路径。新增或退役任何能力前，都要先在这些区域中补充扫描。

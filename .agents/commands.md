@@ -93,7 +93,7 @@ Use the default Flutter SDK directly:
 
 ```bash
 flutter pub get
-flutter run
+flutter run --dart-define=SAFE_MODE=true
 flutter test
 ```
 

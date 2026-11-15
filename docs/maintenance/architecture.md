@@ -15,7 +15,7 @@ flowchart LR
   C --> H[services/helper 与 Android ServiceState / iOS TunnelCoordinator]
 ```
 
-编排层（[lib/providers/zolnit*.dart](../../lib/providers/)）持有 ZolNit 的 Flutter 侧状态，并决定何时调用适配层、何时改动本地存储、何时请求 Core 变化。适配层（[packages/zolnit_client/lib/](../../packages/zolnit_client/lib/)）不依赖 Flutter 的 widget 层，只负责 HTTP 请求、解析和错误分类，因此可以在 `packages/zolnit_client` 的测试中独立运行。
+编排层（[lib/providers/zolnit*.dart](../../lib/providers/)）持有 ZolNit 的 Flutter 侧状态，并决定何时调用适配层、何时改动本地存储、何时请求 Core 变化。适配层（[packages/zolnit_client/lib/](../../packages/zolnit_client/lib/)）不依赖 Flutter 的 widget 层，包含 HTTP/协议校验、纯领域控制器和存储接口，不仅是 HTTP 包装器；因此可以在 `packages/zolnit_client` 的测试中独立运行。
 
 ## 2. 状态所有者
 
@@ -49,10 +49,10 @@ flowchart LR
 
 订阅有两条路径，读取时要先区分版本：
 
-- **签名信封（v2）**：[signed_subscriptions.dart](../../packages/zolnit_client/lib/src/signed_subscriptions.dart) 校验 `zolnit-client-subscription-v2`，使用 Ed25519。允许的 `kind` 为 `bundle`、`revoked`、`state`。公钥来自随 Core 打包的 trust 资源的 `public_key_map`。空的或畸形的 trust 文件不产生任何公钥，所有签名都会失败关闭（fail closed）。
+- **签名信封（v2）**：[signed_subscription.dart](../../packages/zolnit_client/lib/src/signed_subscription.dart) 校验 `zolnit-client-subscription-v2`，使用 Ed25519。允许的 `kind` 为 `bundle`、`revoked`、`state`。公钥来自随 Core 打包的 trust 资源的 `public_key_map`。空的或畸形的 trust 文件不产生任何公钥，所有签名都会失败关闭（fail closed）。
 - **bundle 对象（v1）**：[client_bundle.dart](../../packages/zolnit_client/lib/src/client_bundle.dart) 的 `ZolnitClientBundle.parse` 检查 `connection` 与 `routing` 两段的 SHA-256 摘要。摘要不一致即拒绝。
 
-bundle 的 TTL 与撤销：bundle 中的过期时间由 `_timestamp` 解析，过期的 bundle 不写入 profile。`revoked` 信封携带 `reason`，在 `SignedSubscriptionVerifier` 中作为独立 kind 处理，不会被当成 `bundle` 写入。
+bundle 的 TTL 与撤销：bundle 中的过期时间由 `_timestamp` 解析，过期的 bundle 不写入 profile。`revoked` 信封携带 `reason`，由 verifier/`ZolnitSignedSubscriptions` 按独立 kind 校验和处理，不会被当成 `bundle` 写入。
 
 测试：`packages/zolnit_client/test/signed_subscription_test.dart` 中的 `production empty trust map and tampering fail closed`、`v2 capability never gates legacy or third-party subscriptions`；`test/providers/zolnit_signed_subscription_test.dart` 中的 `session invalidation and logout carry the observed intent`。
 
@@ -65,10 +65,12 @@ bundle 的 TTL 与撤销：bundle 中的过期时间由 `_timestamp` 解析，�
 ### 3.4 实时消息：WebSocket、重连与 HTTP 读取
 
 - 连接：`_open` 检查生产环境的源地址只能是 `https://link.zolmid.com`，先请求票据 `/api/v1/zolnit/client/realtime/ticket`，再用票据连接 `wss://link.zolmid.com/realtime/v1/socket`。
-- 超时：打开过程整体 20 秒（`_watch`）；连接后 hello 等待 30 秒；ping 每 35 秒，若没有 pong 则失败；`resync` 的回调最多 22 秒；`WebSocket.connect` 超时 12 秒，HttpClient 连接超时 8 秒（[realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart)）。
+- 超时：打开过程整体 20 秒（`_watch`）；发送 hello 后等待 ready 为 30 秒；ready/pulse 后存活期限默认 150 秒，RPC 默认 8 秒；ping 每 35 秒，若没有 pong 则失败；`resync` 的回调最多 22 秒；`WebSocket.connect` 超时 12 秒，HttpClient 连接超时 8 秒（[realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart)）。
 - 失败：`_fail(epoch)` 关闭套接字，取消 pending 请求，并在前台时安排重连。重连指数退避：`_attempt` 上限 8，延迟为 `min(180, 2^attempt)` 秒乘以 0.75 到 1.25 的抖动。
-- WS→HTTP 回退的实际触发点：`inbox.read`、`inbox.list` 等方法名只是 WebSocket 帧里的 `method` 字段，不是独立的 HTTP 路径。真正的回退逻辑在 [api.dart](../../packages/zolnit_client/lib/src/api.dart) 的 `XboardClient._preferLive<T>(method, data, parse, http)`：先取 `liveReads`（由 `attachLiveReads` 绑定，见下），若非空且 `live.supports(method)` 为真（要求 `healthy`、方法在白名单、未被标记 `_untilPulse`、且 `api.generation` 与通道代际一致），就调用 `live.read(...)`；否则直接调用调用方传入的 `http()` 回调（对应 `/api/v1/...` 的普通 REST 请求）。`live.read` 内部通过 `_exchange` 在 WebSocket 上发 `request` 帧并等待 `rpcTimeout`；超时或连接已关闭都会让 `read` 返回 null，调用方随即落到 `http()`。服务端回 `error: unsupported` 时该方法被永久移出白名单；其他错误只是把方法临时放进 `_untilPulse`（下次心跳前不再尝试）。使用该回退的方法目前有 `realtimeInbox`、`notices`、`device.status`、`orderStatus`、`fetchSignedSubscriptionState`（均在 [api.dart](../../packages/zolnit_client/lib/src/api.dart) 中以 `_preferLive` 包裹）。
-- 绑定与释放（disposal）：`ZolnitRealtimeChannel` 在 `_open` 中完成 hello 握手后调用 `api.attachLiveReads(this, _apiGeneration)`（[realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart) 第 400 行附近）；在 `dispose()` 中调用 `api.detachLiveReads(this)`（第 224 行附近）。`XboardClient.liveReads` 这个 getter 还会额外检查 `_liveGeneration == _generation`，账户切换后旧代际的通道即使没有显式 detach 也不会被当作可用的实时源。
+- 读取回退位于 [api.dart](../../packages/zolnit_client/lib/src/api.dart) 的 `XboardClient._preferLive<T>(method, data, parse, http)`：只有当前代际的 `liveReads` 支持该方法时才尝试 WS。等待结束后先检查客户端是否关闭、账号代际是否变化；变化就抛 `superseded`，**不执行旧请求的 HTTP 回退**。代际仍有效且 WS 返回 null 或无法解析时，才调用对应普通 REST 的 `http()` 回调。HTTP 仍可能返回业务/网络错误。
+- `supports` 受通道健康、已协商方法集合和 `_untilPulse` 约束。`unsupported` 只从当前方法集合移除；连接释放清空集合，后续 `ready` 帧可重新协商，不是永久禁用。其他暂时失败可等下一次 pulse 后重试 WS。`realtimeInbox`、`notices`、设备状态、`orderStatus`、`fetchSignedSubscriptionState` 使用这条读取路径。
+- `inbox.read` 是另一条写动作：`home.dart` 的 `_markRead` 先尝试 `markInboxRead`，完成后重核页面/账号代际；只有仍有效且 WS 未完成时，才调用 `markRealtimeInboxRead` 的 HTTP POST。不能把它归到通用 `_preferLive`，也不能把 WS method 名当成 REST URL。
+- 绑定与释放（disposal）：`ZolnitRealtimeChannel` 在收到 `ready` 帧后调用 `api.attachLiveReads(this, _apiGeneration)`（由 `ready` 帧处理分支完成）；在 `dispose()` 中调用 `api.detachLiveReads(this)`（第 224 行附近）。`XboardClient.liveReads` 这个 getter 还会额外检查 `_liveGeneration == _generation`，账户切换后旧代际的通道即使没有显式 detach 也不会被当作可用的实时源。
 - 退避：`_fail(epoch)` 关闭套接字、拒绝 pending 请求，并在前台时安排重连；`_attempt` 上限 8，延迟 `min(180, 2^attempt)` 秒乘 0.75–1.25 的抖动。退避期间的每一次 `_preferLive` 调用都直接落到 HTTP；通道是否可用还受代际与健康检查约束。
 
 测试：`test/views/zolnit/realtime_withdraw_test.dart` 的三个 `test(` 用例，以及 `test/views/zolnit/realtime_home_test.dart`。
@@ -107,13 +109,13 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 
 - `TunnelCoordinator`（[TunnelCoordinator.swift](../../ios/Runner/Tunnel/TunnelCoordinator.swift)，约 669 行）持有 `requestGeneration`：`submitTunnelRequest` 每次递增代际并生成新的 `TunnelRequest`；相同目标的重复请求被 `log("merge ...")` 合并，不重新驱动协调器。`toggleTunnelRequest` 的目标优先级是“尚未完成的请求 > 系统观察到的 `NEVPNStatus` > 上一次发布的状态 > 停止”。
 - Widget 不直接驱动隧道：`WidgetSharedState.load()`（[WidgetSharedState.swift](../../ios/Widget/WidgetSharedState.swift)）从 App Group 容器解码一份只读快照；Widget 的 `AppShortcut`（`StartVPNIntent`/`StopVPNIntent`/`ToggleVPNIntent`，[ShortcutProvider.swift](../../ios/Runner/ShortcutProvider.swift)）与 Runner 共用 `TunnelCoordinator` 这个唯一所有者，Widget 自身不持有隧道状态。
-- Entitlements 的实际差异（源码确认，纠正早期假设）：Runner 的 entitlements 声明了 `keychain-access-groups`（`$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`）、`networking.networkextension`（`packet-tunnel-provider`）、`networking.wifi-info` 和 App Group。NECore 与 Widget 的 entitlements 都只声明了 `networking.networkextension` 与 App Group，**没有** `keychain-access-groups` 条目（[Runner.entitlements](../../ios/Runner/Runner.entitlements)、[NECore.entitlements](../../ios/NECore/NECore.entitlements)、[Widget.entitlements](../../ios/Widget/Widget.entitlements)）。当前确认的 Runner/NECore/Widget 共享状态使用 App Group 容器，不能假定它们能读取 Runner 钥匙串里的会话令牌。
+- 源码 entitlement 与发行投影要分开：d0 的 Runner 声明自身 Keychain 组，NECore/Widget 源文件没有 Keychain 组；但 Apple 工具 pin `97f29774` 的 `source_preparation.py` 会给 Runner/NECore 投影共同的 renewal Keychain 组及 Info 配置。`ios/Shared/ClientBundleRenewalConfiguration.swift` 和 `ClientBundleKeychainStore.swift` 使用该明确 access group 保存按 session epoch 绑定的续期凭据；Widget 被配置解析器排除。共享状态快照/epoch 另用 App Group。不能从未投影源码推断发行包没有跨 Runner/NECore 续期能力，也不能把 renewal 记录与 Flutter 默认会话存储混为一项。见 [平台契约](platform-contracts.md) 第 3 节。
 
 ### 3.10 Windows 身份与 Helper 的 SCM 边界
 
 - 进程级身份：`windows/runner/main.cpp` 在 `wWinMain` 开头调用 `SetCurrentProcessExplicitAppUserModelID`，`_DEBUG` 构建写入 `com.zolmid.zolnit.debug`，否则写入 `com.zolmid.zolnit`（第 19–23 行）。这一步只影响任务栏分组与通知来源的 AUMID，不改变安装路径或数据目录。
 - 单实例与清理：同一文件中 `WindowPluginFindRunningWindow()` 检测到已运行实例时，新进程只转发深链（`SendAppLink`）并激活窗口；`--remove-user-registrations` 与 `--clear-stale-proxy` 是卸载与异常退出后的清理入口，分别调用 `autostart::RemoveOriginalUserTask` 与 `ProxyPluginClearStaleProxy`/向已运行窗口发送 `PROXY_PLUGIN_RELEASE_PROXY_MESSAGE`。
-- Helper 的 SCM 边界：`services/helper` 以 `ZolNitHelperService`（[windows.rs](../../services/helper/src/service/windows.rs) 第 26 行常量 `SERVICE_NAME`）注册为 Windows 服务；`main()` 按 `ServiceCommand::Run/Install/Uninstall` 分派，`Run` 调用 `service_dispatcher::start`，由 Windows 服务控制管理器（SCM）在其进程内回调 `service_main`。应用侧 Flutter/Dart 代码不直接持有服务生命周期，只通过命名管道向已注册的 Helper 发请求；Helper 的安装、卸载与启动/停止完全由 SCM 与 `service_control_handler` 仲裁，不由 Flutter 侧状态机裁决（这与桌面 Core 走的 RPC 边界是同一类“请求变化、宿主裁决”的模式，见第 6 节）。
+- Helper 的安装和运行有不同入口：[system.dart](../../lib/common/system.dart) 的 `registerHelperService` 先查 readiness；需要安装时，`registerService` 通过 `runas` 请求提权运行 `install --owner-pid <当前进程>`，随后等待服务就绪。安装程序的 `install_service` 解析所属用户 SID，调用 SCM 创建/启动 `ZolNitHelperService`；`Run` 的 `service_dispatcher::start` 则连接 SCM 分发 `service_main` 和控制事件，不是注册动作。已运行 Helper 的请求通信使用命名管道。应用可以发起提权安装，但不能把界面状态当成服务或 Core 已运行的证明。
 
 ### 3.11 启动守护、迁移与数据恢复
 
@@ -128,9 +130,19 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 
 ### 3.12 更新清单校验与安装身份
 
-- 网站清单与 GitHub 发布清单的解析、资产 URL/版本号正则校验在 [app_update.dart](../../lib/common/app_update.dart)：`_validAsset` 要求资产名匹配 `^ZolNit-[A-Za-z0-9._+\\-]+$`、`sha256` 匹配 64 位十六进制、URL 的 host 固定为 `link.zolmid.com`、路径固定为 `client/downloads/<version>/<name>`，并要求资产名以 `ZolNit-<去掉前导 v 的版本号>-` 开头；任何一项不满足都返回 null，调用方把它当作该资产不存在。`_validVersion` 只接受 `v<int>.<int>.<int>` 形式且每段不超过 `int32` 最大值。
+- 网站清单与 GitHub 发布清单的解析、资产 URL/版本号正则校验在 [app_update.dart](../../lib/common/app_update.dart)：`_validAsset` 要求资产名匹配 `^ZolNit-[A-Za-z0-9._+\\-]+$`、`sha256` 匹配 64 位十六进制、URL 必须为 HTTPS/443、无 userinfo/query/fragment，host 固定为 `link.zolmid.com`、路径固定为 `client/downloads/<version>/<name>`，并要求资产名以 `ZolNit-<去掉前导 v 的版本号>-` 开头；任一条件不满足时 `_validAsset` 返回 false，`ReleaseAsset.parse` 不接收该资产。`_validVersion` 只接受 `v<int>.<int>.<int>` 形式且每段不超过 `int32` 最大值。
 - 目标包识别（`detectUpdateTarget`）按操作系统与 `Abi.current()` 推断 `UpdatePackage`：iOS 只有在 `ClientPaymentPolicy.fromEnvironment().distribution == direct` 时才返回 `iosDirect`，否则 `unsupported`（iOS App Store 渠道没有应用内更新，只能走商店）；桌面平台通过可执行文件所在目录是否存在 `config`（portable）或 `unins000.exe`（Windows 安装版）、`APPIMAGE` 环境变量，以及 `dpkg -S`/`rpm -qf`/`pacman -Qo` 反查包管理器归属（`findLinuxPackageOwner`）来区分安装形态。
 - 测试：`test/views/zolnit/update_test.dart`（见 [testing-and-debugging.md](testing-and-debugging.md) R8）。
+
+### 3.13 网页会话、工单、公告与定时更新
+
+网页 SSO 不以 App 深链回跳作为必要步骤。首页 `_website` 和更新页面调用 `ZolnitWebSessionCoordinator`；仅已登录、第一方 origin 和固定 destination 才请求一次性授权码。浏览器打开 `https://link.zolmid.com/theme/ZolNit/app-login.html` 完成网页会话消费。Android/iOS/macOS/Linux 使用 `com.zolmid.zolnit/web_session` 原生通道；Windows 使用临时 WebView2 profile 和受限导航。重复 open 合并，账号变化/取消使 epoch 失效并关闭浏览器；18 秒未完成则关闭，仍为当前账号时可用不携带授权码的普通 fallback。不能把登录 token 拼进 URL 或借此复制用户浏览器 cookie。
+
+首页 `_openHelp` 已连接 `ZolnitHelpPage`。页面读取知识库和工单列表，通过 `ZolnitSupportClient` 创建/回复/查看详情；请求完成后检查账号代际和 mounted。旧文档“独立工单页面未接入”的说法不再适用于当前首页。独立每日流量明细 API 仍在包中，但检查的生产视图未见对应独立页面；`data.dart` 是展示格式化与错误文案辅助函数。
+
+首页 `_openNotices` 合并 session 公告和账号作用域收件箱，传入修订/代际检查；失效时弹窗关闭，撤回与已读状态不能由旧账号回调重新写回。测试入口为 `realtime_home_test.dart` 与 `realtime_withdraw_test.dart`。
+
+通用配置的 `ProfileAutoUpdater` 按各 profile 的实际 autoUpdate 开关和间隔排程；最近成功或尝试时间决定下一次到期，失败也推进尝试时间以避免紧循环。`_running` 防止重叠检查，dispose 取消定时器。这个上游共享能力仍保留，隐藏配置页不等于可以删掉它。
 
 ## 4. 错误、取消、超时与重试规则
 
@@ -139,7 +151,7 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 | 账户切换 | 旧代际的所有异步回调在完成后检查代际，不匹配则丢弃 | `_nativeGeneration`，`ZolnitSessionController` |
 | 启动恢复失败 | 网络错误保留令牌，不执行退出 | 第 3.1 节 |
 | 安全存储删除 | 删除前的回调最多 3 秒，超时后仍删除 | `deleteAuthorization` |
-| 实时打开 | 20 秒整体超时；失败后指数退避，上限 180 秒 | [realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart) |
+| 实时打开 | 打开阶段 20 秒；退避基准最多 180 秒，乘 0.75–1.25 抖动 | [realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart) |
 | 支付状态 | 未知结果不自动重试付款；只查询状态 | `payment_status_unknown` |
 | 支付轮询 | 默认 40 次，每次 3 秒 | `poll` |
 | 礼品卡 | 同一请求 ID 重试；键格式不合法直接拒绝 | `ZolnitGiftCardAttempt` |
@@ -179,6 +191,6 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 第 3.8–3.12 节已经补上更新清单校验、备份恢复、启动守护、Android 服务控制链、iOS 隧道/Widget 与 Windows Helper 的 SCM 边界；以下是仍然没有逐行追踪、且没有在其他章节出现的部分：
 
 - Windows 登录诊断：控制台记录为历史暂停项，本次没有新的复现信息，不声称已修复。
-- 网页单点登录（[web_session.dart](../../packages/zolnit_client/lib/src/web_session.dart)）的实际返回路径：`link.dart` 中没有找到对应的深链处理，见 [platform-contracts.md](platform-contracts.md) 第 6 节。
+- 网页 SSO 的源码路径已在第 3.13 节核对；各平台真实浏览器会话和设备交互仍属 V3，未由源码阅读认证。
 - `lib/views/config/`、`lib/views/dashboard/`、`lib/manager/`、`lib/providers/state/`、`lib/plugins/battery.dart`、`lib/plugins/app.dart`：这些是原有 FlClash 的通用设置与系统状态面，不属于 ZolNit 产品层新增路径，见 [feature-inventory.md](feature-inventory.md) 的“未扫描的范围”。
 - Android `ServiceController`/`ServiceStateMachine` 内部的通知与前台服务细节（`startFromPreferences`、`NotificationParams` 的具体展示规则）：本文只追踪到状态裁决与发布，没有逐行核对通知文案与前台服务生命周期回调。

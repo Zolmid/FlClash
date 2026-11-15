@@ -26,7 +26,8 @@ Dart 侧的 `packageName` 来自 `PackageInfo`，在 iOS 上用于拼接 App Gro
 
 - 登录令牌在 [providers/zolnit_vault.dart](../../lib/providers/zolnit_vault.dart) 中由 `FlutterSecureStorage(mOptions: MacOsOptions(usesDataProtectionKeychain: false))` 保存，键为 `zolnit.session.authorization.v1`。`zolnit_native_renewal.dart` 使用同样的 macOS 选项。
 - 源码没有显式设置 `accessGroup` 或 `service`。因此两个构建之间的钥匙串隔离取决于插件的默认服务名与 bundle ID，这一点**未核对**，不能仅凭源码承诺 debug 与 release 的令牌互不可见。
-- 纠正：iOS 只有 **Runner** 的 entitlements 声明了 `keychain-access-groups`（值 `$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`，[Runner.entitlements](../../ios/Runner/Runner.entitlements)）。逐一读取 [NECore.entitlements](../../ios/NECore/NECore.entitlements) 与 [Widget.entitlements](../../ios/Widget/Widget.entitlements) 后确认：两者都**只**声明了 `com.apple.developer.networking.networkextension`（`packet-tunnel-provider`）与 `com.apple.security.application-groups`，**没有** `keychain-access-groups` 条目。因此 NECore 与 Widget 在源码层面不具备访问 Runner 钥匙串组的 entitlement；当前已确认的共享状态路径使用 App Group 容器（见第 4 节与 [architecture.md](architecture.md) 第 3.9 节），不能假定它们能读取登录令牌。
+- d0 原始源码中，Runner 声明自身 `keychain-access-groups`，NECore/Widget 源文件没有该条目。**最终签名权限不能只看这些源文件**：Apple 工具 `97f29774` 的 [source_preparation.py](https://github.com/Zolmid/FlClash/blob/97f297743718b6d46272d244ad375b5ca903f499/tool/apple_distribution/source_preparation.py) 为 Runner/NECore 加入共享 renewal 组，并写入 `ZolNitRenewalKeychainAccessGroup`、`ZolNitDistribution`、`ZolNitRenewalWhileLocked`。`projected_target_entitlements` 给 app 保留自身组及 renewal 组，给 necore renewal 组，不给 Widget 该组；profile 和签名包仍须通过工具校验。
+- [ClientBundleRenewalConfiguration.swift](../../ios/Shared/ClientBundleRenewalConfiguration.swift) 拒绝未展开的配置及 Widget/observer 目标；[ClientBundleKeychainStore.swift](../../ios/Shared/ClientBundleKeychainStore.swift) 用明确 access group、service `com.zolmid.zolnit.renewal.authorization.v1` 和 session epoch 保存受绑定的 authorization/device 信息，不使用 App Group 明文文件保存凭据。锁屏策略在 `whenUnlockedThisDeviceOnly` 与 `afterFirstUnlockThisDeviceOnly` 间由已校验配置选择。状态/epoch 另用 App Group。Flutter 的会话键和 renewal journal 是不同存储用途，排障不能随意互删。
 - macOS Runner 的 DebugProfile/Release entitlement 文件未声明 keychain-access-groups 或 App Group；这只说明源码声明，不证明默认安全存储跨构建隔离，实际签名权限还须从受验包核对。
 
 ## 4. App Group、扩展与 IPC
@@ -35,11 +36,11 @@ Dart 侧的 `packageName` 来自 `PackageInfo`，在 iOS 上用于拼接 App Gro
 |---|---|---|
 | iOS App Group | `group.$(APP_BUNDLE_ID)`，Runner、NECore、Widget 一致 | [Runner.entitlements](../../ios/Runner/Runner.entitlements)，[NECore.entitlements](../../ios/NECore/NECore.entitlements)，[Widget.entitlements](../../ios/Widget/Widget.entitlements) |
 | NECore 扩展 | `$(APP_BUNDLE_ID).NECore` | [project.pbxproj](../../ios/Runner.xcodeproj/project.pbxproj) 第 759、805、849 行 |
-| iOS 共享状态 | [PacketTunnelSharedStateStore.swift](../../ios/NECore/PacketTunnelSharedStateStore.swift) | 源码确认，内容未逐行核对 |
+| iOS 共享状态 | [PacketTunnelSharedStateStore.swift](../../ios/NECore/PacketTunnelSharedStateStore.swift) | App Group UserDefaults 的 sharedState/setupParams/runTime/activeVpnOptions；缺失 setupParams 回退共享快照，Core home 指向 App Group |
 | Windows Helper 服务 | `ZolNitHelperService`（[constant.dart](../../lib/common/constant.dart) 第 13 行），可执行文件名 `ZolNitHelperService.exe` | 源码确认 |
 | Windows Helper 工程 | [services/helper/](../../services/helper/) | 源码确认 |
-| Linux Helper | 同一 `appHelperService` 常量，平台 IPC 细节未在本次核对 | 未核对 |
-| Windows Helper 的 SCM 边界 | Helper 通过 `windows_service::service_dispatcher::start("ZolNitHelperService", ...)` 向 Windows 服务控制管理器（SCM）注册；`main()` 按命令行区分 `Run`/`Install`/`Uninstall`，真正的启动/停止/卸载时机由 SCM 与 `service_control_handler` 回调决定，不由 Flutter/Dart 侧状态机裁决 | [windows.rs](../../services/helper/src/service/windows.rs) |
+| Linux Helper | 可执行文件仍由 appHelperService 命名；服务名 `zolnit-helper`，unit `/etc/systemd/system/zolnit-helper.service`，socket `/run/zolnit/helper.sock`，模式 0660；所属 UID/GID 与 peer 访问另校验 | [linux.rs](../../services/helper/src/service/linux.rs)，安装/卸载会操作 systemd，不能由 SAFE_MODE UI 单测代验 |
+| Windows Helper 的 SCM 边界 | 应用经 readiness 检查和 `runas install --owner-pid` 发起提权安装；安装程序调用 SCM 注册/启动。`service_dispatcher::start` 是运行时连接 SCM 分发控制事件；已有 Helper 通过命名管道接请求，不能由 UI 状态冒充宿主结果 | [system.dart](../../lib/common/system.dart)、[windows.rs](../../services/helper/src/service/windows.rs) |
 | Windows 进程身份（AUMID） | `SetCurrentProcessExplicitAppUserModelID`：`_DEBUG` 构建为 `com.zolmid.zolnit.debug`，release 为 `com.zolmid.zolnit`（与第 1 节表格一致，这里是运行时设置点，不是资源声明） | [main.cpp](../../windows/runner/main.cpp) 第 19–23 行 |
 | 桌面 IPC | Unix domain socket（macOS、Linux）与命名管道（Windows），见 [architecture.md](../../.agents/architecture.md) | 原有机制，ZolNit 未改动 |
 
@@ -66,16 +67,16 @@ ZolNit 的原生视图组件已经存在，但当前 `ZolnitHomePage` 生产路�
 | Android | [AndroidManifest.xml](../../android/app/src/main/AndroidManifest.xml) 第 77、85 行 | `zolnit`；`zolnit://safepay` 单独声明 host |
 | iOS | [Info.plist](../../ios/Runner/Info.plist) 第 40–43 行 `CFBundleURLSchemes` | `zolnit` |
 | macOS | [Info.plist](../../macos/Runner/Info.plist) 第 38 行 | `zolnit` |
-| Linux | 启动参数，由 `LinkManager.seedInitialLink` 读取 | 同一组 scheme |
-| Windows | 未在本次核对 | 未核对 |
+| Linux | `Window.init` → `Protocol.registerLinux`；启动参数交给 LinkManager | 非 SAFE_MODE 写入当前用户 XDG desktop entry 并注册 `zolnit`；Debug desktop ID 带 `.debug` |
+| Windows | `lib/common/window.dart` → `Protocol.register` | 非 SAFE_MODE 启动向 HKCU 的 `Software\Classes\zolnit` 注册当前可执行文件；安装器按归属清理 |
 
-路由在 [lib/common/link.dart](../../lib/common/link.dart) 中识别，且列表来自 [lib/common/protocol.dart](../../lib/common/protocol.dart) 第 8 行：`clash`、`clashmeta`、`mihomo`、`flclash`、`zolnit`。
+系统注册仅包含 `registeredProtocolSchemes=[zolnit]`；解析器兼容列表更宽，不能把两者混为系统已注册的 scheme。路由在 [lib/common/link.dart](../../lib/common/link.dart) 中识别，且列表来自 [lib/common/protocol.dart](../../lib/common/protocol.dart) 第 8 行：`clash`、`clashmeta`、`mihomo`、`flclash`、`zolnit`。
 
 - `zolnit://safepay`：`isPaymentReturnLink`。回调在 [application.dart](../../lib/application.dart) 第 134 行刷新付款状态，不授予权益。
 - `zolnit://auth/register#fragment`：`isRegistrationReturnLink`，要求 host 为 `auth`、路径为 `/register`、查询串为空、片段非空。回调在 [application.dart](../../lib/application.dart) 第 139 行调用 `zolnitRegistrationProvider.accept(uri)`。
 - 旧版安装配置：任何受支持 scheme 的 `install-config?url=...` 由 `_installConfigUrl` 解析，回调弹出确认框，随后调用 `addProfileFromLink`。
 - 直接 URL 与分享链接：`text.isUrl` 或 `text.isShareLink` 的字符串在 `profileUrlFromQrCodes` 中直接被接受。
-- 网页单点登录（SSO）：[web_session.dart](../../packages/zolnit_client/lib/src/web_session.dart) 调用 `/api/v1/zolnit/client/web-session/authorize`。在 `link.dart` 中没有找到对应的返回路由，返回路径**未核对**。
+- 网页单点登录（SSO）：[web_session.dart](../../packages/zolnit_client/lib/src/web_session.dart) 经 `authorizeWebSession` 获取一次性码并打开第一方 landing 页；此链路在浏览器完成，不依赖 `link.dart` 的 App 回跳。原生通道/Windows 临时浏览器、取消及无凭据 fallback 见架构第 3.13 节。
 
 ## 7. 权限与系统入口
 
@@ -107,8 +108,8 @@ ZolNit 的原生视图组件已经存在，但当前 `ZolnitHomePage` 生产路�
 
 ## 10. 升级兼容
 
-- 身份不变：同一 application ID 或 bundle ID 的升级保留数据目录。
-- 身份改变：视为新应用，旧数据不会自动迁移。
+- 身份不变：相同 application ID/bundle ID 是覆盖升级的重要前提，还须匹配平台签名、版本及数据迁移契约；不能仅凭名字相同保证升级成功。
+- 身份改变：按独立身份/迁移任务处理，不承诺旧数据自动跟随；已有共享服务、显式 App Group 或旧路径兼容也需单独调查。
 - 数据库：Drift schema 为 21（[database.dart](../../lib/database/database.dart) 第 53 行），升级逻辑按版本分段，详见 [testing-and-debugging.md](testing-and-debugging.md) 第 4 节。
 - 旧 Clash 配置仍由 [link.dart](../../lib/common/link.dart) 的 install-config 路由接受。
 
