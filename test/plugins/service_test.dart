@@ -113,6 +113,13 @@ void main() {
       expect(calls.map((call) => call.method), ['start', 'stop']);
     });
 
+    test('abandonStart is a plain stop off iOS', () async {
+      mockChannel((_) async => true);
+
+      expect(await Service().abandonStart(), StartAbandonment.stopped);
+      expect(calls.map((call) => call.method), ['stop']);
+    });
+
     test('an absent start or stop result is treated as failure', () async {
       mockChannel((_) async => null);
 
@@ -212,6 +219,20 @@ void main() {
       Service.resetInstance();
       Service();
     });
+
+    test(
+      'abandonStart reports whether the native owner still held the start',
+      () async {
+        final replies = <Object?>['stopped', 'notOwned', 'unknown', null];
+        mockChannel((_) async => replies.removeAt(0));
+
+        expect(await iosService.abandonStart(), StartAbandonment.stopped);
+        expect(await iosService.abandonStart(), StartAbandonment.notOwned);
+        expect(await iosService.abandonStart(), StartAbandonment.failed);
+        expect(await iosService.abandonStart(), StartAbandonment.failed);
+        expect(calls.map((call) => call.method).toSet(), {'abandonStart'});
+      },
+    );
 
     test(
       'initialization tells the native owner whether safe mode is active',

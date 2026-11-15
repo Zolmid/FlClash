@@ -7,6 +7,7 @@ import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/core/spill.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart' show StartAbandonment;
 import 'package:flutter/foundation.dart'
     show ValueListenable, ValueNotifier, visibleForTesting;
 import 'package:flutter/services.dart';
@@ -361,6 +362,10 @@ class CoreController {
 
   Future<bool> stopListener() async {
     return _interface.stopListener();
+  }
+
+  Future<StartAbandonment> abandonListenerStart() {
+    return _interface.abandonListenerStart();
   }
 
   Future<Delay?> getDelay(String url, String proxyName) async {

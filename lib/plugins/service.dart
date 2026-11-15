@@ -41,6 +41,8 @@ abstract mixin class ServiceListener {
 
 enum TunnelState { pending, connected, disconnected }
 
+enum StartAbandonment { stopped, notOwned, failed }
+
 class Service {
   static Service? _instance;
   late MethodChannel methodChannel;
@@ -172,6 +174,17 @@ class Service {
           _isIOS ? null : revision,
         ) ??
         false;
+  }
+
+  /// Stops the tunnel only while this app's last accepted start is still the
+  /// newest native intent; [stop] would replace a newer Widget or Shortcut one.
+  Future<StartAbandonment> abandonStart() async {
+    if (!_isIOS) {
+      return await stop() ? StartAbandonment.stopped : StartAbandonment.failed;
+    }
+    final outcome = await methodChannel.invokeMethod<String>('abandonStart');
+    return StartAbandonment.values.asNameMap()[outcome] ??
+        StartAbandonment.failed;
   }
 
   Future<String> init() async {

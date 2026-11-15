@@ -22,6 +22,7 @@ class _FakeService implements Service {
   bool shutdownResult = true;
   bool startResult = true;
   bool stopResult = true;
+  StartAbandonment abandonResult = StartAbandonment.stopped;
   bool disposed = false;
   CoreMethodResponse? Function(CoreMethodCall call)? onInvokeMethod;
 
@@ -57,6 +58,12 @@ class _FakeService implements Service {
   Future<bool> stop() async {
     calls.add('stop');
     return stopResult;
+  }
+
+  @override
+  Future<StartAbandonment> abandonStart() async {
+    calls.add('abandonStart');
+    return abandonResult;
   }
 
   @override
@@ -292,6 +299,27 @@ void main() {
       expect(await lib.startListener(), isFalse);
       expect(await lib.stopListener(), isFalse);
       expect(service.invokedCalls, isEmpty);
+    });
+
+    test('iOS leaves an abandoned start to the native intent owner', () async {
+      lib = CoreLib.scoped(service, listenerManagedByService: true);
+      service.abandonResult = StartAbandonment.notOwned;
+
+      expect(await lib.abandonListenerStart(), StartAbandonment.notOwned);
+      expect(service.calls, ['abandonStart']);
+    });
+
+    test('an abandoned start elsewhere is an ordinary listener stop', () async {
+      await lib.start();
+      service.onInvokeMethod = (_) =>
+          const CoreMethodResponse(id: '1', result: true);
+      service.calls.clear();
+
+      expect(await lib.abandonListenerStart(), StartAbandonment.stopped);
+      expect(service.calls, ['stop', 'invokeMethod:stopListener']);
+
+      service.stopResult = false;
+      expect(await lib.abandonListenerStart(), StartAbandonment.failed);
     });
 
     test('a listener start is answered by the service', () async {

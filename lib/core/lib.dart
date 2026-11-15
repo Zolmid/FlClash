@@ -153,6 +153,14 @@ class CoreLib extends CoreHandlerInterface {
   }
 
   @override
+  Future<StartAbandonment> abandonListenerStart() async {
+    if (!_listenerManagedByService) {
+      return super.abandonListenerStart();
+    }
+    return await _service?.abandonStart() ?? StartAbandonment.failed;
+  }
+
+  @override
   Future<T?> invokeMethod<T>({
     required CoreMethod method,
     Object? arguments,

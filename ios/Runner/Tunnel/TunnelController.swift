@@ -95,6 +95,8 @@ final class TunnelController {
   @discardableResult
   func stop() async -> Bool { await coordinator.submitTunnelRequest(target: .stopped) }
 
+  func abandonStart() async -> StartAbandonment { await coordinator.abandonStart() }
+
   @discardableResult
   func toggle() async -> Bool { await coordinator.toggleTunnelRequest() }
 

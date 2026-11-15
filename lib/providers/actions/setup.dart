@@ -21,12 +21,15 @@ class _RunRequest {
   final bool running;
   final bool initialize;
   final DateTime? previousStartTime;
+  final bool abandonsStart;
   bool retryProfileBuild = false;
+  bool startNotOwned = false;
 
   _RunRequest({
     required this.running,
     required this.initialize,
     required this.previousStartTime,
+    this.abandonsStart = false,
   });
 }
 
@@ -178,6 +181,10 @@ class SetupAction extends _$SetupAction {
         service?.tunnelState.value == TunnelState.pending) {
       return;
     }
+    await _adoptServiceState();
+  }
+
+  Future<void> _adoptServiceState() async {
     final request = _latestRunRequest;
     final tunnelState = service?.tunnelState.value;
     final startTime = await service?.getRunTime();
@@ -243,7 +250,10 @@ class SetupAction extends _$SetupAction {
         if (!_isCurrent(request)) return true;
         if (request.retryProfileBuild) continue;
         if (!applied) {
-          await globalState.safeRun(() => setRunning(false));
+          await globalState.safeRun(
+            () =>
+                listenerManagedByService ? _abandonStart() : setRunning(false),
+          );
         }
         return applied;
       }
@@ -265,6 +275,20 @@ class SetupAction extends _$SetupAction {
     return true;
   }
 
+  // setRunning(false) is a new user intent; on iOS it would replace a Widget
+  // or Shortcut command accepted after this start, so only the owner stops.
+  Future<bool> _abandonStart() {
+    final request = _RunRequest(
+      running: false,
+      initialize: false,
+      previousStartTime: _startTime,
+      abandonsStart: true,
+    );
+    _latestRunRequest = request;
+    _setLocalRunning(false);
+    return _stop(request);
+  }
+
   Future<void> _startCoreRunning(_RunRequest request) async {
     if (!await _setCoreRunning(request) && _isCurrent(request)) {
       throw _unanswered(CoreMethod.startListener);
@@ -280,6 +304,10 @@ class SetupAction extends _$SetupAction {
       rethrow;
     }
     if (!_isCurrent(request)) {
+      return true;
+    }
+    if (request.startNotOwned) {
+      await _adoptServiceState();
       return true;
     }
     resetCoreTraffic();
@@ -308,6 +336,17 @@ class SetupAction extends _$SetupAction {
   }
 
   Future<bool> _setListening(bool running, {_RunRequest? request}) async {
+    if (request != null && request.abandonsStart) {
+      final outcome = await abandonCoreStart();
+      if (outcome == StartAbandonment.failed) {
+        throw _unanswered(CoreMethod.stopListener);
+      }
+      request.startNotOwned = outcome == StartAbandonment.notOwned;
+      if (!request.startNotOwned) {
+        ref.read(runningVpnOptionsProvider.notifier).value = null;
+      }
+      return true;
+    }
     final snapshot = running && listenerManagedByService
         ? ref.read(builtProfileTunProvider)
         : null;
@@ -420,6 +459,9 @@ class SetupAction extends _$SetupAction {
         ? _core.startListener(startState: startState, isCurrent: isCurrent)
         : _core.stopListener();
   }
+
+  @protected
+  Future<StartAbandonment> abandonCoreStart() => _core.abandonListenerStart();
 
   @protected
   void resetCoreTraffic() {

@@ -25,6 +25,10 @@ enum TunnelTarget {
   }
 }
 
+enum StartAbandonment: String {
+  case stopped, notOwned, failed
+}
+
 extension NEVPNStatus {
   var tunnelState: TunnelTarget? {
     switch self {

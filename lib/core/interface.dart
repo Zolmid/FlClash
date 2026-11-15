@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/plugins/service.dart' show StartAbandonment;
 
 import 'desktop/model.dart';
 import 'method.dart';
@@ -109,6 +110,8 @@ mixin CoreInterface {
   });
 
   Future<bool> stopListener();
+
+  Future<StartAbandonment> abandonListenerStart();
 
   Future<List<ExternalProvider>> getExternalProviders();
 
@@ -652,6 +655,13 @@ abstract class CoreHandlerInterface with CoreInterface {
   @override
   Future<bool> stopListener() async {
     return await _invokeMethod<bool>(method: CoreMethod.stopListener) ?? false;
+  }
+
+  @override
+  Future<StartAbandonment> abandonListenerStart() async {
+    return await stopListener()
+        ? StartAbandonment.stopped
+        : StartAbandonment.failed;
   }
 
   @override

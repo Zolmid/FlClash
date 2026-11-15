@@ -200,6 +200,8 @@ final class ServiceChannel {
         return
       }
       Task { result(await tunnelController.stop()) }
+    case "abandonStart":
+      Task { result(await tunnelController.abandonStart().rawValue) }
     case "init":
       sharedStateStore.setSafeMode(call.arguments as? Bool ?? false)
       isInitialized = true

@@ -81,6 +81,11 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     try register(command, baseline: nil)
   }
 
+  /// Throws superseded unless the given token is still the latest record, checked under the lock.
+  public func register(_ command: Command, replacing token: Token) throws -> Token {
+    try register(command, baseline: RegistrationBaseline(token: token))
+  }
+
   private func register(_ command: Command, baseline: RegistrationBaseline?) throws -> Token {
     try locked { record, file in
       if let baseline, record?.token != baseline.token { throw TunnelIntentError.superseded }
