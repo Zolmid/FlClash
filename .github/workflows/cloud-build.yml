@@ -612,6 +612,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify iOS intent lifecycle contracts
+        if: env.IOS_SOURCE == 'project'
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          for check in race authority classifier queue completion registration; do
+            bash "tool/acceptance/ios_intents/run_${check}.sh"
+          done
+          bash tool/acceptance/ios_intents/check_sdk.sh
+
       - name: Build and validate unsigned iOS lease observer
         timeout-minutes: 15
         if: github.ref == 'refs/heads/codex/native-client-shared' && env.IOS_SOURCE == 'project'
