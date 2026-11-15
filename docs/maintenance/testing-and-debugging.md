@@ -70,14 +70,16 @@ Flutter 界面日志：`CommonPrint.log`（[print.dart](../../lib/common/print.d
 - 超时：打开阶段 20 秒；发送 hello 后等待 ready 30 秒；ready/pulse 后默认 150 秒存活期限；RPC 默认 8 秒；ping 每 35 秒；resync/事件回调 22 秒；连接 12 秒；HttpClient 8 秒。
 - 退避：`_attempt` 上限 8，延迟 `min(180, 2^attempt)` 秒乘 0.75–1.25 的抖动。
 - 函数：`ZolnitRealtimeChannel._open`、`_fail`、`_connect`（[realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart)）。
-- 命令（V1）：`dart run tool/test.dart test/views/zolnit/realtime_withdraw_test.dart test/views/zolnit/realtime_home_test.dart`
+- 命令（V1）：`dart run tool/test.dart test/views/zolnit/realtime_withdraw_test.dart test/views/zolnit/realtime_home_test.dart test/views/zolnit/inbox_coordinator_test.dart`
 - 包内实时测试未在本次列出测试名。先运行 `rg -l -i realtime packages/zolnit_client/test` 找到文件，再读取其中的测试名。
-- WS→HTTP 回退：`realtimeInbox` 用 `_preferLive('inbox.list', ...)`，失败后的 REST 路径是 `GET /api/v1/zolnit/client/realtime/inbox`；它真实存在。已读写入由 `home._markRead` 先尝试 WS 的 `inbox.read`，重核代际后才可使用 `POST /api/v1/zolnit/client/realtime/read`。其他读取方法的 fallback 见架构 3.4。`unsupported` 只影响当前协商方法集合，后续 ready 可恢复，不是永久禁用。
+- WS→HTTP 回退：`realtimeInbox` 用 `_preferLive('inbox.list', ...)`，失败后的 REST 路径是 `GET /api/v1/zolnit/client/realtime/inbox`；它真实存在。已读写入由 `ZolnitInboxCoordinator.markRead` 先尝试 WS 的 `inbox.read`，重核代际后才可使用 `POST /api/v1/zolnit/client/realtime/read`。其他读取方法的 fallback 见架构 3.4。`unsupported` 只影响当前协商方法集合，后续 ready 可恢复，不是永久禁用。
 - 包内确定性测试入口：`packages/zolnit_client/test/realtime_reads_test.dart`、`realtime_test.dart`；读源码确认各测试所断言的代际、回退、重连和协商条件，不只运行页面测试。
 - 预期：`liveReads` 不可用（未附加、代际不符、`supports` 为假、或 `read` 超时返回 null）时，上述方法按合同落到 HTTP；HTTP 自身仍可能报业务/网络错误。若等待 WS 时账号代际已变化，`_preferLive` 抛 `superseded`，不得继续用旧账户结果或伪造成功。
 - 复现建议：构造一个假的 `ZolnitLiveReads`，让 `supports` 返回 false 或 `read` 返回 null，断言调用方确实走了传入的 `http()` 回调；或者让 `ZolnitRealtimeChannel` 始终不建立连接，确认 `liveReads` 一直为 null。
 - 停止条件：持续无法建立连接时记录 `_attempt`、失败阶段与脱敏票据状态。退避基准上限 180 秒还要乘抖动，单次等待可接近 225 秒；“超过 3 分钟”本身不是代码违约或卡死证明。
 - 仅在授权后：连接真实 `link.zolmid.com`。
+
+写入与重连竞态应使用阻塞的存储替身：在 `setString` 已进入平台后使epoch失效，再确认下一份有效快照能恢复尚未展示的变化。已实现的保留/撤回/编辑、重复resync和历史未读场景见 `inbox_coordinator_test.dart`、`realtime_home_test.dart`。这不证明平台写入可取消，也不替代设备测试。
 
 ### R5 礼品卡兑换与幂等
 

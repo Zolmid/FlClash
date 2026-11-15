@@ -59,7 +59,9 @@ git -C "$REPO" for-each-ref --format='%(refname) %(objectname)' refs/heads refs/
 
 ### `codex/ci-node24`
 
-独有 Node action 升级已在产品历史 `bf4852f3` 中出现。初始审计比较 workflow 树时剩余差别是 `build.yaml` 的测试注解屏蔽；当前主线又增加了 selector/profile 测试接线。可以确认更新意图已覆盖，不能声称整分支/tree 完全等价。是否保留旧 ref 属于归档决策，无需为一般注解差异另造产品功能审批。
+独有 action 升级已完整进入产品历史 `bf4852f35d39fd14f5e4a27a42341540725b3461`。直接比较 `c8b88121` 与该提交的全部 workflow 树，差别仅为产品后来增加的五行测试注解屏蔽；屏蔽不是 c8 遗失的内容。d0 再把 Node 单文件测试改成 glob 并提取选择器。该分支的独有工作已被吸收/后续细化，无需产品负责人替可核对的技术等价性作决定。
+
+c8 不是main祖先，删除前应保留完整可恢复的Git历史；本次已有本地archive ref及经过 `git bundle verify` 的独立bundle。该备份不包含WIP、LFS内容、子模块对象或外部产物。已知消费者调查支持把它与mobile-pay-fix等历史分支列入精确删除审批候选；未经批准仍保留。公开tag指向同一commit不构成必须保留开发分支名的技术依赖，tag本身保持不可变。
 
 ### Apple 工具分叉与本地历史 refs
 

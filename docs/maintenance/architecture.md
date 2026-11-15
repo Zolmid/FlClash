@@ -1,6 +1,6 @@
 # ZolNit 客户端架构
 
-本文描述 ZolNit 在 FlClash 派生代码上的调用路径、状态所有者、失败规则和耦合点。依据为 `main` 基线 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6` 的源码阅读，日期 2026-11-15。原有 FlClash 的内核与生命周期机制见 [.agents/architecture.md](../../.agents/architecture.md)，本文只补充 ZolNit 特有路径。
+本文描述 ZolNit 在 FlClash 派生代码上的调用路径、状态所有者、失败规则和耦合点。初始基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`；收件箱部分补充到已验证的 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。观察日期 2026-11-15；最终发行来源以对应receipt为准。原有 FlClash 的内核与生命周期机制见 [.agents/architecture.md](../../.agents/architecture.md)，本文只补充 ZolNit 特有路径。
 
 ## 1. 分层
 
@@ -25,7 +25,8 @@ flowchart LR
 | 订阅 bundle 同步 | `zolnitSyncCurrentClientBundleProvider` 所在的同步器（版本号递增） | 路由与配置写入读取同一结果 | Drift profile 与配置文件 | [providers/zolnit_bundle.dart](../../lib/providers/zolnit_bundle.dart) |
 | 路由状态 | `ZolnitRouting` | 探测调度器与健康缓存 | 内存 | [providers/zolnit_routing.dart](../../lib/providers/zolnit_routing.dart) |
 | 支付动作 | `CheckoutController` | 页面提交动作，只显示服务端状态 | 无；同意条款仅在进程内记录 | [checkout.dart](../../packages/zolnit_client/lib/src/checkout.dart)，[billing_api.dart](../../packages/zolnit_client/lib/src/billing_api.dart) |
-| 实时消息 | `ZolnitRealtimeChannel` | provider 只订阅事件 | 偏好存储（游标与去重集合） | [realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart)，[providers/zolnit_realtime.dart](../../lib/providers/zolnit_realtime.dart) |
+| 实时传输 | `ZolnitRealtimeChannel` | 页面转交连接健康与事件，不另建传输状态 | 偏好存储中的游标与去重集合 | [realtime.dart](../../packages/zolnit_client/lib/src/realtime.dart) |
+| 收件箱协调 | `ZolnitInboxCoordinator` | Home只拥有弹窗队列/路由/呈现；store负责串行持久化 | 原偏好格式不变；待展示合并记录仅在当前会话内存 | [inbox_coordinator.dart](../../lib/common/inbox_coordinator.dart)、[zolnit_realtime.dart](../../lib/providers/zolnit_realtime.dart) |
 | 礼品卡兑换 | `ZolnitGiftCardAttempt` | 偏好存储负责持久化与串行写入 | 偏好存储（按卡号哈希与请求 ID） | [rewards.dart](../../packages/zolnit_client/lib/src/rewards.dart)，[providers/zolnit_rewards.dart](../../lib/providers/zolnit_rewards.dart) |
 | Android VPN | `ServiceState`（外观）→`ServiceStateMachine`（裁决） | Flutter 的 `ServicePlugin` 发送带版本号的乐观命令；`AndroidServiceStateHost` 只报告真实宿主结果 | 无（内存中的 `RunIntentArbiter` 令牌） | [ServiceState.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ServiceState.kt)，[ServiceStateMachine.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ServiceStateMachine.kt) |
 | iOS VPN | `TunnelCoordinator` | Flutter 观察 `tunnelState`；Widget 读取共享存储快照，不直接驱动隧道 | App Group 共享容器（[PacketTunnelSharedStateStore.swift](../../ios/NECore/PacketTunnelSharedStateStore.swift)） | [TunnelCoordinator.swift](../../ios/Runner/Tunnel/TunnelCoordinator.swift)，[WidgetSharedState.swift](../../ios/Widget/WidgetSharedState.swift) |
@@ -69,11 +70,19 @@ bundle 的 TTL 与撤销：bundle 中的过期时间由 `_timestamp` 解析，�
 - 失败：`_fail(epoch)` 关闭套接字，取消 pending 请求，并在前台时安排重连。重连指数退避：`_attempt` 上限 8，延迟为 `min(180, 2^attempt)` 秒乘以 0.75 到 1.25 的抖动。
 - 读取回退位于 [api.dart](../../packages/zolnit_client/lib/src/api.dart) 的 `XboardClient._preferLive<T>(method, data, parse, http)`：只有当前代际的 `liveReads` 支持该方法时才尝试 WS。等待结束后先检查客户端是否关闭、账号代际是否变化；变化就抛 `superseded`，**不执行旧请求的 HTTP 回退**。代际仍有效且 WS 返回 null 或无法解析时，才调用对应普通 REST 的 `http()` 回调。HTTP 仍可能返回业务/网络错误。
 - `supports` 受通道健康、已协商方法集合和 `_untilPulse` 约束。`unsupported` 只从当前方法集合移除；连接释放清空集合，后续 `ready` 帧可重新协商，不是永久禁用。其他暂时失败可等下一次 pulse 后重试 WS。`realtimeInbox`、`notices`、设备状态、`orderStatus`、`fetchSignedSubscriptionState` 使用这条读取路径。
-- `inbox.read` 是另一条写动作：`home.dart` 的 `_markRead` 先尝试 `markInboxRead`，完成后重核页面/账号代际；只有仍有效且 WS 未完成时，才调用 `markRealtimeInboxRead` 的 HTTP POST。不能把它归到通用 `_preferLive`，也不能把 WS method 名当成 REST URL。
+- `inbox.read` 是另一条写动作：`ZolnitInboxCoordinator.markRead` 先通过注入的实时通道尝试 `markInboxRead`，完成后重核页面/账号代际；只有仍有效且 WS 未完成时，才调用 `markRealtimeInboxRead` 的 HTTP POST。不能把它归到通用 `_preferLive`，也不能把 WS method 名当成 REST URL。
 - 绑定与释放（disposal）：`ZolnitRealtimeChannel` 在收到 `ready` 帧后调用 `api.attachLiveReads(this, _apiGeneration)`（由 `ready` 帧处理分支完成）；在 `dispose()` 中调用 `api.detachLiveReads(this)`（第 224 行附近）。`XboardClient.liveReads` 这个 getter 还会额外检查 `_liveGeneration == _generation`，账户切换后旧代际的通道即使没有显式 detach 也不会被当作可用的实时源。
 - 退避：`_fail(epoch)` 关闭套接字、拒绝 pending 请求，并在前台时安排重连；`_attempt` 上限 8，延迟 `min(180, 2^attempt)` 秒乘 0.75–1.25 的抖动。退避期间的每一次 `_preferLive` 调用都直接落到 HTTP；通道是否可用还受代际与健康检查约束。
 
 测试：`test/views/zolnit/realtime_withdraw_test.dart` 的三个 `test(` 用例，以及 `test/views/zolnit/realtime_home_test.dart`。
+
+### 收件箱快照与展示提交
+
+收件箱的 `refresh/invalidate/withdraw/markRead`、同代请求合并、未读计数和自动已读重试统一在 `ZolnitInboxCoordinator`。账号代际来自会话所有者，snapshot epoch用于重连/resync失效；两者不能互相替代。Home仍处理弹窗导航和呈现顺序，但不直接决定持久化快照的有效性。
+
+存储在排队执行及实际提交之前检查当前性。已经进入平台 `setString` 的写入无法撤回：若随后发生同账号重连，协调器保留当前会话的 `_pendingPresentation`，下一份有效快照与已存内容核对后才消费，保证保留公告只弹一次、编辑更新原弹窗、撤回/已读不弹。账号变化和dispose清理这份内存记录；它不是新增持久schema。旧账号已经开始的写入至多在原账号scope完成，不能变成新账号展示。
+
+验证入口为 `test/views/zolnit/inbox_coordinator_test.dart` 与 `realtime_home_test.dart` 的阻塞存储场景。关键反例是在**平台写入已开始之后**使快照失效，不是只让HTTP回包迟到。覆盖保留、撤回、编辑、重复resync、已关闭的未读弹窗及历史已读/未读，防止以“存储 unchanged”丢失尚未展示的变化。
 
 ### 3.5 支付与付款确认
 

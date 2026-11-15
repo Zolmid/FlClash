@@ -1,6 +1,6 @@
 # CI、发布与恢复维护指南
 
-源码基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`，Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。本章说明当前工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
+源码基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`，Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。标准检查复用补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。本章说明工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
 
 主要源码：[正式入口](../../.github/workflows/client-release.yml)、[组装器](../../tool/client_release/assemble_release.py)、[边缘发布器](../../tool/client_release/publish_release.mjs)、[镜像器](../../tool/client_release/github_release.py)、[公证恢复指南](../../tool/client_release/MACOS-DISTRIBUTION.md)。外部消费者位于总项目的 `client-release-edge/src/` 和 `ZolnitSuite/Modules/Client/`；源码合同与线上部署状态分别取证。
 
@@ -75,6 +75,18 @@ node --test tool/client_release/tests/*_test.mjs
 ### 3.4 后续候选及验收条件（未实施）
 
 可调查在同一次 push 已取得同源 release 编译结果的平台上是否仍需重复 debug 编译。实施前必须证明配置门禁等价，迁移或保留 Windows Helper 验收，并覆盖路径过滤、手动调用和失败矩阵。`codex/ios-support` 的 Cloud push 只选 iOS，Markdown/docs push 也可能不触发 Cloud，因此不能按分支白名单直接关闭 desktop。当前没有足够证据证明安全等价，维持现有检查。
+
+### 3.5 正式 tag 的标准检查复用
+
+已有 v1.1.9 的两个同源运行实际各跑过 Dart、Plugins、Go core、Android unit tests、Rust、Windows helper test：独立 build `43608456797` 与正式 client-release `43608456827`。这是六类相同标准检查的重复，与前述 debug/release 桌面编译差异分开。
+
+[standard_ci_reuse.py](../../tool/ci/standard_ci_reuse.py) 仅在精确 Zolmid 仓库/ID、正式 tag 的独立 push 身份下观察正式运行。它核对 workflow ID/path、repo/head repo、SHA/tag、明确 run/attempt、preflight 与六类 job 的身份/实际完成状态、同 SHA reusable-workflow 引用，再次回读 run 防止重跑期间混用 attempt。只有完整证据才复用：成功维持成功；真实检查失败则观察 job 退出1，不能变绿。
+
+预检失败、正式run被取消/替代、缺job、skip、API不可读、页截断、重复job、身份/attempt漂移或等候超时都恢复原检查。观察上限900秒，每30秒轮询一次，单GET最多10秒，job上限20分钟。整个独立workflow被用户取消时仍停止，不把“回退”写成能突破取消。未知错误不得因缺输出认作已委派。
+
+观察 job只用 `contents: read/actions: read`，正式caller补足 `actions: read`；没有改变正式入口、preflight依赖、publisher、签名、notes、artifact或发布并发。非正式tag/分支/manual/call/fork保持原条件。workflow总体颜色与六类job是否执行分开查看，step summary明确引用复用的run/attempt/job ID，local skipped不算重新执行。
+
+事件及故障测试在 [standard_ci_delegation_test.py](../../tool/ci/tests/standard_ci_delegation_test.py)。同源历史run的实际GET回放通过，但它使用合成caller上下文，不能当成新gate已在正式tag上托管执行，更不能据此报告实际节省的分钟数。workflow被重新创建导致固定ID变化时，应重新核实身份后维护pin；未知ID会安全回退原检查。
 
 ## 4. cloud-build.yml：select 矩阵与信任边界
 

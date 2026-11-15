@@ -4,7 +4,7 @@
 
 处置一栏只用于保守的产品决定：`keep`（保留）、`isolate`（隔离但保留）、`unknown`（未核对）。本次没有批准任何退役，也没有把“没有直接引用”当作死代码证明。
 
-基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`，依据为 2026-11-15 的源码阅读。
+初始基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`，收件箱协调补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`；依据为 2026-11-15 的源码与明确验证记录。
 
 | 能力 | 入口（UI / 非 UI） | 状态所有者与存储 | 后台与平台 | 测试 | 证据状态 | 处置 |
 |---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | 签名订阅 v2 与撤销 | bundle 同步的内部路径 | `SignedSubscriptionVerifier`；随 Core 打包的 trust 资源 | 全平台 | `packages/zolnit_client/test/signed_subscription_test.dart` | 存在、可达、验证（单元） | keep |
 | 路由与探测 | [routing 页面与节点](../../lib/views/zolnit/nodes.dart)；`ZolnitRouting` | `ZolnitRouting`；内存 | 探测 30 秒或 60 秒；前台恢复 | `test/providers/zolnit_routing_test.dart` | 存在、可达、验证（单元） | keep |
 | 返回路由（分派绑定） | Core 分组绑定 | [common/zolnit_return_route.dart](../../lib/common/zolnit_return_route.dart)；Go 的 `core/clientbundle/return_route.go` | 随 Core | `test/common/zolnit_return_route_test.dart` | 存在、可达、验证（单元） | keep |
-| 实时消息 | 首页消息入口 | `ZolnitRealtimeChannel`；偏好存储游标与去重集；WS 不健康时经 `XboardClient._preferLive` 落回 HTTP（[architecture.md](architecture.md) 3.4 节） | WebSocket；退避基准上限 180 秒，另加抖动 | `test/views/zolnit/realtime_withdraw_test.dart`，`realtime_home_test.dart` | 存在、可达、验证（widget） | keep |
+| 实时消息 | 首页消息入口 | `ZolnitRealtimeChannel`管传输，`ZolnitInboxCoordinator`管快照/撤回/未读/重试，偏好store串行持久化；WS 不健康时经 `XboardClient._preferLive` 落回 HTTP（[architecture.md](architecture.md) 3.4 节） | WebSocket；退避基准上限 180 秒，另加抖动 | `test/views/zolnit/realtime_withdraw_test.dart`，`realtime_home_test.dart` | 存在、可达、验证（widget） | keep |
 | 套餐与订单 | [plans.dart](../../lib/views/zolnit/plans.dart)，[orders.dart](../../packages/zolnit_client/lib/src/orders.dart) | 订单查询 | 全平台 | `test/views/zolnit/plans_test.dart` | 存在、可达、验证（widget） | keep |
 | 收银台（Hosted） | [cashier.dart](../../lib/views/zolnit/cashier.dart) | `CheckoutController` | 系统浏览器；direct 渠道 | `test/views/zolnit/cashier_test.dart` | 存在、启用需 `allowStripe`、验证（widget） | keep |
 | 连续包月 | 套餐页的续费选项 | [billing_api.dart](../../packages/zolnit_client/lib/src/billing_api.dart)；同意条款仅在进程内 | direct 渠道 | 包内 `renewal_state_test.dart` | 存在、启用需 direct、验证（单元） | keep |
