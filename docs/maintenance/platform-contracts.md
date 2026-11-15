@@ -82,7 +82,7 @@ ZolNit 的原生视图组件已经存在，但当前 `ZolnitHomePage` 生产路�
 
 - Android 安装 APK：`REQUEST_INSTALL_PACKAGES` 声明于 [AndroidManifest.xml](../../android/app/src/main/AndroidManifest.xml) 第 31 行。[ApkInstaller.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ApkInstaller.kt) 第 136 行检查 `canRequestPackageInstalls()`。[AppPlugin.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/plugins/AppPlugin.kt) 中的 `installPermissionCallback` 处理权限请求与设置页返回。UI 测试见 [update_test.dart](../../test/views/zolnit/update_test.dart) 的 `install permission offers later and explicit authorization` 与 `already granted install permission does not open a prompt`。
 - Android 系统入口：Manifest 中声明了 `${applicationId}.action.START`、`.action.STOP`、`.action.TOGGLE`、`.intent.action.VPN_REVOKED`、`.intent.action.VPN_START_REQUESTED`、快速设置磁贴 `TOGGLEABLE_TILE`，以及应用小部件 provider。这些是 Android 的系统入口，都必须通过 `ServiceState` 裁决。
-- iOS 快捷操作：[ShortcutProvider.swift](../../ios/Runner/ShortcutProvider.swift) 定义 `StartVPNIntent`、`StopVPNIntent`、`ToggleVPNIntent` 的 `AppShortcut`。它们与 Widget 一样通过 `TunnelCoordinator` 进入同一所有者。
+- iOS 快捷操作：[ShortcutProvider.swift](../../ios/Runner/ShortcutProvider.swift) 定义 `StartVPNIntent`、`StopVPNIntent`、`ToggleVPNIntent` 的 `AppShortcut`。这些 intent 的实现位于 Shared，调用 `NEHelper`；Widget 也使用 Shared 路径，不能将其等同于 Runner 的 `TunnelCoordinator`。本树中跨进程 start/stop 竞态及独立候选状态见 [架构](architecture.md) 和 [验证基线](verification-baseline.md)。
 
 ## 8. 支付渠道与分发
 

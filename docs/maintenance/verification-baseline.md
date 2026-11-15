@@ -70,3 +70,10 @@ Public manifest SHA256: `0d4c9a3accf34804ca8af870c620ec69f8d97a4e691d9317650e978
 ## 6. 本地运维证据
 
 整包控制记录位于`.dev/flclash-refactor-20261115/control/`，包括A1-execution.json、checkpoint.json、review/handoff和evidence。独立客户端克隆不保证有这些文件，因此本章保留可移植的公共run链接、完整SHA与摘要。凭据、真实设备标识和签名材料不进入本仓库。
+
+## 7. C 增量：证据与尚待验收
+
+- APP/CI 组合回归固定源码 `7fd40a7a4777047b554a786ea4085ec1d62a0240`：61 项 APP 测试、23 项 CI Python、80 项 release Python（另 2 skipped）、32 项 Node 与 analyze 通过；actionlint 首次因找不到命令退出 127，使用 1.7.12 重新检查两个 workflow 通过。测试时仅临时关闭 `setup.build_assets`，保留 `rust_api`，随后恢复原配置。此结果不包含新 iOS 原生候选，也不证明设备或生产行为。
+- CI 独立复核未发现 P1/P2；对历史 [正式运行 43608456827](https://github.com/Zolmid/FlClash/actions/runs/43608456827) 的四次真实只读 GET 和合成 caller 上下文回放成功，不是新 gate 的 hosted 运行。C 新候选尚未 dispatch。
+- iOS 独立候选 `f56261c89300a7792caeb7ba96f45882583a6abd` 的作者本地 harness 与 SDK 检查通过；独立复审和完整 Runner build 仍在进行，候选尚不属于本文所在源码树，也不是发布通过。真实系统通知、弹窗、权限、后台、OnDemand、实际隧道、升级/降级及 V3 均未验证。
+- `1.1.10+2026111501` 仅局部预留；尚无新 tag 或发版。A1 时 main 为 `d0af9d83`，后续需重查；公开 v1.1.9 仍以 `bfb49ed8` 的历史记录为准。tools `97f29774` 与 Core `8380d0e7` 未变。历史分支清理清单已准备，未删除。

@@ -29,7 +29,7 @@ flowchart LR
 | 收件箱协调 | `ZolnitInboxCoordinator` | Home只拥有弹窗队列/路由/呈现；store负责串行持久化 | 原偏好格式不变；待展示合并记录仅在当前会话内存 | [inbox_coordinator.dart](../../lib/common/inbox_coordinator.dart)、[zolnit_realtime.dart](../../lib/providers/zolnit_realtime.dart) |
 | 礼品卡兑换 | `ZolnitGiftCardAttempt` | 偏好存储负责持久化与串行写入 | 偏好存储（按卡号哈希与请求 ID） | [rewards.dart](../../packages/zolnit_client/lib/src/rewards.dart)，[providers/zolnit_rewards.dart](../../lib/providers/zolnit_rewards.dart) |
 | Android VPN | `ServiceState`（外观）→`ServiceStateMachine`（裁决） | Flutter 的 `ServicePlugin` 发送带版本号的乐观命令；`AndroidServiceStateHost` 只报告真实宿主结果 | 无（内存中的 `RunIntentArbiter` 令牌） | [ServiceState.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ServiceState.kt)，[ServiceStateMachine.kt](../../android/app/src/main/kotlin/com/zolmid/zolnit/ServiceStateMachine.kt) |
-| iOS VPN | `TunnelCoordinator` | Flutter 观察 `tunnelState`；Widget 读取共享存储快照，不直接驱动隧道 | App Group 共享容器（[PacketTunnelSharedStateStore.swift](../../ios/NECore/PacketTunnelSharedStateStore.swift)） | [TunnelCoordinator.swift](../../ios/Runner/Tunnel/TunnelCoordinator.swift)，[WidgetSharedState.swift](../../ios/Widget/WidgetSharedState.swift) |
+| iOS VPN（本树） | Runner 的 `TunnelCoordinator`；Shared 的 `NEHelper` 是另一路入口 | Flutter 经 Runner；AppIntent/Widget 可经 Shared 发起操作，不能视为同一进程裁决 | App Group 共享容器（[PacketTunnelSharedStateStore.swift](../../ios/NECore/PacketTunnelSharedStateStore.swift)） | [TunnelCoordinator.swift](../../ios/Runner/Tunnel/TunnelCoordinator.swift)，[WidgetSharedState.swift](../../ios/Widget/WidgetSharedState.swift) |
 | 启动守护 | `BootGuard` | `Bootstrap._initData` 在迁移之后、容器创建之前求值一次 | 偏好存储的 `BootRecord`（JSON） | [boot_guard.dart](../../lib/common/boot_guard.dart)，[boot_record.dart](../../lib/common/boot_record.dart)，[bootstrap.dart](../../lib/bootstrap.dart) |
 | Windows 特权操作 | `ZolNitHelperService`（Windows 服务） | `services/helper` 的 `service::windows` 模块通过 SCM 分发；应用通过本地 HTTP/TCP 动态端口请求，并由 Helper 校验连接进程的 SID | 无；仅服务控制管理器（SCM）持有注册状态 | [windows.rs](../../services/helper/src/service/windows.rs) |
 | 桌面 Core | `DesktopCoreLifecycle` | RPC 客户端只转发请求 | 无 | [lifecycle.dart](../../lib/core/desktop/lifecycle.dart)，[rpc_client.dart](../../lib/core/desktop/rpc_client.dart) |
@@ -117,7 +117,7 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 ### 3.9 iOS 隧道、Widget 与共享状态
 
 - `TunnelCoordinator`（[TunnelCoordinator.swift](../../ios/Runner/Tunnel/TunnelCoordinator.swift)，约 669 行）持有 `requestGeneration`：`submitTunnelRequest` 每次递增代际并生成新的 `TunnelRequest`；相同目标的重复请求被 `log("merge ...")` 合并，不重新驱动协调器。`toggleTunnelRequest` 的目标优先级是“尚未完成的请求 > 系统观察到的 `NEVPNStatus` > 上一次发布的状态 > 停止”。
-- Widget 不直接驱动隧道：`WidgetSharedState.load()`（[WidgetSharedState.swift](../../ios/Widget/WidgetSharedState.swift)）从 App Group 容器解码一份只读快照；Widget 的 `AppShortcut`（`StartVPNIntent`/`StopVPNIntent`/`ToggleVPNIntent`，[ShortcutProvider.swift](../../ios/Runner/ShortcutProvider.swift)）与 Runner 共用 `TunnelCoordinator` 这个唯一所有者，Widget 自身不持有隧道状态。
+- 本树的 Runner 快捷动作与 Shared AppIntent 不是同一条调用链。[ShortcutProvider.swift](../../ios/Runner/ShortcutProvider.swift) 声明快捷方式，[Intent.swift](../../ios/Shared/Intent.swift) 调用 [NEHelper.swift](../../ios/Shared/NEHelper.swift)；Widget 状态读取 App Group 快照，也可通过 Shared Intent/NEHelper 发起操作。Runner 本地 `requestGeneration` 不能证明跨进程一致性。已识别反例：start 等待偏好保存/加载期间，stop 看到 disconnected 返回，旧 start 恢复后仍可能启动。
 - 源码 entitlement 与发行投影要分开：d0 的 Runner 声明自身 Keychain 组，NECore/Widget 源文件没有 Keychain 组；但 Apple 工具 pin `97f29774` 的 `source_preparation.py` 会给 Runner/NECore 投影共同的 renewal Keychain 组及 Info 配置。`ios/Shared/ClientBundleRenewalConfiguration.swift` 和 `ClientBundleKeychainStore.swift` 使用该明确 access group 保存按 session epoch 绑定的续期凭据；Widget 被配置解析器排除。共享状态快照/epoch 另用 App Group。不能从未投影源码推断发行包没有跨 Runner/NECore 续期能力，也不能把 renewal 记录与 Flutter 默认会话存储混为一项。见 [平台契约](platform-contracts.md) 第 3 节。
 
 ### 3.10 Windows 身份与 Helper 的 SCM 边界
@@ -152,6 +152,12 @@ Flutter 到真实 VPN 进程之间有三层，职责各不相同：
 首页 `_openNotices` 合并 session 公告和账号作用域收件箱，传入修订/代际检查；失效时弹窗关闭，撤回与已读状态不能由旧账号回调重新写回。测试入口为 `realtime_home_test.dart` 与 `realtime_withdraw_test.dart`。
 
 通用配置的 `ProfileAutoUpdater` 按各 profile 的实际 autoUpdate 开关和间隔排程；最近成功或尝试时间决定下一次到期，失败也推进尝试时间以避免紧循环。`_running` 防止重叠检查，dispose 取消定时器。这个上游共享能力仍保留，隐藏配置页不等于可以删掉它。
+
+### 3.14 iOS 跨入口修复候选（尚未集成到本树）
+
+独立候选 `f56261c89300a7792caeb7ba96f45882583a6abd` 在 Shared 引入 `TunnelIntentAuthority` / `TunnelIntentClient`，与 Runner 协调器配合。短期 authority/effect 文件锁与 owner FD 活性锁分离：活 owner 才使 pending 生效；终态、取消或被更新意图替代时释放所有权。终态通知在连接专属观察器中同步锁存，并以连接身份和请求 token 防止旧回调生效；轮询保留用于静默状态和远端失效。锁忙时可能留下磁盘 pending 残留，但无活 owner 即不参与 toggle。
+
+Runner、Shared 和冷启动 ServiceChannel 首次注册仅对 busy 有界重试，最多 20 次异步等待各 50ms（另有调度/I/O 时间）；取消、新的本地尝试或外部已接受 token 均阻止旧重试胜出。已接受队列 token 消费时不得重新注册；无固定 30 秒过期，也不对偏好/确认等待套用注册超时。复审与完整 Runner build 进行中，此描述是候选契约而非已验收结果；见 [验证基线](verification-baseline.md)。
 
 ## 4. 错误、取消、超时与重试规则
 

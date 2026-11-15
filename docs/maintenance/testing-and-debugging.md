@@ -185,3 +185,17 @@ Flutter 界面日志：`CommonPrint.log`（[print.dart](../../lib/common/print.d
 - iOS 的 VPN 锁屏、恢复与网络切换在 1.1.9 上需要复测（控制台记录）。
 - Android 支付返回的真机验收仍未完成。
 - 原生界面没有挂载，因此没有生产环境的原生界面证据。
+
+## C 增量的针对性复现
+
+以下命令从检出根目录运行，须在对应源码已集成时使用；不要用历史回执冒充新 HEAD 的运行结果：
+
+```bash
+flutter test --reporter expanded test/views/zolnit/home_test.dart test/views/zolnit/realtime_home_test.dart test/views/zolnit/realtime_withdraw_test.dart test/views/zolnit/inbox_coordinator_test.dart packages/zolnit_client/test/realtime_reads_test.dart packages/zolnit_client/test/realtime_test.dart
+python3 -m unittest discover -s tool/ci/tests -p '*_test.py'
+python3 -m unittest discover -s tool/client_release/tests -p '*_test.py'
+node --test tool/client_release/tests/cloud_build_selector_test.mjs tool/client_release/tests/macos_notary_wait_test.mjs tool/client_release/tests/publish_release_test.mjs
+actionlint .github/workflows/build.yaml .github/workflows/client-release.yml
+```
+
+iOS 候选集成后可运行 `bash tool/acceptance/ios_intents/run_race.sh`、`run_authority.sh`、`run_classifier.sh`、`run_queue.sh`、`run_completion.sh`、`run_registration.sh` 和 `check_sdk.sh`（后六项均位于同一目录，须用 `bash tool/acceptance/ios_intents/<文件名>`）。替身和 SDK 局部检查不等于完整 Runner、XCTest 或真机；确认候选包含这些脚本后再执行。
