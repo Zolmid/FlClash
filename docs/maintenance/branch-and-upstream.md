@@ -1,6 +1,6 @@
 # 分支、归档与上游维护
 
-业务源码基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`。以下分支快照观察于 2026-11-15；使用前重新解析实际 ref。图上独有提交、补丁等价、当前行为和外部消费者是四种不同证据。
+业务源码当前 main 为 `a4c9577e2b9a218917b35420a26512f82e016c5c`（2026-11-16 核对）。以下分支快照观察于 2026-11-15；使用前重新解析实际 ref。图上独有提交、补丁等价、当前行为和外部消费者是四种不同证据。
 
 ## 1. 远端分支和 PR
 
@@ -18,9 +18,9 @@
 | `codex/patched-integration` | `c651e44b4f48994a57f748957718c9bdf08be75a` | A1 以前的 main，也是当前祖先 |
 | `codex/release-1.1.8` | `bf4852f35d39fd14f5e4a27a42341540725b3461` | 已发布历史版本来源，当前祖先 |
 | `codex/upstream-0.9.1` | `08d3053745c1e853aea25b62a617a2a64c8fc17a` | 当前祖先，PR #3 的 base |
-| `codex/zolnit-client` | `ec9339f9f9617e6238f529aa1e5bf32d4e2bca9e` | 两项图上独有工作已有对应去向，PR #3 仍 OPEN |
+| `codex/zolnit-client` | `ec9339f9f9617e6238f529aa1e5bf32d4e2bca9e` | 两项图上独有工作已有对应去向，PR #3 已于 2026-11-16 关闭 |
 
-[PR #1](https://github.com/Zolmid/FlClash/pull/1) 已合并；[PR #2](https://github.com/Zolmid/FlClash/pull/2) 随 main 快进后的可达关系被 GitHub 标为 MERGED；[PR #3](https://github.com/Zolmid/FlClash/pull/3) 保持 OPEN，base/head 未改。本轮没有删除/重命名远端分支或移动正式 tag。
+[PR #1](https://github.com/Zolmid/FlClash/pull/1) 已合并；[PR #2](https://github.com/Zolmid/FlClash/pull/2) 随 main 快进后的可达关系被 GitHub 标为 MERGED；[PR #3](https://github.com/Zolmid/FlClash/pull/3) 已于 2026-11-16 关闭，未合并，base/head 未改。2026-11-16 状态：`codex/mobile-pay-fix`、`codex/release-1.1.8`、`codex/ci-node24`、`codex/ios-native-update` 已按精确 SHA 删除并逐项回读为 404；表中其余行保持观察时的记录。2026-11-16 起未重命名其他分支，也未移动正式 tag。
 
 核对命令（只读，不会触发 workflow）：
 
@@ -61,7 +61,7 @@ git -C "$REPO" for-each-ref --format='%(refname) %(objectname)' refs/heads refs/
 
 独有 action 升级已完整进入产品历史 `bf4852f35d39fd14f5e4a27a42341540725b3461`。直接比较 `c8b88121` 与该提交的全部 workflow 树，差别仅为产品后来增加的五行测试注解屏蔽；屏蔽不是 c8 遗失的内容。d0 再把 Node 单文件测试改成 glob 并提取选择器。该分支的独有工作已被吸收/后续细化，无需产品负责人替可核对的技术等价性作决定。
 
-c8 不是main祖先，删除前应保留完整可恢复的Git历史；本次已有本地archive ref及经过 `git bundle verify` 的独立bundle。该备份不包含WIP、LFS内容、子模块对象或外部产物。已知消费者调查支持把它与mobile-pay-fix等历史分支列入精确删除审批候选；未经批准仍保留。公开tag指向同一commit不构成必须保留开发分支名的技术依赖，tag本身保持不可变。
+c8 不是main祖先，删除前应保留完整可恢复的Git历史；本次已有本地archive ref及经过 `git bundle verify` 的独立bundle。该备份不包含WIP、LFS内容、子模块对象或外部产物。已知消费者调查支持把它与mobile-pay-fix等历史分支列入精确删除审批候选；2026-11-16 已按批准删除；恢复依据为本地 archive ref 与 bundle 记录。公开tag指向同一commit不构成必须保留开发分支名的技术依赖，tag本身保持不可变。
 
 ### Apple 工具分叉与本地历史 refs
 
@@ -80,7 +80,7 @@ rg -n 'codex/zolnit-client|codex/apple-distribution-prep|codex/native-client-sha
 git -C "$REPO" for-each-ref --format='%(refname) %(objectname)' refs/archive/runbook-20261115
 ```
 
-源码 grep 只是消费者调查的一部分，不证明外部没有引用。当前推荐保留所有远端分支：Apple/native 分支仍有已知职责，PR #3 仍开放，归档分卷及部分本地 refs 的消费者不明。远端删除并非上线前置。
+源码 grep 只是消费者调查的一部分，不证明外部没有引用。除 2026-11-16 已按批准删除的四个历史分支外，其余远端分支仍保留：Apple/native 分支仍有已知职责，PR #3 已关闭，相关 head/base 分支保留，归档分卷及部分本地 refs 的消费者不明。远端删除并非上线前置。
 
 若后续确需删除，批准包必须列出精确 ref 和当时 SHA、已迁移消费者、保留快照、恢复命令及不可恢复范围；执行前重读 ref，发现漂移即停止。禁止通配删除、prune、移动正式 tag 或强推共享历史。关闭 PR 也是单独远程写入，不能由文档中的 COVERED 自动触发。
 
@@ -109,6 +109,6 @@ Core 固定 `8380d0e7462f061a964323e9bf3129a236fcc5d5`。不以更新上游之�
 ## 6. 后续维护去向
 
 - **主线开发**：从当时重新核验的 main 建立隔离工作树，保持旧 APP WIP；不要在旧 checkout 自动 reset。
-- **历史分支**：先保留；PR #3 处理和远端删除均不是本次交付的已执行动作，也不阻塞已验收源码的后续开发。
+- **历史分支**：四个已完成精确归档的分支已删除，PR #3 已关闭；其余分支继续保留，任何进一步删除都需逐项精确批准。
 - **上游演练补丁**：需要新的采用任务和相关行为验收，不能随文档整合夹带进入 main。
 - **CI 精简**：参见 [CI 与发布](ci-release-and-recovery.md)，配置重叠与分支补丁等价分别判断。

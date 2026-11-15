@@ -2,9 +2,9 @@
 
 本手册面向接手 ZolNit 的开发、测试、发布和运维人员。它说明如何从准确源码开始工作、沿既有状态所有者修改功能、选择验证层级，以及在失败时恢复。它不代替仓库的 [AGENTS.md](../../AGENTS.md) 和 [.agents/rules.md](../../.agents/rules.md)。
 
-业务源码核对基线为 **d0af9d83c4f37199caceb436b3c3ae66cdb36cd6**，观察日期为 **2026-11-15**。A1 时该提交已进入 `Zolmid/FlClash:main`（当前引用执行前须重查）；公开客户端仍为 **1.1.9**，其标签实际指向 `bfb49ed8a41a9b531a64783f9407959085e4444e`。文档提交与应用源码验收基线应分别记录，不能把后来只改文档的 HEAD 当成已重新构建的 App。
+业务源码基线为 **a4c9577e2b9a218917b35420a26512f82e016c5c**，即当前 `Zolmid/FlClash:main` 上的 ZolNit 重构源码（2026-11-16 核对，由 d0af9d83 正常快进）。该源码的 main 标准 CI、main Cloud 及同源产品候选六类产物的实际结果见 [已验证基线](verification-baseline.md)。开发维护手册所在的纯文档提交与应用源码分开记录；文档提交不改变程序、依赖、Core 或构建输入。
 
-C 增量已经在本地集成收件箱协调、正式 tag 标准检查观察复用及 iOS 意图生命周期修复；代码基线 `7ff0830b0795ec66f70c13c67a665b5538c57b04`（含逐操作清理与生成文件同步；后续文档/CI接线提交的实际受验SHA见对应run/attempt记录），版本准备为 `1.1.10+2026111501`。各层实际验证与来源见 [verification-baseline.md](verification-baseline.md)，公开发行状态仍单独记录。
+公开客户端仍为 **1.1.9**，其 tag 解引用到 `bfb49ed8…`。源码 pubspec 已写为 **1.1.10+2026111501**，但在正式 tag、签名、公证与渠道发布完成并被独立核实之前，不能说 1.1.10 已发布。发布步骤、幂等与回退边界见 [CI、发布与恢复](ci-release-and-recovery.md) 第 11 节。
 
 ## 阅读顺序
 
@@ -15,15 +15,16 @@ C 增量已经在本地集成收件箱协调、正式 tag 标准检查观察复�
 | 改 Android、Apple、Windows 或 Linux | [平台契约](platform-contracts.md) | [测试和排障](testing-and-debugging.md) |
 | 改 CI、生成候选或正式发布 | [CI、发布与恢复](ci-release-and-recovery.md) | [已验证基线](verification-baseline.md) |
 | 同步上游、整理分支 | [分支与上游维护](branch-and-upstream.md) | [手册要求对账](runbook-compliance.md) |
-| 设计真机验收窗口 | [设备验收执行单](device-validation.md) | 平台契约及对应原生测试 |
+| 排查实际使用中的问题 | [设备验收执行单](device-validation.md)，其中第 8 节说明反馈与排障 | 平台契约及对应原生测试 |
 
 已有深入说明仍是有效入口：[架构参考](../../.agents/architecture.md)、[设置生效方式](../../.agents/setting-changes.md)、[命令目录](../../.agents/commands.md)、[版本相关兼容处理](../../.agents/flutter-upgrade.md)、[Core/平台开发规则](../../.agents/skills/core-platform/SKILL.md)。本手册补充 ZolNit 产品与实际运维连接，避免复制这些参考文件后形成两套容易漂移的规则。
 
-## 四个不可混淆的基线
+## 不可混淆的基线
 
 | 对象 | 准确值 | 用途 |
 |---|---|---|
-| A1 时主线业务源码 | `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6` | 历史观察值；新任务先重查引用 |
+| 当前 main 应用源码 | `a4c9577e2b9a218917b35420a26512f82e016c5c` | 新开发与发行候选的起点；开始前仍须重查 refs |
+| A1 历史主线 | `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6` | A1 时的 main，用于追溯 a4 之前的变化 |
 | 已公开 1.1.9 源码 | `bfb49ed8a41a9b531a64783f9407959085e4444e` | 还原已发布版本、升级和问题对照 |
 | 独立 Apple 工具源码 | `97f297743718b6d46272d244ad375b5ca903f499` | Apple 分发工具、环境与调度 pin；不是 App SHA |
 | Core gitlink | `8380d0e7462f061a964323e9bf3129a236fcc5d5` | `core/Clash.Meta`，原上游 FlClash 分支 |
@@ -76,7 +77,7 @@ git -C "$ZOLNIT_REPO" remote
 - 开发构建、debug/unsigned/ad-hoc 产物不能当成正式可分发包。
 - CI 必须核对 job/step 实际执行；workflow 总体绿色不能掩盖被跳过的必需检查。
 - 真实用户数据、宿主网络、发行签名、公证、正式 tag、更新渠道及不可逆操作，需要准确任务授权。
-- 当前真机部分按用户决定另列待执行；不能用文档、模拟器记录或已有 1.1.9 历史证据给新候选补一个 PASS。
+- 真机与系统网络验收由用户决定无限期豁免（USER_WAIVED，NOT_RUN），改由用户实际使用验证。豁免不产生 PASS 记录，也不授权设备、证书、网络或数据操作。
 
 ## 文档维护方法
 
