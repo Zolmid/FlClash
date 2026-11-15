@@ -27,11 +27,37 @@ env:
   NDK_VERSION: r28c
 
 jobs:
+  delegation:
+    name: Standard CI delegation
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      delegated: ${{ steps.decide.outputs.delegated }}
+    steps:
+      - id: decide
+        shell: bash
+        env:
+          EVENT_DELETED: ${{ toJSON(github.event.deleted) }}
+          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
+        run: |
+          delegated=false
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REPOSITORY" == Zolmid/FlClash &&
+                "$GITHUB_REPOSITORY_ID" == 1420254999 && "$GITHUB_REF_TYPE" == tag &&
+                "$EVENT_DELETED" == false && "$OFFICIAL_INPUT" == null &&
+                "$GITHUB_REF" == "refs/tags/$GITHUB_REF_NAME" &&
+                "$GITHUB_WORKFLOW_REF" == "Zolmid/FlClash/.github/workflows/build.yaml@$GITHUB_REF" &&
+                "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,9})\.(0|[1-9][0-9]{0,9})\.(0|[1-9][0-9]{0,9})$ ]]; then
+            delegated=true
+            echo 'Standard checks are delegated to the client-release Standard CI job. This run does not report their result.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "delegated=$delegated" >> "$GITHUB_OUTPUT"
+
   dart:
     name: Dart
     # A private copy pays for its Actions minutes, so it runs the checks only when
     # started by hand or for a formal release.
-    if: &checks github.event_name == 'workflow_dispatch' || !github.event.repository.private || inputs.official_release
+    needs: delegation
+    if: &checks ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && (github.event_name == 'workflow_dispatch' || !github.event.repository.private || inputs.official_release) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -105,6 +131,7 @@ jobs:
         run: dart run tool/check_coverage.dart coverage/lcov.info 75
 
   plugins:
+    needs: delegation
     name: Plugins
     if: *checks
     runs-on: ubuntu-latest
@@ -300,6 +327,7 @@ jobs:
         run: flutter build ${{ matrix.platform }} --debug
 
   go:
+    needs: delegation
     name: Go core
     if: *checks
     runs-on: ubuntu-latest
@@ -369,6 +397,7 @@ jobs:
           GOOS=android GOARCH=arm64 go vet "-tags=$tags" . ./mobile ./tun ./platform
 
   android:
+    needs: delegation
     name: Android unit tests
     if: *checks
     runs-on: ubuntu-latest
@@ -440,6 +469,7 @@ jobs:
             -x :app:compileFlutterBuildDebug -x :app:copyFlutterAssetsDebug
 
   rust:
+    needs: delegation
     name: Rust
     if: *checks
     runs-on: ubuntu-latest
@@ -466,6 +496,7 @@ jobs:
           cargo test --manifest-path plugins/rust_api/rust/Cargo.toml
 
   windows-helper-test:
+    needs: delegation
     name: Windows helper test
     if: *checks
     runs-on: windows-2022
