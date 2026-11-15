@@ -53,6 +53,7 @@ jobs:
     needs: preflight
     permissions:
       contents: read
+      actions: read
     uses: ./.github/workflows/build.yaml
     with:
       official_release: true

@@ -1,0 +1,380 @@
+{
+  "run": {
+    "id": 43608456827,
+    "workflow_id": 410545194,
+    "path": ".github/workflows/client-release.yml",
+    "name": "ZolNit release v1.1.9",
+    "event": "push",
+    "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+    "head_branch": "v1.1.9",
+    "run_attempt": 1,
+    "status": "completed",
+    "conclusion": "success",
+    "referenced_workflows": [
+      {
+        "path": "Zolmid/FlClash/.github/workflows/macos-notarization-pipeline.yml@bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "ref": "refs/tags/v1.1.9"
+      },
+      {
+        "path": "Zolmid/FlClash/.github/workflows/cloud-build.yml@bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "ref": "refs/tags/v1.1.9"
+      },
+      {
+        "path": "Zolmid/FlClash/.github/workflows/build.yaml@bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "ref": "refs/tags/v1.1.9"
+      }
+    ],
+    "repository": {
+      "id": 1420254999,
+      "full_name": "Zolmid/FlClash"
+    },
+    "head_repository": {
+      "id": 1420254999,
+      "full_name": "Zolmid/FlClash"
+    }
+  },
+  "jobs": {
+    "total_count": 28,
+    "jobs": [
+      {
+        "id": 132488048199,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Formal tag preflight",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:30Z",
+        "completed_at": "2026-11-14T15:07:40Z"
+      },
+      {
+        "id": 132488100298,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Windows helper test",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:09:09Z"
+      },
+      {
+        "id": 132488100299,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Go core",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:10:58Z"
+      },
+      {
+        "id": 132488100300,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Dart",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:14:34Z"
+      },
+      {
+        "id": 132488100324,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Plugins",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:11:06Z"
+      },
+      {
+        "id": 132488100332,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Android unit tests",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:14:45Z"
+      },
+      {
+        "id": 132488100356,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / select",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:07:46Z"
+      },
+      {
+        "id": 132488100358,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Rust",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:42Z",
+        "completed_at": "2026-11-14T15:09:12Z"
+      },
+      {
+        "id": 132488101480,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / Desktop ${{ matrix.platform }}",
+        "status": "completed",
+        "conclusion": "skipped",
+        "started_at": "2026-11-14T15:07:40Z",
+        "completed_at": "2026-11-14T15:07:40Z"
+      },
+      {
+        "id": 132488126035,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / FlClash \u00b7 macos \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:48Z",
+        "completed_at": "2026-11-14T15:20:51Z"
+      },
+      {
+        "id": 132488126047,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / FlClash \u00b7 macos \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:49Z",
+        "completed_at": "2026-11-14T15:21:52Z"
+      },
+      {
+        "id": 132488126073,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / iOS \u00b7 project \u00b7 unsigned arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:48Z",
+        "completed_at": "2026-11-14T15:25:32Z"
+      },
+      {
+        "id": 132488126084,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / FlClash \u00b7 linux \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:48Z",
+        "completed_at": "2026-11-14T15:17:23Z"
+      },
+      {
+        "id": 132488126094,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / FlClash \u00b7 windows \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:47Z",
+        "completed_at": "2026-11-14T15:23:41Z"
+      },
+      {
+        "id": 132488126174,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Release builds / FlClash \u00b7 android \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:07:48Z",
+        "completed_at": "2026-11-14T15:28:07Z"
+      },
+      {
+        "id": 132490063279,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / build",
+        "status": "completed",
+        "conclusion": "skipped",
+        "started_at": "2026-11-14T15:14:45Z",
+        "completed_at": "2026-11-14T15:14:45Z"
+      },
+      {
+        "id": 132490064271,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Standard CI / upload",
+        "status": "completed",
+        "conclusion": "skipped",
+        "started_at": "2026-11-14T15:14:45Z",
+        "completed_at": "2026-11-14T15:14:45Z"
+      },
+      {
+        "id": 132493801353,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 x64 / macOS app \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:28:12Z",
+        "completed_at": "2026-11-14T15:28:59Z"
+      },
+      {
+        "id": 132493801362,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 arm64 / macOS app \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:28:11Z",
+        "completed_at": "2026-11-14T15:28:52Z"
+      },
+      {
+        "id": 132493996780,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 arm64 / Await Apple app acceptance \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:28:57Z",
+        "completed_at": "2026-11-14T15:30:20Z"
+      },
+      {
+        "id": 132494028397,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 x64 / Await Apple app acceptance \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:29:03Z",
+        "completed_at": "2026-11-14T15:30:16Z"
+      },
+      {
+        "id": 132494373286,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 x64 / macOS dmg \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:30:21Z",
+        "completed_at": "2026-11-14T15:31:29Z"
+      },
+      {
+        "id": 132494390589,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 arm64 / macOS dmg \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:30:24Z",
+        "completed_at": "2026-11-14T15:31:18Z"
+      },
+      {
+        "id": 132494663018,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 arm64 / Await Apple dmg acceptance \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:31:22Z",
+        "completed_at": "2026-11-14T15:32:31Z"
+      },
+      {
+        "id": 132494712829,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 x64 / Await Apple dmg acceptance \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:31:33Z",
+        "completed_at": "2026-11-14T15:32:42Z"
+      },
+      {
+        "id": 132494986858,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 arm64 / macOS final \u00b7 arm64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:32:35Z",
+        "completed_at": "2026-11-14T15:33:24Z"
+      },
+      {
+        "id": 132495039848,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Developer ID and notarization \u00b7 x64 / macOS final \u00b7 x64",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:32:47Z",
+        "completed_at": "2026-11-14T15:33:39Z"
+      },
+      {
+        "id": 132495299433,
+        "run_id": 43608456827,
+        "run_attempt": 1,
+        "head_sha": "bfb49ed8a41a9b531a64783f9407959085e4444e",
+        "head_branch": "v1.1.9",
+        "name": "Publish 1.1.9",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-14T15:33:41Z",
+        "completed_at": "2026-11-14T15:38:12Z"
+      }
+    ]
+  }
+}

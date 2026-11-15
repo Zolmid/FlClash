@@ -30,27 +30,23 @@ jobs:
   delegation:
     name: Standard CI delegation
     runs-on: ubuntu-latest
-    permissions: {}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
     outputs:
       delegated: ${{ steps.decide.outputs.delegated }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
       - id: decide
-        shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_DELETED: ${{ toJSON(github.event.deleted) }}
           OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
-        run: |
-          delegated=false
-          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REPOSITORY" == Zolmid/FlClash &&
-                "$GITHUB_REPOSITORY_ID" == 1420254999 && "$GITHUB_REF_TYPE" == tag &&
-                "$EVENT_DELETED" == false && "$OFFICIAL_INPUT" == null &&
-                "$GITHUB_REF" == "refs/tags/$GITHUB_REF_NAME" &&
-                "$GITHUB_WORKFLOW_REF" == "Zolmid/FlClash/.github/workflows/build.yaml@$GITHUB_REF" &&
-                "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,9})\.(0|[1-9][0-9]{0,9})\.(0|[1-9][0-9]{0,9})$ ]]; then
-            delegated=true
-            echo 'Standard checks are delegated to the client-release Standard CI job. This run does not report their result.' >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "delegated=$delegated" >> "$GITHUB_OUTPUT"
+        run: python3 -u tool/ci/standard_ci_reuse.py
 
   dart:
     name: Dart
