@@ -7,6 +7,7 @@ This file is the entry point for AI coding agents working in this repository. Ke
 
 Read these files before making changes:
 
+- [docs/maintenance/README.md](docs/maintenance/README.md): ZolNit product development, platform contracts, maintenance, and evidence boundaries.
 - [.agents/project.md](.agents/project.md): project overview, versions, and build dependencies.
 - [.agents/commands.md](.agents/commands.md): build, development, code generation, and test commands.
 - [.agents/rules.md](.agents/rules.md): lint, testing, generated-code, and workflow rules.

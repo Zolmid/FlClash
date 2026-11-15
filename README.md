@@ -1,3 +1,7 @@
+> **ZolNit maintainers:** use the [APP development and maintenance handbook](docs/maintenance/README.md)
+> for this fork's current source baseline, identities, workflows and verification boundaries.
+> The upstream introduction and download attribution below are retained separately.
+
 <div align="center">
 
 <img src="assets/images/icon.png" alt="FlClash" width="88">

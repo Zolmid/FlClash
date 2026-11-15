@@ -1,3 +1,6 @@
+> **ZolNit 维护者入口：**请先阅读 [APP 开发维护手册](docs/maintenance/README.md)，核对本派生仓库的当前基线、身份、流程与验收边界。
+> 下方上游介绍及下载归属单独保留，不作为 ZolNit 产品现状的依据。
+
 <div align="center">
 
 <img src="assets/images/icon.png" alt="FlClash" width="88">
