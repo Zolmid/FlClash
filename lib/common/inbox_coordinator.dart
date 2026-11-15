@@ -40,6 +40,7 @@ final class ZolnitInboxCoordinator {
   final noticeRevision = ValueNotifier<int>(0);
   final withdrawn = <String>{};
   final _readFlights = <(String, int, String)>{};
+  final _pendingPresentation = <String, ZolnitInboxMerge>{};
   String? _subject;
   Future<void>? _flight;
   int? _flightGeneration, _flightEpoch;
@@ -62,6 +63,7 @@ final class ZolnitInboxCoordinator {
     invalidate();
     _subject = null;
     withdrawn.clear();
+    _pendingPresentation.clear();
     canonicalNotices.value = {};
     unread = 0;
   }
@@ -69,6 +71,7 @@ final class ZolnitInboxCoordinator {
   void dispose() {
     _disposed = true;
     _readRetry?.cancel();
+    _pendingPresentation.clear();
     canonicalNotices.dispose();
     noticeRevision.dispose();
   }
@@ -167,8 +170,14 @@ final class ZolnitInboxCoordinator {
               )
               ? ZolnitInboxMerge.inserted
               : ZolnitInboxMerge.unchanged);
+    if (!_current(gen) || scope != this.scope) return;
+    if (canonical && merge != ZolnitInboxMerge.unchanged) {
+      // An invalidated platform write needs presentation in a current snapshot.
+      if (_pendingPresentation[id] != ZolnitInboxMerge.inserted) {
+        _pendingPresentation[id] = merge;
+      }
+    }
     if (canonical && !(isCurrentSnapshot?.call() ?? false)) return;
-    final fresh = merge == ZolnitInboxMerge.inserted;
     final automaticReadKey = (scope, gen, id);
     if (installedUpdate &&
         !read &&
@@ -196,28 +205,38 @@ final class ZolnitInboxCoordinator {
       }
     }
     if (canonical && !(isCurrentSnapshot?.call() ?? false)) return;
-    if (merge == ZolnitInboxMerge.updated && _current(gen)) {
-      canonicalNotices.value = {...canonicalNotices.value, item.id: item};
-      onUpdated(item);
-      await _updateUnread(scope, gen);
+    final presentation = canonical ? _pendingPresentation[id] ?? merge : merge;
+    if (presentation == ZolnitInboxMerge.unchanged) return;
+    final inbox = await _updateUnread(scope, gen);
+    if (!_current(gen) || scope != this.scope) return;
+    if (canonical && !(isCurrentSnapshot?.call() ?? false)) return;
+    if (canonical) _pendingPresentation.remove(id);
+    final confirmed = inbox.where((entry) => entry.id == id).firstOrNull;
+    if (confirmed == null) return;
+    final fresh = presentation == ZolnitInboxMerge.inserted;
+    if (presentation == ZolnitInboxMerge.updated) {
+      canonicalNotices.value = {...canonicalNotices.value, id: confirmed};
+      onUpdated(confirmed);
     }
-    if (fresh && updateVersion != null && _current(gen)) {
+    if (fresh && updateVersion != null) {
       onUpdateHint(updateVersion);
     }
-    if (fresh && _current(gen)) await _updateUnread(scope, gen);
-    if (canonical && !(isCurrentSnapshot?.call() ?? false)) return;
-    if (fresh && !read && _current(gen) && foreground() && item.popup) {
-      onPopup(item, scope, gen);
+    if (fresh && !confirmed.read && foreground() && confirmed.popup) {
+      onPopup(confirmed, scope, gen);
     }
   }
 
-  Future<void> _updateUnread(String scope, int gen) async {
+  Future<List<ZolnitRealtimeInboxItem>> _updateUnread(
+    String scope,
+    int gen,
+  ) async {
     final inbox = await store.readInbox(scope);
     final count = inbox.where((item) => !item.read).length;
     if (_current(gen) && scope == this.scope && unread != count) {
       unread = count;
       onUnread();
     }
+    return inbox;
   }
 
   Future<bool> markRead(
@@ -260,6 +279,9 @@ final class ZolnitInboxCoordinator {
     );
     if (!currentSnapshot()) return;
     withdrawn.addAll(ids);
+    for (final id in ids) {
+      _pendingPresentation.remove(id);
+    }
     onWithdrawn(withdrawn);
     noticeRevision.value++;
     await _updateUnread(scope, gen);
@@ -325,7 +347,10 @@ final class ZolnitInboxCoordinator {
           }
           if (!currentSnapshot()) return;
           await _updateUnread(scope, gen);
-          if (currentSnapshot()) onConnect(scope, gen);
+          if (currentSnapshot()) {
+            _pendingPresentation.clear();
+            onConnect(scope, gen);
+          }
         }).whenComplete(() {
           if (identical(_flight, job)) _flight = null;
         });

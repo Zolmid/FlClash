@@ -149,6 +149,88 @@ void main() {
   );
 
   test(
+    'account switch discards presentation from an already started platform write',
+    () async {
+      final preferences = _BlockingPreferences()..block = false;
+      SharedPreferencesStorePlatform.instance = preferences;
+      final id = 'a' * 32;
+      var subject = 'b' * 64;
+      var title = 'Old account';
+      final oldScope = 'https://panel.example:$subject';
+      final newScope = 'https://panel.example:${'c' * 64}';
+      final store = ZolnitRealtimePreferencesStore();
+      await store.appendInbox(
+        newScope,
+        ZolnitRealtimeInboxItem(
+          id: id,
+          title: 'Existing new account history',
+          body: 'Body',
+          createdAt: DateTime.now(),
+          popup: true,
+        ),
+      );
+      final api = XboardClient(
+        origin: Uri.parse('https://panel.example'),
+        client: MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'data': {
+                'subject': subject,
+                'events': [
+                  {
+                    'id': id,
+                    'type': 'notice.popup',
+                    'data': {'title': title, 'body': 'Body'},
+                    'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                  },
+                ],
+              },
+            }),
+            200,
+          ),
+        ),
+      )..setAuthorization('Bearer fixture');
+      final popups = <String>[];
+      final coordinator = ZolnitInboxCoordinator(
+        api: () => api,
+        current: (generation) => api.generation == generation,
+        foreground: () => true,
+        liveRead: (_) async => false,
+        updateTitle: () => 'Update',
+        onConnect: (_, _) {},
+        onPopup: (item, _, _) => popups.add(item.title),
+        onUpdated: (_) {},
+        onWithdrawn: (_) {},
+        onUnread: () {},
+        onUpdateHint: (_) {},
+      );
+      addTearDown(() {
+        if (!preferences.release.isCompleted) preferences.release.complete();
+        coordinator.dispose();
+        api.close();
+      });
+      preferences.block = true;
+      final old = coordinator.refresh(api.generation);
+      await preferences.started.future;
+      coordinator.invalidate();
+      subject = 'c' * 64;
+      title = 'Existing new account history';
+      api.setAuthorization('Bearer next');
+      coordinator.reset();
+      final newer = coordinator.refresh(api.generation);
+      preferences.release.complete();
+      await Future.wait([old, newer]);
+      await coordinator.refresh(api.generation);
+      expect(popups, isEmpty);
+      expect(coordinator.canonicalNotices.value, isEmpty);
+      expect((await store.readInbox(oldScope)).single.title, 'Old account');
+      expect((await store.readInbox(newScope)).single.title, title);
+      final saved = (await preferences.getAll()).values.whereType<String>();
+      expect(saved.any((value) => value.contains('Old account')), isTrue);
+    },
+  );
+
+  test(
     'account switch during live read prevents HTTP fallback and storage write',
     () async {
       final live = Completer<bool>();

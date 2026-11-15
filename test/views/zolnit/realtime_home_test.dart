@@ -9,10 +9,28 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 import 'harness.dart';
+
+class _BlockingInboxPreferences extends InMemorySharedPreferencesStore {
+  _BlockingInboxPreferences() : super.empty();
+  final started = Completer<void>();
+  final release = Completer<void>();
+  bool block = false;
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    if (block && key.endsWith('.inbox')) {
+      block = false;
+      started.complete();
+      await release.future;
+    }
+    return super.setValue(valueType, key, value);
+  }
+}
 
 class _Wire implements ZolnitRealtimeSocket {
   final frames = StreamController<Object?>();
@@ -88,6 +106,179 @@ void main() {
     };
     h.container.read(initProvider.notifier).value = true;
   });
+  for (final outcome in ['retained', 'withdrawn', 'edited', 'read']) {
+    testWidgets('resync during inbox write reconciles $outcome popup', (
+      tester,
+    ) async {
+      final preferences = _BlockingInboxPreferences();
+      SharedPreferencesStorePlatform.instance = preferences;
+      final id = 'a' * 32;
+      final subject = 'b' * 64;
+      final scope = 'https://panel.example:$subject';
+      final store = ZolnitRealtimePreferencesStore();
+      for (final read in [false, true]) {
+        await store.appendInbox(
+          scope,
+          ZolnitRealtimeInboxItem(
+            id: (read ? 'c' : 'd') * 32,
+            title: read ? 'Read history' : 'Unread history',
+            body: 'Previously delivered',
+            createdAt: now,
+            popup: true,
+            read: read,
+          ),
+        );
+      }
+      var events = <Json>[];
+      var withdrawn = <String>[];
+      var requests = 0;
+      final previous = h.panel;
+      Json notice(String title) => {
+        'id': id,
+        'type': 'notice.popup',
+        'data': {'title': title, 'body': '$title body'},
+        'created_at': now.millisecondsSinceEpoch ~/ 1000,
+        'read': false,
+      };
+      if (outcome == 'edited') events = [notice('Original notice')];
+      h.panel = (request) {
+        if (request.url.path.endsWith('/realtime/read')) {
+          return zolnitJson({'event_id': id, 'read': true});
+        }
+        if (request.url.path.endsWith('/realtime/inbox')) {
+          requests++;
+          return zolnitJson({
+            'subject': subject,
+            'events': events,
+            'withdrawn': withdrawn,
+          });
+        }
+        return previous(request);
+      };
+      try {
+        await h.mount(tester, ZolnitSkin.android);
+        final originalRoute = outcome == 'edited'
+            ? ModalRoute.of(tester.element(find.text('Original notice')))
+            : null;
+        expect(wire.sent.any((frame) => frame.contains('"hello"')), isTrue);
+        events = [notice('Confirmed notice')];
+        preferences.block = true;
+        h.container.read(initProvider.notifier).value = false;
+        await tester.pump();
+        h.container.read(initProvider.notifier).value = true;
+        await tester.pumpAndSettle();
+        expect(preferences.started.isCompleted, isTrue);
+        expect(find.text('Confirmed notice'), findsNothing);
+        final beforeResync = requests;
+        if (outcome == 'withdrawn') {
+          events = [];
+          withdrawn = [id];
+        } else if (outcome == 'read') {
+          events = [
+            {...notice('Confirmed notice'), 'read': true},
+          ];
+        }
+        wire.receive({
+          'op': 'resync',
+          'cursor': {'global': 1, 'account': 0},
+        });
+        wire.receive({'op': 'ready'});
+        await tester.pumpAndSettle();
+        expect(requests, beforeResync);
+        preferences.release.complete();
+        await tester.pumpAndSettle();
+        expect(requests, beforeResync + 1);
+        final inbox = await store.readInbox(scope);
+        if (outcome == 'withdrawn') {
+          expect(find.text('Confirmed notice'), findsNothing);
+          expect(inbox.any((item) => item.id == id), isFalse);
+        } else if (outcome == 'read') {
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(inbox.singleWhere((item) => item.id == id).read, isTrue);
+        } else {
+          expect(
+            inbox.singleWhere((item) => item.id == id).title,
+            'Confirmed notice',
+          );
+          expect(find.text('Confirmed notice'), findsOneWidget);
+          expect(find.byType(AlertDialog), findsOneWidget);
+          final route = ModalRoute.of(
+            tester.element(find.text('Confirmed notice')),
+          );
+          if (originalRoute != null) expect(route, same(originalRoute));
+          final body = tester.widget<SelectableText>(
+            find.byType(SelectableText),
+          );
+          expect(body.textSpan!.toPlainText().trim(), 'Confirmed notice body');
+          wire.receive({
+            'op': 'resync',
+            'cursor': {'global': 2, 'account': 0},
+          });
+          wire.receive({'op': 'ready'});
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsOneWidget);
+          expect(
+            ModalRoute.of(tester.element(find.text('Confirmed notice'))),
+            same(route),
+          );
+          if (outcome == 'retained') {
+            await tester.tapAt(const Offset(1, 1));
+          } else {
+            await tester.tap(find.text('知道了'));
+          }
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(
+            (await store.readInbox(
+              scope,
+            )).singleWhere((item) => item.id == id).read,
+            outcome == 'edited',
+          );
+        }
+        events = [
+          notice('Confirmed notice'),
+          for (final read in [false, true])
+            {
+              ...notice(read ? 'Read history' : 'Unread history'),
+              'id': (read ? 'c' : 'd') * 32,
+              'data': {
+                'title': read ? 'Read history' : 'Unread history',
+                'body': 'Previously delivered',
+              },
+              'read': read,
+            },
+        ];
+        wire.receive({
+          'op': 'resync',
+          'cursor': {'global': 3, 'account': 0},
+        });
+        wire.receive({'op': 'ready'});
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.text('Read history'), findsNothing);
+        expect(find.text('Unread history'), findsNothing);
+        if (outcome == 'withdrawn') {
+          wire.receive({
+            'op': 'event',
+            ...notice('Confirmed notice'),
+            'scope': 'global',
+            'seq': 4,
+          });
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(
+            (await store.readInbox(scope)).any((item) => item.id == id),
+            isFalse,
+          );
+        }
+      } finally {
+        if (!preferences.release.isCompleted) preferences.release.complete();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
+    });
+  }
+
   testWidgets('installed update is acknowledged and retained in history', (
     tester,
   ) async {
