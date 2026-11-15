@@ -2,6 +2,27 @@ import Foundation
 import NetworkExtension
 
 public enum NEHelper {
+  @MainActor private static var intentGeneration: UInt64 = 0
+  private enum PendingIntent {
+    case target(Bool)
+    case toggle(Bool)
+  }
+  @MainActor private static var pendingIntent: PendingIntent?
+
+  @MainActor private static func beginIntent(_ intent: PendingIntent) -> UInt64 {
+    intentGeneration &+= 1
+    pendingIntent = intent
+    return intentGeneration
+  }
+
+  @MainActor private static func isCurrent(_ generation: UInt64) -> Bool {
+    generation == intentGeneration && !Task.isCancelled && !isSafeMode
+  }
+
+  @MainActor private static func finishIntent(_ generation: UInt64) {
+    if generation == intentGeneration { pendingIntent = nil }
+  }
+
   private static var appBundleId: String {
     let bundleId = Bundle.main.bundleIdentifier!
     for suffix in [".NECore", ".Widget"] where bundleId.hasSuffix(suffix) {
@@ -36,25 +57,28 @@ public enum NEHelper {
     guard !isSafeMode else {
       return false
     }
-    return try await startWithPreferenceRetry(initialManager: nil)
+    let generation = beginIntent(.target(true))
+    defer { finishIntent(generation) }
+    return try await startWithPreferenceRetry(initialManager: nil, generation: generation)
   }
 
   @MainActor
   private static func startWithPreferenceRetry(
-    initialManager: NETunnelProviderManager?
+    initialManager: NETunnelProviderManager?, generation: UInt64
   ) async throws -> Bool {
     var manager = initialManager
     var allowPreferenceRetry = true
-    while true {
+    while isCurrent(generation) {
       if manager == nil {
         manager = try await loadManager()
       }
-      guard let currentManager = manager else {
+      guard isCurrent(generation), let currentManager = manager else {
         return false
       }
       do {
-        return try await start(manager: currentManager)
+        return try await start(manager: currentManager, generation: generation)
       } catch {
+        guard isCurrent(generation) else { return false }
         guard allowPreferenceRetry,
           isRetryablePreferenceError(error)
         else {
@@ -64,6 +88,7 @@ public enum NEHelper {
         manager = nil
       }
     }
+    return false
   }
 
   @MainActor
@@ -72,7 +97,9 @@ public enum NEHelper {
     guard !isSafeMode else {
       return false
     }
-    guard let manager = try await loadManager() else {
+    let generation = beginIntent(.target(false))
+    defer { finishIntent(generation) }
+    guard let manager = try await loadManager(), isCurrent(generation) else {
       return false
     }
     stop(manager: manager)
@@ -84,13 +111,27 @@ public enum NEHelper {
     guard !isSafeMode else {
       return
     }
-    guard let manager = try await loadManager() else {
+    let intent: PendingIntent
+    switch pendingIntent {
+    case .target(let target): intent = .target(!target)
+    case .toggle(let invert): intent = .toggle(!invert)
+    case nil: intent = .toggle(true)
+    }
+    let generation = beginIntent(intent)
+    defer { finishIntent(generation) }
+    guard let manager = try await loadManager(), isCurrent(generation) else {
       return
     }
-    if isRunning(manager.connection.status) {
-      stop(manager: manager)
+    let target: Bool
+    switch intent {
+    case .target(let value): target = value
+    case .toggle(let invert): target = isRunning(manager.connection.status) != invert
+    }
+    pendingIntent = .target(target)
+    if target {
+      _ = try await startWithPreferenceRetry(initialManager: manager, generation: generation)
     } else {
-      _ = try await startWithPreferenceRetry(initialManager: manager)
+      stop(manager: manager)
     }
   }
 
@@ -105,12 +146,13 @@ public enum NEHelper {
 
   @MainActor
   private static func start(
-    manager: NETunnelProviderManager
+    manager: NETunnelProviderManager, generation: UInt64
   ) async throws -> Bool {
     var status = manager.connection.status
     if status == .disconnecting {
       status = try await waitForStableStatus(manager: manager)
     }
+    guard isCurrent(generation) else { return false }
     if isRunning(status) {
       return true
     }
@@ -120,12 +162,15 @@ public enum NEHelper {
       manager.isOnDemandEnabled = true
     }
     try await manager.saveToPreferences()
+    guard isCurrent(generation) else { return false }
     try await manager.loadFromPreferences()
+    guard isCurrent(generation) else { return false }
 
     status = manager.connection.status
     if status == .disconnecting {
       status = try await waitForStableStatus(manager: manager)
     }
+    guard isCurrent(generation) else { return false }
     if isRunning(status) {
       return true
     }

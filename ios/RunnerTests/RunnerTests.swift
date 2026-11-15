@@ -7,10 +7,10 @@ final class RunnerTests: XCTestCase {
   func testPrivateRenewalOnlyAcceptsBoundedStructured401AsAuthoritative() {
     XCTAssertTrue(
       ClientBundleRenewalOwner.isAuthoritativeUnauthorized(
-        Data(#"{\"error\":{\"code\":\"unauthenticated\"}}"#.utf8)
+        Data(#"{"error":{"code":"unauthenticated"}}"#.utf8)
       )
     )
-    for body in ["", "<html>unauthorized</html>", #"{\"error\":{\"code\":\"edge_blocked\"}}"#] {
+    for body in ["", "<html>unauthorized</html>", #"{"error":{"code":"edge_blocked"}}"#] {
       XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(Data(body.utf8)))
     }
     XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(Data(repeating: 65, count: 8 * 1024 + 1)))
