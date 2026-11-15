@@ -70,19 +70,19 @@ final class TunnelCoordinator {
   }
 
   @discardableResult
-  func submitTunnelRequest(target: TunnelTarget) -> Bool {
-    submit(target == .running ? .start : .stop)
+  func submitTunnelRequest(target: TunnelTarget) async -> Bool {
+    await submit(target == .running ? .start : .stop)
   }
 
   @discardableResult
-  func toggleTunnelRequest() -> Bool { submit(.toggle) }
+  func toggleTunnelRequest() async -> Bool { await submit(.toggle) }
 
-  private func submit(_ command: TunnelIntentAuthority.Command) -> Bool {
+  private func submit(_ command: TunnelIntentAuthority.Command) async -> Bool {
     guard !isSafeMode() else { return false }
     let token: TunnelIntentAuthority.Token
     let target: TunnelTarget?
     do {
-      token = try authority.register(command)
+      token = try await authority.registerWithRetry(command)
       switch command {
       case .start: target = .running
       case .stop: target = .stopped

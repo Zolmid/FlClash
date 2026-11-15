@@ -35,6 +35,8 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     var pending = true
   }
 
+  private struct RegistrationBaseline { let token: Token? }
+  @MainActor private static var registrationAttempts: [String: UUID] = [:]
   private static let ownersLock = NSLock()
   private static var owners: [UUID: Int32] = [:]
   private let directory: @Sendable () throws -> URL
@@ -52,8 +54,36 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     }
   }
 
+  @MainActor
+  public func registerWithRetry(_ command: Command) async throws -> Token {
+    let folder = try directory()
+    guard folder.isFileURL else { throw TunnelIntentError.unavailable }
+    let key = folder.standardizedFileURL.path
+    let attempt = UUID()
+    Self.registrationAttempts[key] = attempt
+    defer {
+      if Self.registrationAttempts[key] == attempt { Self.registrationAttempts.removeValue(forKey: key) }
+    }
+    let baseline = RegistrationBaseline(token: try readRecord(folder.appendingPathComponent("intent.json"))?.token)
+    for retry in 0...20 {
+      try Task.checkCancellation()
+      guard Self.registrationAttempts[key] == attempt else { throw TunnelIntentError.superseded }
+      do { return try register(command, baseline: retry == 0 ? nil : baseline) }
+      catch TunnelIntentError.busy {
+        guard retry < 20 else { throw TunnelIntentError.busy }
+        try await Task.sleep(nanoseconds: 50_000_000)
+      }
+    }
+    throw TunnelIntentError.busy
+  }
+
   public func register(_ command: Command) throws -> Token {
+    try register(command, baseline: nil)
+  }
+
+  private func register(_ command: Command, baseline: RegistrationBaseline?) throws -> Token {
     try locked { record, file in
+      if let baseline, record?.token != baseline.token { throw TunnelIntentError.superseded }
       var previous: Record?
       if let record, record.pending, try alive(record, in: file.deletingLastPathComponent()) {
         previous = record
@@ -209,6 +239,10 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { throw TunnelIntentError.busy }
     defer { flock(descriptor, LOCK_UN) }
     let file = folder.appendingPathComponent("intent.json")
+    return try operation(readRecord(file), file)
+  }
+
+  private func readRecord(_ file: URL) throws -> Record? {
     let input = open(file.path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)
     var record: Record?
     if input >= 0 {
@@ -221,6 +255,6 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     } else if errno != ENOENT {
       throw TunnelIntentError.unavailable
     }
-    return try operation(record, file)
+    return record
   }
 }

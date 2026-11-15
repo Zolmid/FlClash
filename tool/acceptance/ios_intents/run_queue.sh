@@ -36,10 +36,11 @@ final class Store { var isSafeMode = false }
 suffix = '''  func initialize() { isInitialized = true; drainQuickActions() }
 }
 @main struct QueueFixture {
+  static func check(_ value: Bool) { precondition(value) }
   @MainActor static func main() async throws {
     let mode = CommandLine.arguments[1]
     let directory = URL(fileURLWithPath: CommandLine.arguments[2])
-    precondition(ServiceChannel.request(.start))
+    check(await ServiceChannel.request(.start))
     let accepted = ServiceChannel.pendingQuickAction.token!
     var descriptor: Int32 = -1
     var savedRecord: Data?
@@ -58,7 +59,7 @@ suffix = '''  func initialize() { isInitialized = true; drainQuickActions() }
       precondition(chmod(directory.path, 0o500) == 0)
     }
     if mode != "long" && mode != "initbusy" && mode != "initio" && mode != "supersede" {
-      precondition(!ServiceChannel.request(.stop))
+      check(await !ServiceChannel.request(.stop))
       precondition(ServiceChannel.pendingQuickAction.token == accepted)
       if mode == "busy" { flock(descriptor, LOCK_UN); close(descriptor) }
       else { precondition(chmod(directory.path, 0o700) == 0) }

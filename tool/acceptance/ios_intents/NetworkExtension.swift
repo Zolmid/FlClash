@@ -1,6 +1,9 @@
 import Foundation
 
 public enum NEVPNStatus: Int { case invalid, disconnected, connecting, connected, reasserting, disconnecting }
+public extension Notification.Name {
+  static let NEVPNStatusDidChange = Notification.Name("NEVPNStatusDidChangeNotification")
+}
 public let NEVPNErrorDomain = "NEVPNErrorDomain"
 public enum NEVPNError { public enum Code: Int { case configurationInvalid = 1, configurationStale = 2, configurationDisabled = 3 } }
 public class NEVPNProtocol { public init() {} }
@@ -16,14 +19,18 @@ public final class NEVPNConnection: NSObject {
   public var startUpdatesStatus = true
   public var stopUpdatesStatus = true
   public var startError: Error?
+  public var onStart: (() -> Void)?
+  public var onStop: (() -> Void)?
   public func startVPNTunnel() throws {
     if let error = startError { throw error }
     starts += 1
     if startUpdatesStatus { status = .connecting }
+    onStart?()
   }
   public func stopVPNTunnel() {
     stops += 1
     if stopUpdatesStatus { status = .disconnected }
+    onStop?()
   }
 }
 public final class NETunnelProviderManager {

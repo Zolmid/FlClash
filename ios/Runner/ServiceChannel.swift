@@ -49,10 +49,15 @@ final class ServiceChannel {
   }
 
   @discardableResult
-  static func request(_ action: QuickAction) -> Bool {
+  static func request(_ action: QuickAction) async -> Bool {
     if let instance, instance.sharedStateStore.isSafeMode { return false }
     do {
-      try pendingQuickAction.register { try quickActionAuthority.register(action.command) }
+      let token = try await quickActionAuthority.registerWithRetry(action.command)
+      if let instance, instance.sharedStateStore.isSafeMode {
+        quickActionAuthority.cancel(token)
+        return false
+      }
+      pendingQuickAction.register { token }
       if let instance, instance.isInitialized { instance.drainQuickActions() }
       return true
     } catch {
@@ -188,13 +193,13 @@ final class ServiceChannel {
         result(false)
         return
       }
-      result(tunnelController.start())
+      Task { result(await tunnelController.start()) }
     case "stop":
       guard !sharedStateStore.isSafeMode else {
         result(false)
         return
       }
-      result(tunnelController.stop())
+      Task { result(await tunnelController.stop()) }
     case "init":
       sharedStateStore.setSafeMode(call.arguments as? Bool ?? false)
       isInitialized = true

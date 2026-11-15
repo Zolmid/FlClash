@@ -27,6 +27,7 @@ extension TestManagerStore: TunnelManagerAccess {}
 #endif
 
 @main struct CrossEntry {
+  static func check(_ value: Bool) { precondition(value) }
   @MainActor static func until(_ condition: () -> Bool) async throws {
     for _ in 0..<500 {
       if condition() { return }
@@ -66,7 +67,7 @@ extension TestManagerStore: TunnelManagerAccess {}
         onExternalStart: {}, onExternalStop: {})
       #endif
       if direction == "runner-shared" {
-        runner.submitTunnelRequest(target: .running)
+        await runner.submitTunnelRequest(target: .running)
         try await until { !manager.saveCallbacks.isEmpty }
         #if LEGACY_INTENTS
         _ = try await NEHelper.stop()
@@ -84,7 +85,7 @@ extension TestManagerStore: TunnelManagerAccess {}
           #endif
         }
         try await until { !manager.saveCallbacks.isEmpty }
-        runner.submitTunnelRequest(target: .stopped)
+        await runner.submitTunnelRequest(target: .stopped)
         try await Task.sleep(nanoseconds: 50_000_000)
         manager.saveCallbacks.removeFirst()(nil)
         _ = await starting.result
@@ -128,7 +129,7 @@ extension CrossEntry {
       let runner = TunnelCoordinator(managerStore: store, authority: authority, isSafeMode: { false },
         onTunnelStateChanged: { _ in }, onConnectionStateChanged: { _ in },
         onExternalStart: {}, onExternalStop: {})
-      precondition(runner.submitTunnelRequest(target: .stopped))
+      check(await runner.submitTunnelRequest(target: .stopped))
       try await until { !runner.hasPendingWork }
     }
     precondition(manager.connection.stops == 1)
@@ -151,7 +152,7 @@ extension CrossEntry {
         isManaged: { store.isManagedConnection($0.connection) }, isSafeMode: { false })
       var starting: Task<Bool, Error>?
       if mode == "shared-stop" {
-        precondition(runner.submitTunnelRequest(target: .running))
+        check(await runner.submitTunnelRequest(target: .running))
       } else {
         starting = Task { try await client.request(.start) }
       }
@@ -191,18 +192,20 @@ extension CrossEntry {
       let runner = TunnelCoordinator(managerStore: store, authority: authority, isSafeMode: { false },
         onTunnelStateChanged: { _ in }, onConnectionStateChanged: { _ in },
         onExternalStart: {}, onExternalStop: {})
-      precondition(runner.submitTunnelRequest(target: .running))
+      check(await runner.submitTunnelRequest(target: .running))
       try await until { !manager.saveCallbacks.isEmpty }
       let lock = open(directory.appendingPathComponent("intent.lock").path, O_RDWR)
       precondition(lock >= 0 && flock(lock, LOCK_EX | LOCK_NB) == 0)
-      precondition(!runner.submitTunnelRequest(target: .stopped))
+      let stopping = Task { await runner.submitTunnelRequest(target: .stopped) }
       try await Task.sleep(nanoseconds: 200_000_000)
       precondition(runner.hasPendingWork)
       flock(lock, LOCK_UN)
       close(lock)
+      check(await stopping.value)
       manager.saveCallbacks.removeFirst()(nil)
-      try await until { manager.connection.starts == 1 }
-      print("PASS: Runner retains accepted request after failed registration and temporary contention")
+      try await until { !runner.hasPendingWork }
+      precondition(manager.connection.starts == 0 && manager.connection.stops == 1)
+      print("PASS: Runner retries temporary registration contention; accepted stop supersedes old start")
     }
     for phase in ["reload", "retry", "wait", "settle", "authority-failure", "repeat", "cancelled"] {
       let directory = root.appendingPathComponent(phase)
@@ -221,7 +224,7 @@ extension CrossEntry {
       let client = TunnelIntentClient(authority: TunnelIntentAuthority(directory: directory),
         loadManager: { manager }, isManaged: { store.isManagedConnection($0.connection) }, isSafeMode: { false })
       if phase == "settle" { manager.connection.status = .disconnecting }
-      precondition(runner.submitTunnelRequest(target: .running))
+      check(await runner.submitTunnelRequest(target: .running))
       if phase != "settle" {
         try await until { !manager.saveCallbacks.isEmpty }
       } else {
@@ -251,10 +254,10 @@ extension CrossEntry {
         try Data("invalid-json".utf8).write(to: directory.appendingPathComponent("intent.json"))
         manager.saveCallbacks.removeFirst()(nil)
       case "repeat":
-        precondition(runner.submitTunnelRequest(target: .running))
+        check(await runner.submitTunnelRequest(target: .running))
         manager.saveCallbacks.removeFirst()(nil)
         try await until { !manager.saveCallbacks.isEmpty }
-        precondition(runner.submitTunnelRequest(target: .stopped))
+        check(await runner.submitTunnelRequest(target: .stopped))
         manager.saveCallbacks.removeFirst()(nil)
       case "cancelled":
         struct Snapshot: Decodable { let token: TunnelIntentAuthority.Token }
@@ -293,10 +296,10 @@ extension CrossEntry {
       onExternalStart: {}, onExternalStop: {})
     _ = try await client.request(.start)
     precondition(manager.connection.status == .disconnected && manager.connection.starts == 1)
-    precondition(runner.submitTunnelRequest(target: .stopped))
+    check(await runner.submitTunnelRequest(target: .stopped))
     try await until { !runner.hasPendingWork }
     precondition(manager.connection.stops == 1)
-    precondition(runner.submitTunnelRequest(target: .running))
+    check(await runner.submitTunnelRequest(target: .running))
     try await until { manager.connection.starts == 2 }
     _ = try await client.request(.stop)
     try await until { !runner.hasPendingWork }
@@ -304,7 +307,7 @@ extension CrossEntry {
     print("PASS: both stop paths dispatch despite disconnected cached status")
 
     try Data("broken".utf8).write(to: directory.appendingPathComponent("intent.json"))
-    precondition(!runner.submitTunnelRequest(target: .running))
+    check(await !runner.submitTunnelRequest(target: .running))
     precondition(!runner.hasPendingWork)
     print("PASS: Runner rejects unavailable authority synchronously")
 
@@ -315,7 +318,7 @@ extension CrossEntry {
       onExternalStart: {}, onExternalStop: {})
     manager.connection.status = .connected
     let stopsBefore = manager.connection.stops
-    precondition(fresh.toggleTunnelRequest())
+    check(await fresh.toggleTunnelRequest())
     try await until { !fresh.hasPendingWork }
     precondition(manager.connection.stops == stopsBefore + 1)
     print("PASS: first Runner toggle resolves loaded manager status")
@@ -326,9 +329,9 @@ extension CrossEntry {
       onTunnelStateChanged: { _ in }, onConnectionStateChanged: { _ in },
       onExternalStart: {}, onExternalStop: {})
     NETunnelProviderManager.pauseLoad = true
-    precondition(doubleToggle.toggleTunnelRequest())
+    check(await doubleToggle.toggleTunnelRequest())
     try await until { NETunnelProviderManager.loadCallbacks.count == 1 }
-    precondition(doubleToggle.toggleTunnelRequest())
+    check(await doubleToggle.toggleTunnelRequest())
     try await until { NETunnelProviderManager.loadCallbacks.count == 2 }
     NETunnelProviderManager.pauseLoad = false
     NETunnelProviderManager.loadCallbacks.removeFirst()(nil)
@@ -366,7 +369,7 @@ extension CrossEntry {
     manager.connection.startUpdatesStatus = true
     let reverseStarts = manager.connection.starts
     let reverseStops = manager.connection.stops
-    precondition(reverseRunner.submitTunnelRequest(target: .running))
+    check(await reverseRunner.submitTunnelRequest(target: .running))
     try await until { manager.connection.starts == reverseStarts + 1 }
     NETunnelProviderManager.loadCallbacks.removeFirst()(nil)
     if case .success = await oldStop.result { throw Failure.lateStart }

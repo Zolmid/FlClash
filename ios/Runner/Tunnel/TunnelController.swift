@@ -80,7 +80,7 @@ final class TunnelController {
   }
 
   @discardableResult
-  func start() -> Bool { coordinator.submitTunnelRequest(target: .running) }
+  func start() async -> Bool { await coordinator.submitTunnelRequest(target: .running) }
 
   @discardableResult
   func submitRegisteredIntent(_ token: TunnelIntentAuthority.Token) -> Bool {
@@ -93,10 +93,10 @@ final class TunnelController {
   }
 
   @discardableResult
-  func stop() -> Bool { coordinator.submitTunnelRequest(target: .stopped) }
+  func stop() async -> Bool { await coordinator.submitTunnelRequest(target: .stopped) }
 
   @discardableResult
-  func toggle() -> Bool { coordinator.toggleTunnelRequest() }
+  func toggle() async -> Bool { await coordinator.toggleTunnelRequest() }
 
   func reloadOnDemandRules() async throws {
     try await coordinator.reloadOnDemandRules()
