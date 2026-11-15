@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.10 (2026-11-15)
+
+**Bug Fixes**
+
+- **ios** Keep your latest VPN start or stop request when using iPhone or iPad shortcuts. (aded666)
+
 ## v1.1.9 (2026-11-14)
 
 **Bug Fixes**

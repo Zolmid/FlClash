@@ -75,5 +75,7 @@ Public manifest SHA256: `0d4c9a3accf34804ca8af870c620ec69f8d97a4e691d9317650e978
 
 - APP/CI 组合回归固定源码 `7fd40a7a4777047b554a786ea4085ec1d62a0240`：61 项 APP 测试、23 项 CI Python、80 项 release Python（另 2 skipped）、32 项 Node 与 analyze 通过；actionlint 首次因找不到命令退出 127，使用 1.7.12 重新检查两个 workflow 通过。测试时仅临时关闭 `setup.build_assets`，保留 `rust_api`，随后恢复原配置。此结果不包含新 iOS 原生候选，也不证明设备或生产行为。
 - CI 独立复核未发现 P1/P2；对历史 [正式运行 43608456827](https://github.com/Zolmid/FlClash/actions/runs/43608456827) 的四次真实只读 GET 和合成 caller 上下文回放成功，不是新 gate 的 hosted 运行。C 新候选尚未 dispatch。
-- iOS 独立候选 `f56261c89300a7792caeb7ba96f45882583a6abd` 的作者本地 harness 与 SDK 检查通过；独立复审和完整 Runner build 仍在进行，候选尚不属于本文所在源码树，也不是发布通过。真实系统通知、弹窗、权限、后台、OnDemand、实际隧道、升级/降级及 V3 均未验证。
+- iOS 原写手提交 `f56261c89300a7792caeb7ba96f45882583a6abd` 已集成；作者七项脚本通过，独立复审又通过 completion、21 个注册场景与原 red/green probes，无新增 P1/P2。完整 Runner 无签名构建在 `ae1546067da67e54b3b4007df99152429002171d` 副本成功，25 个 native 文件与受审提交逐字节相同；CocoaPods 生成项目/lock 输入另有摘要，不冒称纯净源码构建。主应用、NECore、Widget 三个包都是 1.1.10/2026111501、arm64、iphoneos27.1，没有签名或 provisioning。此证据属于 V2，不是发布通过。真实系统通知、弹窗、权限、后台、OnDemand、实际隧道、升级/降级及 V3 均未验证。
 - `1.1.10+2026111501` 仅局部预留；尚无新 tag 或发版。A1 时 main 为 `d0af9d83`，后续需重查；公开 v1.1.9 仍以 `bfb49ed8` 的历史记录为准。tools `97f29774` 与 Core `8380d0e7` 未变。历史分支清理清单已准备，未删除。
+
+C 原生与 CI 接线集成基线为 `c6065db408821257fa2f3687ed4354613df224b6`。Cloud iOS 的 project 路径已加入六项原生契约脚本及真实 SDK 检查，15 分钟步骤限时、任何失败阻断后续；不会给 patched-reference 路径或普通候选增加生产权限。新的托管候选结果须绑定其实际运行 SHA/attempt，不能套用 A1 的绿色结果。

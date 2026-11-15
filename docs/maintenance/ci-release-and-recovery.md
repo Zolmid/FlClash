@@ -224,6 +224,8 @@ gh run download <RUN_ID> -R Zolmid/FlClash -n <checkpoint-artifact-name> -D /tmp
 - 观察时仓库变量 `APPLE_DEVICE_SIGNING_ENABLED=true`；environment 变量 `APPLE_DEVICE_SIGNER_TOOLS_SHA=97f297743718b6d46272d244ad375b5ca903f499`。后者是 environment 作用域，仓库同名变量 API 返回 404 不表示 pin 缺失。读取这些非秘密配置不等于批准签名队列操作。
 - 工具与 App 源码分别维护，不能通过整分支合并替代队列、dispatcher、OIDC 与 pin 的迁移。历史祖先/独有提交计数参见分支章节，不能把旧基线计数套到新 main。
 
+Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/ios_intents/` 的 race、authority、classifier、queue、completion、registration 与 `check_sdk.sh`，步骤上限 15 分钟。它使用临时 NetworkExtension 替身及独立文件锁夹具；SDK 检查编译真实 Shared/Runner 局部源码。任意失败阻断构建，macOS SDKROOT 仅作用于本步骤。完整 iOS 构建仍单独执行；这些断言不代替真实 VPN/OnDemand/设备验收。
+
 ## 10. 当前仍缺失的验收与已知缺口（不可写成 PASS）
 
 - **R14 的 V3 为用户明确延期、NOT_RUN**：A1 基线的 V0/V1、双 profile 托管构建及 iOS 开发包 V2 已有记录；C 新候选仍须单独验收。真机安装、系统 TUN/VPN、升级和运行行为不能标为 N/A 或 PASS，按 [设备执行单](device-validation.md) 补验。

@@ -198,4 +198,4 @@ node --test tool/client_release/tests/cloud_build_selector_test.mjs tool/client_
 actionlint .github/workflows/build.yaml .github/workflows/client-release.yml
 ```
 
-iOS 候选集成后可运行 `bash tool/acceptance/ios_intents/run_race.sh`、`run_authority.sh`、`run_classifier.sh`、`run_queue.sh`、`run_completion.sh`、`run_registration.sh` 和 `check_sdk.sh`（后六项均位于同一目录，须用 `bash tool/acceptance/ios_intents/<文件名>`）。替身和 SDK 局部检查不等于完整 Runner、XCTest 或真机；确认候选包含这些脚本后再执行。
+iOS C 实现已集成，可运行 `bash tool/acceptance/ios_intents/run_race.sh`、`run_authority.sh`、`run_classifier.sh`、`run_queue.sh`、`run_completion.sh`、`run_registration.sh` 和 `check_sdk.sh`（后六项均位于同一目录，须用 `bash tool/acceptance/ios_intents/<文件名>`）。替身和 SDK 局部检查不等于完整 Runner、XCTest 或真机；在 Cloud project iOS job 中也按顺序执行，CI 的成功不代替 V3。
