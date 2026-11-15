@@ -44,7 +44,6 @@ final class TunnelCoordinator {
 
   private var requestGeneration: UInt64 = 0
   private var tunnelRequest: TunnelRequest?
-  private var appStartToken: TunnelIntentAuthority.Token?
   private var tunnelWait: TunnelWait?
   private var isCoordinatorRunning = false
 
@@ -72,26 +71,29 @@ final class TunnelCoordinator {
 
   @discardableResult
   func submitTunnelRequest(target: TunnelTarget) async -> Bool {
-    await submit(target == .running ? .start : .stop)
+    await submit(target == .running ? .start : .stop) != nil
   }
 
   @discardableResult
-  func toggleTunnelRequest() async -> Bool { await submit(.toggle) }
+  func toggleTunnelRequest() async -> Bool { await submit(.toggle) != nil }
+
+  func startForFlutter() async -> String? { await submit(.start)?.id.uuidString }
 
   /// A failed start's cleanup must not replace a Widget or Shortcut intent registered after it.
-  func abandonStart() async -> StartAbandonment {
-    guard !isSafeMode(), let owned = appStartToken else { return .notOwned }
+  func abandonStart(_ startHandle: String?) async -> StartAbandonment {
+    guard !isSafeMode(), let startHandle, let id = UUID(uuidString: startHandle)
+    else { return .notOwned }
+    let owned = TunnelIntentAuthority.Token(id: id)
     for retry in 0...20 {
       do {
+        try Task.checkCancellation()
         let token = try authority.register(.stop, replacing: owned)
-        appStartToken = nil
         return accept(token, target: .stopped, checkCurrent: false) ? .stopped : .failed
       } catch TunnelIntentError.superseded {
-        if appStartToken == owned { appStartToken = nil }
         return .notOwned
       } catch TunnelIntentError.busy where retry < 20 {
-        try? await Task.sleep(nanoseconds: 50_000_000)
-        guard appStartToken == owned else { return .notOwned }
+        do { try await Task.sleep(nanoseconds: 50_000_000) }
+        catch { return .failed }
       } catch {
         return .failed
       }
@@ -99,9 +101,8 @@ final class TunnelCoordinator {
     return .failed
   }
 
-  private func submit(_ command: TunnelIntentAuthority.Command) async -> Bool {
-    appStartToken = nil
-    guard !isSafeMode() else { return false }
+  private func submit(_ command: TunnelIntentAuthority.Command) async -> TunnelIntentAuthority.Token? {
+    guard !isSafeMode() else { return nil }
     let token: TunnelIntentAuthority.Token
     let target: TunnelTarget?
     do {
@@ -113,11 +114,9 @@ final class TunnelCoordinator {
       }
     } catch {
       log("intent registration failed")
-      return false
+      return nil
     }
-    let accepted = accept(token, target: target, checkCurrent: false)
-    if accepted, command == .start { appStartToken = token }
-    return accepted
+    return accept(token, target: target, checkCurrent: false) ? token : nil
   }
 
   @discardableResult

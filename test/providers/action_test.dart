@@ -998,6 +998,7 @@ class _RaceSetupAction extends SetupAction {
     bool running, {
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     transitions.add(running);
     return running

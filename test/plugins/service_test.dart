@@ -116,7 +116,7 @@ void main() {
     test('abandonStart is a plain stop off iOS', () async {
       mockChannel((_) async => true);
 
-      expect(await Service().abandonStart(), StartAbandonment.stopped);
+      expect(await Service().abandonStart(null), StartAbandonment.stopped);
       expect(calls.map((call) => call.method), ['stop']);
     });
 
@@ -220,16 +220,72 @@ void main() {
       Service();
     });
 
+    test('an unadmitted start has no native cleanup', () async {
+      expect(await iosService.abandonStart(null), StartAbandonment.notOwned);
+      expect(calls, isEmpty);
+    });
+
+    test('the exact admission handle reaches the matching cleanup', () async {
+      const state = SharedState(
+        stopTip: '',
+        startTip: '',
+        localNetworkTip: '',
+        currentProfileName: '',
+        stopText: '',
+        onlyStatisticsProxy: false,
+      );
+      mockChannel(
+        (call) async => call.method == 'start' ? 'accepted-B' : 'stopped',
+      );
+      String? handle;
+      expect(await iosService.start(state, (value) => handle = value), isTrue);
+      expect(handle, 'accepted-B');
+      expect(await iosService.abandonStart(handle), StartAbandonment.stopped);
+      expect(calls.last.arguments, 'accepted-B');
+    });
+
+    test('a rejected reply never supplies an admission handle', () async {
+      const state = SharedState(
+        stopTip: '',
+        startTip: '',
+        localNetworkTip: '',
+        currentProfileName: '',
+        stopText: '',
+        onlyStatisticsProxy: false,
+      );
+      for (final reply in [false, null, '']) {
+        mockChannel((_) async => reply);
+        String? handle;
+        expect(
+          await iosService.start(state, (value) => handle = value),
+          isFalse,
+        );
+        expect(handle, isNull);
+      }
+    });
+
     test(
       'abandonStart reports whether the native owner still held the start',
       () async {
         final replies = <Object?>['stopped', 'notOwned', 'unknown', null];
         mockChannel((_) async => replies.removeAt(0));
 
-        expect(await iosService.abandonStart(), StartAbandonment.stopped);
-        expect(await iosService.abandonStart(), StartAbandonment.notOwned);
-        expect(await iosService.abandonStart(), StartAbandonment.failed);
-        expect(await iosService.abandonStart(), StartAbandonment.failed);
+        expect(
+          await iosService.abandonStart('owned-start'),
+          StartAbandonment.stopped,
+        );
+        expect(
+          await iosService.abandonStart('owned-start'),
+          StartAbandonment.notOwned,
+        );
+        expect(
+          await iosService.abandonStart('owned-start'),
+          StartAbandonment.failed,
+        );
+        expect(
+          await iosService.abandonStart('owned-start'),
+          StartAbandonment.failed,
+        );
         expect(calls.map((call) => call.method).toSet(), {'abandonStart'});
       },
     );
@@ -247,7 +303,9 @@ void main() {
     test(
       'starts with shared state and stops without Android revisions',
       () async {
-        mockChannel((_) async => true);
+        mockChannel(
+          (call) async => call.method == 'start' ? 'owned-start' : true,
+        );
         const state = SharedState(
           stopTip: 'stopTip',
           startTip: 'startTip',

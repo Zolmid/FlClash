@@ -153,17 +153,23 @@ class Service {
     }
   }
 
-  Future<bool> start([SharedState? state]) async {
+  Future<bool> start([
+    SharedState? state,
+    void Function(String)? onAccepted,
+  ]) async {
     _startRequested = true;
     final revision = ++_commandRevision;
     if (_isIOS && state == null) {
       throw ArgumentError.notNull('state');
     }
-    return await methodChannel.invokeMethod<bool>(
-          'start',
-          _isIOS ? json.encode(state) : revision,
-        ) ??
-        false;
+    final result = await methodChannel.invokeMethod<Object>(
+      'start',
+      _isIOS ? json.encode(state) : revision,
+    );
+    if (!_isIOS) return (result as bool?) ?? false;
+    if (result is! String || result.isEmpty) return false;
+    onAccepted?.call(result);
+    return true;
   }
 
   Future<bool> stop() async {
@@ -176,13 +182,16 @@ class Service {
         false;
   }
 
-  /// Stops the tunnel only while this app's last accepted start is still the
-  /// newest native intent; [stop] would replace a newer Widget or Shortcut one.
-  Future<StartAbandonment> abandonStart() async {
+  /// Cleanup may only replace the accepted token returned to this start attempt.
+  Future<StartAbandonment> abandonStart(String? startHandle) async {
     if (!_isIOS) {
       return await stop() ? StartAbandonment.stopped : StartAbandonment.failed;
     }
-    final outcome = await methodChannel.invokeMethod<String>('abandonStart');
+    if (startHandle == null) return StartAbandonment.notOwned;
+    final outcome = await methodChannel.invokeMethod<String>(
+      'abandonStart',
+      startHandle,
+    );
     return StartAbandonment.values.asNameMap()[outcome] ??
         StartAbandonment.failed;
   }

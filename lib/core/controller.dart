@@ -350,7 +350,15 @@ class CoreController {
   Future<bool> startListener({
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
+    if (onAccepted != null) {
+      return _interface.startListener(
+        startState: startState,
+        isCurrent: isCurrent,
+        onAccepted: onAccepted,
+      );
+    }
     if (startState == null && isCurrent == null) {
       return _interface.startListener();
     }
@@ -364,8 +372,8 @@ class CoreController {
     return _interface.stopListener();
   }
 
-  Future<StartAbandonment> abandonListenerStart() {
-    return _interface.abandonListenerStart();
+  Future<StartAbandonment> abandonListenerStart(String? startHandle) {
+    return _interface.abandonListenerStart(startHandle);
   }
 
   Future<Delay?> getDelay(String url, String proxyName) async {

@@ -80,7 +80,7 @@ final class TunnelController {
   }
 
   @discardableResult
-  func start() async -> Bool { await coordinator.submitTunnelRequest(target: .running) }
+  func start() async -> String? { await coordinator.startForFlutter() }
 
   @discardableResult
   func submitRegisteredIntent(_ token: TunnelIntentAuthority.Token) -> Bool {
@@ -95,7 +95,9 @@ final class TunnelController {
   @discardableResult
   func stop() async -> Bool { await coordinator.submitTunnelRequest(target: .stopped) }
 
-  func abandonStart() async -> StartAbandonment { await coordinator.abandonStart() }
+  func abandonStart(_ startHandle: String?) async -> StartAbandonment {
+    await coordinator.abandonStart(startHandle)
+  }
 
   @discardableResult
   func toggle() async -> Bool { await coordinator.toggleTunnelRequest() }

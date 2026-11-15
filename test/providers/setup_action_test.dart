@@ -67,6 +67,7 @@ class _SnapshotRaceSetupAction extends SetupAction {
     bool running, {
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     if (!running) return true;
     if (isCurrent?.call() == false) return false;
@@ -90,6 +91,7 @@ class _ListenerHandoffFailureSetupAction extends SetupAction {
     bool running, {
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     coreRunningCalls.add(running);
     if (running) {
@@ -107,6 +109,7 @@ class _MessageFailureSetupAction extends SetupAction {
     bool running, {
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     coreRunningCalls.add(running);
     return true;
@@ -145,6 +148,7 @@ class TestSetupAction extends SetupAction {
     bool running, {
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     coreRunningCalls.add(running);
     if (blockCoreCalls) {

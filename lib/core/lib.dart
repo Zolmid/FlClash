@@ -126,6 +126,7 @@ class CoreLib extends CoreHandlerInterface {
   Future<bool> startListener({
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     if (_listenerManagedByService) {
       var state = startState;
@@ -134,7 +135,7 @@ class CoreLib extends CoreHandlerInterface {
         state = globalState.container.read(sharedStateProvider);
       }
       if (isCurrent?.call() == false) return false;
-      return await _service?.start(state) ?? false;
+      return await _service?.start(state, onAccepted) ?? false;
     }
     if (isCurrent?.call() == false) return false;
     await super.startListener();
@@ -153,11 +154,11 @@ class CoreLib extends CoreHandlerInterface {
   }
 
   @override
-  Future<StartAbandonment> abandonListenerStart() async {
+  Future<StartAbandonment> abandonListenerStart(String? startHandle) async {
     if (!_listenerManagedByService) {
-      return super.abandonListenerStart();
+      return super.abandonListenerStart(startHandle);
     }
-    return await _service?.abandonStart() ?? StartAbandonment.failed;
+    return await _service?.abandonStart(startHandle) ?? StartAbandonment.failed;
   }
 
   @override

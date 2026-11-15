@@ -25,6 +25,8 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
   public enum Command { case start, stop, toggle }
   public struct Token: Codable, Equatable, Sendable {
     public let id: UUID
+
+    public init(id: UUID) { self.id = id }
   }
 
   private struct Record: Codable {

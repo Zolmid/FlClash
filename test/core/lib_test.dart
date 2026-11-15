@@ -48,7 +48,10 @@ class _FakeService implements Service {
   }
 
   @override
-  Future<bool> start([SharedState? state]) async {
+  Future<bool> start([
+    SharedState? state,
+    void Function(String)? onAccepted,
+  ]) async {
     calls.add('start');
     startState = state;
     return startResult;
@@ -61,7 +64,7 @@ class _FakeService implements Service {
   }
 
   @override
-  Future<StartAbandonment> abandonStart() async {
+  Future<StartAbandonment> abandonStart(String? startHandle) async {
     calls.add('abandonStart');
     return abandonResult;
   }
@@ -305,7 +308,10 @@ void main() {
       lib = CoreLib.scoped(service, listenerManagedByService: true);
       service.abandonResult = StartAbandonment.notOwned;
 
-      expect(await lib.abandonListenerStart(), StartAbandonment.notOwned);
+      expect(
+        await lib.abandonListenerStart('owned-start'),
+        StartAbandonment.notOwned,
+      );
       expect(service.calls, ['abandonStart']);
     });
 
@@ -315,11 +321,17 @@ void main() {
           const CoreMethodResponse(id: '1', result: true);
       service.calls.clear();
 
-      expect(await lib.abandonListenerStart(), StartAbandonment.stopped);
+      expect(
+        await lib.abandonListenerStart('owned-start'),
+        StartAbandonment.stopped,
+      );
       expect(service.calls, ['stop', 'invokeMethod:stopListener']);
 
       service.stopResult = false;
-      expect(await lib.abandonListenerStart(), StartAbandonment.failed);
+      expect(
+        await lib.abandonListenerStart('owned-start'),
+        StartAbandonment.failed,
+      );
     });
 
     test('a listener start is answered by the service', () async {

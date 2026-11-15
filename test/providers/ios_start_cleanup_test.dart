@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/lib.dart';
@@ -23,7 +25,6 @@ import '../helpers/test_profiles.dart';
 class _FakeRunner {
   final methods = <String>[];
   String? latestIntent;
-  String? _appStart;
   var admitsStart = true;
   var _sequence = 0;
 
@@ -33,18 +34,14 @@ class _FakeRunner {
     methods.add(call.method);
     switch (call.method) {
       case 'start':
-        _appStart = null;
         if (!admitsStart) return false;
-        latestIntent = _appStart = 'app-start-${++_sequence}';
-        return true;
+        return latestIntent = 'app-start-${++_sequence}';
       case 'stop':
-        _appStart = null;
         latestIntent = 'app-stop-${++_sequence}';
         return true;
       case 'abandonStart':
-        final owned = _appStart;
+        final owned = call.arguments as String?;
         if (owned == null || latestIntent != owned) return 'notOwned';
-        _appStart = null;
         latestIntent = 'app-stop-${++_sequence}';
         return 'stopped';
     }
@@ -54,6 +51,9 @@ class _FakeRunner {
 
 class _FailingIosSetupAction extends SetupAction {
   void Function()? afterStartAccepted;
+  bool failBeforeHandoff = false;
+  bool applySucceeds = false;
+  final preloads = <Future<void> Function()>[];
 
   @override
   bool get listenerManagedByService => true;
@@ -67,6 +67,7 @@ class _FailingIosSetupAction extends SetupAction {
     bool force = false,
     Future<void> Function()? preloadInvoke,
   }) async {
+    if (failBeforeHandoff) return false;
     ref.read(builtProfileTunProvider.notifier).value = (
       generation: Object(),
       identity: profileTunIdentity(
@@ -76,9 +77,10 @@ class _FailingIosSetupAction extends SetupAction {
       ),
       tun: const ProfileTun(),
     );
+    if (preloadInvoke != null) preloads.add(preloadInvoke);
     await preloadInvoke?.call();
     afterStartAccepted?.call();
-    return false;
+    return applySucceeds;
   }
 }
 
@@ -103,6 +105,7 @@ void main() {
   late Service service;
   late ProviderContainer container;
   late _FailingIosSetupAction action;
+  var rejectOptions = false;
 
   setUpAll(() async {
     await AppLocalizations.load(const Locale('en'));
@@ -110,6 +113,7 @@ void main() {
 
   setUp(() {
     runner = _FakeRunner();
+    rejectOptions = false;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async => runner.reply(call));
     service = Service.forTesting(isIOS: true);
@@ -125,7 +129,12 @@ void main() {
           ),
         ),
         setupActionProvider.overrideWith(() => action),
-        vpnOptionsProvider.overrideWith((_) => options),
+        vpnOptionsProvider.overrideWith((_) {
+          if (rejectOptions) {
+            throw StateError('VPN options unavailable before handoff');
+          }
+          return options;
+        }),
         sharedStateProvider.overrideWith(
           (_) => const SharedState(
             stopTip: '',
@@ -155,6 +164,100 @@ void main() {
       .timeout(const Duration(seconds: 5));
 
   group('iOS failed start cleanup', () {
+    test('B rejected resolving options never cleans up admitted A', () async {
+      action.applySucceeds = true;
+      expect(await failedAutomaticStart(), isTrue);
+      final acceptedA = runner.latestIntent;
+      runner.methods.clear();
+      rejectOptions = true;
+      container.invalidate(vpnOptionsProvider);
+      action.applySucceeds = false;
+
+      expect(await failedAutomaticStart(), isFalse);
+
+      expect(runner.latestIntent, acceptedA);
+      expect(runner.methods, isEmpty);
+    });
+
+    test(
+      'late admission reply for A is not assigned to unadmitted B',
+      () async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        addTearDown(() {
+          if (!release.isCompleted) release.complete();
+        });
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              final reply = runner.reply(call);
+              if (call.method == 'start') {
+                entered.complete();
+                await release.future;
+              }
+              return reply;
+            });
+        final first = failedAutomaticStart();
+        await entered.future.timeout(const Duration(seconds: 2));
+        final acceptedA = runner.latestIntent;
+        action.failBeforeHandoff = true;
+        final second = failedAutomaticStart();
+        release.complete();
+
+        expect(await first, isTrue);
+        expect(await second, isFalse);
+        expect(runner.latestIntent, acceptedA);
+        expect(runner.methods, ['start']);
+      },
+    );
+
+    test('a stale preload retry cannot claim the next operation', () async {
+      action.applySucceeds = true;
+      expect(await failedAutomaticStart(), isTrue);
+      final obsoletePreload = action.preloads.single;
+      expect(await failedAutomaticStart(), isTrue);
+      final acceptedB = runner.latestIntent;
+      runner.methods.clear();
+
+      await obsoletePreload();
+      action.failBeforeHandoff = true;
+      expect(await failedAutomaticStart(), isFalse);
+
+      expect(runner.latestIntent, acceptedB);
+      expect(runner.methods, isEmpty);
+    });
+
+    test(
+      'B fails before handoff without consuming completed start A',
+      () async {
+        action.applySucceeds = true;
+        expect(await failedAutomaticStart(), isTrue);
+        final acceptedA = runner.latestIntent;
+        runner.methods.clear();
+        action
+          ..applySucceeds = false
+          ..failBeforeHandoff = true;
+
+        expect(await failedAutomaticStart(), isFalse);
+
+        expect(runner.latestIntent, acceptedA);
+        expect(runner.methods, isEmpty);
+      },
+    );
+
+    test('owned admitted B failure cleans B up after completed A', () async {
+      action.applySucceeds = true;
+      expect(await failedAutomaticStart(), isTrue);
+      final acceptedA = runner.latestIntent;
+      runner.methods.clear();
+      action.applySucceeds = false;
+
+      expect(await failedAutomaticStart(), isFalse);
+
+      expect(runner.methods.first, 'start');
+      expect(runner.latestIntent, isNot(acceptedA));
+      expect(runner.latestIntent, startsWith('app-stop-'));
+    });
+
     test(
       'a start superseded before admission leaves the newer intent',
       () async {

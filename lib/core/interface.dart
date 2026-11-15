@@ -107,11 +107,12 @@ mixin CoreInterface {
   Future<bool> startListener({
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   });
 
   Future<bool> stopListener();
 
-  Future<StartAbandonment> abandonListenerStart();
+  Future<StartAbandonment> abandonListenerStart(String? startHandle);
 
   Future<List<ExternalProvider>> getExternalProviders();
 
@@ -647,6 +648,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   Future<bool> startListener({
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) async {
     if (isCurrent?.call() == false) return false;
     return await _invokeMethod<bool>(method: CoreMethod.startListener) ?? false;
@@ -658,7 +660,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
-  Future<StartAbandonment> abandonListenerStart() async {
+  Future<StartAbandonment> abandonListenerStart(String? startHandle) async {
     return await stopListener()
         ? StartAbandonment.stopped
         : StartAbandonment.failed;

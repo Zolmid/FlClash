@@ -24,12 +24,14 @@ class _RunRequest {
   final bool abandonsStart;
   bool retryProfileBuild = false;
   bool startNotOwned = false;
+  String? startHandle;
 
   _RunRequest({
     required this.running,
     required this.initialize,
     required this.previousStartTime,
     this.abandonsStart = false,
+    this.startHandle,
   });
 }
 
@@ -251,8 +253,9 @@ class SetupAction extends _$SetupAction {
         if (request.retryProfileBuild) continue;
         if (!applied) {
           await globalState.safeRun(
-            () =>
-                listenerManagedByService ? _abandonStart() : setRunning(false),
+            () => listenerManagedByService
+                ? _abandonStart(request)
+                : setRunning(false),
           );
         }
         return applied;
@@ -277,12 +280,13 @@ class SetupAction extends _$SetupAction {
 
   // setRunning(false) is a new user intent; on iOS it would replace a Widget
   // or Shortcut command accepted after this start, so only the owner stops.
-  Future<bool> _abandonStart() {
+  Future<bool> _abandonStart(_RunRequest failedRequest) {
     final request = _RunRequest(
       running: false,
       initialize: false,
       previousStartTime: _startTime,
       abandonsStart: true,
+      startHandle: failedRequest.startHandle,
     );
     _latestRunRequest = request;
     _setLocalRunning(false);
@@ -337,7 +341,7 @@ class SetupAction extends _$SetupAction {
 
   Future<bool> _setListening(bool running, {_RunRequest? request}) async {
     if (request != null && request.abandonsStart) {
-      final outcome = await abandonCoreStart();
+      final outcome = await abandonCoreStart(request.startHandle);
       if (outcome == StartAbandonment.failed) {
         throw _unanswered(CoreMethod.stopListener);
       }
@@ -393,6 +397,9 @@ class SetupAction extends _$SetupAction {
       running,
       startState: startState,
       isCurrent: startState == null ? null : isCurrent,
+      onAccepted: request == null
+          ? null
+          : (handle) => request.startHandle = handle,
     );
     if (startState != null && !isCurrent()) return superseded();
     if (listenerManagedByService && !answered) {
@@ -454,14 +461,20 @@ class SetupAction extends _$SetupAction {
     bool running, {
     SharedState? startState,
     bool Function()? isCurrent,
+    void Function(String)? onAccepted,
   }) {
     return running
-        ? _core.startListener(startState: startState, isCurrent: isCurrent)
+        ? _core.startListener(
+            startState: startState,
+            isCurrent: isCurrent,
+            onAccepted: listenerManagedByService ? onAccepted : null,
+          )
         : _core.stopListener();
   }
 
   @protected
-  Future<StartAbandonment> abandonCoreStart() => _core.abandonListenerStart();
+  Future<StartAbandonment> abandonCoreStart(String? startHandle) =>
+      _core.abandonListenerStart(startHandle);
 
   @protected
   void resetCoreTraffic() {
