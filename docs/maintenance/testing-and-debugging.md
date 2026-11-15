@@ -198,4 +198,8 @@ node --test tool/client_release/tests/cloud_build_selector_test.mjs tool/client_
 actionlint .github/workflows/build.yaml .github/workflows/client-release.yml
 ```
 
-iOS C 实现已集成，可运行 `bash tool/acceptance/ios_intents/run_race.sh`、`run_authority.sh`、`run_classifier.sh`、`run_queue.sh`、`run_completion.sh`、`run_registration.sh` 和 `check_sdk.sh`（后六项均位于同一目录，须用 `bash tool/acceptance/ios_intents/<文件名>`）。替身和 SDK 局部检查不等于完整 Runner、XCTest 或真机；在 Cloud project iOS job 中也按顺序执行，CI 的成功不代替 V3。
+iOS C 实现已集成，可运行 `bash tool/acceptance/ios_intents/run_race.sh`、`run_authority.sh`、`run_classifier.sh`、`run_queue.sh`、`run_completion.sh`、`run_registration.sh`、`run_abandon.sh` 和 `check_sdk.sh`（后七项均位于同一目录，须用 `bash tool/acceptance/ios_intents/<文件名>`）。替身和 SDK 局部检查不等于完整 Runner、XCTest 或真机；在 Cloud project iOS job 中也按顺序执行，CI 的成功不代替 V3。
+
+跨 Flutter/iOS 失败清理的定向命令是 `flutter test test/providers/ios_start_cleanup_test.dart test/providers/setup_action_test.dart test/plugins/service_test.dart test/core/lib_test.dart test/core/controller_test.dart`。Dart 用例走真实 SetupAction/Core/Service，MethodChannel 和 profile 准备是夹具；Swift 用例编译真实 coordinator/authority，NetworkExtension 是替身。两者都不冒称真实 FlutterEngine→Swift 或设备运行。
+
+修改 provider 的实现体也可能改变 Riverpod 源码哈希，不能因注解/build API 未变就跳过生成。用固定依赖执行 `dart run build_runner build --delete-conflicting-outputs`，再以 `dart run build_runner build --only-check` 核验完整生成集合；只筛一个输出的校验不代替全量一致性。纯生成时可在隔离副本临时关闭两个 native build hooks，结束必须恢复；运行测试时保留所需 Rust 资产，任何发布构建都保留正常 hooks。不要手工改生成哈希。

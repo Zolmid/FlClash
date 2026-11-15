@@ -618,7 +618,7 @@ jobs:
         run: |
           set -euo pipefail
           export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-          for check in race authority classifier queue completion registration; do
+          for check in race authority classifier queue completion registration abandon; do
             bash "tool/acceptance/ios_intents/run_${check}.sh"
           done
           bash tool/acceptance/ios_intents/check_sdk.sh

@@ -125,6 +125,8 @@ Runner、Shared 和冷启动 ServiceChannel 首次注册仅对 busy 有界重试
 
 - 源码 entitlement 与发行投影要分开：d0 的 Runner 声明自身 Keychain 组，NECore/Widget 源文件没有 Keychain 组；但 Apple 工具 pin `97f29774` 的 `source_preparation.py` 会给 Runner/NECore 投影共同的 renewal Keychain 组及 Info 配置。`ios/Shared/ClientBundleRenewalConfiguration.swift` 和 `ClientBundleKeychainStore.swift` 使用该明确 access group 保存按 session epoch 绑定的续期凭据；Widget 被配置解析器排除。共享状态快照/epoch 另用 App Group。不能从未投影源码推断发行包没有跨 Runner/NECore 续期能力，也不能把 renewal 记录与 Flutter 默认会话存储混为一项。见 [平台契约](platform-contracts.md) 第 3 节。
 
+失败清理也必须有逐操作所有权。iOS 的 accepted UUID 通过 Service/Core 的 `onAccepted` 回调写入原先捕获的 `_RunRequest.startHandle`，迟到回复不能写入最新请求。`abandonStart` 只消费失败请求自己的回执，并在 authority 同一个锁内比较/替换；未进入原生层、被拒绝或被取代的请求没有回执，不发送系统 stop。`notOwned` 只重新观察原生运行状态；真实清理失败仍报告错误。显式断开是新的用户意图，保留其优先级。不要把这项清理实现成“最后一次 App 启动”的全局变量。回执只在操作内存中传递，不是登录或续期凭据。
+
 ### 3.10 Windows 身份与 Helper 的 SCM 边界
 
 - 进程级身份：`windows/runner/main.cpp` 在 `wWinMain` 开头调用 `SetCurrentProcessExplicitAppUserModelID`，`_DEBUG` 构建写入 `com.zolmid.zolnit.debug`，否则写入 `com.zolmid.zolnit`（第 19–23 行）。这一步只影响任务栏分组与通知来源的 AUMID，不改变安装路径或数据目录。
