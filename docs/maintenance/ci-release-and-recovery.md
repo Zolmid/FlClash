@@ -251,12 +251,17 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 ### 11.2 执行顺序
 
 1. 只读预检：核对 `refs/heads/main`、目标 `v1.1.10` 不存在、`v1.1.9` 的 tag 解引用，pubspec、changelog、Core gitlink 与工具 pin 全部一致。任一不符即停止。
-2. 在授权的准确提交上创建 tag `v1.1.10` 并推送。推送是远程写入，只能按主控当次的授权执行。
+2. 确认运行时 `MACOS_SIGNING_REQUIRED=true`、签名环境允许稳定tag；Apple远端工具分支与environment pin均为97f29774、Core pin为8380d0e7。已为true的开关不重复修改；公开清单的`updates_enabled`已为true时，不按过期部署记录去切Worker开关。
+3. 在授权的准确提交上创建 tag `v1.1.10` 并推送。推送是远程写入，只能按主控当次的授权执行。
 3. `client-release.yml` 的 preflight 会核对 tag、事件、仓库 ID、workflow ref 与 pubspec 的版本和 build；失败即停止，不进入构建。
 4. 观察正式 run 的 `ci`、`builds`、`macos-sign`（条件）与 `publish`。标准 CI 复用只在六类检查实际成功时生效；被跳过或证据不完整的检查回到原检查。
 5. macOS 公证使用检查点。pending 时只用原 `pending-receipt.json` 与原字节续等，不重新签另一份同名文件。
 6. `publish` 依次完成 edge 的 session、上传、complete 与 origin-notified。`staged`，或 `published` 且 `notice_pending`，都是部分状态；只有 origin-notified 返回完全成功，才可写“渠道已可用”。
 7. 独立核实：tag 解引用、正式 run 与 attempt、每个必需 job 的实际结论、artifact 清单与摘要、manifest 和 receipt、公开清单、GitHub Release 草稿或正式状态、下载开关。
+
+正式client-release不会产生可直接安装的iOS发行包。正式发布会话已建立后，按固定工具分支分派 `apple-device-signer.yml`，`operation=archive`、`source_tag=v1.1.10`，生成并上传经source projection重建的direct归档；它不是TestFlight，不可用Cloud开发IPA假装完成该步骤。归档被边缘接受后，设备包仍由已有的按设备请求/调度链生成。仅有真实排队任务时才执行`operation=sign`，不传source_tag，每次至多一个；不为补一个PASS创建虚构设备任务。`apple-distribution.yml`涉及TestFlight，未经单独目标不使用。
+
+当前运行时下载已启用时，正常链应到published/notified并完成GitHub镜像。若实际返回staged或notice_pending，先核对当前开关/指针/会话；不要照搬旧的关闭快照去改生产配置。已有同tag/source/build/digest会话可由原publish作业恢复，不能重签换字节或移动tag。
 
 ### 11.3 幂等与恢复
 
@@ -283,6 +288,7 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 | 六类必需检查实际结论 | 主控填写 |
 | 产物与摘要 | 主控填写 |
 | edge publish 与下载状态 | 主控填写 |
+| iOS direct归档与按设备签名服务 | 主控填写；无用户请求时不伪造设备签名完成 |
 | 独立核实结论与未完成项 | 主控填写 |
 
 在该表没有实际证据前，本文不记录 1.1.10 为已发布、已签名、已公证或已可下载。
