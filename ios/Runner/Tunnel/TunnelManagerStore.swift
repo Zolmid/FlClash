@@ -30,7 +30,7 @@ private enum ManagerLoadError: LocalizedError {
 }
 
 @MainActor
-final class TunnelManagerStore {
+final class TunnelManagerStore: TunnelManagerAccess {
   private let sharedStateStore: SharedStateStore
   private let networkExtensionIdentifier: String
   private let localizedDescription: String

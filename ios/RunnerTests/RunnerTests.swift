@@ -13,6 +13,14 @@ final class RunnerTests: XCTestCase {
     for body in ["", "<html>unauthorized</html>", #"{"error":{"code":"edge_blocked"}}"#] {
       XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(Data(body.utf8)))
     }
+    let malformed = Data(#"{\"error\":{\"code\":\"unauthenticated\"}}"#.utf8)
+    XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(malformed))
+    var bounded = Data(#"{"error":{"code":"unauthenticated"}}"#.utf8)
+    bounded.append(Data(repeating: 32, count: 8 * 1024 - bounded.count))
+    XCTAssertTrue(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(bounded))
+    bounded.append(32)
+    XCTAssertNoThrow(try JSONSerialization.jsonObject(with: bounded))
+    XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(bounded))
     XCTAssertFalse(ClientBundleRenewalOwner.isAuthoritativeUnauthorized(Data(repeating: 65, count: 8 * 1024 + 1)))
   }
 
@@ -145,12 +153,20 @@ final class RunnerTests: XCTestCase {
     return installTicket
   }
 
-  func testQuickActionsKeepTheLatestIntentBeforeEngineStartup() {
-    XCTAssertEqual(QuickAction.start.folded(onto: .stop), .start)
-    XCTAssertEqual(QuickAction.stop.folded(onto: .start), .stop)
-    XCTAssertEqual(QuickAction.toggle.folded(onto: .start), .stop)
-    XCTAssertEqual(QuickAction.toggle.folded(onto: .stop), .start)
-    XCTAssertNil(QuickAction.toggle.folded(onto: .toggle))
+  func testQuickActionsKeepTheLatestIntentBeforeEngineStartup() throws {
+    let directory = try makeEventDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let queued = TunnelIntentAuthority(directory: directory)
+    let external = TunnelIntentAuthority(directory: directory)
+    let start = try queued.register(QuickAction.start.command)
+    let stop = try external.register(QuickAction.stop.command)
+    XCTAssertFalse(try queued.isCurrent(start))
+    XCTAssertFalse(try external.resolve(stop, observedRunning: false))
+    let toggle = try queued.register(QuickAction.toggle.command)
+    XCTAssertTrue(try queued.resolve(toggle, observedRunning: false))
+    let secondToggle = try external.register(QuickAction.toggle.command)
+    XCTAssertFalse(try queued.isCurrent(toggle))
+    XCTAssertFalse(try external.resolve(secondToggle, observedRunning: false))
   }
 
   @MainActor

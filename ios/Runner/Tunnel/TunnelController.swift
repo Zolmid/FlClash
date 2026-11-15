@@ -1,5 +1,6 @@
 import Foundation
 import NetworkExtension
+import Shared
 import UIKit
 import os
 
@@ -34,6 +35,8 @@ final class TunnelController {
     self.managerStore = managerStore
     coordinator = TunnelCoordinator(
       managerStore: managerStore,
+      authority: TunnelIntentAuthority(appGroup: sharedStateStore.appGroupIdentifier),
+      isSafeMode: { sharedStateStore.isSafeMode },
       onTunnelStateChanged: onTunnelStateChanged,
       onConnectionStateChanged: onConnectionStateChanged,
       onExternalStart: onExternalStart,
@@ -76,8 +79,12 @@ final class TunnelController {
     coordinator.requestStatusRefresh(notifyExternal: false)
   }
 
-  func start() {
-    coordinator.submitTunnelRequest(target: .running)
+  @discardableResult
+  func start() -> Bool { coordinator.submitTunnelRequest(target: .running) }
+
+  @discardableResult
+  func submitRegisteredIntent(_ token: TunnelIntentAuthority.Token) -> Bool {
+    coordinator.submitRegisteredIntent(token)
   }
 
   func publishConnectionState() {
@@ -85,13 +92,11 @@ final class TunnelController {
     coordinator.requestStatusRefresh(notifyExternal: false)
   }
 
-  func stop() {
-    coordinator.submitTunnelRequest(target: .stopped)
-  }
+  @discardableResult
+  func stop() -> Bool { coordinator.submitTunnelRequest(target: .stopped) }
 
-  func toggle() {
-    coordinator.toggleTunnelRequest()
-  }
+  @discardableResult
+  func toggle() -> Bool { coordinator.toggleTunnelRequest() }
 
   func reloadOnDemandRules() async throws {
     try await coordinator.reloadOnDemandRules()

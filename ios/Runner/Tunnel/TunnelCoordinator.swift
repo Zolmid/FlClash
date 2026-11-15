@@ -1,10 +1,34 @@
 import Foundation
 import NetworkExtension
+import Shared
 import os
 
 @MainActor
+private final class TunnelOperation<Value> {
+  var continuation: CheckedContinuation<Value, Error>?
+  var task: Task<Void, Never>?
+
+  init(_ continuation: CheckedContinuation<Value, Error>) { self.continuation = continuation }
+
+  func finish(_ result: Result<Value, Error>) {
+    guard let continuation else { return }
+    self.continuation = nil
+    task = nil
+    continuation.resume(with: result)
+  }
+
+  func cancel() {
+    task?.cancel()
+    finish(.failure(TunnelIntentError.superseded))
+  }
+}
+
+@MainActor
 final class TunnelCoordinator {
-  private let managerStore: TunnelManagerStore
+  private let managerStore: any TunnelManagerAccess
+  private let authority: TunnelIntentAuthority
+  private let isSafeMode: () -> Bool
+  private var intentMonitor: Task<Void, Never>?
   private let onTunnelStateChanged: (TunnelTarget) -> Void
   private let onConnectionStateChanged: (String) -> Void
   private let onExternalStart: () -> Void
@@ -28,54 +52,80 @@ final class TunnelCoordinator {
   private var statusRefreshShouldNotify = false
 
   init(
-    managerStore: TunnelManagerStore,
+    managerStore: any TunnelManagerAccess,
+    authority: TunnelIntentAuthority,
+    isSafeMode: @escaping () -> Bool,
     onTunnelStateChanged: @escaping (TunnelTarget) -> Void,
     onConnectionStateChanged: @escaping (String) -> Void,
     onExternalStart: @escaping () -> Void,
     onExternalStop: @escaping () -> Void
   ) {
     self.managerStore = managerStore
+    self.authority = authority
+    self.isSafeMode = isSafeMode
     self.onTunnelStateChanged = onTunnelStateChanged
     self.onConnectionStateChanged = onConnectionStateChanged
     self.onExternalStart = onExternalStart
     self.onExternalStop = onExternalStop
   }
 
-  func submitTunnelRequest(
-    target: TunnelTarget
-  ) {
-    if let request = tunnelRequest,
-      request.target == target
-    {
-      log("merge \(target.description) request")
-      return
+  @discardableResult
+  func submitTunnelRequest(target: TunnelTarget) -> Bool {
+    submit(target == .running ? .start : .stop)
+  }
+
+  @discardableResult
+  func toggleTunnelRequest() -> Bool { submit(.toggle) }
+
+  private func submit(_ command: TunnelIntentAuthority.Command) -> Bool {
+    guard !isSafeMode() else { return false }
+    let token: TunnelIntentAuthority.Token
+    let target: TunnelTarget?
+    do {
+      token = try authority.register(command)
+      switch command {
+      case .start: target = .running
+      case .stop: target = .stopped
+      case .toggle: target = nil
+      }
+    } catch {
+      if let request = tunnelRequest { discard(request) }
+      log("intent registration failed")
+      return false
     }
+    return accept(token, target: target)
+  }
 
+  @discardableResult
+  func submitRegisteredIntent(_ token: TunnelIntentAuthority.Token) -> Bool {
+    accept(token, target: nil)
+  }
+
+  private func accept(_ token: TunnelIntentAuthority.Token, target: TunnelTarget?) -> Bool {
+    guard !isSafeMode(), (try? authority.isCurrent(token)) == true else {
+      try? authority.finish(token)
+      return false
+    }
     requestGeneration &+= 1
-    let request = TunnelRequest(
-      generation: requestGeneration,
-      target: target
-    )
+    let request = TunnelRequest(generation: requestGeneration, token: token, target: target)
+    tunnelRequest?.cancelOperation?()
     tunnelRequest = request
-    publishConnectionState()
-    publishedTunnelState = target
+    if let target { publishedTunnelState = target }
     cancelTunnelWait()
-    log(
-      "request target=\(target.description) generation=\(request.generation)"
-    )
-
+    publishConnectionState()
+    log("request target=\(request.description) generation=\(request.generation)")
+    intentMonitor?.cancel()
+    intentMonitor = Task { [weak self, weak request] in
+      while !Task.isCancelled {
+        do { try await Task.sleep(nanoseconds: 50_000_000) } catch { return }
+        guard let self, let request, self.isCurrent(request) else { return }
+      }
+    }
     driveCoordinator()
+    return true
   }
 
-  func toggleTunnelRequest() {
-    let currentTarget = tunnelRequest?.target ??
-      observedTunnelStatus?.tunnelState ??
-      publishedTunnelState ??
-      .stopped
-    submitTunnelRequest(
-      target: currentTarget == .running ? .stopped : .running
-    )
-  }
+  var hasPendingWork: Bool { tunnelRequest != nil || tunnelWait != nil || isCoordinatorRunning }
 
   func reloadOnDemandRules() async throws {
     try await withCheckedThrowingContinuation {
@@ -183,11 +233,23 @@ final class TunnelCoordinator {
   private func reconcileTunnel(_ request: TunnelRequest) async {
     while isCurrent(request) {
       do {
+        if request.target == nil {
+          let manager = try await awaitRequestOperation(request) {
+            try await self.managerStore.loadManager(createIfNeeded: false)
+          }
+          guard isCurrent(request) else { return }
+          let running = try authority.resolve(request.token,
+            observedRunning: manager.map { NEHelper.isRunning($0.connection.status) } ?? false)
+          request.target = running ? .running : .stopped
+          publishedTunnelState = request.target
+        }
         switch request.target {
         case .running:
           try await reconcileRunningTunnel(request)
         case .stopped:
           try await reconcileStoppedTunnel(request)
+        case nil:
+          return
         }
         return
       } catch {
@@ -200,12 +262,12 @@ final class TunnelCoordinator {
         {
           request.preferenceRetryCount += 1
           log(
-            "\(request.target.description) retry preferences: \(error.localizedDescription)"
+            "\(request.description) retry preferences: \(error.localizedDescription)"
           )
           continue
         }
         log(
-          "\(request.target.description) failed: \(error.localizedDescription)"
+          "\(request.description) failed: \(error.localizedDescription)"
         )
         finishTunnelRequest(
           request,
@@ -220,7 +282,9 @@ final class TunnelCoordinator {
     _ request: TunnelRequest
   ) async throws {
     while isCurrent(request) {
-      let loadedManager = try await managerStore.loadManager()
+      let loadedManager = try await awaitRequestOperation(request) {
+        try await self.managerStore.loadManager(createIfNeeded: true)
+      }
       guard isCurrent(request) else {
         return
       }
@@ -230,6 +294,9 @@ final class TunnelCoordinator {
         return
       }
 
+      guard managerStore.isManagedConnection(manager.connection) else {
+        throw TunnelIntentError.unsafe
+      }
       let status = manager.connection.status
       recordObservedTunnelStatus(status, notifyExternal: false)
       if status.tunnelState == .running {
@@ -247,8 +314,10 @@ final class TunnelCoordinator {
       managerStore.applyNetworkExtensionOptions(to: manager, enableOnDemand: true)
       log("start save preferences")
       do {
-        try await awaitPreferenceResult { completion in
-          manager.saveToPreferences(completionHandler: completion)
+        try await awaitRequestOperation(request) {
+          try await self.awaitPreferenceResult { completion in
+            manager.saveToPreferences(completionHandler: completion)
+          }
         }
       } catch {
         guard isCurrent(request) else {
@@ -265,8 +334,10 @@ final class TunnelCoordinator {
 
       log("start reload preferences")
       do {
-        try await awaitPreferenceResult { completion in
-          manager.loadFromPreferences(completionHandler: completion)
+        try await awaitRequestOperation(request) {
+          try await self.awaitPreferenceResult { completion in
+            manager.loadFromPreferences(completionHandler: completion)
+          }
         }
       } catch {
         guard isCurrent(request) else {
@@ -295,7 +366,12 @@ final class TunnelCoordinator {
       }
 
       do {
-        try manager.connection.startVPNTunnel()
+        try authority.perform(request.token, running: true) {
+          guard !isSafeMode(), !Task.isCancelled,
+            managerStore.isManagedConnection(manager.connection)
+          else { throw TunnelIntentError.unsafe }
+          try manager.connection.startVPNTunnel()
+        }
         log("start requested")
       } catch {
         if finishRunningRequestIfSatisfied(request, manager: manager) {
@@ -353,9 +429,9 @@ final class TunnelCoordinator {
     _ request: TunnelRequest
   ) async throws {
     guard
-      let manager = try await managerStore.loadManager(
-        createIfNeeded: false
-      )
+      let manager = try await awaitRequestOperation(request, {
+        try await self.managerStore.loadManager(createIfNeeded: false)
+      })
     else {
       recordObservedTunnelStatus(.invalid, notifyExternal: false)
       finishTunnelRequest(request, actualState: .stopped)
@@ -367,14 +443,16 @@ final class TunnelCoordinator {
 
     let status = manager.connection.status
     recordObservedTunnelStatus(status, notifyExternal: false)
-    if status.tunnelState == .stopped {
-      finishTunnelRequest(request, actualState: .stopped)
-      return
-    }
-
-    if status != .disconnecting {
+    try authority.perform(request.token, running: false) {
+      guard !isSafeMode(), !Task.isCancelled,
+        managerStore.isManagedConnection(manager.connection)
+      else { throw TunnelIntentError.unsafe }
       manager.connection.stopVPNTunnel()
-      log("stop requested from Network Extension")
+    }
+    log("stop command issued to Network Extension")
+    if manager.connection.status.isTerminal {
+      finishTunnelRequest(request, actualState: manager.connection.status.tunnelState)
+      return
     }
     let result = await waitForTunnelStatus(
       manager: manager,
@@ -480,24 +558,28 @@ final class TunnelCoordinator {
       return
     }
     tunnelRequest = nil
+    intentMonitor?.cancel()
+    intentMonitor = nil
+    try? authority.finish(request.token)
     defer { publishConnectionState() }
     guard let actualState else {
       log(
-        "\(request.target.description) completed actual=unknown generation=\(request.generation)"
+        "\(request.description) completed actual=unknown generation=\(request.generation)"
       )
       return
     }
     reportTunnelState(actualState)
     publishedTunnelState = actualState
     log(
-      "\(request.target.description) completed actual=\(actualState.description) generation=\(request.generation)"
+      "\(request.description) completed actual=\(actualState.description) generation=\(request.generation)"
     )
 
     Task { @MainActor [weak self] in
       guard let self,
         self.requestGeneration == request.generation,
         self.tunnelRequest == nil,
-        self.publishedTunnelState == actualState
+        self.publishedTunnelState == actualState,
+        (try? self.authority.isLatest(request.token)) == true
       else {
         return
       }
@@ -506,7 +588,24 @@ final class TunnelCoordinator {
   }
 
   private func isCurrent(_ request: TunnelRequest) -> Bool {
-    tunnelRequest === request && requestGeneration == request.generation
+    guard tunnelRequest === request, requestGeneration == request.generation else { return false }
+    do {
+      if !isSafeMode(), !Task.isCancelled, try authority.isCurrent(request.token) { return true }
+    } catch { log("intent authority unavailable") }
+    discard(request)
+    return false
+  }
+
+  private func discard(_ request: TunnelRequest) {
+    guard tunnelRequest === request else { return }
+    tunnelRequest = nil
+    intentMonitor?.cancel()
+    intentMonitor = nil
+    try? authority.finish(request.token)
+    request.cancelOperation?()
+    request.cancelOperation = nil
+    cancelTunnelWait()
+    publishConnectionState()
   }
 
   private func performOnDemandRulesReload() async -> Error? {
@@ -575,7 +674,7 @@ final class TunnelCoordinator {
     defer { publishConnectionState() }
     if previousStatus != status {
       log(
-        "status changed \(statusDescription(previousStatus ?? .invalid)) -> \(statusDescription(status)) target=\(tunnelRequest?.target.description ?? "none")"
+        "status changed \(statusDescription(previousStatus ?? .invalid)) -> \(statusDescription(status)) target=\(tunnelRequest?.description ?? "none")"
       )
     }
 
@@ -620,6 +719,22 @@ final class TunnelCoordinator {
     case .stopped:
       log("sync stopped tunnel state")
       onExternalStop()
+    }
+  }
+
+  private func awaitRequestOperation<Value>(
+    _ request: TunnelRequest, _ operation: @escaping @MainActor () async throws -> Value
+  ) async throws -> Value {
+    guard isCurrent(request) else { throw TunnelIntentError.superseded }
+    defer { request.cancelOperation = nil }
+    return try await withCheckedThrowingContinuation { continuation in
+      let pending = TunnelOperation(continuation)
+      request.cancelOperation = { pending.cancel() }
+      pending.task = Task {
+        guard self.isCurrent(request) else { pending.cancel(); return }
+        do { pending.finish(.success(try await operation())) }
+        catch { pending.finish(.failure(error)) }
+      }
     }
   }
 

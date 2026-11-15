@@ -13,19 +13,11 @@ enum QuickAction: String {
   case stop
   case toggle
 
-  // Before the engine is up only the latest intent survives: a toggle flips a pending start or
-  // stop, and two toggles cancel out.
-  func folded(onto pending: QuickAction?) -> QuickAction? {
-    guard self == .toggle, let pending else {
-      return self
-    }
-    switch pending {
-    case .start:
-      return .stop
-    case .stop:
-      return .start
-    case .toggle:
-      return nil
+  var command: TunnelIntentAuthority.Command {
+    switch self {
+    case .start: return .start
+    case .stop: return .stop
+    case .toggle: return .toggle
     }
   }
 }
@@ -33,7 +25,8 @@ enum QuickAction: String {
 @MainActor
 final class ServiceChannel {
   private static var instance: ServiceChannel?
-  private static var pendingQuickAction: QuickAction?
+  private static var pendingQuickAction: TunnelIntentAuthority.Token?
+  private static let quickActionAuthority = TunnelIntentAuthority(appGroup: NEHelper.appGroupIdentifier)
 
   private static let packageName = "com.zolmid.zolnit"
   private let channel: FlutterMethodChannel
@@ -54,25 +47,19 @@ final class ServiceChannel {
     instance = serviceChannel
   }
 
-  static func request(_ action: QuickAction) {
-    guard let instance, instance.isInitialized else {
-      pendingQuickAction = action.folded(onto: pendingQuickAction)
-      return
-    }
-    instance.perform(action)
-  }
-
-  private func perform(_ action: QuickAction) {
-    guard !sharedStateStore.isSafeMode else {
-      return
-    }
-    switch action {
-    case .start:
-      tunnelController.start()
-    case .stop:
-      tunnelController.stop()
-    case .toggle:
-      tunnelController.toggle()
+  @discardableResult
+  static func request(_ action: QuickAction) -> Bool {
+    if let instance, instance.sharedStateStore.isSafeMode { return false }
+    do {
+      let token = try quickActionAuthority.register(action.command)
+      guard let instance, instance.isInitialized else {
+        pendingQuickAction = token
+        return true
+      }
+      return instance.tunnelController.submitRegisteredIntent(token)
+    } catch {
+      pendingQuickAction = nil
+      return false
     }
   }
 
@@ -175,21 +162,19 @@ final class ServiceChannel {
         result(false)
         return
       }
-      tunnelController.start()
-      result(true)
+      result(tunnelController.start())
     case "stop":
       guard !sharedStateStore.isSafeMode else {
         result(false)
         return
       }
-      tunnelController.stop()
-      result(true)
+      result(tunnelController.stop())
     case "init":
       sharedStateStore.setSafeMode(call.arguments as? Bool ?? false)
       isInitialized = true
-      if let action = Self.pendingQuickAction {
+      if let token = Self.pendingQuickAction {
         Self.pendingQuickAction = nil
-        perform(action)
+        tunnelController.submitRegisteredIntent(token)
       }
       tunnelController.publishConnectionState()
       coreEventRelay.drainEventQueue()

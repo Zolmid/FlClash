@@ -25,14 +25,14 @@ class SceneDelegate: FlutterSceneDelegate {
     performActionFor shortcutItem: UIApplicationShortcutItem,
     completionHandler: @escaping (Bool) -> Void
   ) {
-    handleShortcutItem(shortcutItem)
-    completionHandler(true)
+    completionHandler(handleShortcutItem(shortcutItem))
   }
 
-  private func handleShortcutItem(_ shortcutItem: UIApplicationShortcutItem) {
+  @discardableResult
+  private func handleShortcutItem(_ shortcutItem: UIApplicationShortcutItem) -> Bool {
     guard let action = QuickAction(rawValue: shortcutItem.type) else {
-      return
+      return false
     }
-    ServiceChannel.request(action)
+    return ServiceChannel.request(action)
   }
 }

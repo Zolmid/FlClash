@@ -1,5 +1,15 @@
 import Foundation
 import NetworkExtension
+import Shared
+
+@MainActor
+protocol TunnelManagerAccess {
+  func loadManager(createIfNeeded: Bool) async throws -> NETunnelProviderManager?
+  func invalidateCachedManager(forPreferenceError error: Error) -> Bool
+  func applyNetworkExtensionOptions(to manager: NETunnelProviderManager, enableOnDemand: Bool)
+  func isManagedConnection(_ connection: NEVPNConnection) -> Bool
+  func isCachedConnection(_ connection: NEVPNConnection) -> Bool
+}
 
 enum TunnelTarget {
   case running
@@ -40,14 +50,19 @@ extension NEVPNStatus {
 
 final class TunnelRequest {
   let generation: UInt64
-  let target: TunnelTarget
+  let token: TunnelIntentAuthority.Token
+  var target: TunnelTarget?
+  var description: String { target?.description ?? "toggle" }
   var preferenceRetryCount = 0
+  var cancelOperation: (() -> Void)?
 
   init(
     generation: UInt64,
-    target: TunnelTarget
+    token: TunnelIntentAuthority.Token,
+    target: TunnelTarget?
   ) {
     self.generation = generation
+    self.token = token
     self.target = target
   }
 }
