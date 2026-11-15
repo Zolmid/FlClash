@@ -1,6 +1,6 @@
 # CI、发布与恢复维护指南
 
-源码基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`，Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。标准检查复用补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。本章说明工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
+当前程序源码基线为 `a4c9577e2b9a218917b35420a26512f82e016c5c`（d0af9d83为A1历史），Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。标准检查复用补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。本章说明工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
 
 主要源码：[正式入口](../../.github/workflows/client-release.yml)、[组装器](../../tool/client_release/assemble_release.py)、[边缘发布器](../../tool/client_release/publish_release.mjs)、[镜像器](../../tool/client_release/github_release.py)、[公证恢复指南](../../tool/client_release/MACOS-DISTRIBUTION.md)。外部消费者位于总项目的 `client-release-edge/src/` 和 `ZolnitSuite/Modules/Client/`；源码合同与线上部署状态分别取证。
 
@@ -228,8 +228,8 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 
 ## 10. 当前仍缺失的验收与已知缺口（不可写成 PASS）
 
-- **R14 的 V3 由用户无限期豁免（USER_WAIVED/NOT_RUN）**：A1 基线的 V0/V1、双 profile 托管构建及 iOS 开发包 V2 已有记录；C 新候选仍须单独验收。真机安装、系统 TUN/VPN、升级和运行行为不能标为 N/A 或 PASS；豁免期间保持 NOT_RUN，若用户重新安排，按 [设备执行单](device-validation.md) 另行补验。
-- **R16/R17 当前结论**：A1 的五个托管流程和 12 份候选 artifact 已通过来源/摘要核验，main 已快进至 `d0af9d83`。这取代早期“远端候选 NOT_RUN”的记录；新正式发行须按第 11 节执行并独立核实，完成前不记为成功。公开客户端仍为 v1.1.9/`bfb49ed8`，其历史 V4 与本次 main 的 V2 分开。
+- **R14 的 V3 由用户无限期豁免（USER_WAIVED/NOT_RUN）**：A1 基线的 V0/V1、双 profile 托管构建及 iOS 开发包 V2 已有记录；C 的a4候选和主线验证已分别完成，见验证基线第0节。真机安装、系统 TUN/VPN、升级和运行行为不能标为 N/A 或 PASS；豁免期间保持 NOT_RUN，若用户重新安排，按 [设备执行单](device-validation.md) 另行补验。
+- **R16/R17 当前结论**：A1 的五个托管流程和 12 份候选 artifact 已通过来源/摘要核验，A1时main快进至 `d0af9d83`，C阶段已进一步快进a4并完成主线验证。这取代早期“远端候选 NOT_RUN”的记录；新正式发行须按第 11 节执行并独立核实，完成前不记为成功。公开客户端仍为 v1.1.9/`bfb49ed8`，其历史 V4 与本次 main 的 V2 分开。
 - **CI 精简去重**：第 3.5 节的六项正式 tag 同源观察复用已在本地候选实现并经独立复核；旧候选49657d08的标准/Cloud流程已成功，但R15发现跨层清理P2，最终修正必须绑定自己的受验SHA与run/attempt，不能复用旧绿灯。第 3.4 节的 debug/release 编译去重仍未实施，两者不能混为一项。
 - **分支级 required checks**：已确认当前 main 无保护规则（第 1 节）；但这不等于"可以安全放松其他隐含的消费者期望"，`pages.yaml` 对 build workflow 名称的依赖、`workflow_run` 触发链路仍需在改动前核对。
 - **Apple 运行条件**：已确认的非秘密 GitHub 配置见第 9 节；外部 dispatcher 的有效信任配置、当前队列和后续设备/签名资格仍需在实际执行窗口复核。不得用本地源码或过期观察替代实时条件。
