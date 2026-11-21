@@ -1,6 +1,6 @@
 # CI、发布与恢复维护指南
 
-当前程序源码基线为 `a4c9577e2b9a218917b35420a26512f82e016c5c`（d0af9d83为A1历史），Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。标准检查复用补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。本章说明工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
+程序等价源码基线为 `a4c9577e2b9a218917b35420a26512f82e016c5c`（d0af9d83为A1历史），Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。标准检查复用补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。本章说明工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
 
 主要源码：[正式入口](../../.github/workflows/client-release.yml)、[组装器](../../tool/client_release/assemble_release.py)、[边缘发布器](../../tool/client_release/publish_release.mjs)、[镜像器](../../tool/client_release/github_release.py)、[公证恢复指南](../../tool/client_release/MACOS-DISTRIBUTION.md)。外部消费者位于总项目的 `client-release-edge/src/` 和 `ZolnitSuite/Modules/Client/`；源码合同与线上部署状态分别取证。
 
@@ -229,8 +229,8 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 ## 10. 当前仍缺失的验收与已知缺口（不可写成 PASS）
 
 - **R14 的 V3 由用户无限期豁免（USER_WAIVED/NOT_RUN）**：A1 基线的 V0/V1、双 profile 托管构建及 iOS 开发包 V2 已有记录；C 的a4候选和主线验证已分别完成，见验证基线第0节。真机安装、系统 TUN/VPN、升级和运行行为不能标为 N/A 或 PASS；豁免期间保持 NOT_RUN，若用户重新安排，按 [设备执行单](device-validation.md) 另行补验。
-- **R16/R17 当前结论**：A1 的五个托管流程和 12 份候选 artifact 已通过来源/摘要核验，A1时main快进至 `d0af9d83`，C阶段已进一步快进a4并完成主线验证。这取代早期“远端候选 NOT_RUN”的记录；新正式发行须按第 11 节执行并独立核实，完成前不记为成功。公开客户端仍为 v1.1.9/`bfb49ed8`，其历史 V4 与本次 main 的 V2 分开。
-- **CI 精简去重**：第 3.5 节的六项正式 tag 同源观察复用已在本地候选实现并经独立复核；旧候选49657d08的标准/Cloud流程已成功，但R15发现跨层清理P2，最终修正必须绑定自己的受验SHA与run/attempt，不能复用旧绿灯。第 3.4 节的 debug/release 编译去重仍未实施，两者不能混为一项。
+- **R16/R17 当前结论**：A1 的五个托管流程和 12 份候选 artifact 已通过来源/摘要核验，A1时main快进至 `d0af9d83`，C阶段已进一步快进a4并完成主线验证。这取代早期“远端候选 NOT_RUN”的记录；正式 v1.1.10 已发行并核实，见第 11.5 节；v1.1.9 的历史 V4 与后续 V2 分开。
+- **CI 精简去重**：第 3.5 节的六项正式 tag 同源观察复用已实施，正式调用六类检查成功，独立 tag run 观察复用成功；旧候选49657d08的标准/Cloud流程已成功，但R15发现跨层清理P2，最终修正必须绑定自己的受验SHA与run/attempt，不能复用旧绿灯。第 3.4 节的 debug/release 编译去重仍未实施，两者不能混为一项。
 - **分支级 required checks**：已确认当前 main 无保护规则（第 1 节）；但这不等于"可以安全放松其他隐含的消费者期望"，`pages.yaml` 对 build workflow 名称的依赖、`workflow_run` 触发链路仍需在改动前核对。
 - **Apple 运行条件**：已确认的非秘密 GitHub 配置见第 9 节；外部 dispatcher 的有效信任配置、当前队列和后续设备/签名资格仍需在实际执行窗口复核。不得用本地源码或过期观察替代实时条件。
 - **client-release-edge/ZolnitSuite 的部署状态、密钥配置、实际 D1/R2 绑定**：本次只读取了源码职责和字段契约用于交叉验证，没有读取任何密钥、.env、数据库连接串或部署配置，这些运行时细节保持 UNKNOWN。
@@ -239,7 +239,7 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 
 ## 11. 1.1.10 正式发行：步骤、幂等、回退与证据边界
 
-本节描述已批准的 1.1.10 发行如何按既有链执行。它是操作合同，不是执行结果；正式 tag、run、签名、公证和渠道状态只能在主控实际完成并独立核实后，填入第 11.5 节。
+本节保留 1.1.10 的发行步骤和恢复边界，实际结果见第 11.5 节。未来发行须重新核对版本、来源和授权，不直接重放这些步骤。
 
 ### 11.1 固定输入
 
@@ -250,14 +250,14 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 
 ### 11.2 执行顺序
 
-1. 只读预检：核对 `refs/heads/main`、目标 `v1.1.10` 不存在、`v1.1.9` 的 tag 解引用，pubspec、changelog、Core gitlink 与工具 pin 全部一致。任一不符即停止。
+1. 发行前只读预检：核对 `refs/heads/main`、目标新 tag 不存在、`v1.1.9` 的 tag 解引用，pubspec、changelog、Core gitlink 与工具 pin 全部一致。任一不符即停止。
 2. 确认运行时 `MACOS_SIGNING_REQUIRED=true`、签名环境允许稳定tag；Apple远端工具分支与environment pin均为97f29774、Core pin为8380d0e7。已为true的开关不重复修改；公开清单的`updates_enabled`已为true时，不按过期部署记录去切Worker开关。
-3. 在授权的准确提交上创建 tag `v1.1.10` 并推送。推送是远程写入，只能按主控当次的授权执行。
-3. `client-release.yml` 的 preflight 会核对 tag、事件、仓库 ID、workflow ref 与 pubspec 的版本和 build；失败即停止，不进入构建。
-4. 观察正式 run 的 `ci`、`builds`、`macos-sign`（条件）与 `publish`。标准 CI 复用只在六类检查实际成功时生效；被跳过或证据不完整的检查回到原检查。
-5. macOS 公证使用检查点。pending 时只用原 `pending-receipt.json` 与原字节续等，不重新签另一份同名文件。
-6. `publish` 依次完成 edge 的 session、上传、complete 与 origin-notified。`staged`，或 `published` 且 `notice_pending`，都是部分状态；只有 origin-notified 返回完全成功，才可写“渠道已可用”。
-7. 独立核实：tag 解引用、正式 run 与 attempt、每个必需 job 的实际结论、artifact 清单与摘要、manifest 和 receipt、公开清单、GitHub Release 草稿或正式状态、下载开关。
+3. 在授权的准确提交上创建目标新 tag 并推送。推送是远程写入，只能按主控当次的授权执行。
+4. `client-release.yml` 的 preflight 会核对 tag、事件、仓库 ID、workflow ref 与 pubspec 的版本和 build；失败即停止，不进入构建。
+5. 观察正式 run 的 `ci`、`builds`、`macos-sign`（条件）与 `publish`。标准 CI 复用只在六类检查实际成功时生效；被跳过或证据不完整的检查回到原检查。
+6. macOS 公证使用检查点。pending 时只用原 `pending-receipt.json` 与原字节续等，不重新签另一份同名文件。
+7. `publish` 依次完成 edge 的 session、上传、complete 与 origin-notified。`staged`，或 `published` 且 `notice_pending`，都是部分状态；只有 origin-notified 返回完全成功，才可写“渠道已可用”。
+8. 独立核实：tag 解引用、正式 run 与 attempt、每个必需 job 的实际结论、artifact 清单与摘要、manifest 和 receipt、公开清单、GitHub Release 草稿或正式状态、下载开关。
 
 正式client-release不会产生可直接安装的iOS发行包。正式发布会话已建立后，按固定工具分支分派 `apple-device-signer.yml`，`operation=archive`、`source_tag=v1.1.10`，生成并上传经source projection重建的direct归档；它不是TestFlight，不可用Cloud开发IPA假装完成该步骤。归档被边缘接受后，设备包仍由已有的按设备请求/调度链生成。仅有真实排队任务时才执行`operation=sign`，不传source_tag，每次至多一个；不为补一个PASS创建虚构设备任务。`apple-distribution.yml`涉及TestFlight，未经单独目标不使用。
 
@@ -277,18 +277,28 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 - 已发布版本：不覆盖同版本资产。若必须撤下或降级，应发布新的版本号修复，并单独授权 edge 下载开关或 release 状态变更。
 - 用户数据与设备状态：Git revert 不能撤销数据库迁移、系统 VPN/代理/DNS 状态或已安装的应用。这些要靠原有备份与设备验收步骤处理。
 
-### 11.5 结果记录（主控执行后填写）
+### 11.5 结果记录
 
-| 项 | 结果 |
+2026-11-21 证据回读：正式 Release ID `446271347`，GitHub 发布时间 2026-11-16 02:30:44（UTC+8），latest，非草稿、非预发布。tag object `a1d8e500e56b5c08fe5487ae028ace60c2e20314` 解引用至 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`；相对程序等价源码 `a4c9577e2b9a218917b35420a26512f82e016c5c` 为七个 Markdown 文件变更。build `2026111501`，Core `8380d0e7462f061a964323e9bf3129a236fcc5d5`，Apple 工具 `97f297743718b6d46272d244ad375b5ca903f499`，SDK/Xcode 27.1。[正式发布页](https://github.com/Zolmid/FlClash/releases/tag/v1.1.10)
+
+| 项 | 实际结果 |
 |---|---|
-| 程序源码与文档 HEAD | 主控填写 |
-| tag 与解引用 SHA | 主控填写 |
-| 正式 run 与 attempt | 主控填写 |
-| macOS 签名与公证 | 主控填写 |
-| 六类必需检查实际结论 | 主控填写 |
-| 产物与摘要 | 主控填写 |
-| edge publish 与下载状态 | 主控填写 |
-| iOS direct归档与按设备签名服务 | 主控填写；无用户请求时不伪造设备签名完成 |
-| 独立核实结论与未完成项 | 主控填写 |
+| 正式执行 | [run 43744468699 attempt 1](https://github.com/Zolmid/FlClash/actions/runs/43744468699) completed/success；Dart、Plugins、Go core、Android unit tests、Rust、Windows helper test 六项在正式调用实际成功。独立 [run 43744468629](https://github.com/Zolmid/FlClash/actions/runs/43744468629) 的 delegation 成功，六项本地 job 跳过并观察复用；不据此推算节省分钟。 |
+| 平台 | Android release 证书检查通过；macOS arm64/x64 的 app 与 DMG 签名、公证和最终门禁成功。Linux 三项及 Windows 安装程序/ZIP 已构建发布；Windows 未声明正式厂商签名。iOS Cloud 为 unsigned 开发编译，不是公开安装包。 |
+| 证据包 | `client-release-evidence-17-1`，artifact ID `14174728252`，保留期至 2027-02-13；该 artifact 可能到期，不替代下表公开资产摘要。[正式 run](https://github.com/Zolmid/FlClash/actions/runs/43744468699) |
+| 渠道 | edge `state=notified`、`downloads_enabled=true`、`notice_pending=false`；公开 manifest `updates_enabled=true`。[公开清单](https://link.zolmid.com/client/releases.json) |
+| iOS direct | 独立 [archive run 43747170492 attempt 1](https://github.com/Zolmid/FlClash/actions/runs/43747170492) 生成、上传并注册 ready；145174495 字节，SHA256 `70589d3f94f40eb27579810487ad70a2526e98e35e073f91a03a441350b11cc7`。后续 sign-one [43822202227](https://github.com/Zolmid/FlClash/actions/runs/43822202227) 和 [44311590918](https://github.com/Zolmid/FlClash/actions/runs/44311590918) 各为 ready；历史请求 [43821546682](https://github.com/Zolmid/FlClash/actions/runs/43821546682)、[44310663938](https://github.com/Zolmid/FlClash/actions/runs/44310663938) 报 `registered_device_mismatch`。这些记录不证明同一设备重试或安装。 |
+| 设备验收 | V3 用户无限期豁免，USER_WAIVED/NOT_RUN，改由用户实际使用验证；不等于设备、系统网络或支付通过。 |
 
-在该表没有实际证据前，本文不记录 1.1.10 为已发布、已签名、已公证或已可下载。
+2026-11-21 独立审计实际下载 GitHub 和公开下载端各八项，大小及 SHA256 均与清单一致；下表文件名均以 `ZolNit-1.1.10-` 为前缀。公开资产名称不含 build，build 来自正式 receipt，非对公开文件内部重新核对。[GitHub Release](https://github.com/Zolmid/FlClash/releases/tag/v1.1.10)
+
+| 文件后缀 | 字节 | SHA256 |
+|---|---:|---|
+| `android-arm64-v8a.apk` | 74138929 | `21494a496273ad77dcc1f4e0001e808e49b85d9fe168fe70fe34e43e596512ad` |
+| `linux-x64.AppImage` | 54393336 | `2d5b222616018707f6f293a422832fe05e6c9c2c4649fb31ccb7ebba95d63bde` |
+| `linux-x64.deb` | 47515610 | `b1d7df38d746b3360d759a178ab85962b551b0ec4ba268f4f44e587a8526fc11` |
+| `linux-x64.zip` | 59820320 | `fb71245763c922267cad4c3ec146dd2b9a0e1285da31607b967db3ad6d30bc8a` |
+| `macos-arm64.dmg` | 63174670 | `8475483caf5b0e44e8075141988479b287da3ea2eb9614467f52d5eb7b18170a` |
+| `macos-x64.dmg` | 67227827 | `ddcd964a0291d25f59cd8baf960adab935ecc79d734eda3c30cd36c934b0a605` |
+| `windows-x64-setup.exe` | 42894542 | `8da1779a35d89e36e4cf898e7b90d7aeaf7c18f5f447274ec83e223a78fb6754` |
+| `windows-x64.zip` | 64092864 | `f534854f5afdadec07630dd21bf81539d114a7c316f69947832af0f1cecc44f4` |

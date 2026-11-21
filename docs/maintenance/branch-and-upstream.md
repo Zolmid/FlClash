@@ -34,7 +34,7 @@ git -C "$REPO" rev-parse HEAD
 git -C "$REPO" for-each-ref --format='%(refname) %(objectname)' refs/heads refs/archive
 ```
 
-`main` 指向开发源码不代表公开 App 已更新。当前公开 1.1.9 的 tag 仍解引用到 `bfb49ed8a41a9b531a64783f9407959085e4444e`；GitHub Release 的 `target_commitish` 不是选择基线的依据。
+`main` 指向开发源码不代表公开 App 已更新。正式 v1.1.10 的 tag 解引用到 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`；历史 v1.1.9 指向 `bfb49ed8a41a9b531a64783f9407959085e4444e`；GitHub Release 的 `target_commitish` 不是选择基线的依据。
 
 ## 2. 图上独有工作的实际去向
 

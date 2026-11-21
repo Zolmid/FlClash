@@ -1,6 +1,6 @@
 # ZolNit 客户端开发指南
 
-本文说明如何在任一干净检出中搭建、修改、检查和提交 ZolNit 客户端。所有命令都使用当前检出的路径，不依赖某台机器的绝对路径。写作基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`（main）与产品基线 `bfb49ed8a41a9b531a64783f9407959085e4444e`（1.1.9）。“源码确认”指当前文件可见的值；“控制台观察”指 [验证基线](verification-baseline.md) 记录的本机版本；“未核对”指本次没有证据。
+本文说明如何在任一干净检出中搭建、修改、检查和提交 ZolNit 客户端。所有命令都使用当前检出的路径，不依赖某台机器的绝对路径。原写作基线为 `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6`；正式 1.1.10 来源为 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`，历史 1.1.9 为 `bfb49ed8a41a9b531a64783f9407959085e4444e`。“源码确认”指当前文件可见的值；“控制台观察”指 [验证基线](verification-baseline.md) 记录的本机版本；“未核对”指本次没有证据。
 
 相关入口：[AGENTS.md](../../AGENTS.md)、[.agents/commands.md](../../.agents/commands.md)、[.agents/rules.md](../../.agents/rules.md)、[.agents/project.md](../../.agents/project.md)。架构见 [architecture.md](architecture.md)，平台身份见 [platform-contracts.md](platform-contracts.md)，诊断见 [testing-and-debugging.md](testing-and-debugging.md)。
 
