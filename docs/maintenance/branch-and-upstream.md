@@ -1,12 +1,12 @@
 # 分支、归档与上游维护
 
-业务源码当前 main 为 `a4c9577e2b9a218917b35420a26512f82e016c5c`（2026-11-16 核对）。以下分支快照观察于 2026-11-15；使用前重新解析实际 ref。图上独有提交、补丁等价、当前行为和外部消费者是四种不同证据。
+重构完成时，`main` 快进至 `a4c9577e2b9a218917b35420a26512f82e016c5c`。其后的正式标签 `v1.1.10` 指向 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`。下表保留 2026-11-15 的分支快照，用于追溯和恢复。新任务开始时请解析当时的远端引用。图上独有提交、补丁等价、当前行为和外部消费者是四种不同证据。
 
 ## 1. 远端分支和 PR
 
 | 分支 | 完整 SHA | 维护角色 |
 |---|---|---|
-| `main` | `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6` | 当前开发主线；A1 正常快进，无强推 |
+| `main` | `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6` | A1 完成时的主线提交 |
 | `codex/refactor-local-20261115` | `d0af9d83c4f37199caceb436b3c3ae66cdb36cd6` | A1 受验候选，保存来源 |
 | `codex/apple-distribution-prep` | `97f297743718b6d46272d244ad375b5ca903f499` | 仍被 environment、dispatcher 和 tools pin 使用，保留独立 |
 | `codex/ci-node24` | `c8b881218775138a3d37c9ced97aab16b01e6d3c` | Node actions 更新的历史分支，见下文差异 |

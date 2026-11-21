@@ -2,7 +2,7 @@
 
 本手册面向接手 ZolNit 的开发、测试、发布和运维人员。它说明如何从准确源码开始工作、沿既有状态所有者修改功能、选择验证层级，以及在失败时恢复。它不代替仓库的 [AGENTS.md](../../AGENTS.md) 和 [.agents/rules.md](../../.agents/rules.md)。
 
-业务程序等价基线为 **a4c9577e2b9a218917b35420a26512f82e016c5c**；正式 tag 源码为 **09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed**，其后七个 Markdown 变更不改变程序。该源码的 main 标准 CI、main Cloud 及同源产品候选六类产物的实际结果见 [已验证基线](verification-baseline.md)。开发维护手册所在的纯文档提交与应用源码分开记录；文档提交不改变程序、依赖、Core 或构建输入。
+**v1.1.10** 的标签指向 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`。从已验收的程序提交 `a4c9577e2b9a218917b35420a26512f82e016c5c` 到该标签，仅更新了七个 Markdown 文件。该源码的 main 标准 CI、main Cloud 及同源产品候选六类产物的实际结果见 [已验证基线](verification-baseline.md)。开发维护手册所在的纯文档提交与应用源码分开记录；文档提交不改变程序、依赖、Core 或构建输入。
 
 公开正式版为 **1.1.10+2026111501**；GitHub Release 与公开下载均已核验，V3 仍为用户无限期豁免的 NOT_RUN。发布步骤、幂等与回退边界见 [CI、发布与恢复](ci-release-and-recovery.md) 第 11 节。
 

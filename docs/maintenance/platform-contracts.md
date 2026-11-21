@@ -103,8 +103,8 @@ ZolNit 的原生视图组件已经存在，但当前 `ZolnitHomePage` 生产路�
 
 - 网站清单：[app_update.dart](../../lib/common/app_update.dart) 的 `parseWebsiteReleases` 要求 `schema_version == 1`、`app_id == 'com.zolmid.zolnit'`、`updates_enabled` 为布尔值，并拒绝未知顶层字段。最多接受 30 个版本。
 - GitHub 发布：`ReleaseManifest.fromGitHubRelease` 只接受带 `sha256:` 摘要的资产。
-- 公开清单的当前观察值（控制台 [验证基线](verification-baseline.md)）：`app_id` 为 `com.zolmid.zolnit`，`updates_enabled` 为真，唯一列出的版本为 1.1.9，8 个资产。
-- 安装身份：Android 安装前需要 `REQUEST_INSTALL_PACKAGES`；其他平台的安装身份检查未在本次核对。
+- 2026-11-21 回读到的公开清单包含 `v1.1.10` 的 8 个文件，`app_id=com.zolmid.zolnit`，`updates_enabled=true`。应用内网站更新使用该清单，iOS 按设备签名另有归档。见[正式发行记录](ci-release-and-recovery.md#115-结果记录)。
+- Android 安装前需要 `REQUEST_INSTALL_PACKAGES`。本次公开 APK 的 v2 签名和包名已核验，两个 macOS DMG 均通过 Developer ID、公证票据与 Gatekeeper 校验。
 
 ## 10. 升级兼容
 

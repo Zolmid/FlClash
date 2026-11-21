@@ -279,18 +279,18 @@ Cloud iOS 的 `project` 路径在选择 Xcode 后串行执行 `tool/acceptance/i
 
 ### 11.5 结果记录
 
-2026-11-21 证据回读：正式 Release ID `446271347`，GitHub 发布时间 2026-11-16 02:30:44（UTC+8），latest，非草稿、非预发布。tag object `a1d8e500e56b5c08fe5487ae028ace60c2e20314` 解引用至 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`；相对程序等价源码 `a4c9577e2b9a218917b35420a26512f82e016c5c` 为七个 Markdown 文件变更。build `2026111501`，Core `8380d0e7462f061a964323e9bf3129a236fcc5d5`，Apple 工具 `97f297743718b6d46272d244ad375b5ca903f499`，SDK/Xcode 27.1。[正式发布页](https://github.com/Zolmid/FlClash/releases/tag/v1.1.10)
+2026-11-21 证据回读：正式 Release ID `446271347`，GitHub 发布时间 2026-11-16 02:30:44（UTC+8），latest，非草稿、非预发布。tag object `a1d8e500e56b5c08fe5487ae028ace60c2e20314` 解引用至 `09de8037c81bc25e40ff4b0dea00c5ad5b23b4ed`；相对程序等价源码 `a4c9577e2b9a218917b35420a26512f82e016c5c` 为七个 Markdown 文件变更。build `2026111501`，Core `8380d0e7462f061a964323e9bf3129a236fcc5d5`，Apple 工具 `97f297743718b6d46272d244ad375b5ca903f499`，Xcode 27.1，iPhoneOS SDK 27.1。[正式发布页](https://github.com/Zolmid/FlClash/releases/tag/v1.1.10)
 
 | 项 | 实际结果 |
 |---|---|
-| 正式执行 | [run 43744468699 attempt 1](https://github.com/Zolmid/FlClash/actions/runs/43744468699) completed/success；Dart、Plugins、Go core、Android unit tests、Rust、Windows helper test 六项在正式调用实际成功。独立 [run 43744468629](https://github.com/Zolmid/FlClash/actions/runs/43744468629) 的 delegation 成功，六项本地 job 跳过并观察复用；不据此推算节省分钟。 |
-| 平台 | Android release 证书检查通过；macOS arm64/x64 的 app 与 DMG 签名、公证和最终门禁成功。Linux 三项及 Windows 安装程序/ZIP 已构建发布；Windows 未声明正式厂商签名。iOS Cloud 为 unsigned 开发编译，不是公开安装包。 |
+| 正式执行 | 第 1 次运行通过 Dart、Plugins、Go core、Android unit tests、Rust 和 Windows helper test。独立标签作业确认 `completed_standard_checks`，复用了正式运行的六项结果。[正式运行](https://github.com/Zolmid/FlClash/actions/runs/43744468699) · [标签作业日志](https://github.com/Zolmid/FlClash/actions/runs/43744468629/job/132904607593) |
+| 平台 | 公开 APK 的包名是 `com.zolmid.zolnit`，版本为 `1.1.10`，`versionCode=2026111501`，v2 签名证书与发行 pin 匹配。macOS arm64、x64 的应用和 DMG 均通过签名与公证。两份公开 DMG 分别通过 `codesign --verify --strict`、`stapler validate` 和 Gatekeeper 的 `Notarized Developer ID` 评估。Linux 三件和 Windows 两件的验证范围为来源、大小与摘要。 |
 | 证据包 | `client-release-evidence-17-1`，artifact ID `14174728252`，保留期至 2027-02-13；该 artifact 可能到期，不替代下表公开资产摘要。[正式 run](https://github.com/Zolmid/FlClash/actions/runs/43744468699) |
-| 渠道 | edge `state=notified`、`downloads_enabled=true`、`notice_pending=false`；公开 manifest `updates_enabled=true`。[公开清单](https://link.zolmid.com/client/releases.json) |
-| iOS direct | 独立 [archive run 43747170492 attempt 1](https://github.com/Zolmid/FlClash/actions/runs/43747170492) 生成、上传并注册 ready；145174495 字节，SHA256 `70589d3f94f40eb27579810487ad70a2526e98e35e073f91a03a441350b11cc7`。后续 sign-one [43822202227](https://github.com/Zolmid/FlClash/actions/runs/43822202227) 和 [44311590918](https://github.com/Zolmid/FlClash/actions/runs/44311590918) 各为 ready；历史请求 [43821546682](https://github.com/Zolmid/FlClash/actions/runs/43821546682)、[44310663938](https://github.com/Zolmid/FlClash/actions/runs/44310663938) 报 `registered_device_mismatch`。这些记录不证明同一设备重试或安装。 |
+| 渠道 | 边缘回执为 `notified`，下载开启。2026-11-21 源站回读到 1 条发布、1 条更新通知、1 条对应实时消息，待发数为 0。源站登记的清单 SHA-256 与公开响应一致，均为 `869faae12be6fa4e86412308d1e55241cc19f2ecc5a36ce489bb2babc0e6e3cc`。[公开清单](https://link.zolmid.com/client/releases.json) |
+| iOS direct | 独立 [archive run 43747170492 attempt 1](https://github.com/Zolmid/FlClash/actions/runs/43747170492) 生成、上传并注册 ready；145174495 字节，SHA256 `70589d3f94f40eb27579810487ad70a2526e98e35e073f91a03a441350b11cc7`。后续 sign-one [43822202227](https://github.com/Zolmid/FlClash/actions/runs/43822202227) 和 [44311590918](https://github.com/Zolmid/FlClash/actions/runs/44311590918) 各为 ready；历史请求 [43821546682](https://github.com/Zolmid/FlClash/actions/runs/43821546682)、[44310663938](https://github.com/Zolmid/FlClash/actions/runs/44310663938) 报 `registered_device_mismatch`。11 月 21 日 20:36（UTC+8）源站汇总显示，该版本有 2 份与登记摘要相符且有效的 `ready` 设备包，排队、租约中和当前失败数均为 0。设备安装情况由用户实际使用反馈。 |
 | 设备验收 | V3 用户无限期豁免，USER_WAIVED/NOT_RUN，改由用户实际使用验证；不等于设备、系统网络或支付通过。 |
 
-2026-11-21 独立审计实际下载 GitHub 和公开下载端各八项，大小及 SHA256 均与清单一致；下表文件名均以 `ZolNit-1.1.10-` 为前缀。公开资产名称不含 build，build 来自正式 receipt，非对公开文件内部重新核对。[GitHub Release](https://github.com/Zolmid/FlClash/releases/tag/v1.1.10)
+2026-11-21 独立审计实际下载 GitHub 和公开下载端各八项，大小及 SHA256 均与清单一致；下表文件名均以 `ZolNit-1.1.10-` 为前缀。构建号来自正式回执，公开 APK 内部的 `versionCode` 也独立核对为 `2026111501`。[GitHub Release](https://github.com/Zolmid/FlClash/releases/tag/v1.1.10)
 
 | 文件后缀 | 字节 | SHA256 |
 |---|---:|---|
