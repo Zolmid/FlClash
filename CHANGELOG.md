@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.11 (2026-11-22)
+
+**Features**
+
+- **network** Connect to ZolNit services and nodes using encrypted DNS and direct IP dialing while preserving connection security and ordinary traffic routing. (49daa93)
+
 ## v1.1.10 (2026-11-15)
 
 **Bug Fixes**

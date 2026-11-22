@@ -2,6 +2,24 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.11",
+      "tag": "v1.1.11",
+      "date": "2026-11-22",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "49daa93",
+              "scope": "network",
+              "text": "Connect to ZolNit services and nodes using encrypted DNS and direct IP dialing while preserving connection security and ordinary traffic routing."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.10",
       "tag": "v1.1.10",
       "date": "2026-11-15",
