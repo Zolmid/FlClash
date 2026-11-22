@@ -102,3 +102,18 @@ SDK 日志、ISP、测速、保活被关闭或收紧。loopback 只向 raw 层�
 后台/Core/NE 仍使用先前 strict HTTPS JSON / bootstrap，不经移动 SDK；须单独验收。
 浏览器、受管 WebView、OTA 仍是 OS 管理 DNS 的例外。ECH 是独立 lane，不由 A/AAAA SDK
 或本文件代表通过。当前 formal preflight 继续失败为 `MOBILE_DNS_SDK_PRODUCTION_BLOCKED`。
+
+## 本轮本地终态证据
+
+SDK/IPv6 接线提交 `d0b4586a`，必要 fixture 更新 `ca7e3fd2`。
+Android 官方 AAR 在 API 36 隔离 AVD 上无预热、并行显式 A/AAAA 实测通过，含鉴权/域名/
+LocalDNS/凭据落盘检查；Release Kotlin 编译和制品 hash 任务通过。
+iOS 按固定 Cargo/Go/Rustup 环境完成真实 Release 免签 App，以及固定 signer 原序列的
+config-only、`cd ios && pod install`、`xcodebuild archive`，归档结果 `ARCHIVE SUCCEEDED`。
+App 为 `1.1.11+2026112201`、arm64，含 DNSResolver/桥接、NECore 与 Widget 两个扩展。
+本轮生成的 ios/Pods 源树已移除，保留可复现 Podspec/锁文件；无 vendor binary 入库。
+Flutter 定向 95 项及固定 signer define 回归通过；Python 88 项（2 项条件跳过）、
+Node 32 项、Android 24 项及 Go IPv6 bootstrap 定向测试通过。
+iOS 真机 SDK 往返、后台/到期恢复、IPv6-only/VPN、SDK 包级外发与完整候选验收仍由主控
+完成后统一解除 formal gate。GitHub Actions 的 fork usage 暂停不是代码验收通过。
+ECH 文件及交回的 core/owned_dns.go 不属于本轮 SDK 后续写入范围。
