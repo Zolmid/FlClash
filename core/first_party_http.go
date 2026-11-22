@@ -137,6 +137,9 @@ func (s *firstPartyHTTPService) send(params FirstPartyHTTPParams) (result *First
 			return dialOwnedAddresses(ctx, network, port, ips)
 		})
 	}
+	if activeOwnedDNS.Load() != nil || params.Addresses != nil {
+		enableFirstPartyECH(transport)
+	}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse

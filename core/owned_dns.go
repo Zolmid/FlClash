@@ -164,6 +164,8 @@ func (r *ownedDNSResolver) relay(ctx context.Context, host string) (ownedDNSAnsw
 	if !strings.HasPrefix(r.config.Authorization, "Bearer ") {
 		return answer, errors.New("owned DNS unauthenticated")
 	}
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
 	ips, err := r.lookup(ctx, "link.zolmid.com")
 	if err != nil {
 		return answer, err
@@ -175,8 +177,9 @@ func (r *ownedDNSResolver) relay(ctx context.Context, host string) (ownedDNSAnsw
 		}
 		return dialOwnedAddresses(ctx, network, port, ips)
 	}, TLSHandshakeTimeout: 5 * time.Second}
+	enableFirstPartyECH(transport)
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	req, _ := http.NewRequestWithContext(ctx, "GET", r.config.Relay+"?host="+url.QueryEscape(host), nil)
 	req.Header.Set("Authorization", r.config.Authorization)
 	req.Header.Set("Accept", "application/json")
