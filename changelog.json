@@ -11,9 +11,14 @@
           "type": "feat",
           "entries": [
             {
+              "id": "a1859ba",
+              "scope": "network",
+              "text": "Encrypt the handshake hostname on supported ZolNit HTTPS connections."
+            },
+            {
               "id": "49daa93",
               "scope": "network",
-              "text": "Connect to ZolNit services and nodes using encrypted DNS and direct IP dialing while preserving connection security and ordinary traffic routing."
+              "text": "Use encrypted DNS and direct IP connections to ZolNit services and nodes. Android and iOS use the official HTTPDNS SDK."
             }
           ]
         }

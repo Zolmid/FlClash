@@ -4,7 +4,8 @@
 
 **Features**
 
-- **network** Connect to ZolNit services and nodes using encrypted DNS and direct IP dialing while preserving connection security and ordinary traffic routing. (49daa93)
+- **network** Encrypt the handshake hostname on supported ZolNit HTTPS connections. (a1859ba)
+- **network** Use encrypted DNS and direct IP connections to ZolNit services and nodes. Android and iOS use the official HTTPDNS SDK. (49daa93)
 
 ## v1.1.10 (2026-11-15)
 
