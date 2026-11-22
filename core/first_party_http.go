@@ -153,7 +153,7 @@ func (s *firstPartyHTTPService) send(params FirstPartyHTTPParams) (result *First
 		return nil, firstPartyHTTPError("response_too_large")
 	}
 	payload, readErr := io.ReadAll(io.LimitReader(response.Body, firstPartyHTTPMaxResponse+1))
-	if readErr != nil {
+	if readErr != nil || ctx.Err() != nil {
 		return nil, firstPartyHTTPNetworkError(ctx, readErr)
 	}
 	if len(payload) > firstPartyHTTPMaxResponse {
