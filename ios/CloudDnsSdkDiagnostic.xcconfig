@@ -1,0 +1,4 @@
+// Pass only to an explicitly authorized Debug build; artifacts live outside the repository.
+GCC_PREPROCESSOR_DEFINITIONS[config=Debug][sdk=iphoneos*] = $(inherited) ZOLNIT_CLOUD_DNS_SDK_DIAGNOSTIC=1
+FRAMEWORK_SEARCH_PATHS[config=Debug][sdk=iphoneos*] = $(inherited) "$(ZOLNIT_CLOUD_DNS_SDK_DIR)"
+OTHER_LDFLAGS[config=Debug][sdk=iphoneos*] = $(inherited) -ObjC -lc++ -lresolv -framework "pdns-sdk-ios" -framework SystemConfiguration -framework CoreTelephony

@@ -5,6 +5,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val cloudDnsDiagnostic = providers.gradleProperty("zolnitCloudDnsSdk").orNull == "true"
+
 val zolnitKeystorePath = System.getenv("ZOLNIT_ANDROID_KEYSTORE_PATH")
 val zolnitKeystorePassword = System.getenv("ZOLNIT_ANDROID_KEYSTORE_PASSWORD")
 val zolnitKeyAlias = System.getenv("ZOLNIT_ANDROID_KEY_ALIAS")
@@ -17,6 +19,7 @@ val hasZolnitSigning = run {
 
 android {
     namespace = "com.zolmid.zolnit"
+    buildFeatures { buildConfig = true }
     compileSdk = libs.versions.compileSdk.get().toInt()
     ndkVersion = libs.versions.ndkVersion.get()
 
@@ -54,11 +57,15 @@ android {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            buildConfigField("boolean", "CLOUD_DNS_DIAGNOSTIC", cloudDnsDiagnostic.toString())
         }
+
+        getByName("profile") { buildConfigField("boolean", "CLOUD_DNS_DIAGNOSTIC", "false") }
 
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "CLOUD_DNS_DIAGNOSTIC", "false")
             if (hasZolnitSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -72,6 +79,9 @@ android {
 
     sourceSets {
         // Unit tests live under android/tests/ instead of each module's src/test.
+        getByName("debug").java.srcDir(if (cloudDnsDiagnostic) "src/cloudDnsDiagnostic/kotlin" else "src/cloudDnsDisabled/kotlin")
+        getByName("profile").java.srcDir("src/cloudDnsDisabled/kotlin")
+        getByName("release").java.srcDir("src/cloudDnsDisabled/kotlin")
         getByName("test").java.setSrcDirs(listOf("../tests/app"))
     }
 }
@@ -104,7 +114,14 @@ flutter {
     source = "../.."
 }
 
+if (cloudDnsDiagnostic) {
+    repositories { maven("https://maven.aliyun.com/repository/public/") { content { includeGroup("com.alibaba.pdns") } } }
+}
+
 dependencies {
+    if (cloudDnsDiagnostic) {
+        add("debugImplementation", "com.alibaba.pdns:alidns-android-sdk:2.3.3") { isTransitive = false }
+    }
     implementation(project(":service"))
     implementation(project(":flutter_secure_storage"))
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

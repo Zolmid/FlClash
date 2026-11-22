@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:zolnit_client/zolnit_client.dart' show ownedDnsBinding;
+
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting, compute;
@@ -26,8 +28,12 @@ class AppUpdateClient {
     if (dio == null) {
       _dio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () =>
-            _StrictHttpOverrides().createHttpClient(null)
+            (ownedDnsBinding?.resolver.createHttpClient() ??
+                  _StrictHttpOverrides().createHttpClient(null))
               ..findProxy = (uri) {
+                if (ownedDnsBinding?.resolver.owns(uri.host) == true) {
+                  return 'DIRECT';
+                }
                 final read = _read;
                 return read == null
                     ? 'DIRECT'

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'api.dart';
+import 'owned_dns.dart';
 
 typedef RealtimeJson = Map<String, dynamic>;
 
@@ -98,11 +99,15 @@ typedef ZolnitRealtimeConnect =
 
 // The SDK WebSocket upgrader only uses openUrl on its supplied client. Never
 // forward a single-use credential across a redirect (including to a subdomain).
+Uri zolnitRealtimeUpgradeUri(Uri uri) =>
+    uri.scheme == 'https' && uri.port == 0 ? uri.replace(port: 443) : uri;
+
 final class _UpgradeClient implements HttpClient {
-  final inner = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+  final inner = (ownedDnsBinding?.resolver.createHttpClient() ?? HttpClient())
+    ..connectionTimeout = const Duration(seconds: 8);
   @override
   Future<HttpClientRequest> openUrl(String method, Uri uri) async {
-    final req = await inner.openUrl(method, uri);
+    final req = await inner.openUrl(method, zolnitRealtimeUpgradeUri(uri));
     req.followRedirects = false;
     return req;
   }

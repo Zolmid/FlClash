@@ -40,6 +40,12 @@ MAX_NOTES_BYTES = 32768
 NOTES_BEGIN = '<!-- flclash:changelog:begin -->'
 NOTES_END = '<!-- flclash:changelog:end -->'
 NOTES_FILE = 'release-notes.md'
+MOBILE_DNS_SDK_BLOCKER = (
+    'MOBILE_DNS_SDK_PRODUCTION_BLOCKED: verified FusionDNS adapters do not yet have '
+    'an accepted IP-SAN endpoint, short-lived owned-host grant/refresh contract and '
+    'cross-platform TLS/expiry acceptance. Relay is not SDK acceptance. '
+    'See docs/httpdns-release.md.'
+)
 CHUNK = 1024 * 1024
 
 TARGETS = (
@@ -117,6 +123,17 @@ def check_changelog(path, tag):
     require(len(entries) == 1, f'changelog.json has no single entry for {tag}; run '
             f'"dart run tool/changelog.dart release --version {tag[1:]}" and commit it before tagging')
     require(entries[0].get('prerelease') is False, f'{tag} is recorded as a prerelease')
+
+
+def check_owned_dns_release(root):
+    source = (Path(root) / 'packages/zolnit_client/lib/src/owned_dns_config.dart').read_text(encoding='utf-8')
+    match = re.fullmatch(r"const zolnitReleaseOwnedDns\s*=\s*r'([^'\n]+)';\n?", source)
+    require(match, 'release owned DNS define is not canonical')
+    require(json.loads(match.group(1)) == {
+        'strict': True, 'relay': 'https://link.zolmid.com/api/v1/zolnit/client/httpdns',
+        'hosts': ['link.zolmid.com'],
+    }, 'release owned DNS is not strict/scoped')
+    raise ReleaseError(MOBILE_DNS_SDK_BLOCKER)
 
 
 class GitHub:
@@ -228,6 +245,7 @@ def check_provenance(text, context, platform, arch):
     else:
         expected.update(target=f'{platform}-{arch}', client_safe_preview='false', distribution_channel='direct',
                         client_build_env='stable', client_defines='APP_ENV=stable;ZOLNIT_DISTRIBUTION=direct')
+    expected['owned_dns'] = 'strict-v1'
     for key, value in expected.items():
         require(fields.get(key) == value, f'{platform}-{arch} provenance {key}={fields.get(key)!r}, expected {value!r}')
     core = [item for item in submodules if item[2] == 'core/Clash.Meta']
@@ -438,6 +456,7 @@ def main(argv=None, env=None, github=None):
         context = Context(env, args.root)
         if args.command == 'preflight':
             check_changelog(Path(args.root) / 'changelog.json', context.tag)
+            check_owned_dns_release(args.root)
             require(github.tag_commit(context.tag) == context.sha, f'{context.tag} no longer points at {context.sha}')
             result = {'tag': context.tag, 'version': context.version, 'build': context.build}
             if env.get('GITHUB_OUTPUT'):

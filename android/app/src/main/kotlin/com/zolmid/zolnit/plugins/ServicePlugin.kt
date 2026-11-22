@@ -1,5 +1,8 @@
 package com.zolmid.zolnit.plugins
 
+import com.zolmid.zolnit.BuildConfig
+import com.zolmid.zolnit.network.OwnedDnsSdkBridge
+import com.zolmid.zolnit.network.officialCloudDnsSdkBackend
 import com.zolmid.zolnit.common.GlobalState
 import com.zolmid.zolnit.renewal.AndroidClientBundleRenewal
 import com.zolmid.zolnit.renewal.SignedDevice
@@ -27,6 +30,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var coreChannel: MethodChannel
     private lateinit var scope: CoroutineScope
+    private lateinit var ownedDnsSdk: OwnedDnsSdkBridge
     private lateinit var firstPartyHttp: FirstPartyHttpTransport
     private val httpResults = Handler(Looper.getMainLooper())
     private val gson = Gson()
@@ -34,6 +38,8 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        ownedDnsSdk = OwnedDnsSdkBridge(
+            BuildConfig.DEBUG && BuildConfig.CLOUD_DNS_DIAGNOSTIC, officialCloudDnsSdkBackend(binding.applicationContext))
         firstPartyHttp = FirstPartyHttpTransport.android(binding.applicationContext) {
             ServiceState.awaitActiveVpnOptions()?.enable == true
         }
@@ -57,12 +63,23 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         channel.setMethodCallHandler(null)
         coreChannel.setMethodCallHandler(null)
         firstPartyHttp.close()
+        ownedDnsSdk.disable()
         scope.cancel()
         ServiceController.setEventListener(null)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "configureOwnedDnsSdkDiagnostic", "lookupOwnedDnsSdk", "disableOwnedDnsSdk" -> scope.launch(Dispatchers.IO) {
+                val response = runCatching {
+                    when (call.method) {
+                        "configureOwnedDnsSdkDiagnostic" -> ownedDnsSdk.configure(call.arguments as? Map<*, *> ?: emptyMap<Any, Any>())
+                        "lookupOwnedDnsSdk" -> ownedDnsSdk.lookup(call.argument<String>("host") ?: "")
+                        else -> { ownedDnsSdk.disable(); null }
+                    }
+                }.getOrNull()
+                httpResults.post { result.success(response) }
+            }
             "configureClientBundleRenewal", "logoutClientBundleRenewal", "clientBundleRenewalStatus" ->
                 renewal(call, result)
             "firstPartyHttpRequest" -> firstPartyHttp(call, result)

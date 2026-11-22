@@ -173,6 +173,10 @@ func applyConfig(params *SetupParams) error {
 }
 
 func applyConfigLocked(params *SetupParams, prepared *clientbundle.Prepared) error {
+	_, ownedErr := newOwnedDNSResolver(params.OwnedDNS, nil)
+	if ownedErr != nil {
+		return ownedErr
+	}
 	var cfg *config.Config
 	var err error
 	if prepared != nil {
@@ -219,14 +223,20 @@ func applyConfigLocked(params *SetupParams, prepared *clientbundle.Prepared) err
 		cfg = fallback
 	}
 
-	applyParsedConfigLocked(cfg, params, err)
+	if bindErr := applyParsedConfigLocked(cfg, params, err); bindErr != nil {
+		return bindErr
+	}
 	if err == nil {
 		rememberClientBundleSetupLocked(params)
 	}
 	return err
 }
 
-func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError error) {
+func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError error) error {
+	owned, ownedErr := ownedDNSForConfig(cfg, params.OwnedDNS)
+	if ownedErr != nil {
+		return ownedErr
+	}
 	if runtime.GOOS == "ios" && !isRunning.Load() {
 		disableStandaloneListeners(cfg)
 	}
@@ -238,6 +248,11 @@ func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError
 		selectMu.Lock()
 		defer selectMu.Unlock()
 		hub.ApplyConfig(cfg)
+		activeOwnedDNS.Store(owned)
+		if owned != nil {
+			owned.Resolver = resolver.ProxyServerHostResolver
+			resolver.ProxyServerHostResolver = owned
+		}
 		replaceRulesGenerationLocked(tunnel.Rules())
 		patchSelectGroupLocked(params.SelectedMap)
 		if applyError == nil {
@@ -250,6 +265,7 @@ func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError
 	updateListeners(cfg)
 	reconcileGeoUpdater()
 	scheduleLoadMemoryRelease()
+	return nil
 }
 
 func updateConfig(params *UpdateParams) error {

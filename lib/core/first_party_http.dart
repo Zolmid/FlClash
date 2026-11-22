@@ -5,7 +5,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
-import 'package:zolnit_client/zolnit_client.dart' show ClientFailure;
+import 'package:zolnit_client/zolnit_client.dart'
+    show ClientFailure, ownedDnsBinding;
 
 import 'method.dart';
 
@@ -84,6 +85,10 @@ class CoreFirstPartyHttpClient extends http.BaseClient {
         'headers': request.headers,
         'body': base64Encode(body),
         'timeout': requestTimeout.inMilliseconds,
+        if (ownedDnsBinding case final binding?)
+          'addresses': (await binding.resolver.resolve(
+            request.url.host,
+          )).map((ip) => ip.address).toList(),
       });
       _ensureOpen();
       if (value == null) throw const ClientFailure('network');
@@ -211,7 +216,9 @@ class CoreFirstPartyHttpClient extends http.BaseClient {
   }
 
   static http.Client _directClient() {
-    final client = _DirectHttpOverrides().createHttpClient(null);
+    final client =
+        ownedDnsBinding?.resolver.createHttpClient() ??
+        _DirectHttpOverrides().createHttpClient(null);
     client.badCertificateCallback = (_, _, _) => false;
     client.findProxy = (_) => 'DIRECT';
     return IOClient(client);

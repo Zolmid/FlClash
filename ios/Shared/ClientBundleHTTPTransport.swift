@@ -10,8 +10,10 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
   private let version: String
   private let platform: String
   private let distribution: String
+  private let coreCall: ClientBundleCoreAdapter.Call?
 
-  public init(origin: URL, coreVersion: String, platform: String, distribution: String) throws {
+  public init(origin: URL, coreVersion: String, platform: String, distribution: String,
+    coreCall: ClientBundleCoreAdapter.Call? = nil) throws {
     guard origin.scheme == "https", origin.host != nil, origin.user == nil, origin.password == nil,
       origin.query == nil, origin.fragment == nil, ["", "/"].contains(origin.path),
       ["ios", "macos", "android", "windows", "linux"].contains(platform),
@@ -23,6 +25,7 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
     self.version = coreVersion
     self.platform = platform
     self.distribution = distribution
+    self.coreCall = coreCall
   }
 
   public func fetch(authorization: ClientBundleAuthorization) async throws -> ClientBundleHTTPResponse {
@@ -42,11 +45,47 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
     _ url: URL, authorization: ClientBundleAuthorization, headers: [String: String]
   ) async throws -> ClientBundleHTTPResponse {
     let request = try makeRequest(url, authorization: authorization, headers: headers)
+    if let coreCall, let response = try await ownedExchange(request, call: coreCall) { return response }
     let operation = ClientBundleHTTPRequest(request)
     return try await withTaskCancellationHandler {
       try Task.checkCancellation()
       return try await operation.run()
     } onCancel: { operation.cancel() }
+  }
+
+  private func ownedExchange(_ request: URLRequest, call: @escaping ClientBundleCoreAdapter.Call) async throws -> ClientBundleHTTPResponse? {
+    let id = UUID().uuidString
+    let requestHeaders = (request.allHTTPHeaderFields ?? [:]).filter { $0.key.lowercased() != "cache-control" }
+    let arguments: [String: Any] = ["client-id": "ios-owned-dns", "request-id": id,
+      "owned-dns-only": true, "method": "GET", "url": request.url!.absoluteString,
+      "headers": requestHeaders, "body": "", "timeout": 15000]
+    let message = try JSONSerialization.data(withJSONObject: ["id": id, "method": "firstPartyHTTP", "arguments": arguments])
+    let response = try await withTaskCancellationHandler {
+      try Task.checkCancellation()
+      return try await call(message)
+    } onCancel: {
+      Task {
+        let cancel: [String: Any] = ["id": UUID().uuidString, "method": "cancelFirstPartyHTTP",
+          "arguments": ["client-id": "ios-owned-dns", "request-id": id]]
+        if let data = try? JSONSerialization.data(withJSONObject: cancel) { _ = try? await call(data) }
+      }
+    }
+    guard let value = try JSONSerialization.jsonObject(with: response) as? [String: Any],
+      value["id"] as? String == id, value["file"] == nil || value["file"] is NSNull else {
+      throw ClientBundleTransportError.unavailable
+    }
+    if let error = value["error"] as? [String: Any] {
+      if error["code"] as? String == "owned_dns_disabled" { return nil }
+      throw ClientBundleTransportError.unavailable
+    }
+    guard let result = value["result"] as? [String: Any], let status = result["status"] as? Int,
+      let encoded = result["body"] as? String, encoded.utf8.count <= 12 * 1024 * 1024,
+      let body = Data(base64Encoded: encoded), body.count <= 8 * 1024 * 1024,
+      String(data: body, encoding: .utf8) != nil else { throw ClientBundleTransportError.unavailable }
+    guard (100...599).contains(status) else { throw ClientBundleTransportError.unavailable }
+    let responseHeaders = result["headers"] as? [String: String]
+    return ClientBundleHTTPResponse(status: status, body: body,
+      retryAfter: ClientBundleHTTPRequest.retryAfter(responseHeaders?["Retry-After"]))
   }
 
   func makeRequest(
@@ -292,7 +331,7 @@ private final class ClientBundleHTTPRequest: NSObject, URLSessionDataDelegate, @
     continuation?.resume(with: result)
   }
 
-  private static func retryAfter(_ value: String?) -> Date? {
+  fileprivate static func retryAfter(_ value: String?) -> Date? {
     guard let value else { return nil }
     let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
     if !text.isEmpty, text.utf8.allSatisfy({ (48...57).contains($0) }),

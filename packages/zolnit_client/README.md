@@ -932,3 +932,44 @@ hardFailure=true 的立即冷却和同服务 failure_domain 传播只在纯引�
 当前运行时没有明确机器硬故障分类来源，不能声称已在真实设备采集。HTTP/TLS 可达性不证明账号、
 API 授权、产品资格、内容目录或解锁。既有 16 项引擎、9 项元数据、5 项转换、8 项假 Core 接入测试
 属于本地逻辑证据；完整包构建、真实 Core 验证、账号与设备验收必须分别记录。
+
+### Owned-host IP dialing
+
+Set `ZOLNIT_OWNED_DNS` as a JSON Dart define to enable the shared binding:
+
+```json
+{"strict":true,"relay":"https://link.zolmid.com/api/v1/zolnit/client/httpdns","hosts":["link.zolmid.com"]}
+```
+
+`hosts` is an exact allowlist; additional entries must be owned `*.nodes.zolmid.com`
+FQDNs, without wildcard syntax. Core also discovers exact node hosts from the
+validated configuration and its loaded providers on each configuration apply.
+Include all assigned node aliases explicitly when providers can change between applies.
+No account identifiers or Cloud DNS keys belong in this define. The current API
+session supplies the relay Bearer at runtime, outside the signed configuration.
+The relay accepts `GET ?host=<fqdn>` and returns `application/json` with
+`{"addresses":["192.0.2.1","2001:db8::1"],"ttl":60}`. TTL is 0–86400 seconds;
+404, 503, malformed/empty answers and redirects fail closed in strict mode.
+
+Only `link.zolmid.com` bootstraps through RFC8484 over literal Alibaba IPv4
+resolvers (223.5.5.5 / 223.6.6.6), using `dns.alidns.com` TLS identity. Nodes use
+the authenticated relay. HTTP and WebSocket URL/Host and TLS hostname checks
+remain unchanged. Core installs this resolver only for proxy-server hostnames;
+ordinary traffic retains its existing DNS/proxy policy. Android foreground API
+requests retain network binding. Android and iOS NE renewal use Core HTTP when
+the binding is enabled, with legacy transport allowed only on the explicit
+`owned_dns_disabled` response. No binding define retains the legacy application
+configuration; this is separate from a configured strict resolver failing.
+
+System-managed browser/payment/OTA installation requests are outside these
+socket transports and retain platform DNS.
+
+#### Official SDK production gate
+
+See [the 1.1.11 release gate](../../docs/httpdns-release.md). The previous public-cloud
+AK/SK diagnostic initializer is now blocked in both native backends; no Alibaba
+long-lived query key belongs on the client. SDK artifact and synthetic lookup tests
+remain available for protocol work, but do not establish production SDK acceptance.
+FusionDNS requires an accepted certificate endpoint and short-lived, exact-owned-host
+provisioning/refresh contract before the production gate can be removed. The current
+strict authenticated relay/bootstrap is separate from that unresolved SDK requirement.

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7F0010013000000000000001 /* OwnedDnsSdkBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 7F0010023000000000000001 /* OwnedDnsSdkBridge.m */; };
 		7E0000023000000000000001 /* ClientBundleSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000013000000000000001 /* ClientBundleSessionBridge.swift */; };
 		0573B366304032E200768CF4 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0573B365304032E200768CF4 /* AppIcon.icon */; };
 		0590E25F2FFA555500321CD8 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0590E25C2FFA53B300321CD8 /* Localizable.xcstrings */; };
@@ -106,6 +107,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7F0010023000000000000001 /* OwnedDnsSdkBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OwnedDnsSdkBridge.m; sourceTree = "<group>"; };
+		7F0010033000000000000001 /* OwnedDnsSdkBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OwnedDnsSdkBridge.h; sourceTree = "<group>"; };
 		7E0000013000000000000001 /* ClientBundleSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientBundleSessionBridge.swift; sourceTree = "<group>"; };
 		0573B365304032E200768CF4 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		0590E25C2FFA53B300321CD8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -350,6 +353,8 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				0590E2612FFA576B00321CD8 /* ShortcutProvider.swift */,
 				7891A0002FF2266100620D82 /* ServiceChannel.swift */,
+				7F0010023000000000000001 /* OwnedDnsSdkBridge.m */,
+				7F0010033000000000000001 /* OwnedDnsSdkBridge.h */,
 				7E0000013000000000000001 /* ClientBundleSessionBridge.swift */,
 				7D0000023000000000000001 /* Core */,
 				7C0000013000000000000001 /* Tunnel */,
@@ -670,6 +675,7 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				7891A0012FF2266100620D82 /* ServiceChannel.swift in Sources */,
+				7F0010013000000000000001 /* OwnedDnsSdkBridge.m in Sources */,
 				7E0000023000000000000001 /* ClientBundleSessionBridge.swift in Sources */,
 				7C0000123000000000000001 /* TunnelController.swift in Sources */,
 				7C0000133000000000000001 /* TunnelCoordinator.swift in Sources */,

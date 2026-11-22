@@ -28,6 +28,26 @@ class _Socket implements ZolnitRealtimeSocket {
 }
 
 void main() {
+  test(
+    'WSS HTTPS upgrade normalizes port zero without changing hostname or path',
+    () {
+      final source = Uri(
+        scheme: 'https',
+        host: 'link.zolmid.com',
+        port: 0,
+        path: '/realtime/v1/socket',
+      );
+      final normalized = zolnitRealtimeUpgradeUri(source);
+      expect(normalized.port, 443);
+      expect(normalized.host, source.host);
+      expect(normalized.path, source.path);
+      expect(zolnitRealtimeUpgradeUri(source.replace(port: 8443)).port, 8443);
+      expect(
+        zolnitRealtimeUpgradeUri(Uri.parse('https://link.zolmid.com')).port,
+        443,
+      );
+    },
+  );
   test('ticket is an exact authenticated POST response', () async {
     final requests = <http.Request>[];
     final api = XboardClient(

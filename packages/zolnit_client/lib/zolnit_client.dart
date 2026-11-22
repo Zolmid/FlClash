@@ -30,3 +30,7 @@ export 'src/routing_provider_health.dart';
 export 'src/realtime.dart';
 export 'src/rewards.dart';
 export 'src/web_session.dart';
+
+export 'src/owned_dns.dart';
+
+export 'src/owned_dns_sdk.dart';

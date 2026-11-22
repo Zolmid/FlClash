@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:zolnit_client/src/owned_dns_config.dart';
+
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
@@ -104,6 +106,7 @@ Future<void> main(List<String> args) async {
       jsonEncode(
         createBuildEnvironment(
           env,
+          distribution: Platform.environment['ZOLNIT_DISTRIBUTION'] ?? '',
           nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
           clientBundle: Platform.environment['ZOLNIT_CLIENT_BUNDLE'] == 'true',
           routingObservation:
@@ -253,6 +256,7 @@ List<String> createFlutterBuildArgs({
 Map<String, String> createBuildEnvironment(
   String env, {
   String? arch,
+  String distribution = '',
   bool nativeUi = false,
   bool clientBundle = false,
   bool routingObservation = false,
@@ -261,6 +265,9 @@ Map<String, String> createBuildEnvironment(
   return {
     'APP_ENV': env,
     'APP_ARCH': ?packageArch,
+    if (distribution.isNotEmpty) 'ZOLNIT_DISTRIBUTION': distribution,
+    if (nativeUi || clientBundle || distribution == 'direct')
+      'ZOLNIT_OWNED_DNS': zolnitReleaseOwnedDns,
     if (nativeUi) 'ZOLNIT_NATIVE_UI': 'true',
     if (clientBundle) 'ZOLNIT_CLIENT_BUNDLE': 'true',
     if (routingObservation) 'ZOLNIT_ROUTING_OBSERVATION': 'true',
@@ -425,6 +432,7 @@ Future<int> _package(
       createBuildEnvironment(
         env,
         arch: platform == 'android' ? null : arch,
+        distribution: Platform.environment['ZOLNIT_DISTRIBUTION'] ?? '',
         nativeUi: Platform.environment['ZOLNIT_NATIVE_UI'] == 'true',
         clientBundle: Platform.environment['ZOLNIT_CLIENT_BUNDLE'] == 'true',
         routingObservation:

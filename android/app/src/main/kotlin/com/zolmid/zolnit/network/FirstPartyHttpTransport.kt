@@ -24,6 +24,8 @@ import okhttp3.Response
 import okio.BufferedSink
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.InetAddress
+import okhttp3.Dns
 import java.net.Proxy
 import java.net.URI
 import java.util.Locale
@@ -94,7 +96,16 @@ internal class FirstPartyHttpTransport(
 
     private suspend fun exchange(calls: Call.Factory, request: FirstPartyRequest): Map<String, Any> =
         suspendCancellableCoroutine { continuation ->
-            val call = calls.newCall(request.toHttpRequest())
+            val bound = if (request.addresses != null) {
+                require(calls is OkHttpClient)
+                calls.newBuilder().dns(object : Dns {
+                    override fun lookup(hostname: String): List<InetAddress> {
+                        require(hostname == "link.zolmid.com")
+                        return request.addresses
+                    }
+                }).build()
+            } else calls
+            val call = bound.newCall(request.toHttpRequest())
             continuation.invokeOnCancellation { call.cancel() }
             if (!continuation.isActive) return@suspendCancellableCoroutine
             call.enqueue(object : Callback {
@@ -193,6 +204,7 @@ internal data class FirstPartyRequest(
     val method: String,
     val headers: Map<String, String>,
     val body: ByteArray,
+    val addresses: List<InetAddress>? = null,
 ) {
     fun toHttpRequest(): Request {
         val builder = Request.Builder().url(url)
@@ -245,7 +257,21 @@ internal data class FirstPartyRequest(
             val body = requireNotNull(arguments["body"] as? ByteArray)
             require(body.size <= 1_024 * 1_024)
             require(method == "POST" || body.isEmpty())
-            return FirstPartyRequest(id, url, method, headers, body)
+            val addresses = arguments["addresses"]?.let { raw ->
+                require(raw is List<*> && raw.isNotEmpty() && raw.size <= 32)
+                raw.map { value ->
+                    require(value is String && value.length <= 45 &&
+                        ((value.split(".").size == 4 && value.split(".").all { octet ->
+                            octet.isNotEmpty() && octet.all { it in '0'..'9' } &&
+                                octet.toIntOrNull()?.let { it in 0..255 } == true
+                        }) ||
+                         (value.contains(":") && value.matches(Regex("[0-9a-fA-F:.]+")))))
+                    InetAddress.getByName(value).also {
+                        require(!it.isAnyLocalAddress && !it.isLoopbackAddress && !it.isMulticastAddress)
+                    }
+                }
+            }
+            return FirstPartyRequest(id, url, method, headers, body, addresses)
         }
     }
 }

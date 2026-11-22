@@ -342,7 +342,7 @@ class SigningTest(unittest.TestCase):
             'source_repository=Zolmid/FlClash', 'source_commit=' + 'c' * 40,
             'target=macos-arm64', 'client_safe_preview=false', 'native_ui=true',
             'client_bundle=true', 'distribution_channel=direct', 'client_build_env=stable',
-            'official_release=true', 'client_defines=APP_ENV=stable;ZOLNIT_DISTRIBUTION=direct',
+            'official_release=true', 'owned_dns=strict-v1', 'client_defines=APP_ENV=stable;ZOLNIT_DISTRIBUTION=direct',
             'run=https://github.com/Zolmid/FlClash/actions/runs/42',
             ' ' + signing.release.CORE + ' core/Clash.Meta (8380d0e)',
         ]) + '\n')

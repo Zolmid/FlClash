@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'owned_dns.dart';
+
 import 'dart:io';
 import 'dart:typed_data' show BytesBuilder;
 
@@ -25,7 +28,9 @@ http.Client createClient({
 }
 
 IOClient _createDirectClient() {
-  final client = _DirectHttpOverrides().createHttpClient(null);
+  final client =
+      ownedDnsBinding?.resolver.createHttpClient() ??
+      _DirectHttpOverrides().createHttpClient(null);
   client.badCertificateCallback = (certificate, host, port) => false;
   client.findProxy = (_) => 'DIRECT';
   return IOClient(client);
@@ -156,6 +161,10 @@ class AndroidFirstPartyClient extends http.BaseClient {
         'method': request.method,
         'headers': request.headers,
         'body': Uint8List.fromList(body),
+        if (ownedDnsBinding case final binding?)
+          'addresses': (await binding.resolver.resolve(
+            request.url.host,
+          )).map((ip) => ip.address).toList(),
       });
     } on MissingPluginException {
       _ensureOpen();

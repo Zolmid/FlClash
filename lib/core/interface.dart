@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:zolnit_client/zolnit_client.dart' show ownedDnsBinding;
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -399,7 +401,11 @@ abstract class CoreHandlerInterface with CoreInterface {
   Future<String> setupConfig(SetupParams setupParams) async {
     return _invokeMessage(
       method: CoreMethod.setupConfig,
-      arguments: setupParams.toJson(),
+      arguments: {
+        ...setupParams.toJson(),
+        if (ownedDnsBinding case final binding?)
+          'owned-dns': binding.coreConfig,
+      },
     );
   }
 

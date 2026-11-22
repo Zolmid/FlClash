@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import warnings
 import zipfile
 
@@ -40,13 +41,13 @@ def provenance(platform, arch, **changes):
     if platform == 'ios':
         fields = {'source_kind': 'project', 'source_repository': ar.REPOSITORY, 'source_commit': SHA,
                   'workflow_repository': ar.REPOSITORY, 'workflow_commit': SHA, 'native_ui': 'true',
-                  'client_bundle': 'true', 'routing_observation': 'false', 'official_release': 'true', 'run': run,
+                  'client_bundle': 'true', 'routing_observation': 'false', 'official_release': 'true', 'owned_dns': 'strict-v1', 'run': run,
                   'target': 'iOS arm64 physical device; simulator unsupported',
                   'signing': 'ad hoc unsigned IPA; requires provisioning for device installation'}
     else:
         fields = {'source_repository': ar.REPOSITORY, 'source_commit': SHA, 'target': f'{platform}-{arch}',
                   'client_safe_preview': 'false', 'native_ui': 'true', 'client_bundle': 'true',
-                  'distribution_channel': 'direct', 'client_build_env': 'stable', 'official_release': 'true',
+                  'distribution_channel': 'direct', 'client_build_env': 'stable', 'official_release': 'true', 'owned_dns': 'strict-v1',
                   'client_defines': 'APP_ENV=stable;ZOLNIT_DISTRIBUTION=direct', 'run': run,
                   'distribution': 'development artifact; no production signing or notarization'}
     core = changes.pop('core_line', f' {ar.CORE} core/Clash.Meta (8380d0e)')
@@ -504,9 +505,16 @@ class ExtractTest(unittest.TestCase):
 
 
 class PreflightTest(Workspace):
+    def test_all_formal_platforms_require_strict_owned_dns_provenance(self):
+        context = ar.Context(environment(), self.root)
+        for platform, arch, _ in ar.TARGETS:
+            with self.assertRaisesRegex(ar.ReleaseError, 'owned_dns'):
+                ar.check_provenance(provenance(platform, arch, owned_dns=None), context, platform, arch)
+
     def test_preflight_records_version_and_build(self):
         output = self.tmp / 'output'
-        code = ar.main(['--root', str(self.root), 'preflight'], environment(GITHUB_OUTPUT=str(output)), FakeGitHub())
+        with mock.patch.object(ar, 'check_owned_dns_release'):
+            code = ar.main(['--root', str(self.root), 'preflight'], environment(GITHUB_OUTPUT=str(output)), FakeGitHub())
         self.assertEqual(code, 0)
         self.assertEqual(output.read_text(), f'version={VERSION}\nbuild={BUILD}\n')
 
@@ -516,7 +524,8 @@ class PreflightTest(Workspace):
         (self.root / 'changelog.json').write_text(json.dumps({'versions': [{'tag': TAG, 'prerelease': False}]}))
         github = FakeGitHub()
         github.commit = 'd' * 40
-        self.assertEqual(ar.main(['--root', str(self.root), 'preflight'], environment(), github), 1)
+        with mock.patch.object(ar, 'check_owned_dns_release'):
+            self.assertEqual(ar.main(['--root', str(self.root), 'preflight'], environment(), github), 1)
 
 
 @unittest.skipUnless(SAMPLES.is_dir(), 'verified candidate-dc131580 samples are not available')

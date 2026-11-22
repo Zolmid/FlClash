@@ -4,6 +4,7 @@ import (
 	"core/clientbundle"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"time"
 
 	"github.com/metacubex/mihomo/tunnel"
@@ -115,7 +116,7 @@ func reuseClientBundleConfigurationLocked(params *SetupParams) bool {
 	if after.ConnectionDigest == "" || after.MetadataDigest == "" ||
 		before.ConnectionDigest != after.ConnectionDigest || before.MetadataDigest != after.MetadataDigest ||
 		before.AccountID != after.AccountID || before.RenewalOverlay != after.RenewalOverlay ||
-		clientBundleSetup.TestURL != params.TestURL || clientBundleSetup.SkipCertVerify != params.SkipCertVerify {
+		clientBundleSetup.TestURL != params.TestURL || !reflect.DeepEqual(clientBundleSetup.OwnedDNS, params.OwnedDNS) || clientBundleSetup.SkipCertVerify != params.SkipCertVerify {
 		return false
 	}
 	selectMu.Lock()
@@ -270,6 +271,12 @@ func handleEndClientBundleOwner(params *EndClientBundleOwnerParams) bool {
 		return true
 	}
 	clientBundleOwner = nil
+	if params.InvalidateSession {
+		if owned := activeOwnedDNS.Load(); owned != nil {
+			owned.revoked.Store(true)
+			owned.ClearCache()
+		}
+	}
 	stopClientBundleRoutingLocked()
 	selectMu.Lock()
 	if params.InvalidateSession {
@@ -323,7 +330,9 @@ func applyPreparedClientBundleLocked(prepared *clientbundle.Prepared, previous *
 		}
 	}
 	params.RoutingLease = lease
-	applyParsedConfigLocked(cfg, &params, nil)
+	if err := applyParsedConfigLocked(cfg, &params, nil); err != nil {
+		return false, err
+	}
 	rememberClientBundleSetupLocked(&params)
 	return true, nil
 }

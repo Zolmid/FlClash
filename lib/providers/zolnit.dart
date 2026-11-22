@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -122,6 +123,15 @@ final zolnitProfileDownloaderProvider = Provider<Dio>((ref) {
       headers: {'User-Agent': globalState.ua},
     ),
   );
+  if (ownedDnsBinding case final binding?) {
+    downloader.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () =>
+          binding.resolver.createHttpClient()
+            ..findProxy = (uri) => binding.resolver.owns(uri.host)
+                ? 'DIRECT'
+                : FlClashHttpOverrides.findProxyForReader(ref.read, uri),
+    );
+  }
   ref.onDispose(() => downloader.close(force: true));
   return downloader;
 });
