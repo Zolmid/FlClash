@@ -2,6 +2,7 @@ import hashlib
 import io
 import json
 import os
+import plistlib
 from pathlib import Path
 import shutil
 import stat
@@ -9,12 +10,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
 import warnings
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import assemble_release as ar  # noqa: E402
+from sdk_fixtures import apk_bytes, macho_bytes
 
 SHA = 'c' * 40
 RUN_ID, RUN_NUMBER = 4242, 77
@@ -68,8 +69,8 @@ def signing_report(cert=ar.ANDROID_CERT, signers=1):
 def ipa_bytes(provisioned=False):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w') as ipa:
-        ipa.writestr('Payload/Runner.app/Info.plist', b'plist')
-        ipa.writestr('Payload/Runner.app/Runner', b'binary')
+        ipa.writestr('Payload/Runner.app/Info.plist', plistlib.dumps({'CFBundleIdentifier': ar.APP_ID, 'CFBundleExecutable': 'Runner', 'CFBundleShortVersionString': VERSION, 'CFBundleVersion': str(BUILD)}))
+        ipa.writestr('Payload/Runner.app/Runner', macho_bytes())
         if provisioned:
             ipa.writestr('Payload/Runner.app/embedded.mobileprovision', b'profile')
     return buffer.getvalue()
@@ -78,6 +79,7 @@ def ipa_bytes(provisioned=False):
 def target_files(platform, arch, version=VERSION):
     files = {name: f'{name} bytes'.encode() for name in ar.public_names(version, platform, arch)}
     if platform == 'android':
+        files[ar.public_names(version, platform, arch)[0]] = apk_bytes()
         files['apk-signing-report.txt'] = signing_report().encode()
     if platform == 'ios':
         files[f'ZolNit-{version}-ios-arm64-unsigned.ipa'] = ipa_bytes()
@@ -161,6 +163,9 @@ class Workspace(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.root = self.tmp / 'repo'
         self.root.mkdir()
+        policy = self.root / 'packages/zolnit_client/lib/src/owned_dns_config.dart'
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        policy.write_text((Path(ar.__file__).parents[2] / 'packages/zolnit_client/lib/src/owned_dns_config.dart').read_text())
         (self.root / 'pubspec.yaml').write_text(f'name: fl_clash\nversion: {VERSION}+{BUILD}\n')
         (self.root / 'changelog.json').write_text(json.dumps({'schemaVersion': 2, 'versions': [
             {'version': VERSION, 'tag': TAG, 'prerelease': False, 'groups': []}]}))
@@ -279,6 +284,12 @@ class AssembleTest(Workspace):
         self.assertTrue(all(item['ci_run_id'] == RUN_ID for item in receipt['assets']))
         self.assertEqual(receipt['build'], BUILD)
         self.assertEqual(receipt['core_sha'], ar.CORE)
+        self.assertTrue(receipt['checks']['mobile_dns_sdk_artifacts'])
+        sdk_evidence = [item['mobile_dns_sdk'] for item in receipt['evidence'] if 'mobile_dns_sdk' in item]
+        self.assertEqual(len(sdk_evidence), 2)
+        self.assertTrue(all(item['level'] == 'L0-artifact' for item in sdk_evidence))
+        ios_sdk = next(item for item in sdk_evidence if item['format'] == 'arm64-macho-objc')
+        self.assertEqual(ios_sdk['ios_physical_runtime'], 'not_verified_by_this_check')
         kinds = {item['kind'] for item in receipt['evidence']}
         self.assertEqual(kinds, {'package-build', 'ios-unsigned-compile', 'release-notes'})
         self.assertFalse((self.stage / 'artifacts').exists())
@@ -511,10 +522,49 @@ class PreflightTest(Workspace):
             with self.assertRaisesRegex(ar.ReleaseError, 'owned_dns'):
                 ar.check_provenance(provenance(platform, arch, owned_dns=None), context, platform, arch)
 
+    def test_assembly_rejects_relay_only_mobile_packages(self):
+        for platform, arch in [('android', 'arm64'), ('ios', 'arm64')]:
+            files = target_files(platform, arch)
+            name = f'flclash-android-arm64-{RUN_NUMBER}' if platform == 'android' else f'ios-project-arm64-unsigned-{RUN_NUMBER}'
+            if platform == 'android':
+                files[ar.public_names(VERSION, platform, arch)[0]] = apk_bytes(defined=False)
+            else:
+                with zipfile.ZipFile(io.BytesIO(ipa_bytes())) as current:
+                    entries = {entry:current.read(entry) for entry in current.namelist()}
+                entries['Payload/Runner.app/Runner'] = macho_bytes(classes=b'OwnedDnsSdkBridge\0')
+                output = io.BytesIO()
+                with zipfile.ZipFile(output, 'w') as package:
+                    for entry, data in entries.items(): package.writestr(entry, data)
+                files[f'ZolNit-{VERSION}-ios-arm64-unsigned.ipa'] = output.getvalue()
+            github = standard(skip={name})
+            github.add(name, archive(files))
+            with self.assertRaisesRegex(ar.ReleaseError, 'SDK'):
+                self.assemble(github)
+            shutil.rmtree(self.stage, True)
+
+    def test_sdk_presence_does_not_override_ios_version_or_build(self):
+        for field, value in [('CFBundleShortVersionString', '1.2.2'), ('CFBundleVersion', '1'),
+                             ('CFBundleIdentifier', 'com.other.app')]:
+            with zipfile.ZipFile(io.BytesIO(ipa_bytes())) as current:
+                entries = {name:current.read(name) for name in current.namelist()}
+            info = plistlib.loads(entries['Payload/Runner.app/Info.plist'])
+            info[field] = value
+            entries['Payload/Runner.app/Info.plist'] = plistlib.dumps(info)
+            output = io.BytesIO()
+            with zipfile.ZipFile(output, 'w') as package:
+                for name, data in entries.items(): package.writestr(name, data)
+            files = target_files('ios', 'arm64')
+            files[f'ZolNit-{VERSION}-ios-arm64-unsigned.ipa'] = output.getvalue()
+            name = f'ios-project-arm64-unsigned-{RUN_NUMBER}'
+            github = standard(skip={name})
+            github.add(name, archive(files))
+            with self.assertRaisesRegex(ar.ReleaseError, 'IPA .*mismatch'):
+                self.assemble(github)
+            shutil.rmtree(self.stage, True)
+
     def test_preflight_records_version_and_build(self):
         output = self.tmp / 'output'
-        with mock.patch.object(ar, 'check_owned_dns_release'):
-            code = ar.main(['--root', str(self.root), 'preflight'], environment(GITHUB_OUTPUT=str(output)), FakeGitHub())
+        code = ar.main(['--root', str(self.root), 'preflight'], environment(GITHUB_OUTPUT=str(output)), FakeGitHub())
         self.assertEqual(code, 0)
         self.assertEqual(output.read_text(), f'version={VERSION}\nbuild={BUILD}\n')
 
@@ -524,8 +574,7 @@ class PreflightTest(Workspace):
         (self.root / 'changelog.json').write_text(json.dumps({'versions': [{'tag': TAG, 'prerelease': False}]}))
         github = FakeGitHub()
         github.commit = 'd' * 40
-        with mock.patch.object(ar, 'check_owned_dns_release'):
-            self.assertEqual(ar.main(['--root', str(self.root), 'preflight'], environment(), github), 1)
+        self.assertEqual(ar.main(['--root', str(self.root), 'preflight'], environment(), github), 1)
 
 
 @unittest.skipUnless(SAMPLES.is_dir(), 'verified candidate-dc131580 samples are not available')

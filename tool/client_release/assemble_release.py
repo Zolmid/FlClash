@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import plistlib
 from pathlib import Path
 import re
 import shutil
@@ -19,6 +20,8 @@ import stat
 import subprocess
 import sys
 import zipfile
+
+from sdk_verification import SdkArtifactError, verify_android_apk, verify_ios_executable
 
 REPOSITORY = 'Zolmid/FlClash'
 REPOSITORY_ID = '1420254999'
@@ -40,11 +43,6 @@ MAX_NOTES_BYTES = 32768
 NOTES_BEGIN = '<!-- flclash:changelog:begin -->'
 NOTES_END = '<!-- flclash:changelog:end -->'
 NOTES_FILE = 'release-notes.md'
-MOBILE_DNS_SDK_BLOCKER = (
-    'MOBILE_DNS_SDK_PRODUCTION_BLOCKED: release loopback SDK wiring is present; '
-    'owner acceptance of iOS/device behavior, complete candidate and SDK egress is pending. '
-    'Do not publish a relay-only substitute. See docs/httpdns-release.md.'
-)
 CHUNK = 1024 * 1024
 
 TARGETS = (
@@ -128,11 +126,12 @@ def check_owned_dns_release(root):
     source = (Path(root) / 'packages/zolnit_client/lib/src/owned_dns_config.dart').read_text(encoding='utf-8')
     match = re.fullmatch(r"const zolnitReleaseOwnedDns\s*=\s*r'([^'\n]+)';\n?", source)
     require(match, 'release owned DNS define is not canonical')
-    require(json.loads(match.group(1)) == {
+    policy = json.loads(match.group(1))
+    require(isinstance(policy, dict) and policy.get('strict') is True and policy == {
         'strict': True, 'relay': 'https://link.zolmid.com/api/v1/zolnit/client/httpdns',
         'hosts': ['link.zolmid.com'],
     }, 'release owned DNS is not strict/scoped')
-    raise ReleaseError(MOBILE_DNS_SDK_BLOCKER)
+    return policy
 
 
 class GitHub:
@@ -263,15 +262,31 @@ def check_android_signing(report):
                 for line in lines), 'APK lacks a v2/v3 signature')
 
 
-def check_ios(directory, listed, version):
+def check_ios(directory, listed, version, build=None):
     ipas = [name for name in listed if name.endswith('.ipa')]
     require(ipas == [f'ZolNit-{version}-ios-arm64-unsigned.ipa'], f'unexpected iOS packages {ipas}')
     require('acceptance-pair.json' not in listed, 'iOS artifact is a routing observer acceptance build')
     with zipfile.ZipFile(directory / ipas[0]) as ipa:
         entries = ipa.namelist()
-    require(any(re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', name) for name in entries), 'IPA has no app bundle')
-    require(not any(name.endswith('embedded.mobileprovision') for name in entries), 'IPA unexpectedly carries provisioning')
-    return ipas[0]
+        plists = [name for name in entries if re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', name)]
+        require(len(plists) == 1, 'IPA has no single app bundle')
+        require(not any(name.endswith('embedded.mobileprovision') for name in entries), 'IPA unexpectedly carries provisioning')
+        try:
+            info = plistlib.loads(ipa.read(plists[0]))
+            require(isinstance(info, dict), 'IPA Info.plist is not a dictionary')
+            require(info.get('CFBundleIdentifier') == APP_ID, 'IPA bundle identifier mismatch')
+            require(info.get('CFBundleShortVersionString') == version, 'IPA version mismatch')
+            if build is not None:
+                require(info.get('CFBundleVersion') == str(build), 'IPA build number mismatch')
+            executable = info.get('CFBundleExecutable')
+            require(isinstance(executable, str) and MEMBER.fullmatch(executable), 'IPA executable name invalid')
+            name = plists[0].rsplit('/', 1)[0] + '/' + executable
+            require(entries.count(name) == 1, 'IPA main executable missing or duplicated')
+            with ipa.open(name) as stream:
+                sdk = verify_ios_executable(stream, ipa.getinfo(name).file_size)
+        except (ValueError, KeyError, plistlib.InvalidFileException) as error:
+            raise ReleaseError(f'iOS SDK artifact verification failed: {error}') from error
+    return ipas[0], sdk
 
 
 def check_record(record, context, name):
@@ -361,9 +376,9 @@ def assemble(context, github, stage, env, apksigner):
         item = {'artifact_name': name, 'artifact_id': record['id'], 'artifact_sha256': outer,
                 'platform': platform, 'arch': arch}
         if platform == 'ios':
-            ipa = check_ios(directory, listed, context.version)
+            ipa, sdk = check_ios(directory, listed, context.version, context.build)
             evidence.append({**item, 'kind': 'ios-unsigned-compile', 'file': ipa, 'sha256': listed[ipa],
-                             'distributed': False})
+                             'distributed': False, 'mobile_dns_sdk': sdk})
             continue
         if platform == 'android':
             require('apk-signing-report.txt' in listed, 'Android artifact has no signing report')
@@ -372,6 +387,10 @@ def assemble(context, github, stage, env, apksigner):
             require(apk in listed, 'Android artifact has no release APK')
             if apksigner:
                 run_android_verifier(apksigner, directory / apk)
+            try:
+                item['mobile_dns_sdk'] = verify_android_apk(directory / apk)
+            except (SdkArtifactError, zipfile.BadZipFile) as error:
+                raise ReleaseError(f'Android SDK artifact verification failed: {error}') from error
         package_directory, package_listed = directory, listed
         package_record, package_outer = record, outer
         if platform == 'macos' and signing_required:
@@ -431,7 +450,7 @@ def assemble(context, github, stage, env, apksigner):
                'build': context.build, 'core_sha': CORE, 'ci_run_id': context.run_id, 'assets': receipts,
                'evidence': evidence,
                'checks': {'all_platform_builds': True, 'standard_ci': True, 'package_hashes': True,
-                          'android_production_certificate': True, 'ios_unsigned_compile': True,
+                          'android_production_certificate': True, 'ios_unsigned_compile': True, 'mobile_dns_sdk_artifacts': True,
                           'macos_notarized': signing_required}}
     (stage / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
     (stage / 'receipt.json').write_text(json.dumps(receipt, ensure_ascii=False), encoding='utf-8')

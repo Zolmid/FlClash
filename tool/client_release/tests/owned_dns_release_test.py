@@ -10,9 +10,8 @@ import assemble_release as release
 ROOT = Path(__file__).resolve().parents[3]
 
 class OwnedDnsReleaseTest(unittest.TestCase):
-    def test_formal_sdk_gate_is_explicit_and_cannot_mistake_relay_for_sdk(self):
-        with self.assertRaisesRegex(release.ReleaseError, 'MOBILE_DNS_SDK_PRODUCTION_BLOCKED'):
-            release.check_owned_dns_release(ROOT)
+    def test_preflight_accepts_strict_policy_without_a_device_environment(self):
+        self.assertIs(release.check_owned_dns_release(ROOT)['strict'], True)
 
     def test_cloud_build_and_archive_define_are_the_same_strict_policy(self):
         source = (ROOT / 'packages/zolnit_client/lib/src/owned_dns_config.dart').read_text()
