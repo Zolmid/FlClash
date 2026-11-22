@@ -32,6 +32,10 @@ class CoreFirstPartyHttpClient extends http.BaseClient {
     'x-zolnit-core-version',
     'x-zolnit-distribution',
     'x-zolnit-platform',
+    'x-zolnit-device-id',
+    'x-zolnit-installation',
+    'x-zolnit-subscription-format',
+    'idempotency-key',
   };
   static const _maxRequestBytes = 1024 * 1024;
   static const _maxResponseBytes = 8 * 1024 * 1024;

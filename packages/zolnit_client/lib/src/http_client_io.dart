@@ -63,6 +63,10 @@ class AndroidFirstPartyClient extends http.BaseClient {
     'x-zolnit-core-version',
     'x-zolnit-distribution',
     'x-zolnit-platform',
+    'x-zolnit-device-id',
+    'x-zolnit-installation',
+    'x-zolnit-subscription-format',
+    'idempotency-key',
   };
   static final _instance = DateTime.now().microsecondsSinceEpoch.toRadixString(
     36,

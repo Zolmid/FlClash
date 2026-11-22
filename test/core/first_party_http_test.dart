@@ -56,6 +56,36 @@ void main() {
     },
   );
 
+  test('Core forwards signed subscription request headers', () async {
+    Map<String, dynamic>? sent;
+    final client = CoreFirstPartyHttpClient(
+      invoke: (parameters) async {
+        sent = parameters;
+        return response();
+      },
+      cancel: (_, _) async => true,
+      useCore: () => true,
+      fallback: MockClient(
+        (_) async => throw StateError('unexpected fallback'),
+      ),
+    );
+    addTearDown(client.close);
+    await client.get(
+      uri,
+      headers: {
+        'X-ZolNit-Device-Id': 'fixture-device',
+        'X-ZolNit-Installation': 'fixture-installation',
+        'X-ZolNit-Subscription-Format': 'signed-v2',
+        'Idempotency-Key': 'fixture-idempotency-key',
+      },
+    );
+    final headers = sent!['headers'] as Map<String, String>;
+    expect(headers['x-zolnit-device-id'], 'fixture-device');
+    expect(headers['x-zolnit-installation'], 'fixture-installation');
+    expect(headers['x-zolnit-subscription-format'], 'signed-v2');
+    expect(headers['idempotency-key'], 'fixture-idempotency-key');
+  });
+
   for (final failure in [
     null,
     const CoreMethodException(

@@ -46,7 +46,7 @@ void main() {
       bootstrapZolnitOrigin(
         query: (_) async => throw const SocketException('synthetic outage'),
       ),
-      throwsFormatException,
+      throwsA(isA<SocketException>()),
     );
   });
 

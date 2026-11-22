@@ -423,6 +423,9 @@ Future<OwnedDnsAnswer> bootstrapZolnitOrigin({
     addresses.addAll(answer.addresses.map((ip) => ip.address));
     if (answer.ttl < ttl) ttl = answer.ttl;
   }
+  if (addresses.isEmpty) {
+    throw const SocketException('Owned DNS bootstrap unavailable');
+  }
   return OwnedDnsAnswer(addresses, ttl);
 }
 
