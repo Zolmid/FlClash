@@ -63,6 +63,8 @@ public final class AndroidLoopbackFixture extends Activity {
             DNSResolver.setEnableLocalDns(false);
             DNSResolver.setSchemaType(DNSResolver.HTTP);
             DNSResolver.setEnableSpeedTest(false);
+            DNSResolver.setIspEnable(false);
+            DNSResolver.setIgnoreNetworkChanges(true);
             DNSResolver.setImmutableCacheEnable(false);
             DNSResolver.setKeepAliveDomains(new String[0]);
             DNSResolver.setTimeout(2);
@@ -75,6 +77,8 @@ public final class AndroidLoopbackFixture extends Activity {
             DNSResolver.setEnableLocalDns(false);
             DNSResolver.setSchemaType(DNSResolver.HTTP);
             DNSResolver.setEnableSpeedTest(false);
+            DNSResolver.setIspEnable(false);
+            DNSResolver.setIgnoreNetworkChanges(true);
             if (DNSResolver.getEnableCache()) DNSResolver.getInstance().clear();
             Class<?> fusion = Class.forName("com.alibaba.pdns.manager.f");
             Object provider = fusion.getMethod("x").invoke(null);
@@ -83,11 +87,14 @@ public final class AndroidLoopbackFixture extends Activity {
                 Uri configured = Uri.parse(String.valueOf(endpoint.get("URL")));
                 result.put("configuredHttpLoopback", "http".equals(configured.getScheme()) && "127.0.0.1".equals(configured.getHost()));
             }
-            Thread.sleep(1500);
             result.put("sdkNetworkType", DNSResolver.getInstance().mCurNetworkType);
-            String[] values = DNSResolver.getInstance().getIPsV4ByHost(HOST);
+            java.util.concurrent.ExecutorService workers = java.util.concurrent.Executors.newFixedThreadPool(2);
+            java.util.concurrent.Future<String[]> a = workers.submit(() -> DNSResolver.getInstance().getIPsV4ByHost(HOST));
+            java.util.concurrent.Future<String[]> aaaa = workers.submit(() -> DNSResolver.getInstance().getIPsV6ByHost(HOST));
+            String[] values = a.get(2500, java.util.concurrent.TimeUnit.MILLISECONDS);
             result.put("answers", values == null ? new JSONArray() : new JSONArray(Arrays.asList(values)));
-            String[] ipv6 = DNSResolver.getInstance().getIPsV6ByHost(HOST);
+            String[] ipv6 = aaaa.get(2500, java.util.concurrent.TimeUnit.MILLISECONDS);
+            workers.shutdownNow();
             result.put("answers6", ipv6 == null ? new JSONArray() : new JSONArray(Arrays.asList(ipv6)));
             String[] automatic = DNSResolver.getInstance().getIpsByHost(HOST);
             result.put("automaticAnswers", automatic == null ? new JSONArray() : new JSONArray(Arrays.asList(automatic)));
