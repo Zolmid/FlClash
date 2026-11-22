@@ -161,6 +161,10 @@ final class ServiceChannel {
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     log("handle method=\(call.method)")
     switch call.method {
+    case "configureOwnedDnsSdkLoopback":
+      ownedDnsSdk.configureLoopback(call.arguments as? [String: Any] ?? [:]) { ready in
+        DispatchQueue.main.async { result(ready) }
+      }
     case "configureOwnedDnsSdkDiagnostic":
       ownedDnsSdk.configureDiagnostic(call.arguments as? [String: Any] ?? [:]) { available in
         DispatchQueue.main.async { result(available) }

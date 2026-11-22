@@ -16,7 +16,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
-          if (call.method == 'configureOwnedDnsSdkDiagnostic') return true;
+          if (call.method == 'configureOwnedDnsSdkLoopback') return true;
           if (call.method == 'lookupOwnedDnsSdk') return lookupResult;
           return null;
         });
@@ -26,15 +26,14 @@ void main() {
         .setMockMethodCallHandler(channel, null),
   );
 
-  Future<bool> configure(
-    OwnedDnsSdkAdapter adapter, {
-    String secret = 'SYNTHETIC_SECRET',
-  }) => adapter.configureDiagnostic(
-    hosts: {'link.zolmid.com', 'node.nodes.zolmid.com'},
-    accountId: 'SYNTHETIC_ACCOUNT',
-    accessKeyId: 'SYNTHETIC_KEY',
-    accessKeySecret: secret,
-  );
+  Future<bool> configure(OwnedDnsSdkAdapter adapter, {String secret = ''}) =>
+      adapter.configureLoopback(
+        hosts: {'link.zolmid.com', 'node.nodes.zolmid.com'},
+        port: 34567,
+        keyId: 'a' * 64,
+        secret: secret.isEmpty ? 'b' * 64 : secret,
+        expiresAt: DateTime.now().add(const Duration(minutes: 1)),
+      );
 
   test(
     'disabled release boundary and missing input send no credentials',
@@ -46,7 +45,7 @@ void main() {
       expect(await configure(disabled), isFalse);
       expect(await disabled.lookup('link.zolmid.com'), isNull);
       final debug = OwnedDnsSdkAdapter(diagnosticEnabled: true, mobile: true);
-      expect(await configure(debug, secret: ''), isFalse);
+      expect(await configure(debug, secret: 'invalid'), isFalse);
       expect(calls, isEmpty);
     },
   );

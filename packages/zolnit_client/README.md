@@ -964,12 +964,26 @@ configuration; this is separate from a configured strict resolver failing.
 System-managed browser/payment/OTA installation requests are outside these
 socket transports and retain platform DNS.
 
-#### Official SDK production gate
+#### Official SDK loopback mode
 
-See [the 1.1.11 release gate](../../docs/httpdns-release.md). The previous public-cloud
-AK/SK diagnostic initializer is now blocked in both native backends; no Alibaba
-long-lived query key belongs on the client. SDK artifact and synthetic lookup tests
-remain available for protocol work, but do not establish production SDK acceptance.
-FusionDNS requires an accepted certificate endpoint and short-lived, exact-owned-host
-provisioning/refresh contract before the production gate can be removed. The current
-strict authenticated relay/bootstrap is separate from that unresolved SDK requirement.
+The mobile app uses official stable SDKs through an in-process HTTP listener bound
+only to `127.0.0.1` and an ephemeral port. A five-minute, random memory-only grant
+signs exact-owned-host A/AAAA requests. It is not a public-cloud account/key input.
+The legacy diagnostic credential initializer always returns unavailable.
+
+The listener delegates to an independent raw resolver: relay-origin bootstrap
+never re-enters the SDK. Node records use the existing authenticated HTTPS relay;
+first-hop API bootstrap remains strict literal DoH with IPv4/IPv6 endpoint racing.
+Raw URL/Host/SNI/certificate checks are unchanged. SDK errors, expiry and unissued
+or cached SDK answers fall back only to the same strict raw path. SDK internal
+caching is bounded to one second; accepted app TTL comes from the fresh raw answer.
+
+Android Release includes checksum-verified 2.3.3; iOS Release uses the SHA256-pinned
+2.3.1 official framework through `ios/CloudDnsSdk/ZolnitCloudDnsSdk.podspec`.
+Podfile recognizes both modern build flags and fixed signer `97f29774`'s legacy
+stable/direct env.json. No signer pin or signing permissions are changed.
+
+See [the release gate and acceptance boundaries](../../docs/httpdns-release.md).
+Formal publication remains blocked pending owner device/full-candidate/egress
+acceptance. Background/Core/NE still use strict HTTPS JSON/bootstrap and require
+separate acceptance. OS-managed browsers/WebViews/OTA are not SDK socket clients.

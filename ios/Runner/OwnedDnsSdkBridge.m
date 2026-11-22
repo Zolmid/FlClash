@@ -1,11 +1,11 @@
 #import "OwnedDnsSdkBridge.h"
 #import <arpa/inet.h>
 
-#if DEBUG && ZOLNIT_CLOUD_DNS_SDK_DIAGNOSTIC
+#if ZOLNIT_CLOUD_DNS_SDK
 #import <pdns-sdk-ios/DNSResolver.h>
 #endif
 
-#if DEBUG && ZOLNIT_CLOUD_DNS_SDK_DIAGNOSTIC
+#if ZOLNIT_CLOUD_DNS_SDK
 static BOOL OwnedSdkIPv4(struct in_addr address) {
   uint32_t value = ntohl(address.s_addr);
   return value != 0 && (value >> 24) != 127 && !IN_MULTICAST(value);
@@ -31,6 +31,7 @@ static BOOL OwnedSdkAddress(id value) {
   dispatch_queue_t _queue;
   NSSet<NSString *> *_hosts;
   NSUInteger _generation;
+  NSTimeInterval _expiresAt;
 }
 
 - (instancetype)init {
@@ -45,12 +46,60 @@ static BOOL OwnedSdkAddress(id value) {
   complete(NO);
 }
 
-#if DEBUG && ZOLNIT_CLOUD_DNS_SDK_DIAGNOSTIC
+- (void)configureLoopback:(NSDictionary *)arguments complete:(void (^)(BOOL))complete {
+#if ZOLNIT_CLOUD_DNS_SDK
+  dispatch_async(_queue, ^{
+    self->_generation++;
+    self->_hosts = [NSSet set];
+    NSArray *hosts = arguments[@"hosts"];
+    NSNumber *port = arguments[@"port"], *expiry = arguments[@"expiresAt"];
+    NSString *key = arguments[@"keyId"], *secret = arguments[@"secret"];
+    NSCharacterSet *invalid = [[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet];
+    if (![hosts isKindOfClass:NSArray.class] || hosts.count == 0 || hosts.count > 256 ||
+        ![port isKindOfClass:NSNumber.class] || port.integerValue < 1 || port.integerValue > 65535 ||
+        ![expiry isKindOfClass:NSNumber.class] || ![key isKindOfClass:NSString.class] ||
+        ![secret isKindOfClass:NSString.class] || key.length != 64 || secret.length != 64 ||
+        [key rangeOfCharacterFromSet:invalid].location != NSNotFound ||
+        [secret rangeOfCharacterFromSet:invalid].location != NSNotFound) { complete(NO); return; }
+    NSTimeInterval remaining = expiry.doubleValue / 1000.0 - NSDate.date.timeIntervalSince1970;
+    if (remaining <= 0 || remaining > 300) { complete(NO); return; }
+    NSCharacterSet *hostChars = [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz0123456789.-"] invertedSet];
+    for (id value in hosts) {
+      if (![value isKindOfClass:NSString.class]) { complete(NO); return; }
+      NSString *host = value;
+      if (host.length > 253 || [host rangeOfCharacterFromSet:hostChars].location != NSNotFound ||
+          !([host isEqualToString:@"link.zolmid.com"] || [host hasSuffix:@".nodes.zolmid.com"])) { complete(NO); return; }
+      for (NSString *label in [host componentsSeparatedByString:@"."]) {
+        if (label.length == 0 || label.length > 63 || [label hasPrefix:@"-"] || [label hasSuffix:@"-"]) { complete(NO); return; }
+      }
+    }
+    NSTimeInterval deadline = NSProcessInfo.processInfo.systemUptime + remaining;
+    @try {
+      DNSResolver *resolver = [DNSResolver share];
+      [self strictFlags:resolver];
+      [resolver setFusionDNSWithIPv4:@[@"127.0.0.1"] IPv6:nil Host:nil Port:port.stringValue
+        HealthCheckDomain:@"link.zolmid.com" accessKeyId:key accesskeySecret:secret];
+      [self strictFlags:resolver];
+      [resolver clearHostCache:hosts];
+      self->_hosts = [NSSet setWithArray:hosts];
+      self->_expiresAt = deadline;
+      complete(YES);
+    } @catch (NSException *exception) { complete(NO); }
+  });
+#else
+  complete(NO);
+#endif
+}
+
+#if ZOLNIT_CLOUD_DNS_SDK
 - (void)strictFlags:(DNSResolver *)resolver {
   [DNSResolver disableLog];
   resolver.localdnsEnable = NO;
-  resolver.scheme = DNSResolverSchemeHttps;
-  resolver.cacheEnable = NO;
+  resolver.scheme = DNSResolverSchemeHttp;
+  resolver.cacheEnable = YES;
+  resolver.minCacheTTL = 0;
+  resolver.maxCacheTTL = 1;
+  resolver.ispEnable = NO;
   resolver.immutableCacheEnable = NO;
   resolver.speedTestEnable = NO;
   resolver.timeout = 2;
@@ -59,28 +108,34 @@ static BOOL OwnedSdkAddress(id value) {
 #endif
 
 - (void)lookup:(NSString *)host complete:(void (^)(NSArray<NSString *> *))complete {
-#if DEBUG && ZOLNIT_CLOUD_DNS_SDK_DIAGNOSTIC
+#if ZOLNIT_CLOUD_DNS_SDK
   dispatch_async(_queue, ^{
-    if (![self->_hosts containsObject:host]) { complete(@[]); return; }
+    if (![self->_hosts containsObject:host] || NSProcessInfo.processInfo.systemUptime >= self->_expiresAt) { complete(@[]); return; }
     NSUInteger generation = self->_generation;
     __block BOOL completed = NO;
-    void (^finish)(NSArray *) = ^(NSArray *values) {
+    __block NSUInteger remaining = 2;
+    NSMutableArray *answers = [NSMutableArray array];
+    void (^finish)(NSArray *, BOOL) = ^(NSArray *values, BOOL timeout) {
       dispatch_async(self->_queue, ^{
         if (completed) return;
+        if ([values isKindOfClass:NSArray.class]) [answers addObjectsFromArray:values];
+        if (!timeout && --remaining > 0) return;
         completed = YES;
         if (generation != self->_generation || ![self->_hosts containsObject:host] ||
-            ![values isKindOfClass:NSArray.class] || values.count == 0 || values.count > 32) { complete(@[]); return; }
-        for (id address in values) { if (!OwnedSdkAddress(address)) { complete(@[]); return; } }
-        complete(values);
+            NSProcessInfo.processInfo.systemUptime >= self->_expiresAt || answers.count == 0 || answers.count > 32) { complete(@[]); return; }
+        for (id address in answers) { if (!OwnedSdkAddress(address)) { complete(@[]); return; } }
+        complete(answers);
       });
     };
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC), self->_queue, ^{ finish(@[]); });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2500 * NSEC_PER_MSEC), self->_queue, ^{ finish(@[], YES); });
+
     @try {
       DNSResolver *resolver = [DNSResolver share];
       [self strictFlags:resolver];
-      if (resolver.localdnsEnable || resolver.scheme != DNSResolverSchemeHttps) { finish(@[]); return; }
-      [resolver getIpsDataWithDomain:host complete:finish];
-    } @catch (NSException *exception) { finish(@[]); }
+      if (resolver.localdnsEnable || resolver.scheme != DNSResolverSchemeHttp) { finish(@[], YES); return; }
+      [resolver getIpv4DataWithDomain:host complete:^(NSArray *values) { finish(values, NO); }];
+      [resolver getIpv6DataWithDomain:host complete:^(NSArray *values) { finish(values, NO); }];
+    } @catch (NSException *exception) { finish(@[], YES); }
   });
 #else
   complete(@[]);

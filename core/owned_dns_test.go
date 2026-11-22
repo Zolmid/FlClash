@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -160,5 +162,31 @@ func TestOwnedDNSBootstrapCombinesTtlAndHonorsCancellation(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("cancelled bootstrap accepted")
+	}
+}
+
+func TestOwnedDNSBootstrapIPv6OnlyRoute(t *testing.T) {
+	for _, failedPrimary := range []bool{false, true} {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		var selected atomic.Value
+		answer, err := raceOwnedDNSBootstrap(ctx, 28, func(ctx context.Context, _ uint16, literal string) (ownedDNSAnswer, error) {
+			if !strings.Contains(literal, ":") {
+				<-ctx.Done()
+				return ownedDNSAnswer{}, ctx.Err()
+			}
+			if failedPrimary && literal == "2400:3200::1" {
+				return ownedDNSAnswer{}, errors.New("primary unreachable")
+			}
+			selected.Store(literal)
+			return ownedDNSAnswer{Addresses: []string{"2001:db8::10"}, TTL: 30}, nil
+		})
+		cancel()
+		expected := "2400:3200::1"
+		if failedPrimary {
+			expected = "2400:3200:baba::1"
+		}
+		if err != nil || len(answer.Addresses) != 1 || selected.Load() != expected {
+			t.Fatal(answer, selected.Load(), err)
+		}
 	}
 }

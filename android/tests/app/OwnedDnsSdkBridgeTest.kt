@@ -9,19 +9,21 @@ private class SyntheticCloudDns : OwnedDnsSdkBackend {
     var values = listOf("192.0.2.1", "2001:db8::1")
     var failed = false
     var onLookup: (() -> Unit)? = null
-    override fun configure(account: String, key: String, secret: String) { configured++ }
+    override fun configure(port: Int, key: String, secret: String) { configured++ }
     override fun lookup(host: String): List<String> { lookups++; onLookup?.invoke(); if (failed) error("synthetic"); return values }
 }
 
 class OwnedDnsSdkBridgeTest {
     private fun arguments() = mapOf("hosts" to listOf("link.zolmid.com", "node.nodes.zolmid.com"),
-        "accountId" to "SYNTHETIC_ACCOUNT", "accessKeyId" to "SYNTHETIC_KEY", "accessKeySecret" to "SYNTHETIC_SECRET")
+        "port" to 34567, "keyId" to "a".repeat(64), "secret" to "b".repeat(64),
+        "expiresAt" to System.currentTimeMillis() + 60_000)
+
 
     @Test fun disabledAndMissingCredentialsNeverInitializeVendor() {
         val sdk = SyntheticCloudDns()
         assertFalse(OwnedDnsSdkBridge(false, sdk).configure(arguments()))
         val bridge = OwnedDnsSdkBridge(true, sdk)
-        assertFalse(bridge.configure(arguments() - "accessKeySecret"))
+        assertFalse(bridge.configure(arguments() - "secret"))
         assertEquals(emptyList<String>(), bridge.lookup("link.zolmid.com"))
         assertEquals(0, sdk.configured)
         assertEquals(0, sdk.lookups)
@@ -41,8 +43,8 @@ class OwnedDnsSdkBridgeTest {
         assertEquals(emptyList<String>(), bridge.lookup("link.zolmid.com"))
         bridge.disable()
         assertEquals(emptyList<String>(), bridge.lookup("link.zolmid.com"))
-        assertFalse(bridge.configure(arguments()))
-        assertEquals(1, sdk.configured)
+        assertTrue(bridge.configure(arguments()))
+        assertEquals(2, sdk.configured)
     }
     @Test fun disablingDoesNotWaitForVendorAndFencesLateAnswer() {
         val sdk = SyntheticCloudDns()

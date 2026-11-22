@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'owned_dns_sdk.dart';
 import 'owned_dns_config.dart';
+import 'owned_dns_loopback.dart';
 
 final class OwnedDnsAnswer {
   OwnedDnsAnswer(List<String> addresses, this.ttl)
@@ -60,20 +61,29 @@ final class OwnedDnsResolver {
     _pending.clear();
   }
 
-  Future<List<InternetAddress>> resolve(String name) async {
+  Future<List<InternetAddress>> resolve(String name) async =>
+      (await resolveAnswer(name)).addresses;
+
+  Future<OwnedDnsAnswer> resolveAnswer(String name) async {
     final host = _host(name);
     if (!owns(host)) throw const FormatException('Unowned DNS hostname');
     final cached = _cache[host];
     if (cached != null && _now().isBefore(cached.$2)) {
-      return cached.$1.addresses;
+      return OwnedDnsAnswer(
+        cached.$1.addresses.map((ip) => ip.address).toList(),
+        cached.$2.difference(_now()).inSeconds.clamp(0, cached.$1.ttl),
+      );
     }
     _cache.remove(host);
     try {
       final answer = await (_pending[host] ??= _load(host));
-      return answer.addresses;
+      return answer;
     } catch (_) {
       if (strict) rethrow;
-      return InternetAddress.lookup(host);
+      return OwnedDnsAnswer(
+        (await InternetAddress.lookup(host)).map((ip) => ip.address).toList(),
+        0,
+      );
     }
   }
 
@@ -238,7 +248,22 @@ Future<ConnectionTask<Socket>> _secureTask(
 class _OwnedHttpOverrides extends HttpOverrides {}
 
 final class OwnedDnsBinding {
-  OwnedDnsBinding._(this.config, this._sdkLookup) {
+  OwnedDnsBinding._(
+    this.config,
+    Future<OwnedDnsAnswer?> Function(String)? sdkLookup,
+  ) {
+    final hosts = (config['hosts'] as List).cast<String>().toSet();
+    _rawResolver = OwnedDnsResolver(
+      hosts: hosts,
+      strict: config['strict'] != false,
+      lookup: _fetchRaw,
+    );
+    _loopback = OwnedDnsSdkLoopback(
+      hosts: hosts,
+      rawLookup: _rawResolver.resolveAnswer,
+      adapter: ownedDnsSdkAdapter,
+    );
+    _sdkLookup = sdkLookup ?? _loopback.lookup;
     resolver = OwnedDnsResolver(
       hosts: (config['hosts'] as List).cast<String>().toSet(),
       strict: config['strict'] != false,
@@ -246,7 +271,9 @@ final class OwnedDnsBinding {
     );
   }
   final Map<String, dynamic> config;
-  final Future<OwnedDnsAnswer?> Function(String) _sdkLookup;
+  late final Future<OwnedDnsAnswer?> Function(String) _sdkLookup;
+  late final OwnedDnsResolver _rawResolver;
+  late final OwnedDnsSdkLoopback _loopback;
   late final OwnedDnsResolver resolver;
   String? _authorization;
   Map<String, dynamic> get coreConfig => {
@@ -257,25 +284,19 @@ final class OwnedDnsBinding {
     if (_authorization == value) return;
     _authorization = value;
     resolver.clear();
+    _rawResolver.clear();
+    _loopback.invalidate();
   }
 
   Future<bool> configureSdkDiagnostic({
     required String accountId,
     required String accessKeyId,
     required String accessKeySecret,
-  }) {
-    resolver.clear();
-    return ownedDnsSdkAdapter.configureDiagnostic(
-      hosts: resolver.hosts,
-      accountId: accountId,
-      accessKeyId: accessKeyId,
-      accessKeySecret: accessKeySecret,
-    );
-  }
+  }) async => false;
 
   Future<void> disableSdkDiagnostic() async {
     resolver.clear();
-    await ownedDnsSdkAdapter.disable();
+    await _loopback.close();
   }
 
   static OwnedDnsBinding? fromEnvironment() {
@@ -318,20 +339,23 @@ final class OwnedDnsBinding {
     }
     return OwnedDnsBinding._(
       Map.unmodifiable({...config, 'strict': config['strict'] != false}),
-      sdkLookup ?? ownedDnsSdkAdapter.lookup,
+      sdkLookup,
     );
   }
 
-  Future<OwnedDnsAnswer> _lookup(String host) =>
-      lookupWithOwnedDnsSdk(host, sdk: _sdkLookup, fallback: _lookupWithoutSdk);
+  Future<OwnedDnsAnswer> _lookup(String host) => lookupWithOwnedDnsSdk(
+    host,
+    sdk: _sdkLookup,
+    fallback: _rawResolver.resolveAnswer,
+  );
 
-  Future<OwnedDnsAnswer> _lookupWithoutSdk(String host) async {
+  Future<OwnedDnsAnswer> _fetchRaw(String host) async {
     if (host == 'link.zolmid.com') return bootstrapZolnitOrigin();
     final authorization = _authorization;
     if (authorization == null) {
       throw const SocketException('Owned DNS unauthenticated');
     }
-    final client = resolver.createHttpClient();
+    final client = _rawResolver.createHttpClient();
     try {
       final relay = Uri.parse(config['relay'] as String);
       final req = await client.getUrl(
@@ -373,7 +397,7 @@ Future<OwnedDnsAnswer> lookupWithOwnedDnsSdk(
     if (answer != null) {
       return OwnedDnsAnswer(
         answer.addresses.map((ip) => ip.address).toList(),
-        0,
+        answer.ttl,
       );
     }
   } catch (_) {}
@@ -402,6 +426,43 @@ Future<OwnedDnsAnswer> bootstrapZolnitOrigin({
   return OwnedDnsAnswer(addresses, ttl);
 }
 
+const ownedDnsBootstrapLiterals = [
+  '223.5.5.5',
+  '2400:3200::1',
+  '223.6.6.6',
+  '2400:3200:baba::1',
+];
+
+Future<OwnedDnsAnswer> raceOwnedDnsBootstrapEndpoints({
+  required Future<OwnedDnsAnswer> Function(String) exchange,
+  Duration stagger = const Duration(milliseconds: 150),
+}) {
+  final result = Completer<OwnedDnsAnswer>();
+  var pending = ownedDnsBootstrapLiterals.length;
+  Future<void> attempt(int index) async {
+    await Future<void>.delayed(stagger * index);
+    if (result.isCompleted) return;
+    try {
+      final answer = await exchange(
+        ownedDnsBootstrapLiterals[index],
+      ).timeout(const Duration(seconds: 2));
+      if (!result.isCompleted) result.complete(answer);
+    } catch (_) {
+      pending--;
+      if (pending == 0 && !result.isCompleted) {
+        result.completeError(
+          const SocketException('Owned DNS bootstrap failed'),
+        );
+      }
+    }
+  }
+
+  for (var i = 0; i < ownedDnsBootstrapLiterals.length; i++) {
+    unawaited(attempt(i));
+  }
+  return result.future;
+}
+
 Future<OwnedDnsAnswer> _queryOwnedBootstrapFamily(int type) async {
   final wire = <int>[0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0];
   for (final label in 'link.zolmid.com'.split('.')) {
@@ -409,51 +470,59 @@ Future<OwnedDnsAnswer> _queryOwnedBootstrapFamily(int type) async {
     wire.addAll(ascii.encode(label));
   }
   wire.addAll([0, 0, type, 0, 1]);
-  OwnedDnsAnswer? answer;
-  for (final literal in ['223.5.5.5', '223.6.6.6']) {
-    final client = _OwnedHttpOverrides().createHttpClient(null)
-      ..connectionTimeout = const Duration(seconds: 3)
-      ..findProxy = (_) => 'DIRECT';
-    client.connectionFactory = (uri, proxyHost, proxyPort) async => _secureTask(
-      await Socket.startConnect(InternetAddress(literal), 443),
-      uri,
-      null,
-    );
-    try {
-      answer = await (() async {
-        final req = await client.getUrl(
-          Uri.https('dns.alidns.com', '/dns-query', {
-            'dns': base64Url.encode(wire).replaceAll('=', ''),
-          }),
-        );
-        req.followRedirects = false;
-        req.headers.set(HttpHeaders.acceptHeader, 'application/dns-message');
-        final response = await req.close().timeout(const Duration(seconds: 4));
-        if (response.statusCode != 200 ||
-            response.headers.contentType?.mimeType !=
-                'application/dns-message') {
-          throw const FormatException('Invalid bootstrap response');
-        }
-        final bytes = <int>[];
-        await for (final chunk in response.timeout(
-          const Duration(seconds: 4),
-        )) {
-          if (bytes.length + chunk.length > 65535) {
-            throw const FormatException('Bootstrap size');
+
+  final clients = <HttpClient>{};
+  try {
+    return await raceOwnedDnsBootstrapEndpoints(
+      exchange: (literal) async {
+        final client = _OwnedHttpOverrides().createHttpClient(null)
+          ..connectionTimeout = const Duration(seconds: 3)
+          ..findProxy = (_) => 'DIRECT';
+        client.connectionFactory = (uri, proxyHost, proxyPort) async =>
+            _secureTask(
+              await Socket.startConnect(InternetAddress(literal), 443),
+              uri,
+              null,
+            );
+
+        clients.add(client);
+        try {
+          final req = await client.getUrl(
+            Uri.https('dns.alidns.com', '/dns-query', {
+              'dns': base64Url.encode(wire).replaceAll('=', ''),
+            }),
+          );
+          req.followRedirects = false;
+          req.headers.set(HttpHeaders.acceptHeader, 'application/dns-message');
+          final response = await req.close().timeout(
+            const Duration(seconds: 4),
+          );
+          if (response.statusCode != 200 ||
+              response.headers.contentType?.mimeType !=
+                  'application/dns-message') {
+            throw const FormatException('Invalid bootstrap response');
           }
-          bytes.addAll(chunk);
+          final bytes = <int>[];
+          await for (final chunk in response.timeout(
+            const Duration(seconds: 4),
+          )) {
+            if (bytes.length + chunk.length > 65535) {
+              throw const FormatException('Bootstrap size');
+            }
+            bytes.addAll(chunk);
+          }
+          return decodeOwnedBootstrap(Uint8List.fromList(bytes), type);
+        } finally {
+          clients.remove(client);
+          client.close(force: true);
         }
-        return decodeOwnedBootstrap(Uint8List.fromList(bytes), type);
-      })().timeout(const Duration(seconds: 2));
-      break;
-    } catch (_) {
-      continue;
-    } finally {
+      },
+    );
+  } finally {
+    for (final client in clients.toList()) {
       client.close(force: true);
     }
   }
-  if (answer == null) throw const SocketException('Owned DNS bootstrap failed');
-  return answer;
 }
 
 OwnedDnsAnswer decodeOwnedBootstrap(Uint8List bytes, int type) {

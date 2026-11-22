@@ -3,7 +3,7 @@ package com.zolmid.zolnit.network
 import java.net.InetAddress
 
 internal interface OwnedDnsSdkBackend {
-    fun configure(account: String, key: String, secret: String)
+    fun configure(port: Int, key: String, secret: String)
     fun lookup(host: String): List<String>
 }
 
@@ -14,28 +14,32 @@ internal class OwnedDnsSdkBridge(
     @Volatile private var hosts = emptySet<String>()
     private val generation = java.util.concurrent.atomic.AtomicInteger()
     private val lookupSlot = java.util.concurrent.Semaphore(1)
-    private var initialized = false
+    @Volatile private var expiresAt = 0L
     private val stateLock = Any()
 
     @Synchronized fun configure(arguments: Map<*, *>): Boolean {
         val observed = synchronized(stateLock) { hosts = emptySet(); generation.incrementAndGet() }
-        if (!diagnostic || backend == null || initialized) return false
+        if (!diagnostic || backend == null) return false
         val scope = (arguments["hosts"] as? List<*>)?.filterIsInstance<String>() ?: return false
         if (scope.isEmpty() || scope.size > 256 || scope.size != (arguments["hosts"] as List<*>).size || scope.any { !validHost(it) }) return false
-        val credentials = listOf("accountId", "accessKeyId", "accessKeySecret").map {
-            (arguments[it] as? String)?.takeIf { value -> value.isNotEmpty() && value.length <= 512 && value.all { char -> char.code in 33..126 } } ?: return false
+        val port = (arguments["port"] as? Number)?.toInt() ?: return false
+        val expiry = (arguments["expiresAt"] as? Number)?.toLong() ?: return false
+        val remaining = expiry - System.currentTimeMillis()
+        if (port !in 1..65535 || remaining !in 1..300_000) return false
+        val deadline = System.nanoTime() / 1_000_000 + remaining
+        val credentials = listOf("keyId", "secret").map {
+            (arguments[it] as? String)?.takeIf { value -> value.matches(Regex("[a-f0-9]{64}")) } ?: return false
         }
         return try {
-            initialized = true
-            backend.configure(credentials[0], credentials[1], credentials[2])
+            backend.configure(port, credentials[0], credentials[1])
             synchronized(stateLock) {
-                if (observed == generation.get()) { hosts = scope.toSet(); true } else false
+                if (observed == generation.get()) { hosts = scope.toSet(); expiresAt = deadline; true } else false
             }
         } catch (_: Exception) { false }
     }
 
     fun lookup(host: String): List<String> {
-        if (!diagnostic || host !in hosts || backend == null) return emptyList()
+        if (!diagnostic || host !in hosts || backend == null || System.nanoTime() / 1_000_000 >= expiresAt) return emptyList()
         if (!lookupSlot.tryAcquire()) return emptyList()
         val observed = generation.get()
         return try {

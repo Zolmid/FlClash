@@ -112,6 +112,8 @@ jobs:
       ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_OFFICIAL_RELEASE: ${{ needs.select.outputs.official }}
+      ZOLNIT_CLOUD_DNS_SDK: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
+      ORG_GRADLE_PROJECT_zolnitCloudDnsSdk: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
       ZOLNIT_OWNED_DNS: ${{ needs.select.outputs.native_ui == 'true' && '{"strict":true,"relay":"https://link.zolmid.com/api/v1/zolnit/client/httpdns","hosts":["link.zolmid.com"]}' || '' }}
     steps:
       - name: Enable Windows long paths
@@ -560,6 +562,8 @@ jobs:
       ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_OFFICIAL_RELEASE: ${{ needs.select.outputs.official }}
+      ZOLNIT_CLOUD_DNS_SDK: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
+      ORG_GRADLE_PROJECT_zolnitCloudDnsSdk: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
       ZOLNIT_OWNED_DNS: ${{ needs.select.outputs.native_ui == 'true' && '{"strict":true,"relay":"https://link.zolmid.com/api/v1/zolnit/client/httpdns","hosts":["link.zolmid.com"]}' || '' }}
       FLUTTER_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
       GO_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}

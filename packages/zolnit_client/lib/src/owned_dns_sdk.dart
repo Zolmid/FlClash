@@ -11,7 +11,7 @@ class OwnedDnsSdkAdapter {
     bool? diagnosticEnabled,
     bool? mobile,
   }) : _channel = channel ?? const MethodChannel('com.zolmid.zolnit/service'),
-       _enabled = diagnosticEnabled ?? false,
+       _enabled = diagnosticEnabled ?? true,
        _mobile = mobile ?? (Platform.isAndroid || Platform.isIOS);
 
   final MethodChannel _channel;
@@ -20,38 +20,50 @@ class OwnedDnsSdkAdapter {
   Set<String> _hosts = const {};
   int _generation = 0;
 
+  DateTime? _expiresAt;
+  bool get supported => _enabled && _mobile;
+
   Future<bool> configureDiagnostic({
     required Set<String> hosts,
     required String accountId,
     required String accessKeyId,
     required String accessKeySecret,
+  }) async => false;
+
+  Future<bool> configureLoopback({
+    required Set<String> hosts,
+    required int port,
+    required String keyId,
+    required String secret,
+    required DateTime expiresAt,
   }) async {
     final generation = ++_generation;
     _hosts = const {};
-    if (!_enabled ||
-        !_mobile ||
+    if (!supported ||
         hosts.isEmpty ||
         hosts.length > 256 ||
         hosts.any((host) => !validOwnedSdkHost(host)) ||
-        [accountId, accessKeyId, accessKeySecret].any(
-          (value) =>
-              value.isEmpty ||
-              value.length > 512 ||
-              RegExp(r'[^\x21-\x7e]').hasMatch(value),
-        )) {
+        port < 1 ||
+        port > 65535 ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(keyId) ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(secret) ||
+        !expiresAt.isAfter(DateTime.now()) ||
+        expiresAt.difference(DateTime.now()) > const Duration(minutes: 5)) {
       return false;
     }
     try {
-      final available = await _channel
-          .invokeMethod<bool>('configureOwnedDnsSdkDiagnostic', {
+      final ready = await _channel
+          .invokeMethod<bool>('configureOwnedDnsSdkLoopback', {
             'hosts': hosts.toList(),
-            'accountId': accountId,
-            'accessKeyId': accessKeyId,
-            'accessKeySecret': accessKeySecret,
+            'port': port,
+            'keyId': keyId,
+            'secret': secret,
+            'expiresAt': expiresAt.millisecondsSinceEpoch,
           })
           .timeout(const Duration(seconds: 3));
-      if (available != true || generation != _generation) return false;
+      if (ready != true || generation != _generation) return false;
       _hosts = Set.unmodifiable(hosts);
+      _expiresAt = expiresAt;
       return true;
     } catch (_) {
       return false;
@@ -59,7 +71,12 @@ class OwnedDnsSdkAdapter {
   }
 
   Future<OwnedDnsAnswer?> lookup(String host) async {
-    if (!_enabled || !_mobile || !_hosts.contains(host)) return null;
+    if (!supported ||
+        !_hosts.contains(host) ||
+        _expiresAt == null ||
+        !DateTime.now().isBefore(_expiresAt!)) {
+      return null;
+    }
     final generation = _generation;
     try {
       final values = await _channel

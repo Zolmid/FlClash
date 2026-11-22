@@ -92,7 +92,15 @@ func dialOwnedAddresses(ctx context.Context, network, port string, ips []netip.A
 	var failure error
 	for _, ip := range ips {
 		attempt, cancel := context.WithTimeout(ctx, 4*time.Second)
-		conn, err := dialer.DialContext(attempt, network, net.JoinHostPort(ip.String(), port))
+		familyNetwork := network
+		if strings.HasPrefix(network, "tcp") {
+			if ip.Is6() {
+				familyNetwork = "tcp6"
+			} else {
+				familyNetwork = "tcp4"
+			}
+		}
+		conn, err := dialer.DialContext(attempt, familyNetwork, net.JoinHostPort(ip.String(), port))
 		cancel()
 		if err == nil {
 			return conn, nil
@@ -234,38 +242,73 @@ func collectOwnedDNSBootstrap(ctx context.Context, query ownedDNSBootstrapQuery)
 	return combined, nil
 }
 
+var ownedDNSBootstrapLiterals = []string{"223.5.5.5", "2400:3200::1", "223.6.6.6", "2400:3200:baba::1"}
+
+type ownedDNSBootstrapExchange func(context.Context, uint16, string) (ownedDNSAnswer, error)
+
 func queryOwnedDNSBootstrap(ctx context.Context, qtype uint16) (ownedDNSAnswer, error) {
+	return raceOwnedDNSBootstrap(ctx, qtype, exchangeOwnedDNSBootstrap)
+}
+
+func raceOwnedDNSBootstrap(ctx context.Context, qtype uint16, exchange ownedDNSBootstrapExchange) (ownedDNSAnswer, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	type result struct {
+		answer ownedDNSAnswer
+		err    error
+	}
+	results := make(chan result, len(ownedDNSBootstrapLiterals))
+	for index, literal := range ownedDNSBootstrapLiterals {
+		go func(index int, literal string) {
+			timer := time.NewTimer(time.Duration(index) * 150 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				return
+			}
+			answer, err := exchange(ctx, qtype, literal)
+			results <- result{answer, err}
+		}(index, literal)
+	}
+	for range ownedDNSBootstrapLiterals {
+		select {
+		case value := <-results:
+			if value.err == nil {
+				return value.answer, nil
+			}
+		case <-ctx.Done():
+			return ownedDNSAnswer{}, ctx.Err()
+		}
+	}
+	return ownedDNSAnswer{}, errors.New("owned DNS bootstrap unavailable")
+}
+
+func exchangeOwnedDNSBootstrap(ctx context.Context, qtype uint16, literal string) (ownedDNSAnswer, error) {
 	answer := ownedDNSAnswer{TTL: 86400}
 	query := new(D.Msg)
 	query.SetQuestion("link.zolmid.com.", qtype)
 	wire, _ := query.Pack()
-	var response *D.Msg
-	for _, literal := range []string{"223.5.5.5", "223.6.6.6"} {
-		transport := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-			return dialOwnedAddresses(ctx, network, "443", []netip.Addr{netip.MustParseAddr(literal)})
-		}, TLSHandshakeTimeout: 4 * time.Second}
-		client := &http.Client{Transport: transport, Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-		req, _ := http.NewRequestWithContext(ctx, "GET", "https://dns.alidns.com/dns-query?dns="+base64.RawURLEncoding.EncodeToString(wire), nil)
-		req.Header.Set("Accept", "application/dns-message")
-		resp, err := client.Do(req)
-		if err == nil {
-			body, readErr := io.ReadAll(io.LimitReader(resp.Body, 65536))
-			resp.Body.Close()
-			if resp.StatusCode == 200 && readErr == nil {
-				msg := new(D.Msg)
-				if msg.Unpack(body) == nil && msg.Id == query.Id && msg.Response && msg.Rcode == D.RcodeSuccess && len(msg.Question) == 1 && msg.Question[0] == query.Question[0] {
-					response = msg
-				}
-			}
-		}
-		transport.CloseIdleConnections()
-		if response != nil {
-			break
-		}
+	transport := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+		return dialOwnedAddresses(ctx, network, "443", []netip.Addr{netip.MustParseAddr(literal)})
+	}, TLSHandshakeTimeout: 2 * time.Second}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport, Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://dns.alidns.com/dns-query?dns="+base64.RawURLEncoding.EncodeToString(wire), nil)
+	req.Header.Set("Accept", "application/dns-message")
+	resp, err := client.Do(req)
+	if err != nil {
+		return ownedDNSAnswer{}, err
 	}
-	if response == nil {
-		return ownedDNSAnswer{}, errors.New("owned DNS bootstrap unavailable")
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 65536))
+	response := new(D.Msg)
+	if err != nil || resp.StatusCode != 200 || len(body) > 65535 || response.Unpack(body) != nil ||
+		response.Id != query.Id || !response.Response || response.Rcode != D.RcodeSuccess ||
+		len(response.Question) != 1 || response.Question[0] != query.Question[0] {
+		return ownedDNSAnswer{}, errors.New("invalid owned DNS bootstrap response")
 	}
+
 	for _, rr := range response.Answer {
 		if int(rr.Header().Ttl) < answer.TTL {
 			answer.TTL = int(rr.Header().Ttl)

@@ -1,0 +1,28 @@
+PODS:
+  - Flutter (1.0.0)
+  - zolnit_native_ui (0.1.0):
+    - Flutter
+    - FlutterMacOS
+  - ZolnitCloudDnsSdk (2.3.1)
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - zolnit_native_ui (from `.symlinks/plugins/zolnit_native_ui/darwin`)
+  - ZolnitCloudDnsSdk (from `CloudDnsSdk/ZolnitCloudDnsSdk.podspec`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  zolnit_native_ui:
+    :path: ".symlinks/plugins/zolnit_native_ui/darwin"
+  ZolnitCloudDnsSdk:
+    :podspec: CloudDnsSdk/ZolnitCloudDnsSdk.podspec
+
+SPEC CHECKSUMS:
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  zolnit_native_ui: 6a7ce316c98b3f38cbd7c6d034028dc2676af51f
+  ZolnitCloudDnsSdk: 67954b56e092f8af2c12a9a455544ff8f8fd4f6e
+
+PODFILE CHECKSUM: c589fbd56ef51ff80e927007623735ccfde2934e
+
+COCOAPODS: 1.17.0

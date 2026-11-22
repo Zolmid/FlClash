@@ -3,6 +3,8 @@
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+require 'json'
+require 'base64'
 
 project 'Runner', {
   'Debug' => :debug,
@@ -27,8 +29,31 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_ios_podfile_setup
 
+def zolnit_cloud_dns_sdk_enabled?
+  return ENV['ZOLNIT_CLOUD_DNS_SDK'] == 'true' if ENV.key?('ZOLNIT_CLOUD_DNS_SDK')
+  values = {}
+  env_file = File.expand_path('../env.json', __dir__)
+  if File.file?(env_file)
+    values.merge!(JSON.parse(File.read(env_file)))
+    return true if values['ZOLNIT_DISTRIBUTION'] == 'direct' || values['ZOLNIT_NATIVE_UI'] == 'true' || values['ZOLNIT_CLIENT_BUNDLE'] == 'true'
+  end
+  generated = File.expand_path('Flutter/Generated.xcconfig', __dir__)
+  if File.file?(generated)
+    encoded = File.readlines(generated).find { |line| line.start_with?('DART_DEFINES=') }
+    if encoded
+      values.clear
+      encoded.sub('DART_DEFINES=', '').strip.split(',').each do |item|
+        key, value = Base64.decode64(item).split('=', 2)
+        values[key] = value
+      end
+    end
+  end
+  values['ZOLNIT_DISTRIBUTION'] == 'direct' || values['ZOLNIT_NATIVE_UI'] == 'true' || values['ZOLNIT_CLIENT_BUNDLE'] == 'true'
+end
+
 target 'Runner' do
   use_frameworks!
+  pod 'ZolnitCloudDnsSdk', :podspec => 'CloudDnsSdk/ZolnitCloudDnsSdk.podspec' if zolnit_cloud_dns_sdk_enabled?
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

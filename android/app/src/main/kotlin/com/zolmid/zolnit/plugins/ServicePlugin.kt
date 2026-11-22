@@ -39,7 +39,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         ownedDnsSdk = OwnedDnsSdkBridge(
-            BuildConfig.DEBUG && BuildConfig.CLOUD_DNS_DIAGNOSTIC, officialCloudDnsSdkBackend(binding.applicationContext))
+            BuildConfig.CLOUD_DNS_ENABLED, officialCloudDnsSdkBackend(binding.applicationContext))
         firstPartyHttp = FirstPartyHttpTransport.android(binding.applicationContext) {
             ServiceState.awaitActiveVpnOptions()?.enable == true
         }
@@ -70,10 +70,11 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "configureOwnedDnsSdkDiagnostic", "lookupOwnedDnsSdk", "disableOwnedDnsSdk" -> scope.launch(Dispatchers.IO) {
+            "configureOwnedDnsSdkDiagnostic" -> result.success(false)
+            "configureOwnedDnsSdkLoopback", "lookupOwnedDnsSdk", "disableOwnedDnsSdk" -> scope.launch(Dispatchers.IO) {
                 val response = runCatching {
                     when (call.method) {
-                        "configureOwnedDnsSdkDiagnostic" -> ownedDnsSdk.configure(call.arguments as? Map<*, *> ?: emptyMap<Any, Any>())
+                        "configureOwnedDnsSdkLoopback" -> ownedDnsSdk.configure(call.arguments as? Map<*, *> ?: emptyMap<Any, Any>())
                         "lookupOwnedDnsSdk" -> ownedDnsSdk.lookup(call.argument<String>("host") ?: "")
                         else -> { ownedDnsSdk.disable(); null }
                     }

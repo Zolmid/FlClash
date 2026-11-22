@@ -41,10 +41,9 @@ NOTES_BEGIN = '<!-- flclash:changelog:begin -->'
 NOTES_END = '<!-- flclash:changelog:end -->'
 NOTES_FILE = 'release-notes.md'
 MOBILE_DNS_SDK_BLOCKER = (
-    'MOBILE_DNS_SDK_PRODUCTION_BLOCKED: verified FusionDNS adapters do not yet have '
-    'an accepted IP-SAN endpoint, short-lived owned-host grant/refresh contract and '
-    'cross-platform TLS/expiry acceptance. Relay is not SDK acceptance. '
-    'See docs/httpdns-release.md.'
+    'MOBILE_DNS_SDK_PRODUCTION_BLOCKED: release loopback SDK wiring is present; '
+    'owner acceptance of iOS/device behavior, complete candidate and SDK egress is pending. '
+    'Do not publish a relay-only substitute. See docs/httpdns-release.md.'
 )
 CHUNK = 1024 * 1024
 
