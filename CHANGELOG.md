@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.12 (2026-11-22)
+
+**Bug Fixes**
+
+- **network** Restore configuration downloads for signed subscriptions and show a connection error when the network is unavailable. (5f7551b)
+
 ## v1.1.11 (2026-11-22)
 
 **Features**
