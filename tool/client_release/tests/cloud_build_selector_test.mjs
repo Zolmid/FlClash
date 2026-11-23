@@ -477,12 +477,13 @@ test('unknown profiles are rejected before anything is written', () => {
   }
 });
 
-test('only selection and provenance read the profile while signing gates ignore it', () => {
+test('selection, provenance and candidate verification read the profile while signing gates ignore it', () => {
   const workflow = readFileSync(WORKFLOW, 'utf8');
   assert.deepEqual(workflow.split('\n').filter(line => /build_profile/i.test(line)),
     ['      build_profile:', '      BUILD_PROFILE: ${{ inputs.build_profile }}',
       "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"',
-      "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"']);
+      "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"',
+      "    if: always() && github.event_name == 'workflow_dispatch' && inputs.build_profile == 'zolnit' && inputs.ios_source == 'project'"]);
   const dispatchInputs = workflow.slice(workflow.indexOf('\n  workflow_dispatch:\n'), workflow.indexOf('\n  workflow_call:\n'));
   assert.match(dispatchInputs, /\n {6}build_profile:\n {8}description: [^\n]+\n {8}type: choice\n {8}required: false\n {8}default: auto\n {8}options: \[auto, zolnit\]$/);
   const select = workflow.slice(workflow.indexOf('\n  select:\n'), workflow.indexOf('\n  project:\n'));

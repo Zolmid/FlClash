@@ -60,7 +60,7 @@ jobs:
 
   builds:
     name: Release builds
-    needs: preflight
+    needs: [preflight, ci]
     permissions:
       contents: read
     uses: ./.github/workflows/cloud-build.yml
@@ -74,7 +74,7 @@ jobs:
 
   macos-sign:
     name: Developer ID and notarization · ${{ matrix.arch }}
-    needs: [preflight, builds]
+    needs: [preflight, ci, builds]
     if: needs.preflight.outputs.macos_signing_required == 'true'
     permissions:
       contents: read
@@ -98,7 +98,7 @@ jobs:
   publish:
     name: Publish ${{ needs.preflight.outputs.version }}
     needs: [ preflight, ci, builds, macos-sign ]
-    if: always() && needs.preflight.result == 'success' && needs.ci.result == 'success' && needs.builds.result == 'success'
+    if: always() && needs.preflight.result == 'success' && needs.ci.result == 'success' && needs.builds.result == 'success' && (needs.preflight.outputs.macos_signing_required == 'false' && needs.macos-sign.result == 'skipped' || needs.preflight.outputs.macos_signing_required == 'true' && needs.macos-sign.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:
