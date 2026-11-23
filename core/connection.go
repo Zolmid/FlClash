@@ -68,7 +68,13 @@ func handleResetConnections() bool {
 // TCP gives up on it, and so do the DNS clients' pooled connections.
 func handleResetNetwork() {
 	handleCloseConnections()
+	configMu.Lock()
+	defer configMu.Unlock()
+	resolver.ClearCache()
 	resolver.ResetConnection()
+	if owned := activeOwnedDNS.Load(); owned != nil {
+		owned.invalidateCache()
+	}
 }
 
 func handleCloseConnection(connectionId string) bool {

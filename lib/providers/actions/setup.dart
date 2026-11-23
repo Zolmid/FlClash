@@ -247,7 +247,14 @@ class SetupAction extends _$SetupAction {
             preloadInvoke: () => _startCoreRunning(request),
           );
         } catch (_) {
-          applied = false;
+          if (_isCurrent(request) &&
+              !request.retryProfileBuild &&
+              rootNavigatorKey.currentContext != null) {
+            dialogs.showNotifier(
+              currentAppLocalizations.zolnitConnectionIssue,
+              level: MessageLevel.error,
+            );
+          }
         }
         if (!_isCurrent(request)) return true;
         if (request.retryProfileBuild) continue;

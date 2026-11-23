@@ -43,10 +43,11 @@ type ownedDNSCache struct {
 type ownedDNSResolver struct {
 	revoked atomic.Bool
 	resolver.Resolver
-	config OwnedDNSConfig
-	hosts  map[string]bool
-	mu     sync.Mutex
-	cache  map[string]ownedDNSCache
+	config     OwnedDNSConfig
+	hosts      map[string]bool
+	mu         sync.Mutex
+	cache      map[string]ownedDNSCache
+	generation uint64
 }
 
 func newOwnedDNSResolver(config *OwnedDNSConfig, fallback resolver.Resolver) (*ownedDNSResolver, error) {
@@ -119,6 +120,7 @@ func (r *ownedDNSResolver) lookup(ctx context.Context, host string) ([]netip.Add
 		return r.fallback(ctx, host)
 	}
 	r.mu.Lock()
+	generation := r.generation
 	cached, ok := r.cache[host]
 	r.mu.Unlock()
 	if ok && time.Now().Before(cached.until) {
@@ -144,10 +146,13 @@ func (r *ownedDNSResolver) lookup(ctx context.Context, host string) ([]netip.Add
 	if err != nil || answer.TTL < 0 || answer.TTL > 86400 {
 		return nil, errors.New("invalid owned DNS answer")
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if generation != r.generation || r.revoked.Load() {
+		return nil, errors.New("owned DNS lookup superseded")
+	}
 	if answer.TTL > 0 {
-		r.mu.Lock()
 		r.cache[host] = ownedDNSCache{ips: ips, until: time.Now().Add(time.Duration(answer.TTL) * time.Second)}
-		r.mu.Unlock()
 	}
 	return append([]netip.Addr(nil), ips...), nil
 }
@@ -376,10 +381,15 @@ func (r *ownedDNSResolver) ExchangeContext(ctx context.Context, msg *D.Msg) (*D.
 	}
 	return nil, resolver.ErrIPNotFound
 }
-func (r *ownedDNSResolver) ClearCache() {
+func (r *ownedDNSResolver) invalidateCache() {
 	r.mu.Lock()
+	r.generation++
 	r.cache = map[string]ownedDNSCache{}
 	r.mu.Unlock()
+}
+
+func (r *ownedDNSResolver) ClearCache() {
+	r.invalidateCache()
 	if r.Resolver != nil {
 		r.Resolver.ClearCache()
 	}

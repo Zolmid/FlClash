@@ -49,6 +49,19 @@ func TestOwnedDNSCacheFamiliesAndRevocation(t *testing.T) {
 	}
 }
 
+func TestOwnedDNSNetworkResetInvalidatesCachedAnswers(t *testing.T) {
+	r := ownedDNSFixture(t)
+	r.cache["node.nodes.zolmid.com"] = ownedDNSCache{ips: []netip.Addr{netip.MustParseAddr("192.0.2.1")}, until: time.Now().Add(time.Minute)}
+	before := r.generation
+	r.invalidateCache()
+	if len(r.cache) != 0 || r.generation != before+1 {
+		t.Fatal("network reset did not invalidate the owned DNS cache")
+	}
+	if _, err := r.lookup(context.Background(), "node.nodes.zolmid.com"); err == nil {
+		t.Fatal("stale cache survived the network reset")
+	}
+}
+
 func TestOwnedDNSRejectsInvalidAddressesAndBindings(t *testing.T) {
 	for _, value := range []string{"example.com", "127.0.0.1", "::", "ff02::1", "fe80::1%en0"} {
 		if _, err := validateOwnedAddresses([]string{value}); err == nil {
