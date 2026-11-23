@@ -2092,6 +2092,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "結算工作階段正在準備或核對，請稍後重試。",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("選擇方案"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("選擇線路"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("已完成"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("正在確認付款"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("連線"),
@@ -2429,10 +2430,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "線路切換未完成，請重試。",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "正在檢查自動線路，可先選擇下方線路。",
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "測速不代表服務可用",
     ),
+    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage("正在準備自動選線"),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("暫無可用線路"),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage("尚未確認可用線路"),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage("智慧分流選項"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(

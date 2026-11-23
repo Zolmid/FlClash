@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/context.dart';
+import 'package:fl_clash/common/zolnit_routing.dart';
 import 'package:fl_clash/common/zolnit_return_route.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -54,6 +55,7 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         bundle?.isFresh(ref.read(zolnitBundleClockProvider)()) == true;
     final available =
         managed &&
+        profile.zolnitBundleId == bundle?.bundleId &&
         !ref.watch(safeModeProvider) &&
         connected &&
         policy?.type == GroupType.Selector;
@@ -117,19 +119,29 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         ? const <String>[]
         : [service.route.groupName, service.manualGroup, 'DIRECT'];
     final mode = values.contains(policy?.realNow) ? policy!.realNow : null;
-    String? target = mode;
-    final visited = <String>{};
-    while (target != null && visited.add(target)) {
-      final next = groups.getGroup(target)?.realNow;
-      if (next == null || next == target) break;
-      target = next;
-    }
+    final target = service == null
+        ? null
+        : zolnitAppliedRoute(groups, service.groupName);
+    final manualGroup = service == null
+        ? null
+        : groups.getGroup(service.manualGroup);
+    final manualMembers = {
+      for (final proxy in manualGroup?.all ?? const <Proxy>[])
+        if (isSmartRoutingProxyType(proxy.type)) proxy.name,
+    };
+    final manualNodes =
+        bundle?.outbounds
+            .where((node) => manualMembers.contains(node.proxyName))
+            .toList() ??
+        const <ZolnitBundleOutbound>[];
     final current = target == 'DIRECT'
         ? l10n.direct
         : target == null || target == 'REJECT'
         ? (!leaseReady
               ? l10n.zolnitRoutePreparing
-              : l10n.zolnitRouteUnavailable)
+              : !eligible
+              ? l10n.zolnitBundleNoCandidates
+              : l10n.zolnitRouteUnverified)
         : zolnitDisplayTitle(
             bundle?.outbounds
                     .where((o) => o.proxyName == target)
@@ -148,7 +160,12 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final colors = ZolnitColors.of(context);
-    final serviceScope = (session.api.generation, bundle?.bundleId);
+    final serviceScope = (
+      session,
+      session.api.generation,
+      bundle?.bundleId,
+      profile?.id,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: ZolnitCard(
@@ -202,6 +219,8 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                     available: available,
                     autoEnabled: autoEnabled,
                     session: session,
+                    manualNodes: manualNodes,
+                    manualSelection: manualGroup?.realNow,
                   ),
                 ],
               ),
@@ -241,8 +260,12 @@ class _ServiceModeControl extends ConsumerStatefulWidget {
     required this.available,
     required this.autoEnabled,
     required this.session,
+    required this.manualNodes,
+    required this.manualSelection,
   });
 
+  final List<ZolnitBundleOutbound> manualNodes;
+  final String? manualSelection;
   final ManagedRouteService service;
   final String? mode;
   final bool available;
@@ -257,41 +280,61 @@ class _ServiceModeControl extends ConsumerStatefulWidget {
 class _ServiceModeControlState extends ConsumerState<_ServiceModeControl> {
   int _revision = 0;
   String? _pending;
+  String? _pendingRoute;
   bool _failed = false;
 
-  Future<void> _change(String value) async {
+  Future<void> _change(String value, {bool manual = false}) async {
     final revision = ++_revision;
     final profileId = ref.read(currentProfileProvider)?.id;
     final bundleId = widget.session.clientBundle?.bundleId;
     final generation = widget.session.api.generation;
     final container = ProviderScope.containerOf(context, listen: false);
     final session = widget.session;
+    final configuration = ref
+        .read(coreHandlerProvider)
+        .configurationChanges
+        .value;
     setState(() {
-      _pending = value;
+      _pending = manual ? null : value;
+      _pendingRoute = manual ? value : null;
       _failed = false;
     });
     bool sameScope() =>
+        session.authenticated &&
+        identical(
+          container.read(coreHandlerProvider).configurationChanges.value,
+          configuration,
+        ) &&
         container.read(currentProfileProvider)?.id == profileId &&
         session.clientBundle?.bundleId == bundleId &&
         session.api.generation == generation &&
         container.read(coreStatusProvider) == CoreStatus.connected &&
         !container.read(safeModeProvider);
-    bool current() => revision == _revision && sameScope();
+    bool current() => mounted && revision == _revision && sameScope();
     var applied = false;
     try {
       applied = await ref
           .read(proxiesActionProvider.notifier)
           .changeProxyIfCurrent(
-            groupName: widget.service.groupName,
+            groupName: manual
+                ? widget.service.manualGroup
+                : widget.service.groupName,
             proxyName: value,
             isCurrent: current,
           );
+      if (applied &&
+          current() &&
+          !manual &&
+          value == widget.service.route.groupName) {
+        ref.read(zolnitRoutingProvider).kick();
+      }
     } catch (_) {
       applied = false;
     } finally {
       if (mounted && revision == _revision) {
         setState(() {
           _pending = null;
+          _pendingRoute = null;
           _failed = !applied && sameScope();
         });
       }
@@ -335,6 +378,52 @@ class _ServiceModeControlState extends ConsumerState<_ServiceModeControl> {
                   }
                 },
         ),
+        if ((_pending ?? widget.mode) == widget.service.manualGroup) ...[
+          DropdownButton<String>(
+            key: const ValueKey('bundle-manual-route'),
+            value:
+                widget.manualNodes.any(
+                  (node) =>
+                      node.proxyName ==
+                      (_pendingRoute ?? widget.manualSelection),
+                )
+                ? (_pendingRoute ?? widget.manualSelection)
+                : null,
+            isExpanded: true,
+            hint: Text(text.zolnitChooseRoute),
+            icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final node in widget.manualNodes)
+                DropdownMenuItem(
+                  value: node.proxyName,
+                  child: Text(
+                    zolnitDisplayTitle(node.displayName),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged:
+                !widget.available ||
+                    _pending != null ||
+                    widget.manualNodes.isEmpty
+                ? null
+                : (value) {
+                    if (value != null &&
+                        widget.manualNodes.any(
+                          (node) => node.proxyName == value,
+                        ) &&
+                        value != (_pendingRoute ?? widget.manualSelection)) {
+                      unawaited(_change(value, manual: true));
+                    }
+                  },
+          ),
+          Text(
+            text.zolnitRouteManualUnverified,
+            style: zolnitText(context, 12, color: colors.muted),
+          ),
+        ],
         AnimatedSize(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
@@ -342,8 +431,8 @@ class _ServiceModeControlState extends ConsumerState<_ServiceModeControl> {
           curve: Curves.easeOutCubic,
           alignment: Alignment.topLeft,
           child: Semantics(
-            liveRegion: _pending != null || _failed,
-            child: _pending != null
+            liveRegion: _pending != null || _pendingRoute != null || _failed,
+            child: _pending != null || _pendingRoute != null
                 ? Text(
                     text.loading,
                     key: const ValueKey('bundle-mode-pending'),

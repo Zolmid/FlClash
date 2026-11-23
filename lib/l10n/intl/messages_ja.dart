@@ -2328,6 +2328,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "決済を準備または確認しています。しばらくしてからもう一度お試しください。",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("プランを選ぶ"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("ルートを選択"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("完了"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("支払いを確認中"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("接続"),
@@ -2715,11 +2716,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "ルートを切り替えられませんでした。もう一度お試しください。",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "遅延測定だけではサービス利用を確認できません",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "自動ルートを確認中です。下のサーバーを選択できます。",
+      "自動ルーティングを準備中",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "利用できるルートがありません",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "利用可能なルートは未確認です",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "スマートルーティング設定",

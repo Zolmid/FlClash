@@ -2899,6 +2899,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Оплата готовится или проверяется. Повторите попытку чуть позже.",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Выбрать тариф"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage(
+      "Выбрать маршрут",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Завершён"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
       "Подтверждаем оплату",
@@ -3418,11 +3421,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Не удалось переключить маршрут. Повторите попытку.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "Задержка не подтверждает доступ к сервису",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "Проверяем автоматические маршруты. Можно выбрать сервер ниже.",
+      "Подготовка автоматической маршрутизации",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Нет доступного маршрута",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "Доступный маршрут пока не подтверждён",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Настройки умной маршрутизации",

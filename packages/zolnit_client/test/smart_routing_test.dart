@@ -80,6 +80,20 @@ void main() {
     generation = 1;
   });
 
+  test('a measured qualified route replaces an unknown current route', () {
+    configure([node('current'), node('verified', country: 'JP')]);
+    observe('current', 100);
+    confirm('current');
+    observe('verified', 80, time: 91);
+    final decision = engine.decide(
+      serviceId: 'ai',
+      now: at(91),
+      availableNodeIds: {'verified'},
+      qualifiedCurrentNodeId: 'current',
+    );
+    expect(decision.nodeId, 'verified');
+  });
+
   test(
     'unknown stale probes retain only a qualified actual current selection',
     () {

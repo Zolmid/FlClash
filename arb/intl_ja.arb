@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "確認が必要",
   "zolnitRenewalHistory": "過去の契約",
   "zolnitRoutingOptions": "スマートルーティング設定",
-  "zolnitRoutePreparing": "自動ルートを確認中です。下のサーバーを選択できます。",
+  "zolnitRoutePreparing": "自動ルーティングを準備中",
   "zolnitHelpNoArticles": "ヘルプ記事はまだありません。",
   "zolnitSupportTickets": "サポート依頼",
   "zolnitNewTicket": "新規依頼",
@@ -1616,5 +1616,8 @@
   "zolnitFreeDeviceLimit": "同時接続デバイス",
   "zolnitFreeNextReset": "次回の月次リセット",
   "zolnitFreeInviteShort": "友達を招待して無料データを補充",
-  "zolnitFreeInviteExplanation": "招待した新規ユーザーが登録するたびに、無料データが月間容量まで補充されます。補充分は累積せず、月次リセット日も変わりません。キャッシュバックとは別の特典です。"
+  "zolnitFreeInviteExplanation": "招待した新規ユーザーが登録するたびに、無料データが月間容量まで補充されます。補充分は累積せず、月次リセット日も変わりません。キャッシュバックとは別の特典です。",
+  "zolnitRouteUnverified": "利用可能なルートは未確認です",
+  "zolnitRouteManualUnverified": "遅延測定だけではサービス利用を確認できません",
+  "zolnitChooseRoute": "ルートを選択"
 }

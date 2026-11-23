@@ -13464,10 +13464,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Checking automatic routes. You can select a server below.`
+  /// `Preparing automatic routing`
   String get zolnitRoutePreparing {
     return Intl.message(
-      'Checking automatic routes. You can select a server below.',
+      'Preparing automatic routing',
       name: 'zolnitRoutePreparing',
       desc: '',
       args: [],
@@ -13989,6 +13989,36 @@ class AppLocalizations {
     return Intl.message(
       'Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.',
       name: 'zolnitFreeInviteExplanation',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No available route confirmed yet`
+  String get zolnitRouteUnverified {
+    return Intl.message(
+      'No available route confirmed yet',
+      name: 'zolnitRouteUnverified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Latency does not confirm service access`
+  String get zolnitRouteManualUnverified {
+    return Intl.message(
+      'Latency does not confirm service access',
+      name: 'zolnitRouteManualUnverified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose route`
+  String get zolnitChooseRoute {
+    return Intl.message(
+      'Choose route',
+      name: 'zolnitChooseRoute',
       desc: '',
       args: [],
     );

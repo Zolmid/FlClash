@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/common/zolnit_return_route.dart';
@@ -44,7 +46,16 @@ class _Recording extends ProxiesAction {
   }) async {
     if (!isCurrent()) return false;
     selections.add((groupName, proxyName));
-    return await (selectionResult?.call() ?? Future.value(true)) && isCurrent();
+    final applied = await (selectionResult?.call() ?? Future.value(true));
+    if (!applied || !isCurrent()) return false;
+    ref
+        .read(profilesActionProvider.notifier)
+        .updateCurrentSelectedMap(groupName, proxyName);
+    ref.read(groupsProvider.notifier).value = [
+      for (final group in ref.read(groupsProvider))
+        group.name == groupName ? group.copyWith(now: proxyName) : group,
+    ];
+    return true;
   }
 }
 
@@ -512,6 +523,137 @@ void main() {
       final owner =
           container.read(proxiesActionProvider.notifier) as _Recording;
       expect(owner.selections, [('zn.service.ai', 'zn.service.ai.manual')]);
+    },
+  );
+
+  for (final skin in ZolnitSkin.values) {
+    testWidgets(
+      '24 authorized manual routes and four qualified auto routes on ${skin.name}',
+      (tester) async {
+        final raw =
+            (jsonDecode(
+                  File(
+                    'packages/zolnit_client/test/fixtures/authorized24-qualified4.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>)['data'];
+        fixture.onBundle = (_) async => clientBundleResponse(raw);
+        await tester.runAsync(
+          () => fixture.session.refreshClientBundle(
+            coreVersion: 'v1.19.32',
+            clock: () => now,
+          ),
+        );
+        profile = profile.copyWith(
+          zolnitBundleId: fixture.session.clientBundle!.bundleId,
+        );
+        container.read(profilesProvider.notifier).put(profile);
+        final prepared = prepareClientBundleConfiguration((
+          bundle: fixture.session.clientBundle!,
+          now: now,
+          automaticAllowed: true,
+        ));
+        final proxyTypes = {
+          for (final proxy in prepared.config['proxies'] as List)
+            proxy['name']: proxy['type'],
+        };
+        container.read(groupsProvider.notifier).value = [
+          for (final raw in prepared.config['proxy-groups'] as List)
+            Group(
+              name: raw['name'],
+              type: GroupType.Selector,
+              now: raw['name'] == 'zn.service.ai'
+                  ? 'zn.service.ai.manual'
+                  : (raw['proxies'] as List).first,
+              all: [
+                for (final name in raw['proxies'] as List)
+                  Proxy(
+                    name: name,
+                    type:
+                        proxyTypes[name] ??
+                        (name == 'DIRECT'
+                            ? 'Direct'
+                            : name == 'REJECT'
+                            ? 'Reject'
+                            : 'Selector'),
+                  ),
+              ],
+            ),
+        ];
+        await mount(tester, skin: skin);
+        final picker = find.byKey(const ValueKey('bundle-manual-route'));
+        final dropdown = tester.widget<DropdownButton<String>>(picker);
+        expect(dropdown.items, hasLength(24));
+        final sg = fixture.session.clientBundle!.outbounds.last;
+        dropdown.onChanged!(sg.proxyName);
+        await tester.pumpAndSettle();
+        expect(
+          container
+              .read(currentProfileProvider)!
+              .selectedMap['zn.service.ai.manual'],
+          sg.proxyName,
+        );
+        expect(
+          tester.widget<DropdownButton<String>>(picker).value,
+          sg.proxyName,
+        );
+        expect(find.textContaining('Latency does not'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'qualified REJECT is unverified, not a claim that every route failed',
+    (tester) async {
+      container.read(groupsProvider.notifier).value = [
+        for (final group in container.read(groupsProvider))
+          group.name == 'zn.service.ai.auto'
+              ? group.copyWith(now: 'REJECT')
+              : group,
+      ];
+      await mount(tester);
+      expect(
+        find.textContaining('No available route confirmed yet'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('No route available'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'manual failure restores selection and profile switch fences late error',
+    (tester) async {
+      container.read(groupsProvider.notifier).value = [
+        for (final group in container.read(groupsProvider))
+          group.name == 'zn.service.ai'
+              ? group.copyWith(now: 'zn.service.ai.manual')
+              : group.name == 'zn.service.ai.manual'
+              ? group.copyWith(now: 'DIRECT')
+              : group,
+      ];
+      await mount(tester);
+      final owner =
+          container.read(proxiesActionProvider.notifier) as _Recording;
+      final result = Completer<bool>();
+      owner.selectionResult = () => result.future;
+      final picker = find.byKey(const ValueKey('bundle-manual-route'));
+      tester.widget<DropdownButton<String>>(picker).onChanged!(
+        'zn.node.trojan.9',
+      );
+      await tester.pump();
+      expect(
+        tester.widget<DropdownButton<String>>(picker).value,
+        'zn.node.trojan.9',
+      );
+      expect(find.byKey(const ValueKey('bundle-mode-pending')), findsOneWidget);
+      container.read(profilesProvider.notifier).put(profile.copyWith(id: 2));
+      container.read(currentProfileIdProvider.notifier).value = 2;
+      await tester.pump();
+      result.complete(false);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('bundle-mode-error')), findsNothing);
+      expect(container.read(currentProfileProvider)!.selectedMap, isEmpty);
     },
   );
 

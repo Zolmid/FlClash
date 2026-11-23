@@ -45,12 +45,16 @@ class ProxiesAction extends _$ProxiesAction {
   final Map<String, String> _pendingSelectedRollback = {};
   final _selectionQueues = <String, Future<void>>{};
   final _selectionIntents = <String, int>{};
+  int _groupsRequest = 0;
+  int _selectionRevision = 0;
 
   @override
   void build() {
     ref.onDispose(() => _delayFlushTimer?.cancel());
     ref.listen(currentProfileIdProvider, (_, _) {
       cancelDelayTests();
+      _groupsRequest++;
+      _selectionRevision++;
       _pendingSelectedRollback.clear();
       _selectionIntents.updateAll((_, intent) => intent + 1);
     });
@@ -103,6 +107,7 @@ class ProxiesAction extends _$ProxiesAction {
 
   void changeProxyDebounce(String groupName, String proxyName) {
     ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
+    _selectionRevision++;
     _selectionIntents[groupName] = (_selectionIntents[groupName] ?? 0) + 1;
     _pendingSelectedRollback.putIfAbsent(
       groupName,
@@ -125,6 +130,19 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   Future<void> updateGroups({bool Function()? isCurrent}) async {
+    final request = ++_groupsRequest;
+    final selectionRevision = _selectionRevision;
+    final profile = ref.read(currentProfileProvider);
+    final configuration = _core.configurationChanges.value;
+    bool current() =>
+        ref.mounted &&
+        request == _groupsRequest &&
+        selectionRevision == _selectionRevision &&
+        ref.read(currentProfileProvider)?.id == profile?.id &&
+        ref.read(currentProfileProvider)?.zolnitBundleId ==
+            profile?.zolnitBundleId &&
+        identical(_core.configurationChanges.value, configuration) &&
+        (isCurrent?.call() ?? true);
     try {
       final groups = await retry<List<Group>>(
         task: () async {
@@ -153,9 +171,9 @@ class ProxiesAction extends _$ProxiesAction {
             return [];
           }
         },
-        retryIf: (res) => res.isEmpty && (isCurrent?.call() ?? true),
+        retryIf: (res) => res.isEmpty && current(),
       );
-      if (ref.mounted && (isCurrent?.call() ?? true)) {
+      if (current()) {
         ref.read(groupsProvider.notifier).value = groups;
       }
     } catch (e) {
@@ -236,6 +254,7 @@ class ProxiesAction extends _$ProxiesAction {
     bool automatic = false,
     Map<String, dynamic>? routingLease,
   }) {
+    _selectionRevision++;
     final intent = (_selectionIntents[groupName] ?? 0) + 1;
     _selectionIntents[groupName] = intent;
     final profileId = ref.read(currentProfileProvider)?.id;

@@ -2982,6 +2982,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage(
       "Choisir ce forfait",
     ),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage(
+      "Choisir une route",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Terminée"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
       "Confirmation du paiement",
@@ -3517,11 +3520,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Impossible de changer d’itinéraire. Réessayez.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "La latence ne confirme pas l’accès au service",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "Vérification des routes automatiques. Vous pouvez choisir un serveur ci-dessous.",
+      "Préparation du routage automatique",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Aucun itinéraire disponible",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "Aucune route disponible confirmée",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Options de routage intelligent",

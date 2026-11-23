@@ -2282,6 +2282,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "결제를 준비하거나 확인하는 중입니다. 잠시 후 다시 시도하세요.",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("요금제 선택"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("경로 선택"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("완료"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("결제 확인 중"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("연결"),
@@ -2675,11 +2676,15 @@ class MessageLookup extends MessageLookupByLibrary {
       "경로를 전환하지 못했습니다. 다시 시도하세요.",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "자동 경로 확인 중입니다. 아래 서버를 선택할 수 있습니다.",
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "지연 시간은 서비스 접근을 보장하지 않습니다",
     ),
+    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage("자동 경로 준비 중"),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 경로 없음",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "사용 가능한 경로가 아직 확인되지 않았습니다",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage("스마트 라우팅 옵션"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("안전 모드"),

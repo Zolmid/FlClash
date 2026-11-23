@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "需要處理",
   "zolnitRenewalHistory": "歷史訂閱",
   "zolnitRoutingOptions": "智慧分流選項",
-  "zolnitRoutePreparing": "正在檢查自動線路，可先選擇下方線路。",
+  "zolnitRoutePreparing": "正在準備自動選線",
   "zolnitHelpNoArticles": "暫無說明文章。",
   "zolnitSupportTickets": "客服諮詢",
   "zolnitNewTicket": "發起諮詢",
@@ -1616,5 +1616,8 @@
   "zolnitFreeDeviceLimit": "同時在線裝置",
   "zolnitFreeNextReset": "下次每月重置",
   "zolnitFreeInviteShort": "邀請好友補充免費流量",
-  "zolnitFreeInviteExplanation": "每成功邀請一位新用戶註冊，免費流量補充至每月額度。補充不累積，也不改變每月重置日期；此獎勵與返現分開計算。"
+  "zolnitFreeInviteExplanation": "每成功邀請一位新用戶註冊，免費流量補充至每月額度。補充不累積，也不改變每月重置日期；此獎勵與返現分開計算。",
+  "zolnitRouteUnverified": "尚未確認可用線路",
+  "zolnitRouteManualUnverified": "測速不代表服務可用",
+  "zolnitChooseRoute": "選擇線路"
 }

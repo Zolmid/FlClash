@@ -82,7 +82,7 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 		candidates := []string{}
 		for _, node := range root.Data.Routing.Nodes {
 			if !node.Enabled || !node.Egress.Verified ||
-				!qualifiedEgress(node.Egress.Source, node.Egress.ConfigurationFingerprint, fingerprints[node.ID]) ||
+				!QualifiedEgress(node.Egress.Source, node.Egress.ConfigurationFingerprint, fingerprints[node.ID]) ||
 				!contains(node.Services, service.ID) || !contains(service.Countries, node.Egress.Country) ||
 				len(node.Egress.Country) != 2 || node.Revision == "" ||
 				(node.Egress.Source == "operator_allowlist" && !SafeText(node.Revision)) ||
@@ -205,7 +205,8 @@ func validConfigurationFingerprint(value string) bool {
 	return true
 }
 
-func qualifiedEgress(source string, proof any, authorized string) bool {
+// QualifiedEgress checks operator proof against the authorized outbound snapshot.
+func QualifiedEgress(source string, proof any, authorized string) bool {
 	switch source {
 	case "operator_verified", "egress_probe":
 		return true

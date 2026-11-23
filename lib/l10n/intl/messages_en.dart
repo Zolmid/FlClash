@@ -2733,6 +2733,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "The checkout is being prepared or verified. Try again shortly.",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Choose plan"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("Choose route"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completed"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
       "Confirming payment",
@@ -3232,11 +3233,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Couldn\'t switch the route. Try again.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "Latency does not confirm service access",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "Checking automatic routes. You can select a server below.",
+      "Preparing automatic routing",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "No route available",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "No available route confirmed yet",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Smart routing options",
