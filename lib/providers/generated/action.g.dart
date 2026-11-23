@@ -91,7 +91,7 @@ final class SetupActionProvider extends $NotifierProvider<SetupAction, void> {
   }
 }
 
-String _$setupActionHash() => r'0d8139e31c1cdc9533c4049825002f9ca3ed6c7c';
+String _$setupActionHash() => r'11af654327c3678891f7e05d4cda189422d99bf7';
 
 abstract class _$SetupAction extends $Notifier<void> {
   void build();
