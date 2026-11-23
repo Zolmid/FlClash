@@ -48,7 +48,9 @@ jobs:
               echo 'First adoption: exercising the proposed dependency policy.'
             fi
           fi
-          for file in review_tools.py dependency_review.py review_base.py; do
+          for file in review_tools.py dependency_review.py review_base.py check_action_pins.rb; do
+            entry=$(git ls-tree "$ref" -- "tool/ci/$file")
+            [[ "$entry" == '100644 blob '* || "$entry" == '100755 blob '* ]]
             git show "$ref:tool/ci/$file" > "$dst/$file"
           done
           echo "REVIEW_POLICY=$dst" >> "$GITHUB_ENV"
@@ -61,7 +63,7 @@ jobs:
           SHELLCHECK_OPTS: --severity=error
         run: |
           actionlint -pyflakes=''
-          ruby tool/ci/check_action_pins.rb
+          ruby "$REVIEW_POLICY/check_action_pins.rb"
       - name: Check local documentation links and anchors
         run: lychee --offline --include-fragments --no-progress docs/maintenance/*.md README.md README_zh_CN.md
       - name: Select the comparison base
