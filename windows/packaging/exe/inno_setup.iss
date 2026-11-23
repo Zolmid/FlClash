@@ -47,16 +47,15 @@ function WriteReadyFile(Handle: THandle; Buffer: AnsiString;
 
 procedure KillProcesses;
 var
-  Processes: TArrayOfString;
-  i: Integer;
+  AppDir: String;
   ResultCode: Integer;
 begin
-  Processes := ['ZolNit.exe', 'ZolNitHelperService.exe'];
-
-  for i := 0 to GetArrayLength(Processes)-1 do
-  begin
-    Exec('taskkill', '/f /im ' + Processes[i], '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  end;
+  AppDir := AddBackslash(ExpandConstant('{app}'));
+  StringChangeEx(AppDir, '''', '''''', True);
+  Exec('powershell.exe',
+    '-NoProfile -NonInteractive -Command "Get-Process -Name ZolNit,ZolNitHelperService -ErrorAction SilentlyContinue | ' +
+    'Where-Object { $_.Path -and $_.Path.StartsWith(''' + AppDir + ''', [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
 procedure UnregisterHelperService;

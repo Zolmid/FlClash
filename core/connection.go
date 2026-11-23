@@ -75,6 +75,7 @@ func handleResetNetwork() {
 	if owned := activeOwnedDNS.Load(); owned != nil {
 		owned.invalidateCache()
 	}
+	bumpRouteEpoch()
 }
 
 func handleCloseConnection(connectionId string) bool {
