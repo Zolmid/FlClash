@@ -11,6 +11,11 @@
           "type": "fix",
           "entries": [
             {
+              "id": "50a49ed",
+              "scope": "android",
+              "text": "Exclude device-bound app data from Android cloud backups."
+            },
+            {
               "id": "b91948d",
               "scope": "android",
               "text": "Open Android VPN settings when another VPN may be preventing ZolNit from connecting."

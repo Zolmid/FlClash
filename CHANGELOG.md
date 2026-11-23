@@ -4,6 +4,7 @@
 
 **Bug Fixes**
 
+- **android** Exclude device-bound app data from Android cloud backups. (50a49ed)
 - **android** Open Android VPN settings when another VPN may be preventing ZolNit from connecting. (b91948d)
 - **client** See the active AI route, switch modes promptly, and choose a route manually. (f11184c)
 - Discard outdated route checks after switching networks and handle invalid proxy ports and Windows upgrades more reliably. (6487c69)
