@@ -13,7 +13,7 @@
 | 第一次接手、准备工作区 | [开发流程](development.md) | [操作边界与交接](operations-and-handoff.md) |
 | 理解业务和状态流 | [架构与状态所有权](architecture.md) | [功能与入口清单](feature-inventory.md) |
 | 改 Android、Apple、Windows 或 Linux | [平台契约](platform-contracts.md) | [测试和排障](testing-and-debugging.md) |
-| 改 CI、生成候选或正式发布 | [CI、发布与恢复](ci-release-and-recovery.md) | [已验证基线](verification-baseline.md) |
+| 改 CI、生成候选或正式发布 | [开发与发行工作流](ci-workflow.md) | [发布与恢复](ci-release-and-recovery.md)、[已验证基线](verification-baseline.md) |
 | 同步上游、整理分支 | [分支与上游维护](branch-and-upstream.md) | [手册要求对账](runbook-compliance.md) |
 | 排查实际使用中的问题 | [设备验收执行单](device-validation.md)，其中第 8 节说明反馈与排障 | 平台契约及对应原生测试 |
 

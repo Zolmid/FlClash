@@ -2,15 +2,17 @@
 
 程序等价源码基线为 `a4c9577e2b9a218917b35420a26512f82e016c5c`（d0af9d83为A1历史），Apple 工具基线为 `97f297743718b6d46272d244ad375b5ca903f499`。标准检查复用补充到 `7fd40a7a4777047b554a786ea4085ec1d62a0240`。本章说明工作流、产物校验、发布状态和故障恢复；具体已执行证据见 [验证基线](verification-baseline.md)。GitHub 非秘密控制项最后只读核对于 2026-11-15 16:34（Asia/Singapore）；后续执行前需要重新核对。
 
+日常 PR 范围选择、源码及依赖审查、五平台候选核验和本地命令见[开发与发行工作流](ci-workflow.md)。本章保留正式发布、签名和恢复的细节。
+
 主要源码：[正式入口](../../.github/workflows/client-release.yml)、[组装器](../../tool/client_release/assemble_release.py)、[边缘发布器](../../tool/client_release/publish_release.mjs)、[镜像器](../../tool/client_release/github_release.py)、[公证恢复指南](../../tool/client_release/MACOS-DISTRIBUTION.md)。外部消费者位于总项目的 `client-release-edge/src/` 和 `ZolnitSuite/Modules/Client/`；源码合同与线上部署状态分别取证。
 
 ## 1. 工作流总览与职责边界
 
 | 文件 | 触发 | 职责 | 外部消费者/副作用 |
 |---|---|---|---|
-| [build.yaml](../../.github/workflows/build.yaml) | `push`（任意分支/`v*` tag）、`workflow_dispatch`、`workflow_call`（来自 `client-release.yml`） | `dart`/`plugins`/`desktop`/`go`/`android`/`rust`/`windows-helper-test` 检查；正式调用时额外渲染 release notes | `client-release.yml` 的 `ci` job 复用；非正式调用不渲染/上传 release notes |
+| [build.yaml](../../.github/workflows/build.yaml) | `push`（任意分支/`v*` tag）、`pull_request`、`merge_group`、`workflow_dispatch`、`workflow_call`（来自 `client-release.yml`） | `dart`/`plugins`/`desktop`/`go`/`android`/`rust`/`windows-helper-test` 检查；正式调用时额外渲染 release notes | `client-release.yml` 的 `ci` job 复用；非正式调用不渲染/上传 release notes |
 | [cloud-build.yml](../../.github/workflows/cloud-build.yml) | 指定分支 `push`（忽略 Markdown/docs）、`workflow_dispatch`、`workflow_call`（来自 `client-release.yml`） | `select` 计算平台矩阵和产品开关；平台 jobs 编译、打包并记录来源 | 候选没有正式发行资格；正式调用可签 Android，iOS 输出 unsigned 编译证据；macOS 正式签名在独立后续 job |
-| [client-release.yml](../../.github/workflows/client-release.yml) | 正式版本 tag `push`（`v[0-9]+.[0-9]+.[0-9]+`） | `preflight → ci/builds → macos-sign(条件) → publish`，是唯一正式发布入口 | `publish` 写发行边缘（`publish_release.mjs` → Cloudflare Worker `client-release-edge`）与 GitHub Releases（`github_release.py`） |
+| [client-release.yml](../../.github/workflows/client-release.yml) | 正式版本 tag `push`（`v[0-9]+.[0-9]+.[0-9]+`） | `preflight → ci → builds → macos-sign(条件) → publish`，是唯一正式发布入口 | `publish` 写发行边缘（`publish_release.mjs` → Cloudflare Worker `client-release-edge`）与 GitHub Releases（`github_release.py`） |
 | [macos-notarization-pipeline.yml](../../.github/workflows/macos-notarization-pipeline.yml) | `workflow_call`（来自 `client-release.yml` 的 `macos-sign`，或 `macos-notarization-verify.yml`） | app 签名公证提交/等待、dmg 提交/等待、finalize | `macos-distribution` environment；checkpoint artifact 传递（`notary-app.zip`、`notary-dmg.dmg`、`pending-receipt.json`），保留 7 天 |
 | [macos-notarization-verify.yml](../../.github/workflows/macos-notarization-verify.yml) | 限定 `codex/native-client-shared` 分支的 `workflow_dispatch`，需 `vars.MACOS_NOTARIZATION_VERIFY_ENABLED == 'true'` | 对过去某次正式 run 的产物做独立复核签名，不发布 | `macos-distribution` environment；默认参数 run `42474933687`/tag `v1.1.4`，产物保留 7 天 |
 | Apple `apple-device-signer.yml`（pin `97f29774`） | 仅 push 到 `codex/apple-distribution-prep` 且路径为该文件本身时**注册**，真正执行要 `workflow_dispatch` + `vars.APPLE_DEVICE_SIGNING_ENABLED=='true'` + `github.ref=='refs/heads/codex/apple-distribution-prep'` | `operation=archive` 发布一份稳定 unsigned 归档；`operation=sign` 处理**至多一个**排队设备签名任务 | OIDC（`id-token: write`），`apple-distribution` environment；工具 SHA 校验见第 9 节 |
@@ -84,7 +86,7 @@ node --test tool/client_release/tests/*_test.mjs
 
 预检失败、正式run被取消/替代、缺job、skip、API不可读、页截断、重复job、身份/attempt漂移或等候超时都恢复原检查。观察上限900秒，每30秒轮询一次，单GET最多10秒，job上限20分钟。整个独立workflow被用户取消时仍停止，不把“回退”写成能突破取消。未知错误不得因缺输出认作已委派。
 
-观察 job只用 `contents: read/actions: read`，正式caller补足 `actions: read`；没有改变正式入口、preflight依赖、publisher、签名、notes、artifact或发布并发。非正式tag/分支/manual/call/fork保持原条件。workflow总体颜色与六类job是否执行分开查看，step summary明确引用复用的run/attempt/job ID，local skipped不算重新执行。
+观察 job只用 `contents: read/actions: read`，正式caller补足 `actions: read`；保留正式入口、publisher、签名、notes、artifact及发布并发，正式构建等待标准 CI 成功。非正式tag/分支/manual/call/fork保持原条件。workflow总体颜色与六类job是否执行分开查看，step summary明确引用复用的run/attempt/job ID，local skipped不算重新执行。
 
 事件及故障测试在 [standard_ci_delegation_test.py](../../tool/ci/tests/standard_ci_delegation_test.py)。同源历史run的实际GET回放通过，但它使用合成caller上下文，不能当成新gate已在正式tag上托管执行，更不能据此报告实际节省的分钟数。workflow被重新创建导致固定ID变化时，应重新核实身份后维护pin；未知ID会安全回退原检查。
 
@@ -122,7 +124,7 @@ preflight (tag 身份锁 + MACOS_SIGNING_REQUIRED 读取)
   → ci: uses build.yaml with official_release=true
   → builds: uses cloud-build.yml with official_release=true
   → macos-sign (仅 macos_signing_required=='true' 时，matrix: arm64/x64)
-  → publish (需要 preflight/ci/builds 全部 success)
+  → publish (preflight/ci/builds 成功且签名结果与配置匹配，未取消)
 ```
 
 `assemble()`（代码第 300-395 行）执行顺序：

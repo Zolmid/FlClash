@@ -6,7 +6,15 @@ on:
       - '**'
     tags:
       - 'v*'
+  pull_request:
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
+    inputs:
+      deep_review:
+        description: Run all supported CodeQL extractors in addition to the full CI checks
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       official_release:
@@ -16,19 +24,96 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.official_release && 'official' || 'ordinary' }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
   IS_STABLE: ${{ !contains(github.ref, '-') }}
-  BRANCH_CACHE: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  BRANCH_CACHE: ${{ github.event_name != 'pull_request' && github.event_name != 'merge_group' && !startsWith(github.ref, 'refs/tags/') }}
   FLUTTER_VERSION: '3.47.6'
   GO_VERSION: '1.27.1'
   NDK_VERSION: r28c
 
 jobs:
+  selection:
+    permissions:
+      contents: read
+    name: Select CI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      observe: ${{ steps.candidate.outputs.observe || 'false' }}
+      profile: ${{ steps.select.outputs.profile }}
+      dart: ${{ steps.select.outputs.dart }}
+      plugins: ${{ steps.select.outputs.plugins }}
+      go: ${{ steps.select.outputs.go }}
+      android: ${{ steps.select.outputs.android }}
+      rust: ${{ steps.select.outputs.rust }}
+      windows_helper_test: ${{ steps.select.outputs.windows_helper_test }}
+      desktop: ${{ steps.select.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: select
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
+            exec python3 -I tool/ci/select_checks.py
+          fi
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] || {
+            echo 'Invalid pull request base SHA' >&2
+            exit 1
+          }
+          [[ "$(git -C "$GITHUB_WORKSPACE" rev-parse --verify HEAD)" == "$GITHUB_SHA" &&
+             "$(git -C "$GITHUB_WORKSPACE" rev-parse --verify HEAD^1)" == "$BASE_SHA" ]] || {
+            echo 'Checkout does not match the pull request merge and base commits' >&2
+            exit 1
+          }
+          entry=$(git -C "$GITHUB_WORKSPACE" ls-tree "$BASE_SHA^{tree}" -- tool/ci/select_checks.py)
+          if [[ -z "$entry" ]]; then
+            echo 'Base predates CI selection; running all checks.'
+            {
+              echo 'profile=full'
+              for job in dart plugins go android rust windows_helper_test desktop; do echo "$job=true"; done
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$entry" == '100644 blob '* || "$entry" == '100755 blob '* ]] || exit 1
+          selector=$(mktemp "$RUNNER_TEMP/select-checks.XXXXXXXX")
+          git -C "$GITHUB_WORKSPACE" show "$BASE_SHA:tool/ci/select_checks.py" > "$selector"
+          python3 -I "$selector"
+      - name: Set up Flutter for main changelog verification
+        if: &docs_main github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.private && steps.select.outputs.profile == 'docs'
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+      - name: Verify changelog on main documentation changes
+        if: *docs_main
+        run: |
+          flutter pub get --enforce-lockfile
+          yq -i '.hooks.user_defines.setup.build_assets = false | .hooks.user_defines.rust_api.build_assets = false' pubspec.yaml
+          dart run tool/changelog.dart verify
+      - id: candidate
+        if: >-
+          github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted &&
+          github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && !inputs.official_release
+        env:
+          EVENT_DELETED: ${{ toJSON(github.event.deleted) }}
+          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
+        run: python3 -I tool/ci/standard_ci_reuse.py --candidate >> "$GITHUB_OUTPUT"
+
   delegation:
     name: Standard CI delegation
+    needs: selection
+    if: github.event_name == 'push' && github.ref_type == 'tag' && needs.selection.outputs.observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -37,7 +122,7 @@ jobs:
     outputs:
       delegated: ${{ steps.decide.outputs.delegated }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
 
@@ -46,19 +131,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_DELETED: ${{ toJSON(github.event.deleted) }}
           OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
-        run: python3 -u tool/ci/standard_ci_reuse.py
+        run: python3 -I -u tool/ci/standard_ci_reuse.py
+
+  review:
+    uses: ./.github/workflows/repository-review.yml
+    permissions:
+      contents: read
+    with:
+      deep: ${{ inputs.official_release == true || inputs.deep_review == true }}
 
   dart:
+    permissions:
+      contents: read
     name: Dart
-    # A private copy pays for its Actions minutes, so it runs the checks only when
-    # started by hand or for a formal release.
-    needs: delegation
-    if: &checks ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && (github.event_name == 'workflow_dispatch' || !github.event.repository.private || inputs.official_release) }}
+    needs: [delegation, selection]
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           fetch-depth: 0
           submodules: true
 
@@ -77,21 +171,22 @@ jobs:
           node --test tool/client_release/tests/*_test.mjs
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: plugins/rust_api/rust
           cache-directories: .dart_tool/hooks_runner
           save-if: ${{ env.BRANCH_CACHE }}
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Check format
         run: dart format --output=none --set-exit-if-changed lib test tool plugins setup.dart
@@ -103,6 +198,9 @@ jobs:
         run: |
           yq -i '.hooks.user_defines.setup.build_assets = false' pubspec.yaml
 
+      - name: Check generated Dart sources
+        run: dart run build_runner build --only-check
+
       - name: Verify changelog
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         run: dart run tool/changelog.dart verify
@@ -113,7 +211,7 @@ jobs:
 
       - name: Upload formal release notes
         if: inputs.official_release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: client-release-notes-${{ github.run_number }}
           path: release-notes.md
@@ -127,16 +225,21 @@ jobs:
         run: dart run tool/check_coverage.dart coverage/lcov.info 75
 
   plugins:
-    needs: delegation
+    permissions:
+      contents: read
+    needs: [delegation, selection]
     name: Plugins
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.plugins == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -161,9 +264,13 @@ jobs:
           dart test
 
   desktop:
+    permissions:
+      contents: read
     name: Desktop ${{ matrix.platform }}
-    if: (github.event_name == 'workflow_dispatch' || !github.event.repository.private) && !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    needs: selection
+    if: ${{ !cancelled() && needs.selection.outputs.desktop == 'true' }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -176,20 +283,23 @@ jobs:
             os: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
           cache-dependency-path: |
             core/go.sum
             plugins/setup/setup_hooks/lib/src/go_builder.dart
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: desktop-${{ matrix.platform }}
           workspaces: |
@@ -198,11 +308,11 @@ jobs:
           cache-directories: .dart_tool/hooks_runner
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+          cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
@@ -220,6 +330,19 @@ jobs:
             echo "::error::Expected macOS SDK 27.x but got $sdk_ver"
             exit 1
           fi
+
+      - name: Check iOS tunnel lifecycle
+        if: matrix.platform == 'macos' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && !inputs.official_release
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          [[ "$(xcrun --sdk iphoneos --show-sdk-version)" == 27.* ]]
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT
+          for check in race completion abandon; do
+            bash "tool/acceptance/ios_intents/run_${check}.sh"
+          done
+          bash tool/acceptance/ios_intents/check_sdk.sh
 
       - name: Enable git long paths (Windows)
         if: matrix.platform == 'windows'
@@ -270,7 +393,7 @@ jobs:
 
       - name: Upload isolated Windows Helper evidence
         if: always() && matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-helper-isolated-${{ github.run_number }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/zolnit-windows-helper-acceptance/
@@ -305,7 +428,7 @@ jobs:
 
       - name: Upload portable Windows acceptance packages
         if: always() && matrix.platform == 'windows' && github.ref == 'refs/heads/codex/native-client-shared'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-helper-tools-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
@@ -315,7 +438,7 @@ jobs:
           retention-days: 14
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # Compiles the desktop runners and the native plugin code that only the
       # tagged release matrix built before; the bundle itself is discarded.
@@ -323,18 +446,22 @@ jobs:
         run: flutter build ${{ matrix.platform }} --debug
 
   go:
-    needs: delegation
+    permissions:
+      contents: read
+    needs: [delegation, selection]
     name: Go core
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.go == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
@@ -393,88 +520,51 @@ jobs:
           GOOS=android GOARCH=arm64 go vet "-tags=$tags" . ./mobile ./tun ./platform
 
   android:
-    needs: delegation
+    permissions:
+      contents: read
+    needs: [delegation, selection]
     name: Android unit tests
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.android == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           submodules: recursive
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
+      - name: Prepare Android build inputs
+        id: android-tools
+        uses: ./.github/actions/android-check-setup
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: ${{ env.BRANCH_CACHE }}
-          cache-dependency-path: |
-            core/go.sum
-            android/core/build.gradle.kts
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: ${{ env.BRANCH_CACHE }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Setup NDK
-        uses: nttld/setup-ndk@v1
-        id: ndk
-        with:
           ndk-version: ${{ env.NDK_VERSION }}
-          link-to-sdk: true
-
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev' }}
-
-      - name: Prefetch pinned Gradle distribution
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tool/ci/prefetch_gradle.py --install-kotlin-compiler-mirror
+          cache: ${{ env.BRANCH_CACHE }}
 
       - name: Run Android unit tests
-        working-directory: android
         env:
-          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: |
-          {
-            echo "flutter.sdk=$FLUTTER_ROOT"
-            echo "sdk.dir=$ANDROID_HOME"
-          } > local.properties
-          wrapper="$FLUTTER_ROOT/bin/cache/artifacts/gradle_wrapper"
-          test -d "$wrapper" || flutter precache
-          cp -R "$wrapper/." .
-          chmod +x gradlew
-          # No JVM unit test loads the Core or the Flutter build, but `:core` compiles against
-          # the gomobile AAR, so one ABI of it is built.
-          ./gradlew :common:testDebugUnitTest :service:testDebugUnitTest :app:testDebugUnitTest \
-            -Ptarget-platform=android-arm64 \
-            -x :app:compileFlutterBuildDebug -x :app:copyFlutterAssetsDebug
+          ANDROID_NDK_HOME: ${{ steps.android-tools.outputs.ndk-path }}
+        run: bash tool/ci/android_unit.sh
 
   rust:
-    needs: delegation
+    permissions:
+      contents: read
+    needs: [delegation, selection]
     name: Rust
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.rust == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: |
             services/helper
@@ -488,20 +578,26 @@ jobs:
 
       - name: Run tests
         run: |
-          cargo test --manifest-path services/helper/Cargo.toml
-          cargo test --manifest-path plugins/rust_api/rust/Cargo.toml
+          cargo test --locked --manifest-path services/helper/Cargo.toml
+          cargo test --locked --manifest-path plugins/rust_api/rust/Cargo.toml
 
   windows-helper-test:
-    needs: delegation
+    permissions:
+      contents: read
+    needs: [delegation, selection]
     name: Windows helper test
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.windows_helper_test == 'true' }}
     runs-on: windows-2022
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: services/helper
           save-if: ${{ env.BRANCH_CACHE }}
@@ -510,13 +606,64 @@ jobs:
         run: cargo fmt --manifest-path services/helper/Cargo.toml -- --check
 
       - name: Run Windows service tests
-        run: cargo test --manifest-path services/helper/Cargo.toml --features windows-service
+        run: cargo test --locked --manifest-path services/helper/Cargo.toml --features windows-service
+
+  ci-gate:
+    permissions:
+      contents: read
+    name: CI gate
+    if: ${{ always() }}
+    needs: [delegation, selection, review, dart, plugins, go, android, rust, windows-helper-test, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify selected results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 -I - <<'PY'
+          import json, os, sys
+          needs = json.loads(os.environ['NEEDS_JSON'])
+          errors = []
+          for job in ('selection', 'review'):
+              if needs[job]['result'] != 'success':
+                  errors.append(f"{job}: {needs[job]['result']}")
+          outputs = needs['selection'].get('outputs', {})
+          observe = outputs.get('observe')
+          observer = needs['delegation']
+          delegated = observer.get('outputs', {}).get('delegated')
+          if observe == 'true':
+              if observer['result'] != 'success' or delegated not in ('true', 'false'):
+                  errors.append(f"formal observer: {observer['result']}, delegated={delegated}")
+          elif observe != 'false' or observer['result'] != 'skipped' or delegated:
+              errors.append('unexpected formal observer state')
+          for job in ('dart', 'plugins', 'go', 'android', 'rust', 'windows-helper-test', 'desktop'):
+              selected = outputs.get(job.replace('-', '_'))
+              if selected not in ('true', 'false'):
+                  errors.append(f'{job}: invalid selection')
+                  continue
+              expected = selected == 'true' and (job == 'desktop' or delegated != 'true')
+              actual = needs[job]['result']
+              if actual != ('success' if expected else 'skipped'):
+                  errors.append(f'{job}: {actual}, expected {"success" if expected else "skipped"}')
+          if errors:
+              print('\n'.join(errors), file=sys.stderr)
+              sys.exit(1)
+          print('All selected CI checks passed.')
+          PY
 
   build:
-    # Releases publish where the release links point: the public repository.
-    if: github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [ dart, plugins, go, android, rust, windows-helper-test ]
+    permissions:
+      contents: read
+    # A skipped observer is normal upstream. Packaging still requires six local successes.
+    if: >-
+      !cancelled() && github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.ci-gate.result == 'success' && needs.dart.result == 'success' && needs.plugins.result == 'success' &&
+      needs.go.result == 'success' && needs.android.result == 'success' && needs.rust.result == 'success' &&
+      needs.windows-helper-test.result == 'success'
+    needs: [ci-gate, dart, plugins, go, android, rust, windows-helper-test]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       matrix:
         include:
@@ -555,8 +702,9 @@ jobs:
           Add-Content $env:GITHUB_PATH $cargoPath
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Android Signing
@@ -570,7 +718,7 @@ jobs:
           } >> android/local.properties
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
@@ -578,8 +726,7 @@ jobs:
 
       - name: Setup Gradle
         if: startsWith(matrix.platform,'android')
-        uses: gradle/actions/setup-gradle@v6
-
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
       - name: Prefetch pinned Gradle distribution
         if: startsWith(matrix.platform,'android')
         env:
@@ -593,7 +740,7 @@ jobs:
       # Stable publishes no Windows or Linux arm64 archive; master makes the action
       # clone the SDK at the pinned tag and let it fetch the host's own Dart SDK.
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: ${{ matrix.flutter-channel || 'stable' }}
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -625,7 +772,7 @@ jobs:
 
       - name: Setup NDK
         if: startsWith(matrix.platform,'android')
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
         id: build-ndk
         with:
           ndk-version: ${{ env.NDK_VERSION }}
@@ -635,7 +782,7 @@ jobs:
       - name: Get Flutter Dependency
         run: |
           flutter --version
-          flutter pub get
+          flutter pub get --enforce-lockfile
 
       # See .agents/flutter-upgrade.md before bumping FLUTTER_VERSION.
       - name: Disable Impeller on Intel macOS
@@ -666,18 +813,23 @@ jobs:
           bash tool/ci/verify_macos_arch.sh "$config" "${{ matrix.arch }}"
 
       - name: Upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./dist
           overwrite: true
 
   upload:
-    needs: [ build, dart, plugins, go, android, rust, windows-helper-test ]
+    # The standalone upstream publisher inherits its repository permissions.
+    if: >-
+      !cancelled() && github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.build.result == 'success'
+    needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     services:
       telegram-bot-api:
-        image: aiogram/telegram-bot-api:latest
+        image: aiogram/telegram-bot-api@sha256:e71b78c32ac7d6a56a127f8bb432aaa9cb0055fda37c3ef79d2b1b0723eadf70
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
@@ -685,26 +837,27 @@ jobs:
           - 8081:8081
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Download
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           path: ./dist/
           pattern: artifact-*
           merge-multiple: true
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Skip native build hooks
         run: |
@@ -748,7 +901,7 @@ jobs:
 
       - name: Release
         if: ${{ env.IS_STABLE == 'true' }}
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           files: ./dist/*
           body_path: './release.md'
@@ -769,7 +922,7 @@ jobs:
 
       - name: Push to Homebrew tap
         if: ${{ env.IS_STABLE == 'true' }}
-        uses: cpina/github-action-push-to-another-repository@v1.7.2
+        uses: cpina/github-action-push-to-another-repository@07c4d7b3def0a8ebe788a8f2c843a4e1de4f6900 # v1.7.2
         env:
           SSH_DEPLOY_KEY: ${{ secrets.HOMEBREW_SSH_DEPLOY_KEY }}
         with:
@@ -791,7 +944,7 @@ jobs:
 
       - name: Push to fdroid repo
         if: ${{ env.IS_STABLE == 'true' }}
-        uses: cpina/github-action-push-to-another-repository@v1.7.2
+        uses: cpina/github-action-push-to-another-repository@07c4d7b3def0a8ebe788a8f2c843a4e1de4f6900 # v1.7.2
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
         with:
