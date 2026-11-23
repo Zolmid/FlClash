@@ -49,6 +49,8 @@ flowchart TD
 
 Dart 使用 Flutter analyzer 与项目测试。Swift 的系统入口由真实 SDK 编译、生产算法夹具和候选打包验证。当前固定 Xcode 27.1 使用的 Swift 编译器超出所选 CodeQL Swift 提取器的支持范围。C/C++ 和 Rust 的无构建分析也有生成源码与特定编译条件的覆盖限制。[CodeQL 语言支持](https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/) · [编译语言的分析模式](https://docs.github.com/en/code-security/concepts/code-scanning/codeql/codeql-for-compiled-languages)
 
+每种语言的提取器在各自的 runner 上产生 SARIF。单独的 `Review CodeQL findings` 作业在新的 runner 上直接从 Git 读取判定策略，逐一检查本次 run 和 attempt 中所选语言的报告；缺失、格式错误或出现阻断项都会使检查失败。若只重跑失败作业导致其他语言的报告属于上一 attempt，请选择 **Re-run all jobs**。PR 和合并队列的 Android 工具准备通过 Gradle 官方公开发行地址取得分发包，并核对固定长度及 SHA-256。正式发布和此前使用认证 API 的构建沿用原资产 ID。
+
 ## 3. 开发包与正式包
 
 | 产品目标 | 候选包验证重点 | 正式链额外要求 |

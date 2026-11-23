@@ -27,6 +27,7 @@ EXPECTED_SIZE = 264624798
 EXPECTED_SHA256 = '46ac66d47f30f3dacfdf306e0b714a91a34fb94a22ba0a744b280933f47bc0cf'
 EXPECTED_API_HOST = 'api.github.com'
 EXPECTED_ASSET_API_URL = f'https://{EXPECTED_API_HOST}/repos/{EXPECTED_REPO}/releases/assets/{EXPECTED_ASSET_ID}'
+PUBLIC_ASSET_URL = f'https://github.com/{EXPECTED_REPO}/releases/download/{EXPECTED_TAG}/{EXPECTED_ZIP_NAME}'
 ALLOWED_REDIRECT_HOSTS = frozenset({
     'api.github.com',
     'github.com',
@@ -222,6 +223,7 @@ def stream_github_asset(
     retries: int = 3,
 ) -> None:
     validate_source_url(api_url, allow_redirect_hosts=False, expected_api_url=expected_api_url)
+    source_url = api_url if token else PUBLIC_ASSET_URL
     headers = {
         'Accept': 'application/octet-stream',
         'User-Agent': USER_AGENT,
@@ -232,10 +234,10 @@ def stream_github_asset(
     client = opener or build_default_opener()
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):
-        request = urllib.request.Request(api_url, headers=headers)
+        request = urllib.request.Request(source_url, headers=headers)
         try:
             with client.open(request, timeout=60) as response, destination.open('wb') as handle:
-                final_url = getattr(response, 'geturl', lambda: api_url)()
+                final_url = getattr(response, 'geturl', lambda: source_url)()
                 if final_url:
                     validate_source_url(final_url, allow_redirect_hosts=True, expected_api_url=expected_api_url)
                 shutil.copyfileobj(response, handle, length=1024 * 1024)
