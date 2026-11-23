@@ -41,6 +41,8 @@ def check_enabled(expression, delegated, event_name='push', private=False, offic
     values = {'cancelled()': cancelled, 'needs.delegation.outputs.delegated': delegated,
               'github.event_name': event_name, 'github.event.repository.private': private,
               'inputs.official_release': official}
+    for name in CHECK_IDS:
+        values['needs.selection.outputs.' + name.replace('-', '_')] = str(event_name in ('pull_request', 'merge_group', 'workflow_dispatch') or not private or official).lower()
     expression = expression.removeprefix('${{').removesuffix('}}').strip()
     for key, value in values.items():
         expression = expression.replace(key, repr(value))
@@ -255,7 +257,7 @@ class DelegationTest(unittest.TestCase):
         for event_name in ('push', 'workflow_dispatch', 'workflow_call', 'pull_request', 'workflow_run'):
             for private in (False, True):
                 for official in (False, True):
-                    old = event_name == 'workflow_dispatch' or not private or official
+                    old = event_name in ('pull_request', 'merge_group', 'workflow_dispatch') or not private or official
                     for name in CHECK_IDS:
                         condition = self.build['jobs'][name]['if']
                         for delegated in ('false', ''):
@@ -356,7 +358,7 @@ class DelegationTest(unittest.TestCase):
                                       'OFFICIAL_INPUT': '${{ toJSON(inputs.official_release) }}'})
         self.assertEqual(tuple(jobs[name]['name'] for name in CHECK_IDS), reuse.CHECKS)
         for name in CHECK_IDS:
-            self.assertEqual(jobs[name]['needs'], 'delegation')
+            self.assertEqual(jobs[name]['needs'], ['delegation', 'selection'])
             self.assertIn('!cancelled()', jobs[name]['if'])
         ci = self.release['jobs']['ci']
         self.assertEqual(ci['uses'], './.github/workflows/build.yaml')

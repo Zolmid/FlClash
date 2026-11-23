@@ -6,6 +6,9 @@ on:
       - '**'
     tags:
       - 'v*'
+  pull_request:
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -15,13 +18,16 @@ on:
         required: false
         default: false
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.official_release && 'official' || 'ordinary' }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
   IS_STABLE: ${{ !contains(github.ref, '-') }}
-  BRANCH_CACHE: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  BRANCH_CACHE: ${{ github.event_name != 'pull_request' && github.event_name != 'merge_group' && !startsWith(github.ref, 'refs/tags/') }}
   FLUTTER_VERSION: '3.47.6'
   GO_VERSION: '1.27.1'
   NDK_VERSION: r28c
@@ -48,17 +54,45 @@ jobs:
           OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
         run: python3 -u tool/ci/standard_ci_reuse.py
 
+  selection:
+    name: Select CI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      profile: ${{ steps.select.outputs.profile }}
+      dart: ${{ steps.select.outputs.dart }}
+      plugins: ${{ steps.select.outputs.plugins }}
+      go: ${{ steps.select.outputs.go }}
+      android: ${{ steps.select.outputs.android }}
+      rust: ${{ steps.select.outputs.rust }}
+      windows_helper_test: ${{ steps.select.outputs.windows_helper_test }}
+      desktop: ${{ steps.select.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: select
+        env:
+          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
+        run: python3 tool/ci/select_checks.py
+
+  review:
+    uses: ./.github/workflows/repository-review.yml
+    permissions:
+      contents: read
+
   dart:
     name: Dart
-    # A private copy pays for its Actions minutes, so it runs the checks only when
-    # started by hand or for a formal release.
-    needs: delegation
-    if: &checks ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && (github.event_name == 'workflow_dispatch' || !github.event.repository.private || inputs.official_release) }}
+    needs: [delegation, selection]
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           fetch-depth: 0
           submodules: true
 
@@ -77,6 +111,7 @@ jobs:
           node --test tool/client_release/tests/*_test.mjs
 
       - name: Setup Rust cache
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: plugins/rust_api/rust
@@ -127,13 +162,16 @@ jobs:
         run: dart run tool/check_coverage.dart coverage/lcov.info 75
 
   plugins:
-    needs: delegation
+    needs: [delegation, selection]
     name: Plugins
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.plugins == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -162,8 +200,10 @@ jobs:
 
   desktop:
     name: Desktop ${{ matrix.platform }}
-    if: (github.event_name == 'workflow_dispatch' || !github.event.repository.private) && !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    needs: selection
+    if: ${{ !cancelled() && needs.selection.outputs.desktop == 'true' }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -178,17 +218,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
           cache-dependency-path: |
             core/go.sum
             plugins/setup/setup_hooks/lib/src/go_builder.dart
 
       - name: Setup Rust cache
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
         uses: Swatinem/rust-cache@v2
         with:
           key: desktop-${{ matrix.platform }}
@@ -202,7 +245,7 @@ jobs:
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+          cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
@@ -323,14 +366,16 @@ jobs:
         run: flutter build ${{ matrix.platform }} --debug
 
   go:
-    needs: delegation
+    needs: [delegation, selection]
     name: Go core
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.go == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Go
@@ -393,14 +438,16 @@ jobs:
           GOOS=android GOARCH=arm64 go vet "-tags=$tags" . ./mobile ./tun ./platform
 
   android:
-    needs: delegation
+    needs: [delegation, selection]
     name: Android unit tests
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.android == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Go
@@ -438,6 +485,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
+          cache-disabled: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev' }}
 
       - name: Prefetch pinned Gradle distribution
@@ -465,15 +513,19 @@ jobs:
             -x :app:compileFlutterBuildDebug -x :app:copyFlutterAssetsDebug
 
   rust:
-    needs: delegation
+    needs: [delegation, selection]
     name: Rust
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.rust == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Rust cache
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -492,15 +544,19 @@ jobs:
           cargo test --manifest-path plugins/rust_api/rust/Cargo.toml
 
   windows-helper-test:
-    needs: delegation
+    needs: [delegation, selection]
     name: Windows helper test
-    if: *checks
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.windows_helper_test == 'true' }}
     runs-on: windows-2022
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Rust cache
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: services/helper
@@ -512,11 +568,49 @@ jobs:
       - name: Run Windows service tests
         run: cargo test --manifest-path services/helper/Cargo.toml --features windows-service
 
+  ci-gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs: [delegation, selection, review, dart, plugins, go, android, rust, windows-helper-test, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify selected results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          needs = json.loads(os.environ['NEEDS_JSON'])
+          errors = []
+          for job in ('delegation', 'selection', 'review'):
+              if needs[job]['result'] != 'success':
+                  errors.append(f"{job}: {needs[job]['result']}")
+          outputs = needs['selection'].get('outputs', {})
+          delegated = needs['delegation'].get('outputs', {}).get('delegated')
+          if delegated not in ('true', 'false'):
+              errors.append('invalid delegation result')
+          for job in ('dart', 'plugins', 'go', 'android', 'rust', 'windows-helper-test', 'desktop'):
+              selected = outputs.get(job.replace('-', '_'))
+              if selected not in ('true', 'false'):
+                  errors.append(f'{job}: invalid selection')
+                  continue
+              expected = selected == 'true' and (job == 'desktop' or delegated != 'true')
+              actual = needs[job]['result']
+              if actual != ('success' if expected else 'skipped'):
+                  errors.append(f'{job}: {actual}, expected {"success" if expected else "skipped"}')
+          if errors:
+              print('\n'.join(errors), file=sys.stderr)
+              sys.exit(1)
+          print('All selected CI checks passed.')
+          PY
+
   build:
     # Releases publish where the release links point: the public repository.
     if: github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [ dart, plugins, go, android, rust, windows-helper-test ]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       matrix:
         include:
@@ -557,6 +651,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Setup Android Signing
@@ -673,8 +768,11 @@ jobs:
           overwrite: true
 
   upload:
+    permissions:
+      contents: write
     needs: [ build, dart, plugins, go, android, rust, windows-helper-test ]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     services:
       telegram-bot-api:
         image: aiogram/telegram-bot-api:latest
@@ -687,6 +785,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Download
