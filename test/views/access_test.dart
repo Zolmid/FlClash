@@ -492,13 +492,17 @@ void main() {
       await teardownView(tester);
     });
 
-    testWidgets('drops hidden packages and sorts what it persists', (
+    testWidgets('keeps hidden and uninstalled selections and sorts the list', (
       tester,
     ) async {
       seedAccessControl(
         const AccessControlProps(
           enable: true,
-          rejectList: ['com.android.settings'],
+          rejectList: [
+            'com.android.settings',
+            'com.example.offline',
+            'com.example.gone',
+          ],
         ),
       );
       await pumpAccessView(tester);
@@ -515,7 +519,13 @@ void main() {
           .read(vpnSettingProvider)
           .accessControlProps
           .rejectList;
-      expect(saved, ['com.example.browser', 'com.example.chat']);
+      expect(saved, [
+        'com.android.settings',
+        'com.example.browser',
+        'com.example.chat',
+        'com.example.gone',
+        'com.example.offline',
+      ]);
 
       await teardownView(tester);
     });
