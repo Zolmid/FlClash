@@ -2392,6 +2392,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "パスワードをお忘れですか？",
     ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage("同時接続デバイス"),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "招待した新規ユーザーが登録するたびに、無料データが月間容量まで補充されます。補充分は累積せず、月次リセット日も変わりません。キャッシュバックとは別の特典です。",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "友達を招待して無料データを補充",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "月間データ容量",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage("次回の月次リセット"),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("無料プラン"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage("速度上限"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("ギフト利用権"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage("獲得した特典"),
     "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("贈呈残高"),

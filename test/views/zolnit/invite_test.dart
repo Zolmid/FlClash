@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
@@ -9,6 +10,38 @@ import 'harness.dart';
 
 void main() {
   final harness = ZolnitHarness.register();
+
+  testWidgets('free invitation displays server limits and refill terms', (
+    tester,
+  ) async {
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/getSubscribe')) {
+        return zolnitJson({
+          'plan_id': 42,
+          'free_plan': {
+            'id': 42,
+            'name': 'Free',
+            'transfer_enable': 2147483648,
+            'device_limit': 3,
+            'speed_limit': 15,
+            'next_reset_at': '2026-12-01T00:00:00Z',
+          },
+        });
+      }
+      return zolnitPanelFixture(request);
+    };
+    await harness.relogin();
+    await harness.mount(tester, ZolnitSkin.macos);
+    expect(find.text('返现比例 · 10%'), findsOneWidget);
+    expect(find.text('邀请好友补充免费流量'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('home-invitation-card')));
+    await tester.pumpAndSettle();
+    expect(find.text('每月流量: 2.00 GB'), findsOneWidget);
+    expect(find.text('速度上限: 15 Mbps'), findsOneWidget);
+    expect(find.text('同时在线设备: 3'), findsOneWidget);
+    expect(find.textContaining('补充不累积'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   Future<void> openInviteTab(
     WidgetTester tester,

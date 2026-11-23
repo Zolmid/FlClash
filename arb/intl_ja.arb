@@ -1609,5 +1609,12 @@
   "zolnitGiftBalance": "贈呈残高",
   "zolnitGiftIncluded": "確定特典",
   "zolnitGiftRandomTip": "ランダム特典は交換時に決まります。",
-  "zolnitGiftContinue": "続けて交換"
+  "zolnitGiftContinue": "続けて交換",
+  "zolnitFreePlan": "無料プラン",
+  "zolnitFreeMonthlyAllowance": "月間データ容量",
+  "zolnitFreeSpeedLimit": "速度上限",
+  "zolnitFreeDeviceLimit": "同時接続デバイス",
+  "zolnitFreeNextReset": "次回の月次リセット",
+  "zolnitFreeInviteShort": "友達を招待して無料データを補充",
+  "zolnitFreeInviteExplanation": "招待した新規ユーザーが登録するたびに、無料データが月間容量まで補充されます。補充分は累積せず、月次リセット日も変わりません。キャッシュバックとは別の特典です。"
 }

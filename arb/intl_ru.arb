@@ -1609,5 +1609,12 @@
   "zolnitGiftBalance": "Подарочный баланс",
   "zolnitGiftIncluded": "Гарантированные награды",
   "zolnitGiftRandomTip": "Случайная награда определяется при активации.",
-  "zolnitGiftContinue": "Активировать ещё"
+  "zolnitGiftContinue": "Активировать ещё",
+  "zolnitFreePlan": "Бесплатный тариф",
+  "zolnitFreeMonthlyAllowance": "Месячный объём",
+  "zolnitFreeSpeedLimit": "Ограничение скорости",
+  "zolnitFreeDeviceLimit": "Одновременные устройства",
+  "zolnitFreeNextReset": "Следующее месячное обновление",
+  "zolnitFreeInviteShort": "Пригласите друга и пополните бесплатный трафик",
+  "zolnitFreeInviteExplanation": "Каждая успешная регистрация нового приглашённого пользователя пополняет бесплатный трафик до месячного лимита. Пополнения не накапливаются и не меняют дату месячного обновления. Это отдельная от кешбэка награда."
 }

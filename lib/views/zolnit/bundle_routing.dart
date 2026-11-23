@@ -9,7 +9,6 @@ import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/providers/zolnit_routing.dart';
 import 'package:fl_clash/providers/zolnit_return_route.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
-import 'package:fl_clash/views/proxies/card.dart' show selectGroupProxy;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -149,6 +148,7 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final colors = ZolnitColors.of(context);
+    final serviceScope = (session.api.generation, bundle?.bundleId);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: ZolnitCard(
@@ -170,14 +170,13 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                 style: zolnitText(context, 12, color: colors.muted),
               ),
             if (managed && service != null) ...[
-              Wrap(
-                spacing: 16,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DropdownButton<String>(
                     key: const ValueKey('bundle-service'),
                     value: service.route.id,
+                    isExpanded: true,
                     icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
                     underline: const SizedBox.shrink(),
                     items: [
@@ -191,43 +190,18 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                       if (value != null) onServiceChanged(value);
                     },
                   ),
-                  DropdownButton<String>(
-                    key: const ValueKey('bundle-routing-mode'),
-                    value: mode,
-                    hint: Text(l10n.unknown),
-                    icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
-                    underline: const SizedBox.shrink(),
-                    items: [
-                      DropdownMenuItem(
-                        value: service.route.groupName,
-                        enabled: autoEnabled,
-                        child: Text(l10n.auto),
-                      ),
-                      DropdownMenuItem(
-                        value: service.manualGroup,
-                        child: Text(l10n.manual),
-                      ),
-                      DropdownMenuItem(
-                        value: 'DIRECT',
-                        child: Text(l10n.direct),
-                      ),
-                    ],
-                    onChanged: !available
-                        ? null
-                        : (value) {
-                            if (value == null ||
-                                (value == service.route.groupName &&
-                                    !autoEnabled) ||
-                                !values.contains(value)) {
-                              return;
-                            }
-                            selectGroupProxy(
-                              ref,
-                              groupName: service.groupName,
-                              groupType: GroupType.Selector,
-                              proxyName: value,
-                            );
-                          },
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.mode,
+                    style: zolnitText(context, 12, color: colors.muted),
+                  ),
+                  _ServiceModeControl(
+                    key: ValueKey((serviceScope, service.groupName)),
+                    service: service,
+                    mode: mode,
+                    available: available,
+                    autoEnabled: autoEnabled,
+                    session: session,
                   ),
                 ],
               ),
@@ -255,6 +229,140 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ServiceModeControl extends ConsumerStatefulWidget {
+  const _ServiceModeControl({
+    super.key,
+    required this.service,
+    required this.mode,
+    required this.available,
+    required this.autoEnabled,
+    required this.session,
+  });
+
+  final ManagedRouteService service;
+  final String? mode;
+  final bool available;
+  final bool autoEnabled;
+  final ZolnitSessionController session;
+
+  @override
+  ConsumerState<_ServiceModeControl> createState() =>
+      _ServiceModeControlState();
+}
+
+class _ServiceModeControlState extends ConsumerState<_ServiceModeControl> {
+  int _revision = 0;
+  String? _pending;
+  bool _failed = false;
+
+  Future<void> _change(String value) async {
+    final revision = ++_revision;
+    final profileId = ref.read(currentProfileProvider)?.id;
+    final bundleId = widget.session.clientBundle?.bundleId;
+    final generation = widget.session.api.generation;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final session = widget.session;
+    setState(() {
+      _pending = value;
+      _failed = false;
+    });
+    bool sameScope() =>
+        container.read(currentProfileProvider)?.id == profileId &&
+        session.clientBundle?.bundleId == bundleId &&
+        session.api.generation == generation &&
+        container.read(coreStatusProvider) == CoreStatus.connected &&
+        !container.read(safeModeProvider);
+    bool current() => revision == _revision && sameScope();
+    var applied = false;
+    try {
+      applied = await ref
+          .read(proxiesActionProvider.notifier)
+          .changeProxyIfCurrent(
+            groupName: widget.service.groupName,
+            proxyName: value,
+            isCurrent: current,
+          );
+    } catch (_) {
+      applied = false;
+    } finally {
+      if (mounted && revision == _revision) {
+        setState(() {
+          _pending = null;
+          _failed = !applied && sameScope();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.appLocalizations;
+    final colors = ZolnitColors.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButton<String>(
+          key: const ValueKey('bundle-routing-mode'),
+          value: _pending ?? widget.mode,
+          isExpanded: true,
+          hint: Text(text.unknown),
+          icon: const GlyphIcon(AppGlyphs.chevronDown, size: 16),
+          underline: const SizedBox.shrink(),
+          items: [
+            DropdownMenuItem(
+              value: widget.service.route.groupName,
+              enabled: widget.autoEnabled,
+              child: Text(text.auto),
+            ),
+            DropdownMenuItem(
+              value: widget.service.manualGroup,
+              child: Text(text.manual),
+            ),
+            DropdownMenuItem(value: 'DIRECT', child: Text(text.direct)),
+          ],
+          onChanged: !widget.available
+              ? null
+              : (value) {
+                  if (value != null &&
+                      value != (_pending ?? widget.mode) &&
+                      (value != widget.service.route.groupName ||
+                          widget.autoEnabled)) {
+                    unawaited(_change(value));
+                  }
+                },
+        ),
+        AnimatedSize(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topLeft,
+          child: Semantics(
+            liveRegion: _pending != null || _failed,
+            child: _pending != null
+                ? Text(
+                    text.loading,
+                    key: const ValueKey('bundle-mode-pending'),
+                    style: zolnitText(context, 12, color: colors.muted),
+                  )
+                : _failed
+                ? Text(
+                    text.zolnitRouteChangeFailed,
+                    key: const ValueKey('bundle-mode-error'),
+                    style: zolnitText(
+                      context,
+                      12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -292,6 +400,8 @@ class _ReturnControlsState extends ConsumerState<_ReturnControls> {
         optionId: optionId,
       );
       if (mounted && !applied) setState(() => _failed = true);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -348,6 +458,12 @@ class _ReturnControlsState extends ConsumerState<_ReturnControls> {
                 }
               : null,
         ),
+        if (_busy)
+          Text(
+            text.loading,
+            key: const ValueKey('bundle-return-pending'),
+            style: zolnitText(context, 12),
+          ),
         if (_failed)
           Text(
             text.zolnitRouteChangeFailed,

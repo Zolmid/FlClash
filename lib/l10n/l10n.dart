@@ -13923,6 +13923,76 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Free plan`
+  String get zolnitFreePlan {
+    return Intl.message(
+      'Free plan',
+      name: 'zolnitFreePlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Monthly allowance`
+  String get zolnitFreeMonthlyAllowance {
+    return Intl.message(
+      'Monthly allowance',
+      name: 'zolnitFreeMonthlyAllowance',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Speed limit`
+  String get zolnitFreeSpeedLimit {
+    return Intl.message(
+      'Speed limit',
+      name: 'zolnitFreeSpeedLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Concurrent devices`
+  String get zolnitFreeDeviceLimit {
+    return Intl.message(
+      'Concurrent devices',
+      name: 'zolnitFreeDeviceLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Next monthly reset`
+  String get zolnitFreeNextReset {
+    return Intl.message(
+      'Next monthly reset',
+      name: 'zolnitFreeNextReset',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite a friend to refill free data`
+  String get zolnitFreeInviteShort {
+    return Intl.message(
+      'Invite a friend to refill free data',
+      name: 'zolnitFreeInviteShort',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.`
+  String get zolnitFreeInviteExplanation {
+    return Intl.message(
+      'Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.',
+      name: 'zolnitFreeInviteExplanation',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

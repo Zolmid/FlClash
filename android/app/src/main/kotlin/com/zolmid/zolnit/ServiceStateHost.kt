@@ -37,6 +37,8 @@ internal interface ServiceStateHost {
 
     fun showToast(message: String)
 
+    fun showStartFailure()
+
     fun updateNotificationParams(params: NotificationParams)
 
     fun loadSharedState(): SharedState
@@ -101,6 +103,9 @@ internal object AndroidServiceStateHost : ServiceStateHost {
     override fun log(message: String) = GlobalState.log(message)
 
     override fun showToast(message: String) = GlobalState.application.showToast(message)
+
+    override fun showStartFailure() =
+        showToast(GlobalState.application.getString(R.string.vpn_start_failed))
 
     override fun updateNotificationParams(params: NotificationParams) =
         ServiceConfig.updateNotificationParams(params)

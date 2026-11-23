@@ -2977,6 +2977,25 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "Забыли пароль?",
     ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage(
+      "Одновременные устройства",
+    ),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "Каждая успешная регистрация нового приглашённого пользователя пополняет бесплатный трафик до месячного лимита. Пополнения не накапливаются и не меняют дату месячного обновления. Это отдельная от кешбэка награда.",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "Пригласите друга и пополните бесплатный трафик",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "Месячный объём",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage(
+      "Следующее месячное обновление",
+    ),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("Бесплатный тариф"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage(
+      "Ограничение скорости",
+    ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Подарочный доступ"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
       "Полученные награды",

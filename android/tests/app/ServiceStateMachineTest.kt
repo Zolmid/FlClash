@@ -106,6 +106,7 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     override val sdkInt = 34
 
     val toasts = mutableListOf<String>()
+    var startFailures = 0
     val logs = mutableListOf<String>()
     val notificationParams = mutableListOf<NotificationParams>()
     var setupCalls = 0
@@ -121,6 +122,10 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 
     override fun showToast(message: String) {
         toasts += message
+    }
+
+    override fun showStartFailure() {
+        startFailures++
     }
 
     override fun updateNotificationParams(params: NotificationParams) {
@@ -313,6 +318,7 @@ class ServiceStateMachineTest {
 
         assertFalse(machine.requestStart().await())
         assertEquals(0, host.startCalls)
+        assertEquals(1, host.startFailures)
     }
 
     @Test
@@ -326,6 +332,23 @@ class ServiceStateMachineTest {
         assertEquals(0, host.startCalls)
         assertEquals(RunState.STOPPED, machine.runState.value)
         assertEquals(1, host.stoppedNotifications)
+        assertTrue(host.toasts.isEmpty())
+        assertEquals(0, host.startFailures)
+    }
+
+    @Test
+    fun `a failed Flutter service start is reported but a superseded failure is silent`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        host.startSucceeds = false
+
+        assertFalse(machine.requestStart().await())
+        assertEquals(1, host.startFailures)
+
+        host.beforeStartService = { machine.requestStop() }
+        assertFalse(machine.requestStart().await())
+        assertEquals(1, host.startFailures)
     }
 
     @Test
@@ -373,6 +396,8 @@ class ServiceStateMachineTest {
         assertFalse(machine.requestStart().await())
         assertEquals(0, host.startCalls)
         assertEquals(1, host.stoppedNotifications)
+        assertTrue(host.toasts.isEmpty())
+        assertEquals(0, host.startFailures)
     }
 
     /** Flutter opened the Core's listeners before asking, and may be gone before it hears back. */
@@ -654,7 +679,7 @@ class ServiceStateMachineTest {
 
         machine.handleStartAction()
 
-        assertTrue(host.toasts.contains(START_FAILED_MESSAGE))
+        assertEquals(1, host.startFailures)
         assertFalse(machine.isRunRequested)
     }
 
@@ -686,7 +711,7 @@ class ServiceStateMachineTest {
 
             assertEquals(1, host.setupCalls)
             assertEquals(0, host.startCalls)
-            assertFalse(host.toasts.contains(START_FAILED_MESSAGE))
+            assertEquals(0, host.startFailures)
             assertFalse(machine.isRunRequested)
             assertEquals(RunState.STOPPED, machine.runState.value)
         }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="vpn_start_failed">接続を開始できませんでした。もう一度お試しください。</string>
     <string name="start_vpn">VPN を開始中...</string>
     <string name="stop_vpn">VPN を停止中...</string>
     <string name="connected">接続済み</string>

@@ -2348,6 +2348,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "비밀번호를 잊으셨나요?",
     ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage("동시 접속 기기"),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "초대한 신규 사용자가 가입할 때마다 무료 데이터가 월 제공량까지 보충됩니다. 보충량은 누적되지 않고 월간 초기화 날짜도 바뀌지 않습니다. 캐시백과는 별도입니다.",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "친구를 초대하고 무료 데이터 보충",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "월 데이터 제공량",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage("다음 월간 초기화"),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("무료 요금제"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage("속도 제한"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("선물 이용 권한"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage("받은 혜택"),
     "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("선물 잔액"),

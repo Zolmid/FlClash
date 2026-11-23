@@ -1609,5 +1609,12 @@
   "zolnitGiftBalance": "贈送餘額",
   "zolnitGiftIncluded": "固定獎勵",
   "zolnitGiftRandomTip": "隨機獎勵將在兌換時確定。",
-  "zolnitGiftContinue": "繼續兌換"
+  "zolnitGiftContinue": "繼續兌換",
+  "zolnitFreePlan": "免費方案",
+  "zolnitFreeMonthlyAllowance": "每月流量",
+  "zolnitFreeSpeedLimit": "速度上限",
+  "zolnitFreeDeviceLimit": "同時在線裝置",
+  "zolnitFreeNextReset": "下次每月重置",
+  "zolnitFreeInviteShort": "邀請好友補充免費流量",
+  "zolnitFreeInviteExplanation": "每成功邀請一位新用戶註冊，免費流量補充至每月額度。補充不累積，也不改變每月重置日期；此獎勵與返現分開計算。"
 }

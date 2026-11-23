@@ -3062,6 +3062,25 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "¿Olvidaste tu contraseña?",
     ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage(
+      "Dispositivos simultáneos",
+    ),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "Cada nuevo registro realizado mediante tu invitación repone los datos gratuitos hasta el límite mensual. Las recargas no se acumulan ni cambian la fecha de reinicio mensual. Este beneficio es independiente del reembolso.",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "Invita a un amigo para recargar datos gratis",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "Datos mensuales",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage(
+      "Próximo reinicio mensual",
+    ),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("Plan gratuito"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage(
+      "Velocidad máxima",
+    ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Acceso de regalo"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
       "Recompensas recibidas",

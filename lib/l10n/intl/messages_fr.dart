@@ -3068,6 +3068,25 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "Mot de passe oublié ?",
     ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage(
+      "Appareils simultanés",
+    ),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "Chaque inscription réussie d’une personne invitée recharge vos données gratuites jusqu’au quota mensuel. Les recharges ne se cumulent pas et ne changent pas la date de réinitialisation mensuelle. Cet avantage est distinct du cashback.",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "Invitez un ami pour recharger vos données gratuites",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "Quota mensuel",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage(
+      "Prochaine réinitialisation mensuelle",
+    ),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("Offre gratuite"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage(
+      "Vitesse maximale",
+    ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Accès offert"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
       "Récompenses reçues",

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="start_vpn">Starting VPN...</string>
+    <string name="vpn_start_failed">Couldn’t start the connection. Try again.</string>
     <string name="stop_vpn">Stopping VPN...</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>

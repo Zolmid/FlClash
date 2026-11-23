@@ -124,7 +124,7 @@ class ProxiesAction extends _$ProxiesAction {
     return ref.read(currentProfileProvider)?.selectedMap[groupName] ?? '';
   }
 
-  Future<void> updateGroups() async {
+  Future<void> updateGroups({bool Function()? isCurrent}) async {
     try {
       final groups = await retry<List<Group>>(
         task: () async {
@@ -153,9 +153,11 @@ class ProxiesAction extends _$ProxiesAction {
             return [];
           }
         },
-        retryIf: (res) => res.isEmpty,
+        retryIf: (res) => res.isEmpty && (isCurrent?.call() ?? true),
       );
-      if (ref.mounted) ref.read(groupsProvider.notifier).value = groups;
+      if (ref.mounted && (isCurrent?.call() ?? true)) {
+        ref.read(groupsProvider.notifier).value = groups;
+      }
     } catch (e) {
       // The Core failure path already runs inside the retry task above; a
       // throw here only means ref.read hit a disposed container or the
@@ -215,6 +217,7 @@ class ProxiesAction extends _$ProxiesAction {
     required bool Function() isCurrent,
     Map<String, dynamic>? routingLease,
   }) async {
+    if (!isCurrent()) return false;
     ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
     final applied = await _queueProxyChange(
       groupName: groupName,
@@ -222,7 +225,7 @@ class ProxiesAction extends _$ProxiesAction {
       guard: isCurrent,
       routingLease: routingLease,
     );
-    if (applied && isCurrent()) await updateGroups();
+    if (applied && isCurrent()) await updateGroups(isCurrent: isCurrent);
     return applied && isCurrent();
   }
 

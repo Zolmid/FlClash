@@ -27,10 +27,11 @@ class _ReturnCore extends Mock implements CoreHandlerInterface {}
 
 class _Recording extends ProxiesAction {
   final selections = <(String, String)>[];
+  Future<bool> Function()? selectionResult;
   @override
   void build() {}
   @override
-  Future<void> updateGroups() async {}
+  Future<void> updateGroups({bool Function()? isCurrent}) async {}
   @override
   void changeProxyDebounce(String groupName, String proxyName) =>
       selections.add((groupName, proxyName));
@@ -43,7 +44,7 @@ class _Recording extends ProxiesAction {
   }) async {
     if (!isCurrent()) return false;
     selections.add((groupName, proxyName));
-    return true;
+    return await (selectionResult?.call() ?? Future.value(true)) && isCurrent();
   }
 }
 
@@ -513,6 +514,73 @@ void main() {
       expect(owner.selections, [('zn.service.ai', 'zn.service.ai.manual')]);
     },
   );
+
+  testWidgets('mode selection shows pending and failure feedback', (
+    tester,
+  ) async {
+    await mount(tester);
+    final owner = container.read(proxiesActionProvider.notifier) as _Recording;
+    final result = Completer<bool>();
+    owner.selectionResult = () => result.future;
+    final dropdown = tester.widget<DropdownButton<String>>(
+      find.byKey(const ValueKey('bundle-routing-mode')),
+    );
+    dropdown.onChanged!('zn.service.ai.manual');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('bundle-mode-pending')), findsOneWidget);
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.byKey(const ValueKey('bundle-routing-mode')),
+          )
+          .value,
+      'zn.service.ai.manual',
+    );
+    result.complete(false);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('bundle-mode-pending')), findsNothing);
+    expect(find.byKey(const ValueKey('bundle-mode-error')), findsOneWidget);
+  });
+
+  testWidgets('a late mode result cannot replace the latest intent', (
+    tester,
+  ) async {
+    await mount(tester);
+    final owner = container.read(proxiesActionProvider.notifier) as _Recording;
+    final first = Completer<bool>();
+    final second = Completer<bool>();
+    var calls = 0;
+    owner.selectionResult = () => calls++ == 0 ? first.future : second.future;
+    tester
+        .widget<DropdownButton<String>>(
+          find.byKey(const ValueKey('bundle-routing-mode')),
+        )
+        .onChanged!('zn.service.ai.manual');
+    await tester.pump();
+    tester
+        .widget<DropdownButton<String>>(
+          find.byKey(const ValueKey('bundle-routing-mode')),
+        )
+        .onChanged!('DIRECT');
+    await tester.pump();
+    first.complete(false);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('bundle-mode-pending')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bundle-mode-error')), findsNothing);
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.byKey(const ValueKey('bundle-routing-mode')),
+          )
+          .value,
+      'DIRECT',
+    );
+    second.complete(true);
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('bundle-mode-pending')), findsNothing);
+    expect(find.byKey(const ValueKey('bundle-mode-error')), findsNothing);
+  });
 
   testWidgets(
     'current service route uses the same protocol-free distinct server identity as All Routes',
