@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'managed_dns.dart';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -112,11 +114,17 @@ String? lastMatchTarget(List<String> rules) {
   return null;
 }
 
-Future<RealProfile> makeRealProfileTask(MakeRealProfileState data) async {
-  return compute<MakeRealProfileState, RealProfile>(_makeRealProfileTask, data);
+Future<RealProfile> makeRealProfileTask(
+  MakeRealProfileState data, {
+  bool managedDns = false,
+}) async {
+  return compute(_makeRealProfileTask, (data: data, managedDns: managedDns));
 }
 
-Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
+Future<RealProfile> _makeRealProfileTask(
+  ({MakeRealProfileState data, bool managedDns}) input,
+) async {
+  final data = input.data;
   final rawConfig = Map.from(data.rawConfig);
   final realPatchConfig = data.realPatchConfig;
   final profilesPath = data.profilesPath;
@@ -286,20 +294,37 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
       ? Map<String, dynamic>.from(rawConfig['dns'] as Map)
       : <String, dynamic>{};
   final isEnableDns = rawDns['enable'] == true;
+  const marker = 'x-zolnit-managed-doh';
+  final markerValue = rawDns[marker];
+  if (input.managedDns &&
+      rawDns.containsKey(marker) &&
+      (markerValue is! int || markerValue != 1)) {
+    throw const FormatException('invalid_managed_dns_version');
+  }
+  final protectedDns =
+      input.managedDns && markerValue is int && markerValue == 1;
   const systemDns = 'system://';
-  if (!isEnableDns) {
+  if (protectedDns) {
+    rawDns = managedDnsMerge(
+      rawDns,
+      overrides.dns.overrideJson(overrides.dnsOverrideKeys),
+    );
+  }
+  if (!protectedDns && !isEnableDns) {
     rawDns = mergeDnsOverride(
       rawDns,
       baselineDns.overrideJson(baselineDnsOverrideKeys),
     );
   }
-  rawDns = mergeDnsOverride(
-    rawDns,
-    overrides.dns.overrideJson(
-      overrides.dnsOverrideKeys,
-      keepEmpty: data.keepEmptyDnsOverrides,
-    ),
-  );
+  if (!protectedDns) {
+    rawDns = mergeDnsOverride(
+      rawDns,
+      overrides.dns.overrideJson(
+        overrides.dnsOverrideKeys,
+        keepEmpty: data.keepEmptyDnsOverrides,
+      ),
+    );
+  }
   rawConfig['dns'] = rawDns;
   final ntpOverride = overrides.ntp.overrideJson(overrides.ntpOverrideKeys);
   if (ntpOverride.isNotEmpty) {
@@ -308,7 +333,7 @@ Future<RealProfile> _makeRealProfileTask(MakeRealProfileState data) async {
         : <String, dynamic>{};
     rawConfig['ntp'] = {...rawNtp, ...ntpOverride};
   }
-  if (appendSystemDns) {
+  if (appendSystemDns && !protectedDns) {
     final List<String> nameserver = List<String>.from(
       rawConfig['dns']['nameserver'] ?? [],
     );

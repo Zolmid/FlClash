@@ -1,0 +1,6 @@
+<resources>
+    <string name="vpn_authorization_cancelled">VPN 권한이 취소되었거나 허용되지 않았습니다. 다른 앱에서 VPN 항상 켜기가 켜져 있다면 시스템 설정에서 끄고 다시 시도하세요.</string>
+    <string name="vpn_authorization_cancelled_with_vpn">VPN 권한이 취소되었거나 허용되지 않았습니다. VPN 네트워크가 활성 상태입니다. 다른 앱에서 VPN 항상 켜기가 켜져 있다면 시스템 설정에서 끄고 다시 시도하세요.</string>
+    <string name="vpn_permission_help">시스템에서 VPN 연결을 허용하지 않았습니다. 다른 앱에서 VPN 항상 켜기가 켜져 있다면 시스템 설정에서 끄고 다시 시도하세요.</string>
+    <string name="vpn_settings">VPN 설정</string>
+</resources>

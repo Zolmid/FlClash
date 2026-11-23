@@ -66,6 +66,7 @@ class _SnapshotRaceSetupAction extends SetupAction {
   Future<bool> setCoreRunning(
     bool running, {
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {
@@ -90,6 +91,7 @@ class _ListenerHandoffFailureSetupAction extends SetupAction {
   Future<bool> setCoreRunning(
     bool running, {
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {
@@ -108,6 +110,7 @@ class _MessageFailureSetupAction extends SetupAction {
   Future<bool> setCoreRunning(
     bool running, {
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {
@@ -147,6 +150,7 @@ class TestSetupAction extends SetupAction {
   Future<bool> setCoreRunning(
     bool running, {
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {

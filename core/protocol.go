@@ -144,6 +144,7 @@ type DecryptConfigParams struct {
 }
 
 type SetupParams struct {
+	OwnedDNS       *OwnedDNSConfig   `json:"owned-dns,omitempty"`
 	SelectedMap    map[string]string `json:"selected-map"`
 	TestURL        string            `json:"test-url"`
 	SkipCertVerify bool              `json:"skip-cert-verify"`
@@ -312,13 +313,15 @@ type ProbeResult struct {
 }
 
 type FirstPartyHTTPParams struct {
-	ClientID  string            `json:"client-id"`
-	RequestID string            `json:"request-id"`
-	Method    string            `json:"method"`
-	URL       string            `json:"url"`
-	Headers   map[string]string `json:"headers"`
-	Body      string            `json:"body"`
-	Timeout   int64             `json:"timeout"`
+	OwnedDNSOnly bool              `json:"owned-dns-only,omitempty"`
+	Addresses    []string          `json:"addresses,omitempty"`
+	ClientID     string            `json:"client-id"`
+	RequestID    string            `json:"request-id"`
+	Method       string            `json:"method"`
+	URL          string            `json:"url"`
+	Headers      map[string]string `json:"headers"`
+	Body         string            `json:"body"`
+	Timeout      int64             `json:"timeout"`
 }
 
 type FirstPartyHTTPCancelParams struct {

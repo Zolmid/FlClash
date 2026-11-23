@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.1.13 (2026-11-24)
+
+**Bug Fixes**
+
+- **android** Exclude device-bound app data from Android cloud backups. (50a49ed)
+- **android** Open Android VPN settings when another VPN may be preventing ZolNit from connecting. (b91948d)
+- **client** See the active AI route, switch modes promptly, and choose a route manually. (f11184c)
+- Discard outdated route checks after switching networks and handle invalid proxy ports and Windows upgrades more reliably. (6487c69)
+- Refresh cached addresses after a network change and show a message if the connection cannot start. (6feaa81)
+- Keep selected apps when filtering the list and keep icons steady while they load. (d80d485)
+- **dns** Use encrypted DNS for public lookups when enabled by your subscription. (adedb10)
+- **client** See Free plan limits and invitation benefits, with clearer feedback when switching routes. (d97fa85)
+
+## v1.1.12 (2026-11-22)
+
+**Bug Fixes**
+
+- **network** Restore configuration downloads for signed subscriptions and show a connection error when the network is unavailable. (5f7551b)
+
+## v1.1.11 (2026-11-22)
+
+**Features**
+
+- **network** Encrypt the handshake hostname on supported ZolNit HTTPS connections. (a1859ba)
+- **network** Use encrypted DNS and direct IP connections to ZolNit services and nodes. Android and iOS use the official HTTPDNS SDK. (49daa93)
+
 ## v1.1.10 (2026-11-15)
 
 **Bug Fixes**

@@ -20,6 +20,7 @@ typedef BuiltProfile = ({
 class _RunRequest {
   final bool running;
   final bool initialize;
+  final bool foregroundVpnHelp;
   final DateTime? previousStartTime;
   final bool abandonsStart;
   bool retryProfileBuild = false;
@@ -29,6 +30,7 @@ class _RunRequest {
   _RunRequest({
     required this.running,
     required this.initialize,
+    this.foregroundVpnHelp = false,
     required this.previousStartTime,
     this.abandonsStart = false,
     this.startHandle,
@@ -215,7 +217,11 @@ class SetupAction extends _$SetupAction {
     }
   }
 
-  Future<bool> setRunning(bool running, {bool initialize = false}) {
+  Future<bool> setRunning(
+    bool running, {
+    bool initialize = false,
+    bool foregroundVpnHelp = false,
+  }) {
     if (running && !initialize && !ref.read(initProvider)) {
       return Future.value(true);
     }
@@ -223,6 +229,7 @@ class SetupAction extends _$SetupAction {
     final request = _RunRequest(
       running: running,
       initialize: running && initialize,
+      foregroundVpnHelp: running && foregroundVpnHelp,
       previousStartTime: _startTime,
     );
     _latestRunRequest = request;
@@ -247,7 +254,14 @@ class SetupAction extends _$SetupAction {
             preloadInvoke: () => _startCoreRunning(request),
           );
         } catch (_) {
-          applied = false;
+          if (_isCurrent(request) &&
+              !request.retryProfileBuild &&
+              rootNavigatorKey.currentContext != null) {
+            dialogs.showNotifier(
+              currentAppLocalizations.zolnitConnectionIssue,
+              level: MessageLevel.error,
+            );
+          }
         }
         if (!_isCurrent(request)) return true;
         if (request.retryProfileBuild) continue;
@@ -395,6 +409,7 @@ class SetupAction extends _$SetupAction {
     }
     final answered = await setCoreRunning(
       running,
+      foregroundVpnHelp: request?.foregroundVpnHelp ?? false,
       startState: startState,
       isCurrent: startState == null ? null : isCurrent,
       onAccepted: request == null
@@ -460,12 +475,14 @@ class SetupAction extends _$SetupAction {
   Future<bool> setCoreRunning(
     bool running, {
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) {
     return running
         ? _core.startListener(
             startState: startState,
+            foregroundVpnHelp: foregroundVpnHelp,
             isCurrent: isCurrent,
             onAccepted: listenerManagedByService ? onAccepted : null,
           )
@@ -814,6 +831,7 @@ class SetupAction extends _$SetupAction {
             : lastMatchTarget(profileBase.base.matchRules),
         safeMode: ref.read(safeModeProvider),
       ),
+      managedDns: managed,
     );
     final applicationDigest = bundle == null
         ? res.md5

@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 
 import '../setup.dart' as setup;
+import 'package:zolnit_client/src/owned_dns_config.dart';
 
 void main() {
   group('setup.dart', () {
@@ -36,8 +37,18 @@ void main() {
           'APP_ENV': 'dev',
           'ZOLNIT_NATIVE_UI': 'true',
           'ZOLNIT_CLIENT_BUNDLE': 'true',
+          'ZOLNIT_OWNED_DNS': zolnitReleaseOwnedDns,
         },
       );
+    });
+
+    test('direct archives include strict DNS without optional UI flags', () {
+      final environment = setup.createBuildEnvironment(
+        'stable',
+        distribution: 'direct',
+      );
+      expect(environment['ZOLNIT_OWNED_DNS'], zolnitReleaseOwnedDns);
+      expect(environment['ZOLNIT_DISTRIBUTION'], 'direct');
     });
 
     test('passive observation is explicitly compiled and off by default', () {

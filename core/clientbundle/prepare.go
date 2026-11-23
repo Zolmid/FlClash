@@ -82,7 +82,7 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 		candidates := []string{}
 		for _, node := range root.Data.Routing.Nodes {
 			if !node.Enabled || !node.Egress.Verified ||
-				!qualifiedEgress(node.Egress.Source, node.Egress.ConfigurationFingerprint, fingerprints[node.ID]) ||
+				!QualifiedEgress(node.Egress.Source, node.Egress.ConfigurationFingerprint, fingerprints[node.ID]) ||
 				!contains(node.Services, service.ID) || !contains(service.Countries, node.Egress.Country) ||
 				len(node.Egress.Country) != 2 || node.Revision == "" ||
 				(node.Egress.Source == "operator_allowlist" && !SafeText(node.Revision)) ||
@@ -117,9 +117,30 @@ func Prepare(body []byte, account, overlay string, now time.Time) (*Prepared, st
 		nextGroups = append(nextGroups, managed[service.AutomaticGroup], managed[service.ManualGroup])
 	}
 	config["proxy-groups"] = nextGroups
+	protected := false
+	if source, ok := config["dns"].(map[string]any); ok {
+		if version, present := source["x-zolnit-managed-doh"]; present {
+			if version != 1 {
+				return nil, "invalid_managed_dns_version"
+			}
+			protected = true
+		}
+	}
+	if protected {
+		if code := mergeManagedDNS(config, preferences["dns"]); code != "" {
+			return nil, code
+		}
+	}
 	for key, value := range preferences {
 		switch key {
 		case "proxies", "proxy-groups", "sub-rules":
+		case "dns":
+			if !protected {
+				if dns, ok := value.(map[string]any); ok {
+					delete(dns, "x-zolnit-managed-doh")
+				}
+				config[key] = value
+			}
 		case "rules":
 			additional, ok := value.([]any)
 			server, serverOK := config["rules"].([]any)
@@ -184,7 +205,8 @@ func validConfigurationFingerprint(value string) bool {
 	return true
 }
 
-func qualifiedEgress(source string, proof any, authorized string) bool {
+// QualifiedEgress checks operator proof against the authorized outbound snapshot.
+func QualifiedEgress(source string, proof any, authorized string) bool {
 	switch source {
 	case "operator_verified", "egress_probe":
 		return true

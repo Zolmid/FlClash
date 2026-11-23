@@ -85,6 +85,13 @@ class _PatchClashConfig extends _$PatchClashConfig
   PatchClashConfig build() {
     return const PatchClashConfig();
   }
+
+  @override
+  set value(PatchClashConfig value) {
+    state = isUsableMixedPort(value.mixedPort)
+        ? value
+        : value.copyWith(mixedPort: state.mixedPort);
+  }
 }
 
 @riverpod

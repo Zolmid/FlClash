@@ -2,8 +2,12 @@ package clientbundle
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"go.yaml.in/yaml/v3"
 	"io"
 	"os"
 	"os/exec"
@@ -601,5 +605,85 @@ func TestExpiredPackageUnlinkFailureRetriedAfterReopen(t *testing.T) {
 	}
 	if _, err := applyEnvelope(store, fixtures["bundle1"]); !errors.Is(err, ErrExpired) {
 		t.Fatal("expired package resurrected after cleanup", err)
+	}
+}
+
+func signedDNSFixture(t *testing.T, serial int64, dns map[string]any) []byte {
+	t.Helper()
+	material := v2Material(t)
+	var connection map[string]any
+	if err := json.Unmarshal(material[0].value.(json.RawMessage), &connection); err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal([]byte(connection["document"].(string)), &document); err != nil {
+		t.Fatal(err)
+	}
+	if dns == nil {
+		delete(document, "dns")
+	} else {
+		document["dns"] = dns
+	}
+	content, err := yaml.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(content)
+	connection["document"], connection["sha256"] = string(content), fmt.Sprintf("%x", digest)
+	material[0].value = connection
+	return sign(t, signSpec{kind: "bundle", serial: serial, issued: 1000, expires: expiry(2000), material: material})
+}
+
+func TestSignedDNSVersionRenewalAndRollback(t *testing.T) {
+	dir, clock := t.TempDir(), &testClock{wall: 1001}
+	store := openStore(t, dir, clock)
+	legacy := signedDNSFixture(t, 1, nil)
+	mustApply(t, store, legacy)
+	marked := signedDNSFixture(t, 2, map[string]any{"x-zolnit-managed-doh": 1, "enable": true, "nameserver": []string{"https://dns.example/dns-query"}})
+	mustApply(t, store, marked)
+	bad := signedDNSFixture(t, 3, map[string]any{"x-zolnit-managed-doh": 1, "enable": false})
+	if _, err := applyEnvelope(store, bad); err == nil {
+		t.Fatal("invalid marked renewal accepted")
+	}
+	if installedSerial(t, store) != 2 {
+		t.Fatal("invalid renewal replaced installed projection")
+	}
+	store.Close()
+	store = openStore(t, dir, clock)
+	if installedSerial(t, store) != 2 {
+		t.Fatal("rollback lost across restart")
+	}
+	if _, err := applyEnvelope(store, legacy); !errors.Is(err, ErrReplay) {
+		t.Fatalf("old signed serial: %v", err)
+	}
+	rollback := signedDNSFixture(t, 3, nil)
+	mustApply(t, store, rollback)
+	if installedSerial(t, store) != 3 {
+		t.Fatal("newer signed legacy rollback not installed")
+	}
+}
+
+func TestSignedDNSMarkerCannotBeAddedOrRemovedWithoutSignature(t *testing.T) {
+	original := signedDNSFixture(t, 1, map[string]any{"x-zolnit-managed-doh": 1, "enable": true, "nameserver": []string{"https://dns.example/dns-query"}})
+	var outer map[string]any
+	if err := json.Unmarshal(original, &outer); err != nil {
+		t.Fatal(err)
+	}
+	signed := outer["signed"].(map[string]any)
+	payload, err := base64.RawURLEncoding.DecodeString(signed["payload"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	altered := strings.Replace(string(payload), "x-zolnit-managed-doh", "x-zolnit-managed-foh", 1)
+	if altered == string(payload) {
+		t.Fatal("marker missing from signed payload")
+	}
+	signed["payload"] = base64.RawURLEncoding.EncodeToString([]byte(altered))
+	tampered, err := json.Marshal(outer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyEnvelope(testTrust(t), tampered, testAccount, testDevice); err == nil {
+		t.Fatal("tampered marker accepted")
 	}
 }

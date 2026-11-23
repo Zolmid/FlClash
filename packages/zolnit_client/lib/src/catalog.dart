@@ -386,6 +386,39 @@ class ZolnitNotice {
   final DateTime? createdAt;
 }
 
+class ZolnitFreePlan {
+  const ZolnitFreePlan({
+    this.name,
+    this.allowanceBytes,
+    this.deviceLimit,
+    this.speedLimit,
+    this.nextResetAt,
+  });
+
+  static ZolnitFreePlan? fromJson(Object? value) {
+    if (value is! Map || positiveOrNull(wholeOrNull(value['id'])) == null) {
+      return null;
+    }
+    final reset = value['next_reset_at'];
+    final allowance = wholeOrNull(value['transfer_enable']);
+    return ZolnitFreePlan(
+      name: textOrNull(value['name']),
+      allowanceBytes: allowance != null && allowance >= 0 ? allowance : null,
+      deviceLimit: positiveOrNull(wholeOrNull(value['device_limit'])),
+      speedLimit: positiveOrNull(wholeOrNull(value['speed_limit'])),
+      nextResetAt:
+          secondsToDate(reset) ??
+          (reset is String ? DateTime.tryParse(reset) : null),
+    );
+  }
+
+  final String? name;
+  final int? allowanceBytes;
+  final int? deviceLimit;
+  final int? speedLimit;
+  final DateTime? nextResetAt;
+}
+
 class ZolnitUsage {
   const ZolnitUsage({
     this.usedBytes,
@@ -397,6 +430,7 @@ class ZolnitUsage {
     this.planId,
     this.planName,
     this.email,
+    this.freePlan,
   });
 
   factory ZolnitUsage.fromSubscription(
@@ -427,6 +461,7 @@ class ZolnitUsage {
       planId: wholeOrNull(json['plan_id']),
       planName: plan is Map ? textOrNull(plan['name']) : null,
       email: textOrNull(json['email']),
+      freePlan: ZolnitFreePlan.fromJson(json['free_plan']),
     );
   }
 
@@ -439,6 +474,7 @@ class ZolnitUsage {
   final int? planId;
   final String? planName;
   final String? email;
+  final ZolnitFreePlan? freePlan;
 
   int? get remainingBytes => switch ((totalBytes, usedBytes)) {
     (final int total, final int used) => total > used ? total - used : 0,

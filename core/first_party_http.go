@@ -18,8 +18,6 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/component/ca"
-	"github.com/metacubex/mihomo/component/dialer"
-	"github.com/metacubex/mihomo/dns"
 )
 
 const (
@@ -76,6 +74,9 @@ func cancelFirstPartyHTTPHandler(call *MethodCall) (any, error) {
 }
 
 func handleFirstPartyHTTP(params FirstPartyHTTPParams) (*FirstPartyHTTPResult, error) {
+	if params.OwnedDNSOnly && activeOwnedDNS.Load() == nil {
+		return nil, firstPartyHTTPError("owned_dns_disabled")
+	}
 	return firstPartyHTTP.send(params)
 }
 
@@ -126,6 +127,19 @@ func (s *firstPartyHTTPService) send(params FirstPartyHTTPParams) (result *First
 		request.Header.Set(name, value)
 	}
 	transport := s.transport()
+	if params.Addresses != nil {
+		ips, ipErr := validateOwnedAddresses(params.Addresses)
+		if ipErr != nil {
+			return nil, firstPartyHTTPError("invalid_request")
+		}
+		transport = firstPartyHTTPTransport(func(ctx context.Context, network, address string) (net.Conn, error) {
+			_, port, _ := net.SplitHostPort(address)
+			return dialOwnedAddresses(ctx, network, port, ips)
+		})
+	}
+	if activeOwnedDNS.Load() != nil || params.Addresses != nil {
+		enableFirstPartyECH(transport)
+	}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -139,7 +153,7 @@ func (s *firstPartyHTTPService) send(params FirstPartyHTTPParams) (result *First
 		return nil, firstPartyHTTPError("response_too_large")
 	}
 	payload, readErr := io.ReadAll(io.LimitReader(response.Body, firstPartyHTTPMaxResponse+1))
-	if readErr != nil {
+	if readErr != nil || ctx.Err() != nil {
 		return nil, firstPartyHTTPNetworkError(ctx, readErr)
 	}
 	if len(payload) > firstPartyHTTPMaxResponse {
@@ -202,13 +216,27 @@ func (s *firstPartyHTTPService) pruneCancellations() {
 }
 
 func newFirstPartyHTTPTransport() *http.Transport {
-	// DirectHostResolver can inherit nameserver-policy/respect-rules. Bootstrap
-	// only this origin with the app's literal default resolvers, outside that policy.
-	r := dns.NewResolver(dns.Config{Main: []dns.NameServer{
-		{Net: "udp", Addr: "223.5.5.5:53"}, {Net: "udp", Addr: "1.0.0.1:53"},
-	}, IPv6: true, CacheMaxSize: 16})
+	if owned := activeOwnedDNS.Load(); owned != nil {
+		return firstPartyHTTPTransport(func(ctx context.Context, network, address string) (net.Conn, error) {
+			ips, err := owned.lookup(ctx, "link.zolmid.com")
+			if err != nil {
+				return nil, err
+			}
+			_, port, _ := net.SplitHostPort(address)
+			return dialOwnedAddresses(ctx, network, port, ips)
+		})
+	}
 	return firstPartyHTTPTransport(func(ctx context.Context, network, address string) (net.Conn, error) {
-		return dialer.DialContext(ctx, network, address, dialer.WithResolver(r.Resolver))
+		answer, err := publicOwnedDNSBootstrap(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ips, err := validateOwnedAddresses(answer.Addresses)
+		if err != nil {
+			return nil, err
+		}
+		_, port, _ := net.SplitHostPort(address)
+		return dialOwnedAddresses(ctx, network, port, ips)
 	})
 }
 

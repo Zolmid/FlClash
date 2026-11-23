@@ -493,6 +493,20 @@ void main() {
     });
   });
 
+  group('PatchClashConfig mixed port', () {
+    test('invalid stored mixed ports use the default', () {
+      for (final value in <Object>[0, -1, 0.5, 65536, '7890']) {
+        expect(
+          PatchClashConfig.fromJson({'mixed-port': value}).mixedPort,
+          defaultMixedPort,
+          reason: '$value',
+        );
+      }
+      expect(PatchClashConfig.fromJson({'mixed-port': 65535}).mixedPort, 65535);
+      expect(PatchClashConfig.fromJson({'port': 0}).port, 0);
+    });
+  });
+
   group('PatchClashConfig.ensureControllerSecret', () {
     const open = PatchClashConfig(
       externalController: ExternalControllerStatus.open,

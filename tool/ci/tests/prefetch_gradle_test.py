@@ -1,5 +1,6 @@
 import hashlib
 import io
+import re
 from pathlib import Path
 import shutil
 import sys
@@ -94,6 +95,24 @@ class PrefetchGradleTest(unittest.TestCase):
         )
         self.assertEqual(cached['status'], 'cached')
         self.assertTrue(expected_init.is_file())
+
+    def test_kotlin_mirror_scope_is_exact_and_keeps_original_repositories(self):
+        init_text = pg.install_kotlin_compiler_mirror_init_script(self.gradle_home).read_text(encoding='utf-8')
+        self.assertEqual(init_text.count(pg.GOOGLE_MAVEN_CENTRAL_MIRROR_URL), 1)
+        self.assertEqual(set(re.findall(r'includeGroup\("([^"]+)"\)', init_text)), {'org.jetbrains.kotlin'})
+        self.assertEqual(set(re.findall(r'includeModule\("([^"]+)", "([^"]+)"\)', init_text)), {
+            ('org.jetbrains.kotlin', 'kotlin-compiler-embeddable'),
+            ('org.jetbrains', 'annotations'),
+            ('org.jetbrains.kotlinx', 'kotlinx-coroutines-core-jvm'),
+            ('com.google.code.gson', 'gson'),
+            ('com.google.errorprone', 'error_prone_annotations'),
+        })
+        self.assertNotIn('includeGroupByRegex', init_text)
+        self.assertNotIn('includeGroupAndSubgroups', init_text)
+        self.assertNotIn('credentials', init_text)
+        # The mirror is only moved first; the build's original repositories remain for fallback.
+        self.assertIn('repos.addFirst(created)', init_text)
+        self.assertNotIn('repos.clear', init_text)
 
     def test_wrong_sha_or_size_is_rejected_without_polluting_cache(self):
         fixture = self.root / 'bad.zip'

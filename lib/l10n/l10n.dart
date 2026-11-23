@@ -13464,10 +13464,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Checking automatic routes. You can select a server below.`
+  /// `Preparing automatic routing`
   String get zolnitRoutePreparing {
     return Intl.message(
-      'Checking automatic routes. You can select a server below.',
+      'Preparing automatic routing',
       name: 'zolnitRoutePreparing',
       desc: '',
       args: [],
@@ -13919,6 +13919,106 @@ class AppLocalizations {
     return Intl.message(
       'Redeem another',
       name: 'zolnitGiftContinue',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Free plan`
+  String get zolnitFreePlan {
+    return Intl.message(
+      'Free plan',
+      name: 'zolnitFreePlan',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Monthly allowance`
+  String get zolnitFreeMonthlyAllowance {
+    return Intl.message(
+      'Monthly allowance',
+      name: 'zolnitFreeMonthlyAllowance',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Speed limit`
+  String get zolnitFreeSpeedLimit {
+    return Intl.message(
+      'Speed limit',
+      name: 'zolnitFreeSpeedLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Concurrent devices`
+  String get zolnitFreeDeviceLimit {
+    return Intl.message(
+      'Concurrent devices',
+      name: 'zolnitFreeDeviceLimit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Next monthly reset`
+  String get zolnitFreeNextReset {
+    return Intl.message(
+      'Next monthly reset',
+      name: 'zolnitFreeNextReset',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invite a friend to refill free data`
+  String get zolnitFreeInviteShort {
+    return Intl.message(
+      'Invite a friend to refill free data',
+      name: 'zolnitFreeInviteShort',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.`
+  String get zolnitFreeInviteExplanation {
+    return Intl.message(
+      'Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.',
+      name: 'zolnitFreeInviteExplanation',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No available route confirmed yet`
+  String get zolnitRouteUnverified {
+    return Intl.message(
+      'No available route confirmed yet',
+      name: 'zolnitRouteUnverified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Latency does not confirm service access`
+  String get zolnitRouteManualUnverified {
+    return Intl.message(
+      'Latency does not confirm service access',
+      name: 'zolnitRouteManualUnverified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Choose route`
+  String get zolnitChooseRoute {
+    return Intl.message(
+      'Choose route',
+      name: 'zolnitChooseRoute',
       desc: '',
       args: [],
     );

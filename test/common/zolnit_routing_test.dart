@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:fl_clash/common/yaml.dart';
+import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/common/zolnit_routing.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +16,78 @@ void main() {
   Map group(Map config, String name) => (config['proxy-groups'] as List)
       .cast<Map>()
       .singleWhere((g) => g['name'] == name);
+
+  test(
+    '24 authorized routes preserve four fingerprint qualified auto routes',
+    () {
+      final raw =
+          (jsonDecode(
+                File(
+                  'packages/zolnit_client/test/fixtures/authorized24-qualified4.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>)['data'];
+      final bundle = ZolnitClientBundle.parse(raw, now: bundleTime(1001));
+      final prepared = prepareClientBundleConfiguration((
+        bundle: bundle,
+        now: bundleTime(1001),
+        automaticAllowed: true,
+      ));
+      expect(bundle.outbounds, hasLength(24));
+      for (final service in prepared.manifest!.services) {
+        expect(prepared.engine!.candidates(service.route.id), hasLength(4));
+        expect(
+          prepared.engine!
+              .candidates(service.route.id)
+              .map((n) => n.countryCode),
+          unorderedEquals(['US', 'US', 'JP', 'JP']),
+        );
+        expect(
+          group(prepared.config, service.manualGroup)['proxies'],
+          hasLength(25),
+        );
+        expect(
+          group(prepared.config, service.route.groupName)['proxies'],
+          hasLength(5),
+        );
+      }
+    },
+  );
+
+  test('applied endpoint follows actual nested members and rejects cycles', () {
+    const groups = [
+      Group(
+        name: 'policy',
+        type: GroupType.Selector,
+        now: 'nested',
+        all: [Proxy(name: 'nested', type: 'Selector')],
+      ),
+      Group(
+        name: 'nested',
+        type: GroupType.Selector,
+        now: 'us',
+        all: [Proxy(name: 'us', type: 'Vless')],
+      ),
+    ];
+    expect(zolnitAppliedRoute(groups, 'policy'), 'us');
+    expect(
+      zolnitAppliedRoute([
+        groups.first,
+        groups.last.copyWith(now: 'foreign'),
+      ], 'policy'),
+      isNull,
+    );
+    expect(
+      zolnitAppliedRoute([
+        groups.first,
+        groups.last.copyWith(
+          now: 'policy',
+          all: [const Proxy(name: 'policy', type: 'Selector')],
+        ),
+      ], 'policy'),
+      isNull,
+    );
+  });
 
   test(
     'bundle application binds long qualification and preserves manual nodes on config change',

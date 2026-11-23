@@ -2978,6 +2978,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "El pago se está preparando o verificando. Inténtalo de nuevo en unos instantes.",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Elegir plan"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("Elegir ruta"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Completado"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
       "Confirmando el pago",
@@ -3061,6 +3062,25 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "¿Olvidaste tu contraseña?",
+    ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage(
+      "Dispositivos simultáneos",
+    ),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "Cada nuevo registro realizado mediante tu invitación repone los datos gratuitos hasta el límite mensual. Las recargas no se acumulan ni cambian la fecha de reinicio mensual. Este beneficio es independiente del reembolso.",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "Invita a un amigo para recargar datos gratis",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "Datos mensuales",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage(
+      "Próximo reinicio mensual",
+    ),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("Plan gratuito"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage(
+      "Velocidad máxima",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Acceso de regalo"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
@@ -3492,11 +3512,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "No se pudo cambiar la ruta. Inténtalo de nuevo.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "La latencia no confirma el acceso al servicio",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "Comprobando rutas automáticas. Puedes seleccionar un servidor abajo.",
+      "Preparando el enrutamiento automático",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "No hay rutas disponibles",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "Aún no se confirma una ruta disponible",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Opciones de enrutamiento inteligente",

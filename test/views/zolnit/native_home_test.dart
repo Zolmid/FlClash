@@ -32,7 +32,7 @@ class _ReturnRouteAction extends ProxiesAction {
   @override
   void build() {}
   @override
-  Future<void> updateGroups() async {}
+  Future<void> updateGroups({bool Function()? isCurrent}) async {}
   @override
   Future<bool> changeProxyIfCurrent({
     required String groupName,

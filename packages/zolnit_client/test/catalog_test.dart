@@ -215,6 +215,24 @@ void main() {
   });
 
   group('ZolnitUsage', () {
+    test('free metadata is optional and preserves server limits', () {
+      expect(ZolnitUsage.fromSubscription({}).freePlan, isNull);
+      expect(ZolnitUsage.fromSubscription({'free_plan': {}}).freePlan, isNull);
+      final free = ZolnitUsage.fromSubscription({
+        'free_plan': {
+          'id': 42,
+          'name': 'Free',
+          'transfer_enable': 2147483648,
+          'device_limit': 3,
+          'speed_limit': 15,
+          'next_reset_at': '2026-12-01T00:00:00Z',
+        },
+      }).freePlan!;
+      expect(free.allowanceBytes, 2147483648);
+      expect(free.deviceLimit, 3);
+      expect(free.speedLimit, 15);
+      expect(free.nextResetAt, DateTime.utc(2026, 12));
+    });
     final expires = DateTime.utc(2025, 11, 20);
     final subscription = {
       'plan_id': 3,

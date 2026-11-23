@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "Action requise",
   "zolnitRenewalHistory": "Abonnements précédents",
   "zolnitRoutingOptions": "Options de routage intelligent",
-  "zolnitRoutePreparing": "Vérification des routes automatiques. Vous pouvez choisir un serveur ci-dessous.",
+  "zolnitRoutePreparing": "Préparation du routage automatique",
   "zolnitHelpNoArticles": "Aucun article d’aide disponible.",
   "zolnitSupportTickets": "Demandes d’assistance",
   "zolnitNewTicket": "Nouvelle demande",
@@ -1609,5 +1609,15 @@
   "zolnitGiftBalance": "Solde offert",
   "zolnitGiftIncluded": "Récompenses incluses",
   "zolnitGiftRandomTip": "La récompense aléatoire est déterminée lors de l’utilisation.",
-  "zolnitGiftContinue": "Utiliser une autre carte"
+  "zolnitGiftContinue": "Utiliser une autre carte",
+  "zolnitFreePlan": "Offre gratuite",
+  "zolnitFreeMonthlyAllowance": "Quota mensuel",
+  "zolnitFreeSpeedLimit": "Vitesse maximale",
+  "zolnitFreeDeviceLimit": "Appareils simultanés",
+  "zolnitFreeNextReset": "Prochaine réinitialisation mensuelle",
+  "zolnitFreeInviteShort": "Invitez un ami pour recharger vos données gratuites",
+  "zolnitFreeInviteExplanation": "Chaque inscription réussie d’une personne invitée recharge vos données gratuites jusqu’au quota mensuel. Les recharges ne se cumulent pas et ne changent pas la date de réinitialisation mensuelle. Cet avantage est distinct du cashback.",
+  "zolnitRouteUnverified": "Aucune route disponible confirmée",
+  "zolnitRouteManualUnverified": "La latence ne confirme pas l’accès au service",
+  "zolnitChooseRoute": "Choisir une route"
 }

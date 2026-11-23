@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "Requiere atención",
   "zolnitRenewalHistory": "Suscripciones anteriores",
   "zolnitRoutingOptions": "Opciones de enrutamiento inteligente",
-  "zolnitRoutePreparing": "Comprobando rutas automáticas. Puedes seleccionar un servidor abajo.",
+  "zolnitRoutePreparing": "Preparando el enrutamiento automático",
   "zolnitHelpNoArticles": "Aún no hay artículos de ayuda.",
   "zolnitSupportTickets": "Solicitudes de soporte",
   "zolnitNewTicket": "Nueva solicitud",
@@ -1609,5 +1609,15 @@
   "zolnitGiftBalance": "Saldo de regalo",
   "zolnitGiftIncluded": "Recompensas incluidas",
   "zolnitGiftRandomTip": "La recompensa aleatoria se determina al canjear.",
-  "zolnitGiftContinue": "Canjear otra tarjeta"
+  "zolnitGiftContinue": "Canjear otra tarjeta",
+  "zolnitFreePlan": "Plan gratuito",
+  "zolnitFreeMonthlyAllowance": "Datos mensuales",
+  "zolnitFreeSpeedLimit": "Velocidad máxima",
+  "zolnitFreeDeviceLimit": "Dispositivos simultáneos",
+  "zolnitFreeNextReset": "Próximo reinicio mensual",
+  "zolnitFreeInviteShort": "Invita a un amigo para recargar datos gratis",
+  "zolnitFreeInviteExplanation": "Cada nuevo registro realizado mediante tu invitación repone los datos gratuitos hasta el límite mensual. Las recargas no se acumulan ni cambian la fecha de reinicio mensual. Este beneficio es independiente del reembolso.",
+  "zolnitRouteUnverified": "Aún no se confirma una ruta disponible",
+  "zolnitRouteManualUnverified": "La latencia no confirma el acceso al servicio",
+  "zolnitChooseRoute": "Elegir ruta"
 }

@@ -33,7 +33,7 @@ object ServiceState {
 
     suspend fun awaitRequestedVpnOptions(): VpnOptions? = machine.awaitRequestedVpnOptions()
 
-    fun requestStart(): Deferred<Boolean> = machine.requestStart()
+    fun requestStart(foregroundVpnHelp: Boolean = false): Deferred<Boolean> = machine.requestStart(foregroundVpnHelp)
 
     fun requestStop(): Deferred<Boolean> = machine.requestStop()
 

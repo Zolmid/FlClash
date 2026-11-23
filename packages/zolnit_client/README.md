@@ -932,3 +932,58 @@ hardFailure=true 的立即冷却和同服务 failure_domain 传播只在纯引�
 当前运行时没有明确机器硬故障分类来源，不能声称已在真实设备采集。HTTP/TLS 可达性不证明账号、
 API 授权、产品资格、内容目录或解锁。既有 16 项引擎、9 项元数据、5 项转换、8 项假 Core 接入测试
 属于本地逻辑证据；完整包构建、真实 Core 验证、账号与设备验收必须分别记录。
+
+### Owned-host IP dialing
+
+Set `ZOLNIT_OWNED_DNS` as a JSON Dart define to enable the shared binding:
+
+```json
+{"strict":true,"relay":"https://link.zolmid.com/api/v1/zolnit/client/httpdns","hosts":["link.zolmid.com"]}
+```
+
+`hosts` is an exact allowlist; additional entries must be owned `*.nodes.zolmid.com`
+FQDNs, without wildcard syntax. Core also discovers exact node hosts from the
+validated configuration and its loaded providers on each configuration apply.
+Include all assigned node aliases explicitly when providers can change between applies.
+No account identifiers or Cloud DNS keys belong in this define. The current API
+session supplies the relay Bearer at runtime, outside the signed configuration.
+The relay accepts `GET ?host=<fqdn>` and returns `application/json` with
+`{"addresses":["192.0.2.1","2001:db8::1"],"ttl":60}`. TTL is 0–86400 seconds;
+404, 503, malformed/empty answers and redirects fail closed in strict mode.
+
+Only `link.zolmid.com` bootstraps through RFC8484 over literal Alibaba IPv4
+resolvers (223.5.5.5 / 223.6.6.6), using `dns.alidns.com` TLS identity. Nodes use
+the authenticated relay. HTTP and WebSocket URL/Host and TLS hostname checks
+remain unchanged. Core installs this resolver only for proxy-server hostnames;
+ordinary traffic retains its existing DNS/proxy policy. Android foreground API
+requests retain network binding. Android and iOS NE renewal use Core HTTP when
+the binding is enabled, with legacy transport allowed only on the explicit
+`owned_dns_disabled` response. No binding define retains the legacy application
+configuration; this is separate from a configured strict resolver failing.
+
+System-managed browser/payment/OTA installation requests are outside these
+socket transports and retain platform DNS.
+
+#### Official SDK loopback mode
+
+The mobile app uses official stable SDKs through an in-process HTTP listener bound
+only to `127.0.0.1` and an ephemeral port. A five-minute, random memory-only grant
+signs exact-owned-host A/AAAA requests. It is not a public-cloud account/key input.
+The legacy diagnostic credential initializer always returns unavailable.
+
+The listener delegates to an independent raw resolver: relay-origin bootstrap
+never re-enters the SDK. Node records use the existing authenticated HTTPS relay;
+first-hop API bootstrap remains strict literal DoH with IPv4/IPv6 endpoint racing.
+Raw URL/Host/SNI/certificate checks are unchanged. SDK errors, expiry and unissued
+or cached SDK answers fall back only to the same strict raw path. SDK internal
+caching is bounded to one second; accepted app TTL comes from the fresh raw answer.
+
+Android Release includes checksum-verified 2.3.3; iOS Release uses the SHA256-pinned
+2.3.1 official framework through `ios/CloudDnsSdk/ZolnitCloudDnsSdk.podspec`.
+Podfile recognizes both modern build flags and fixed signer `97f29774`'s legacy
+stable/direct env.json. No signer pin or signing permissions are changed.
+
+See [the release gate and acceptance boundaries](../../docs/httpdns-release.md).
+Formal publication remains blocked pending owner device/full-candidate/egress
+acceptance. Background/Core/NE still use strict HTTPS JSON/bootstrap and require
+separate acceptance. OS-managed browsers/WebViews/OTA are not SDK socket clients.

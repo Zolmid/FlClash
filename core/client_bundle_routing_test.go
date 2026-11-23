@@ -1,6 +1,7 @@
 package core
 
 import (
+	"core/clientbundle"
 	"encoding/json"
 	"os"
 	"regexp"
@@ -217,5 +218,65 @@ func TestClientBundleRoutingIdleBackoffAndRealTrafficReactivation(t *testing.T) 
 	*now = now.Add(31 * time.Second)
 	if !w.probeDue(*now, Traffic{Up: 1}) {
 		t.Fatal("real traffic did not reactivate probing")
+	}
+}
+
+func TestClientBundleRoutingAuthorized24Qualified4(t *testing.T) {
+	body, err := os.ReadFile("../packages/zolnit_client/test/fixtures/authorized24-qualified4.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	validated, code := clientbundle.Parse(body, "account-1", time.Unix(1001, 0))
+	if code != "" {
+		t.Fatal(code)
+	}
+	var envelope struct{ Data nativeRoutingPolicy }
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	policy := envelope.Data
+	bindNativeRoutingFingerprints(&policy, validated.Bundle)
+	if len(validated.Bundle.Outbounds) != 24 {
+		t.Fatal("authorization lost")
+	}
+	prepared, code := clientbundle.Prepare(body, "account-1", "{}", time.Unix(1001, 0))
+	if code != "" {
+		t.Fatal(code)
+	}
+	for index, service := range policy.Routing.Services {
+		count := map[string]int{}
+		for _, node := range policy.Routing.Nodes {
+			if !nativeRoutingEligible(service, node) {
+				t.Fatal("fingerprint-qualified route rejected")
+			}
+			if !slices.Contains(prepared.Services[index].AllowedProxies, node.Name) {
+				t.Fatal("native and prepared eligibility disagree")
+			}
+			count[node.Egress.Country]++
+			wrong := node
+			wrong.authorizedFingerprint = strings.Repeat("0", 64)
+			if nativeRoutingEligible(service, wrong) {
+				t.Fatal("mismatched fingerprint accepted")
+			}
+			wrong = node
+			wrong.authorizedFingerprint = ""
+			if nativeRoutingEligible(service, wrong) {
+				t.Fatal("missing authorized fingerprint accepted")
+			}
+		}
+		if count["US"] != 2 || count["JP"] != 2 || len(count) != 2 {
+			t.Fatalf("qualification drift: %v", count)
+		}
+	}
+}
+
+func TestClientBundleRoutingVerifiedAlternativeBeatsUnknownCurrent(t *testing.T) {
+	w, s, nodes, now := nativeRoutingFixture(t)
+	seedNativeProvider(w, s, nodes[0], 1, 100)
+	state := &nativeRoutingChoice{proxy: nodes[0].Name, switched: *now}
+	*now = now.Add(91 * time.Second)
+	seedNativeProvider(w, s, nodes[1], 2, 79)
+	if selected := w.decide(s, nodes, state, *now); selected != nodes[1].Name {
+		t.Fatal("unknown current masked verified alternative")
 	}
 }

@@ -35,6 +35,7 @@ final class ServiceChannel {
   private let tunnelController: TunnelController
   private let coreMessageRouter: CoreMessageRouter
   private let coreEventRelay: CoreEventRelay
+  private let ownedDnsSdk = OwnedDnsSdkBridge()
   private lazy var bundleRenewal = ClientBundleSessionBridge(tunnel: tunnelController)
   private var isInitialized = false
   private var quickActionDrain: Task<Void, Never>?
@@ -160,6 +161,20 @@ final class ServiceChannel {
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     log("handle method=\(call.method)")
     switch call.method {
+    case "configureOwnedDnsSdkLoopback":
+      ownedDnsSdk.configureLoopback(call.arguments as? [String: Any] ?? [:]) { ready in
+        DispatchQueue.main.async { result(ready) }
+      }
+    case "configureOwnedDnsSdkDiagnostic":
+      ownedDnsSdk.configureDiagnostic(call.arguments as? [String: Any] ?? [:]) { available in
+        DispatchQueue.main.async { result(available) }
+      }
+    case "lookupOwnedDnsSdk":
+      let host = (call.arguments as? [String: Any])?["host"] as? String ?? ""
+      ownedDnsSdk.lookup(host) { addresses in DispatchQueue.main.async { result(addresses) } }
+    case "disableOwnedDnsSdk":
+      ownedDnsSdk.disable()
+      result(nil)
     case "configureClientBundleRenewal", "logoutClientBundleRenewal", "clientBundleRenewalStatus":
       Task {
         do {

@@ -91,6 +91,67 @@ void main() {
   }
 
   group('updateGroups', () {
+    test(
+      'a delayed group snapshot cannot overwrite a newer applied snapshot',
+      () async {
+        ProxiesData snapshot(String name) => ProxiesData(
+          all: ['Proxy'],
+          proxies: {
+            'Proxy': {
+              'name': 'Proxy',
+              'type': 'Selector',
+              'now': name,
+              'all': [name],
+            },
+            name: {'name': name, 'type': 'Vless'},
+          },
+        );
+        final first = Completer<ProxiesData>();
+        var calls = 0;
+        when(core.getProxies).thenAnswer(
+          (_) => calls++ == 0 ? first.future : Future.value(snapshot('new')),
+        );
+        final container = buildContainer();
+        final oldRequest = actionOf(container).updateGroups();
+        await actionOf(container).updateGroups();
+        first.complete(snapshot('old'));
+        await oldRequest;
+        expect(container.read(groupsProvider).single.realNow, 'new');
+      },
+    );
+
+    test(
+      'a previous bundle snapshot is discarded even on the same profile id',
+      () async {
+        final pending = Completer<ProxiesData>();
+        when(core.getProxies).thenAnswer((_) => pending.future);
+        final profile = _selectedProfile(
+          'old',
+        ).copyWith(zolnitBundleId: 'before');
+        final container = buildContainer(profile: profile);
+        final request = actionOf(container).updateGroups();
+        container
+            .read(profilesProvider.notifier)
+            .put(profile.copyWith(zolnitBundleId: 'after'));
+        pending.complete(
+          const ProxiesData(
+            all: ['Proxy'],
+            proxies: {
+              'Proxy': {
+                'name': 'Proxy',
+                'type': 'Selector',
+                'now': 'old',
+                'all': ['old'],
+              },
+              'old': {'name': 'old', 'type': 'Vless'},
+            },
+          ),
+        );
+        await request;
+        expect(container.read(groupsProvider), isEmpty);
+      },
+    );
+
     test('publishes the groups derived from core proxy data', () async {
       when(core.getProxies).thenAnswer(
         (_) async => ProxiesData(

@@ -59,7 +59,12 @@ def ensureMirrorFirst = {{ RepositoryHandler repos ->
         name = mirrorName
         url = uri(mirrorUrl)
         content {{
+            includeGroup("{KOTLIN_COMPILER_GROUP}")
             includeModule("{KOTLIN_COMPILER_GROUP}", "{KOTLIN_COMPILER_MODULE}")
+            includeModule("org.jetbrains", "annotations")
+            includeModule("org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm")
+            includeModule("com.google.code.gson", "gson")
+            includeModule("com.google.errorprone", "error_prone_annotations")
         }}
     }}
     if (repos.indexOf(created) != 0) {{

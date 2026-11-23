@@ -1,7 +1,9 @@
 package clientbundle
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -74,5 +76,93 @@ func TestParseRejectsDuplicateJSONAndAccountOrTTLChanges(t *testing.T) {
 	}
 	if _, code := Parse(body, "account-1", time.Unix(1300, 0)); code == "" {
 		t.Fatal("expired response accepted")
+	}
+}
+
+func TestPrepareRetainsSourceDNSAcrossRenewalOverlay(t *testing.T) {
+	var root map[string]any
+	if err := json.Unmarshal(fixture(t), &root); err != nil {
+		t.Fatal(err)
+	}
+	connection := root["data"].(map[string]any)["connection"].(map[string]any)
+	var source map[string]any
+	if err := yaml.Unmarshal([]byte(connection["document"].(string)), &source); err != nil {
+		t.Fatal(err)
+	}
+	source["dns"] = map[string]any{
+		"x-zolnit-managed-doh": 1,
+		"enable":               true,
+		"nameserver":           []string{"https://dns.example/dns-query"},
+		"nameserver-policy":    map[string]any{"+.lan": []string{"system://"}},
+	}
+	document, err := yaml.Marshal(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(document)
+	connection["document"], connection["sha256"] = string(document), fmt.Sprintf("%x", sum)
+	body, err := json.Marshal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline, code := Prepare(body, "account-1", "{}", time.Unix(1001, 0))
+	if code != "" {
+		t.Fatal(code)
+	}
+	inherited, code := Prepare(body, "account-1", `{"dns":{"nameserver-policy":{"+.corp.example":["10.0.0.53"]}}}`, time.Unix(1001, 0))
+	if code != "" {
+		t.Fatal(code)
+	}
+	var merged map[string]any
+	if err := yaml.Unmarshal(inherited.Document, &merged); err != nil {
+		t.Fatal(err)
+	}
+	policy := merged["dns"].(map[string]any)["nameserver-policy"].(map[string]any)
+	if len(policy) != 2 || policy["+.corp.example"].([]any)[0] != "10.0.0.53" {
+		t.Fatalf("inherited policy: %v", policy)
+	}
+	changed, code := Prepare(body, "account-1", `{"dns":{"enable":false,"nameserver":["system://"],"listen":""}}`, time.Unix(1001, 0))
+	if code != "" {
+		t.Fatal(code)
+	}
+	var before, after map[string]any
+	if err := yaml.Unmarshal(baseline.Document, &before); err != nil {
+		t.Fatal(err)
+	}
+	if err := yaml.Unmarshal(changed.Document, &after); err != nil {
+		t.Fatal(err)
+	}
+	beforeDNS, beforeOK := before["dns"].(map[string]any)
+	afterDNS, afterOK := after["dns"].(map[string]any)
+	if !beforeOK || !afterOK {
+		t.Fatal("source DNS missing")
+	}
+	delete(beforeDNS, "listen")
+	if afterDNS["listen"] != "" {
+		t.Fatal("safe mode listener not disabled")
+	}
+	delete(afterDNS, "listen")
+	a, _ := json.Marshal(beforeDNS)
+	b, _ := json.Marshal(afterDNS)
+	if string(a) != string(b) {
+		t.Fatal("renewal overlay changed source DNS")
+	}
+}
+
+func TestLegacyDNSOverlayCannotForgeManagedVersion(t *testing.T) {
+	prepared, code := Prepare(fixture(t), "account-1", `{"dns":{"x-zolnit-managed-doh":1,"enable":false,"nameserver":["system://"]}}`, time.Unix(1001, 0))
+	if code != "" {
+		t.Fatal(code)
+	}
+	var config map[string]any
+	if err := yaml.Unmarshal(prepared.Document, &config); err != nil {
+		t.Fatal(err)
+	}
+	dns := config["dns"].(map[string]any)
+	if _, exists := dns["x-zolnit-managed-doh"]; exists || dns["enable"] != false {
+		t.Fatalf("legacy overlay: %v", dns)
+	}
+	if dns["nameserver"].([]any)[0] != "system://" {
+		t.Fatal("legacy setting not preserved")
 	}
 }

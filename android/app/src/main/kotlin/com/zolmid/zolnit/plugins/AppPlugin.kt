@@ -3,6 +3,7 @@ package com.zolmid.zolnit.plugins
 import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.AlertDialog
 import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -10,6 +11,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.VpnService
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -50,10 +53,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
 
     private var activity: Activity? = null
+    private var activityResumed = false
+    private var pendingVpnHelp: (() -> Unit)? = null
 
     private var activityBinding: ActivityPluginBinding? = null
 
@@ -84,11 +90,16 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     private val installLifecycle = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityPaused(current: Activity) {
             if (current === activity) {
+                activityResumed = false
                 if (installPermissionCallback.isPending) installSettingsPaused = true
                 ApkInstaller.activityPaused()
             }
         }
         override fun onActivityResumed(current: Activity) {
+            if (current === activity) {
+                activityResumed = true
+                pendingVpnHelp?.also { pendingVpnHelp = null; it() }
+            }
             if (current === activity) ApkInstaller.activityResumed(GlobalState.application)
             if (current === activity && installSettingsPaused) {
                 installSettingsPaused = false
@@ -494,20 +505,54 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         requestInstalledAppsCallback.resolve(granted)
     }
 
+    suspend fun showVpnHelp(cancelled: Boolean, isCurrent: () -> Boolean) = withContext(Dispatchers.Main) {
+        val show: () -> Unit = show@{
+            val current = activity ?: return@show
+            if (!activityResumed || current.isFinishing || !isCurrent()) return@show
+            val manager = current.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val vpnNetworkActive = manager.allNetworks.any {
+                manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+            }
+            val message = when {
+                cancelled && vpnNetworkActive -> R.string.vpn_authorization_cancelled_with_vpn
+                cancelled -> R.string.vpn_authorization_cancelled
+                else -> R.string.vpn_permission_help
+            }
+            AlertDialog.Builder(current)
+                .setMessage(message)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.vpn_settings) { _, _ ->
+                    runCatching { current.startActivity(Intent(Settings.ACTION_VPN_SETTINGS)) }
+                        .recoverCatching { current.startActivity(Intent(Settings.ACTION_SETTINGS)) }
+                }
+                .show()
+        }
+        if (activityResumed) show() else pendingVpnHelp = show
+    }
+
     fun prepareVpn(needPrepare: Boolean, callback: (Boolean) -> Unit) = onMainThread {
         vpnPrepareCallback.replace(callback, supersededValue = false)
         if (!needPrepare) {
             invokeVpnPrepareCallback(true)
             return@onMainThread
         }
-        val intent = VpnService.prepare(GlobalState.application)
+        val intent = try {
+            VpnService.prepare(GlobalState.application)
+        } catch (_: SecurityException) {
+            invokeVpnPrepareCallback(false)
+            return@onMainThread
+        }
         if (intent != null) {
             val activity = activity
             if (activity == null) {
                 invokeVpnPrepareCallback(false)
             } else {
                 @Suppress("DEPRECATION")
-                activity.startActivityForResult(intent, VPN_PERMISSION_REQUEST_CODE)
+                try {
+                    activity.startActivityForResult(intent, VPN_PERMISSION_REQUEST_CODE)
+                } catch (_: RuntimeException) {
+                    invokeVpnPrepareCallback(false)
+                }
             }
             return@onMainThread
         }
@@ -549,6 +594,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         ApkInstaller.detach(GlobalState.application)
         installResult.resolve("failed")
         installGeneration++
+        pendingVpnHelp = null
         packageChangeContext?.unregisterReceiver(packageChangeReceiver)
         packageChangeContext = null
         channel.setMethodCallHandler(null)
@@ -585,6 +631,7 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
             }
             reportFloatingIme(false)
         }
+        activityResumed = false
         activity = null
         val binding = activityBinding ?: return
         activityBinding = null

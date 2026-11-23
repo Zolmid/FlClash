@@ -1228,8 +1228,12 @@ class ZolnitRouting with WidgetsBindingObserver {
             .candidates(id)
             .where((node) => memberNames.contains(node.proxyName))
             .toList();
+        final appliedProxy = zolnitAppliedRoute(
+          ref.read(groupsProvider),
+          group.name,
+        );
         final current = candidates
-            .where((node) => node.proxyName == group.realNow)
+            .where((node) => node.proxyName == appliedProxy)
             .firstOrNull;
         if (current != null) {
           _engine.confirm(
@@ -1349,11 +1353,15 @@ class ZolnitRouting with WidgetsBindingObserver {
                 .map((proxy) => proxy.name)
                 .toSet() ??
             const <String>{};
+        final appliedCurrent = zolnitAppliedRoute(
+          ref.read(groupsProvider),
+          service.route.groupName,
+        );
         final decision = _engine.decide(
           serviceId: id,
           now: _now,
           qualifiedCurrentNodeId: candidates
-              .where((node) => node.proxyName == refreshed?.realNow)
+              .where((node) => node.proxyName == appliedCurrent)
               .firstOrNull
               ?.id,
           availableNodeIds: {

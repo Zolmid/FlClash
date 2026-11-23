@@ -41,17 +41,19 @@ type nativeRoutingService struct {
 	Countries []string `json:"allowed_countries"`
 }
 type nativeRoutingNode struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"proxy_name"`
-	Enabled       bool     `json:"enabled"`
-	Exit          string   `json:"exit_id"`
-	FailureDomain string   `json:"failure_domain"`
-	Services      []string `json:"services"`
-	Revision      string   `json:"revision"`
-	Egress        struct {
-		Country  string `json:"country"`
-		Source   string `json:"source"`
-		Verified bool   `json:"verified"`
+	authorizedFingerprint string
+	ID                    string   `json:"id"`
+	Name                  string   `json:"proxy_name"`
+	Enabled               bool     `json:"enabled"`
+	Exit                  string   `json:"exit_id"`
+	FailureDomain         string   `json:"failure_domain"`
+	Services              []string `json:"services"`
+	Revision              string   `json:"revision"`
+	Egress                struct {
+		Country     string `json:"country"`
+		Source      string `json:"source"`
+		Verified    bool   `json:"verified"`
+		Fingerprint any    `json:"configuration_fingerprint"`
 	} `json:"final_egress"`
 }
 type nativeRoutingPolicy struct {
@@ -130,6 +132,7 @@ func replaceClientBundleRoutingLocked(body []byte, owner *ClientBundleOwnerGuard
 		return
 	}
 	policy := envelope.Data
+	bindNativeRoutingFingerprints(&policy, validated.Bundle)
 	current := clientBundleRouting
 	if current == nil || *current.owner != *owner {
 		stopClientBundleRoutingLocked()
@@ -188,10 +191,23 @@ func nativeContains(values []string, target string) bool {
 	}
 	return false
 }
+func bindNativeRoutingFingerprints(policy *nativeRoutingPolicy, bundle *clientbundle.Bundle) {
+	fingerprints := map[string]string{}
+	for _, outbound := range bundle.Outbounds {
+		if fingerprint, ok := outbound.ConfigurationFingerprint.(string); ok {
+			fingerprints[outbound.ID] = fingerprint
+		}
+	}
+	for index := range policy.Routing.Nodes {
+		node := &policy.Routing.Nodes[index]
+		node.authorizedFingerprint = fingerprints[node.ID]
+	}
+}
+
 func nativeRoutingEligible(service nativeRoutingService, node nativeRoutingNode) bool {
 	if !node.Enabled || !node.Egress.Verified || node.Exit == "" || node.FailureDomain == "" ||
 		node.Revision == "" ||
-		!nativeContains([]string{"operator_verified", "egress_probe"}, node.Egress.Source) ||
+		!clientbundle.QualifiedEgress(node.Egress.Source, node.Egress.Fingerprint, node.authorizedFingerprint) ||
 		!nativeContains(node.Services, service.ID) || !nativeContains(service.Countries, node.Egress.Country) ||
 		(service.Kind == "ai" && node.Egress.Country == "HK") || len(service.Providers) == 0 {
 		return false
@@ -401,6 +417,7 @@ func (w *clientBundleRoutingState) score(service nativeRoutingService, node nati
 	return score / float64(len(service.Providers)), observed, true
 }
 func (w *clientBundleRoutingState) decide(service nativeRoutingService, nodes []nativeRoutingNode, state *nativeRoutingChoice, now time.Time) string {
+	retained := ""
 	for _, node := range nodes {
 		if node.Name != state.proxy {
 			continue
@@ -413,7 +430,7 @@ func (w *clientBundleRoutingState) decide(service nativeRoutingService, nodes []
 			failed = failed || sample.failed
 		}
 		if !failed {
-			return node.Name
+			retained = node.Name
 		}
 	}
 	type candidate struct {
@@ -428,7 +445,7 @@ func (w *clientBundleRoutingState) decide(service nativeRoutingService, nodes []
 		}
 	}
 	if len(healthy) == 0 {
-		return ""
+		return retained
 	}
 	sort.Slice(healthy, func(i, j int) bool {
 		if healthy[i].score == healthy[j].score {

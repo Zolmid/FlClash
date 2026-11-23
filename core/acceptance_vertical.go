@@ -470,7 +470,9 @@ func (s *acceptanceSession) apply(prepared *clientbundle.Prepared, previous *Set
 		params.SelectedMap[service.ManualGroup] = "DIRECT"
 	}
 	clearRoutingLeaseForConfigChange()
-	applyParsedConfigLocked(cfg, &params, nil)
+	if err := applyParsedConfigLocked(cfg, &params, nil); err != nil {
+		return false, err
+	}
 	rememberClientBundleSetupLocked(&params)
 	return true, nil
 }

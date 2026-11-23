@@ -716,7 +716,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       return false;
     }
     ref.read(currentProfileIdProvider.notifier).value = id;
-    return ref.read(setupActionProvider.notifier).setRunning(true);
+    return ref
+        .read(setupActionProvider.notifier)
+        .setRunning(true, foregroundVpnHelp: true);
   }
 
   void _select(int index) {
@@ -941,6 +943,7 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
                             ),
                             _HomeInvitationCard(
                               onTap: _showInvitations,
+                              freePlan: session.usage?.freePlan != null,
                               commissionRate:
                                   _inviteRateGeneration ==
                                       _session.api.generation
@@ -1112,10 +1115,15 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
 }
 
 class _HomeInvitationCard extends StatelessWidget {
-  const _HomeInvitationCard({required this.onTap, this.commissionRate});
+  const _HomeInvitationCard({
+    required this.onTap,
+    this.commissionRate,
+    required this.freePlan,
+  });
 
   final VoidCallback onTap;
   final int? commissionRate;
+  final bool freePlan;
 
   @override
   Widget build(BuildContext context) {
@@ -1173,6 +1181,15 @@ class _HomeInvitationCard extends StatelessWidget {
                                   color: colors.muted,
                                 ),
                               ),
+                              if (freePlan)
+                                Text(
+                                  text.zolnitFreeInviteShort,
+                                  style: zolnitText(
+                                    context,
+                                    12,
+                                    color: colors.muted,
+                                  ),
+                                ),
                             ],
                           ),
                         ),

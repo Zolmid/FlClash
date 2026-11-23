@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "需要处理",
   "zolnitRenewalHistory": "历史订阅",
   "zolnitRoutingOptions": "智能分流选项",
-  "zolnitRoutePreparing": "正在检查自动线路，可先选择下方线路。",
+  "zolnitRoutePreparing": "正在准备自动选线",
   "zolnitHelpNoArticles": "暂无帮助文章。",
   "zolnitSupportTickets": "客服咨询",
   "zolnitNewTicket": "发起咨询",
@@ -1609,5 +1609,15 @@
   "zolnitGiftBalance": "赠送余额",
   "zolnitGiftIncluded": "固定奖励",
   "zolnitGiftRandomTip": "随机奖励将在兑换时确定。",
-  "zolnitGiftContinue": "继续兑换"
+  "zolnitGiftContinue": "继续兑换",
+  "zolnitFreePlan": "免费套餐",
+  "zolnitFreeMonthlyAllowance": "每月流量",
+  "zolnitFreeSpeedLimit": "速度上限",
+  "zolnitFreeDeviceLimit": "同时在线设备",
+  "zolnitFreeNextReset": "下次每月重置",
+  "zolnitFreeInviteShort": "邀请好友补充免费流量",
+  "zolnitFreeInviteExplanation": "每成功邀请一位新用户注册，免费流量补充至每月额度。补充不累积，也不改变每月重置日期；此奖励与返现分开计算。",
+  "zolnitRouteUnverified": "尚未确认可用线路",
+  "zolnitRouteManualUnverified": "测速不代表服务可用",
+  "zolnitChooseRoute": "选择线路"
 }

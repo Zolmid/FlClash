@@ -78,3 +78,5 @@ devtools_options.yaml
 .fvm/
 .fvmrc
 /coverage/lcov.info
+
+/ios/Pods/

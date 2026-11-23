@@ -37,6 +37,12 @@ internal interface ServiceStateHost {
 
     fun showToast(message: String)
 
+    fun showStartFailure()
+
+    suspend fun showVpnHelp(cancelled: Boolean, isCurrent: () -> Boolean) {}
+
+    fun vpnPermissionFailure(): Boolean = false
+
     fun updateNotificationParams(params: NotificationParams)
 
     fun loadSharedState(): SharedState
@@ -101,6 +107,15 @@ internal object AndroidServiceStateHost : ServiceStateHost {
     override fun log(message: String) = GlobalState.log(message)
 
     override fun showToast(message: String) = GlobalState.application.showToast(message)
+
+    override fun showStartFailure() =
+        showToast(GlobalState.application.getString(R.string.vpn_start_failed))
+
+    override suspend fun showVpnHelp(cancelled: Boolean, isCurrent: () -> Boolean) {
+        flutterEngine?.plugin<AppPlugin>()?.showVpnHelp(cancelled, isCurrent)
+    }
+
+    override fun vpnPermissionFailure(): Boolean = ServiceController.vpnPermissionFailure
 
     override fun updateNotificationParams(params: NotificationParams) =
         ServiceConfig.updateNotificationParams(params)

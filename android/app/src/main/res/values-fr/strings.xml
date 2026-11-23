@@ -1,0 +1,6 @@
+<resources>
+    <string name="vpn_authorization_cancelled">L’autorisation VPN a été annulée ou non accordée. Si une autre application utilise un VPN permanent, désactivez-le dans les réglages, puis réessayez.</string>
+    <string name="vpn_authorization_cancelled_with_vpn">L’autorisation VPN a été annulée ou non accordée. Un réseau VPN est actif. Si une autre application utilise un VPN permanent, désactivez-le dans les réglages, puis réessayez.</string>
+    <string name="vpn_permission_help">Le système n’a pas autorisé la création du VPN. Si une autre application utilise un VPN permanent, désactivez-le dans les réglages, puis réessayez.</string>
+    <string name="vpn_settings">Paramètres VPN</string>
+</resources>

@@ -69,6 +69,7 @@ func handleStopListener() bool {
 	isRunning.Store(false)
 	listener.StopListener()
 	resolver.ResetConnection()
+	bumpRouteEpoch()
 	return true
 }
 

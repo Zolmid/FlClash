@@ -1,9 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.security.MessageDigest
 
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val cloudDnsDiagnostic = providers.gradleProperty("zolnitCloudDnsSdk").orNull != "false"
 
 val zolnitKeystorePath = System.getenv("ZOLNIT_ANDROID_KEYSTORE_PATH")
 val zolnitKeystorePassword = System.getenv("ZOLNIT_ANDROID_KEYSTORE_PASSWORD")
@@ -17,6 +20,7 @@ val hasZolnitSigning = run {
 
 android {
     namespace = "com.zolmid.zolnit"
+    buildFeatures { buildConfig = true }
     compileSdk = libs.versions.compileSdk.get().toInt()
     ndkVersion = libs.versions.ndkVersion.get()
 
@@ -54,11 +58,20 @@ android {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            buildConfigField("boolean", "CLOUD_DNS_DIAGNOSTIC", "false")
+            buildConfigField("boolean", "CLOUD_DNS_ENABLED", cloudDnsDiagnostic.toString())
+        }
+
+        getByName("profile") {
+            buildConfigField("boolean", "CLOUD_DNS_DIAGNOSTIC", "false")
+            buildConfigField("boolean", "CLOUD_DNS_ENABLED", cloudDnsDiagnostic.toString())
         }
 
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "CLOUD_DNS_ENABLED", cloudDnsDiagnostic.toString())
+            buildConfigField("boolean", "CLOUD_DNS_DIAGNOSTIC", "false")
             if (hasZolnitSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -72,6 +85,9 @@ android {
 
     sourceSets {
         // Unit tests live under android/tests/ instead of each module's src/test.
+        getByName("debug").java.srcDir(if (cloudDnsDiagnostic) "src/cloudDnsProduction/kotlin" else "src/cloudDnsDisabled/kotlin")
+        getByName("profile").java.srcDir(if (cloudDnsDiagnostic) "src/cloudDnsProduction/kotlin" else "src/cloudDnsDisabled/kotlin")
+        getByName("release").java.srcDir(if (cloudDnsDiagnostic) "src/cloudDnsProduction/kotlin" else "src/cloudDnsDisabled/kotlin")
         getByName("test").java.setSrcDirs(listOf("../tests/app"))
     }
 }
@@ -104,7 +120,14 @@ flutter {
     source = "../.."
 }
 
+if (cloudDnsDiagnostic) {
+    repositories { maven("https://maven.aliyun.com/repository/public/") { content { includeGroup("com.alibaba.pdns") } } }
+}
+
 dependencies {
+    if (cloudDnsDiagnostic) {
+        add("implementation", "com.alibaba.pdns:alidns-android-sdk:2.3.3") { isTransitive = false }
+    }
     implementation(project(":service"))
     implementation(project(":flutter_secure_storage"))
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -118,4 +141,19 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation("org.json:json:20250517")
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+if (cloudDnsDiagnostic) {
+    val artifact = configurations.create("cloudDnsSdkArtifact") { isTransitive = false }
+    dependencies.add(artifact.name, "com.alibaba.pdns:alidns-android-sdk:2.3.3")
+    val verifyCloudDnsSdk by tasks.registering {
+        inputs.files(artifact)
+        doLast {
+            val aar = artifact.singleFile
+            val hash = MessageDigest.getInstance("SHA-256").digest(aar.readBytes())
+                .joinToString("") { "%02x".format(it.toInt() and 255) }
+            check(hash == "48722b25b2a546253148e246737c3350fc28dff56c6f1e38528b6605dde7dbb5") { "Cloud DNS SDK checksum mismatch" }
+        }
+    }
+    tasks.named("preBuild").configure { dependsOn(verifyCloudDnsSdk) }
 }

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 import 'http_client.dart';
+import 'owned_dns.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -195,6 +196,9 @@ class XboardClient {
       throw const ClientFailure('invalid_authorization');
     }
     _authorization = value;
+    if (origin.host == 'link.zolmid.com') {
+      ownedDnsBinding?.setAuthorization(value);
+    }
     _generation++;
   }
 
@@ -780,6 +784,9 @@ class XboardClient {
   void close() {
     _closed = true;
     _authorization = null;
+    if (origin.host == 'link.zolmid.com') {
+      ownedDnsBinding?.setAuthorization(null);
+    }
     _liveReads = null;
     _generation++;
     _client.close();

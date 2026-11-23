@@ -45,12 +45,16 @@ class ProxiesAction extends _$ProxiesAction {
   final Map<String, String> _pendingSelectedRollback = {};
   final _selectionQueues = <String, Future<void>>{};
   final _selectionIntents = <String, int>{};
+  int _groupsRequest = 0;
+  int _selectionRevision = 0;
 
   @override
   void build() {
     ref.onDispose(() => _delayFlushTimer?.cancel());
     ref.listen(currentProfileIdProvider, (_, _) {
       cancelDelayTests();
+      _groupsRequest++;
+      _selectionRevision++;
       _pendingSelectedRollback.clear();
       _selectionIntents.updateAll((_, intent) => intent + 1);
     });
@@ -103,6 +107,7 @@ class ProxiesAction extends _$ProxiesAction {
 
   void changeProxyDebounce(String groupName, String proxyName) {
     ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
+    _selectionRevision++;
     _selectionIntents[groupName] = (_selectionIntents[groupName] ?? 0) + 1;
     _pendingSelectedRollback.putIfAbsent(
       groupName,
@@ -124,7 +129,20 @@ class ProxiesAction extends _$ProxiesAction {
     return ref.read(currentProfileProvider)?.selectedMap[groupName] ?? '';
   }
 
-  Future<void> updateGroups() async {
+  Future<void> updateGroups({bool Function()? isCurrent}) async {
+    final request = ++_groupsRequest;
+    final selectionRevision = _selectionRevision;
+    final profile = ref.read(currentProfileProvider);
+    final configuration = _core.configurationChanges.value;
+    bool current() =>
+        ref.mounted &&
+        request == _groupsRequest &&
+        selectionRevision == _selectionRevision &&
+        ref.read(currentProfileProvider)?.id == profile?.id &&
+        ref.read(currentProfileProvider)?.zolnitBundleId ==
+            profile?.zolnitBundleId &&
+        identical(_core.configurationChanges.value, configuration) &&
+        (isCurrent?.call() ?? true);
     try {
       final groups = await retry<List<Group>>(
         task: () async {
@@ -153,9 +171,11 @@ class ProxiesAction extends _$ProxiesAction {
             return [];
           }
         },
-        retryIf: (res) => res.isEmpty,
+        retryIf: (res) => res.isEmpty && current(),
       );
-      if (ref.mounted) ref.read(groupsProvider.notifier).value = groups;
+      if (current()) {
+        ref.read(groupsProvider.notifier).value = groups;
+      }
     } catch (e) {
       // The Core failure path already runs inside the retry task above; a
       // throw here only means ref.read hit a disposed container or the
@@ -215,6 +235,7 @@ class ProxiesAction extends _$ProxiesAction {
     required bool Function() isCurrent,
     Map<String, dynamic>? routingLease,
   }) async {
+    if (!isCurrent()) return false;
     ref.read(zolnitRoutingProvider).manualSelection(groupName, proxyName);
     final applied = await _queueProxyChange(
       groupName: groupName,
@@ -222,7 +243,7 @@ class ProxiesAction extends _$ProxiesAction {
       guard: isCurrent,
       routingLease: routingLease,
     );
-    if (applied && isCurrent()) await updateGroups();
+    if (applied && isCurrent()) await updateGroups(isCurrent: isCurrent);
     return applied && isCurrent();
   }
 
@@ -233,6 +254,7 @@ class ProxiesAction extends _$ProxiesAction {
     bool automatic = false,
     Map<String, dynamic>? routingLease,
   }) {
+    _selectionRevision++;
     final intent = (_selectionIntents[groupName] ?? 0) + 1;
     _selectionIntents[groupName] = intent;
     final profileId = ref.read(currentProfileProvider)?.id;

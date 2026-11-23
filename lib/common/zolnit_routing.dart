@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fl_clash/common/yaml.dart';
+import 'package:fl_clash/models/models.dart';
 import 'package:zolnit_client/zolnit_client.dart';
 
 bool isSmartRoutingProxyType(Object? type) {
@@ -162,4 +163,19 @@ PreparedZolnitRouting prepareZolnitRouting(
   }
   config['proxy-groups'] = groups.values.toList();
   return (config: config, manifest: manifest, engine: engine);
+}
+
+String? zolnitAppliedRoute(List<Group> groups, String groupName) {
+  var target = groupName;
+  final visited = <String>{};
+  while (visited.add(target)) {
+    final group = groups.getGroup(target);
+    if (group == null) return target;
+    final next = group.realNow;
+    if (next.isEmpty || !group.all.any((proxy) => proxy.name == next)) {
+      return null;
+    }
+    target = next;
+  }
+  return null;
 }

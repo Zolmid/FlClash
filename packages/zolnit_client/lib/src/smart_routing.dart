@@ -426,6 +426,7 @@ class SmartRoutingEngine {
         manual: true,
       );
     }
+    String? unknownCurrent;
     final retained = _nodes[qualifiedCurrentNodeId];
     if (retained != null && eligible(serviceId, retained.id)) {
       final health = _health[(serviceId, retained.id)];
@@ -433,14 +434,16 @@ class SmartRoutingEngine {
           _healthy(serviceId, retained, now) &&
           (availableNodeIds?.contains(retained.id) ?? true);
       if (!fresh && (health == null || health.failures == 0)) {
-        return SmartRouteDecision(retained.id, 'probe_unknown');
+        unknownCurrent = retained.id;
       }
     }
     final eligibleNodes = candidates(
       serviceId,
     ).where((node) => availableNodeIds?.contains(node.id) ?? true).toList();
     if (eligibleNodes.isEmpty) {
-      return const SmartRouteDecision(null, 'no_eligible');
+      return unknownCurrent == null
+          ? const SmartRouteDecision(null, 'no_eligible')
+          : SmartRouteDecision(unknownCurrent, 'probe_unknown');
     }
     final healthy =
         eligibleNodes.where((node) => _healthy(serviceId, node, now)).toList()
@@ -451,6 +454,9 @@ class SmartRoutingEngine {
             return score == 0 ? a.id.compareTo(b.id) : score;
           });
     if (healthy.isEmpty) {
+      if (unknownCurrent != null) {
+        return SmartRouteDecision(unknownCurrent, 'probe_unknown');
+      }
       final unmeasured = eligibleNodes.any(
         (node) => _health[(serviceId, node.id)] == null,
       );

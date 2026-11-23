@@ -1,5 +1,8 @@
 package com.zolmid.zolnit.plugins
 
+import com.zolmid.zolnit.BuildConfig
+import com.zolmid.zolnit.network.OwnedDnsSdkBridge
+import com.zolmid.zolnit.network.officialCloudDnsSdkBackend
 import com.zolmid.zolnit.common.GlobalState
 import com.zolmid.zolnit.renewal.AndroidClientBundleRenewal
 import com.zolmid.zolnit.renewal.SignedDevice
@@ -27,13 +30,17 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var coreChannel: MethodChannel
     private lateinit var scope: CoroutineScope
+    private lateinit var ownedDnsSdk: OwnedDnsSdkBridge
     private lateinit var firstPartyHttp: FirstPartyHttpTransport
     private val httpResults = Handler(Looper.getMainLooper())
     private val gson = Gson()
     private var commandRevision = 0
+    private var stoppedReportRevision: Int? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        ownedDnsSdk = OwnedDnsSdkBridge(
+            BuildConfig.CLOUD_DNS_ENABLED, officialCloudDnsSdkBackend(binding.applicationContext))
         firstPartyHttp = FirstPartyHttpTransport.android(binding.applicationContext) {
             ServiceState.awaitActiveVpnOptions()?.enable == true
         }
@@ -57,12 +64,24 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         channel.setMethodCallHandler(null)
         coreChannel.setMethodCallHandler(null)
         firstPartyHttp.close()
+        ownedDnsSdk.disable()
         scope.cancel()
         ServiceController.setEventListener(null)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "configureOwnedDnsSdkDiagnostic" -> result.success(false)
+            "configureOwnedDnsSdkLoopback", "lookupOwnedDnsSdk", "disableOwnedDnsSdk" -> scope.launch(Dispatchers.IO) {
+                val response = runCatching {
+                    when (call.method) {
+                        "configureOwnedDnsSdkLoopback" -> ownedDnsSdk.configure(call.arguments as? Map<*, *> ?: emptyMap<Any, Any>())
+                        "lookupOwnedDnsSdk" -> ownedDnsSdk.lookup(call.argument<String>("host") ?: "")
+                        else -> { ownedDnsSdk.disable(); null }
+                    }
+                }.getOrNull()
+                httpResults.post { result.success(response) }
+            }
             "configureClientBundleRenewal", "logoutClientBundleRenewal", "clientBundleRenewalStatus" ->
                 renewal(call, result)
             "firstPartyHttpRequest" -> firstPartyHttp(call, result)
@@ -198,14 +217,20 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     }
 
     private fun start(call: MethodCall, result: MethodChannel.Result) {
-        commandRevision = call.arguments as? Int ?: commandRevision
-        ServiceState.requestStart()
+        val arguments = call.arguments as? Map<*, *>
+        stoppedReportRevision = null
+        commandRevision = (arguments?.get("revision") as? Int) ?: (call.arguments as? Int) ?: commandRevision
+        ServiceState.requestStart(arguments?.get("foregroundVpnHelp") == true)
         result.success(true)
     }
 
     private fun stop(call: MethodCall, result: MethodChannel.Result) {
-        commandRevision = call.arguments as? Int ?: commandRevision
-        ServiceState.requestStop()
+        val revision = call.arguments as? Int ?: commandRevision
+        val acknowledgesStopped = stoppedReportRevision?.let { revision == it + 1 } == true &&
+            !ServiceState.isRunRequested
+        stoppedReportRevision = null
+        commandRevision = revision
+        if (!acknowledgesStopped) ServiceState.requestStop()
         result.success(true)
     }
 
@@ -213,6 +238,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     fun notifyStopped() {
         scope.launch(Dispatchers.Main) {
             if (!ServiceState.isRunRequested) {
+                stoppedReportRevision = commandRevision
                 channel.invokeMethod("stopped", commandRevision)
             }
         }

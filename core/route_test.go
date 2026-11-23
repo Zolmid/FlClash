@@ -167,6 +167,25 @@ func TestRouteEpochFollowsStructuralChanges(t *testing.T) {
 	}
 }
 
+func TestNetworkResetAndListenerStopAdvanceRouteEpoch(t *testing.T) {
+	recorder := recordRoutes(t)
+	wasRunning := isRunning.Load()
+	t.Cleanup(func() { isRunning.Store(wasRunning) })
+	handleWatchRoute(true, 0)
+	before := routeState().CoreEpoch
+	handleResetNetwork()
+	if got := routeState().CoreEpoch; got != before+1 {
+		t.Fatalf("network reset epoch = %d, want %d", got, before+1)
+	}
+	handleStopListener()
+	if got := routeState().CoreEpoch; got != before+2 {
+		t.Fatalf("listener stop epoch = %d, want %d", got, before+2)
+	}
+	if len(recorder.published()) != 2 {
+		t.Fatalf("published %d route changes, want 2", len(recorder.published()))
+	}
+}
+
 func TestProviderRefreshAdvancesTheEpoch(t *testing.T) {
 	recordRoutes(t)
 	subscription := newCachingProvider("subscription", "node-a")

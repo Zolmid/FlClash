@@ -2092,6 +2092,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "結算工作階段正在準備或核對，請稍後重試。",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("選擇方案"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("選擇線路"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("已完成"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("正在確認付款"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("連線"),
@@ -2146,6 +2147,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitFirstCharge": MessageLookupByLibrary.simpleMessage("首期付款"),
     "zolnitFollowingCharge": MessageLookupByLibrary.simpleMessage("後續付款"),
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage("忘記密碼？"),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage("同時在線裝置"),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "每成功邀請一位新用戶註冊，免費流量補充至每月額度。補充不累積，也不改變每月重置日期；此獎勵與返現分開計算。",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage("邀請好友補充免費流量"),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage("每月流量"),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage("下次每月重置"),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("免費方案"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage("速度上限"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("贈送權益"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage("實際獲得"),
     "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("贈送餘額"),
@@ -2420,10 +2430,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "線路切換未完成，請重試。",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "正在檢查自動線路，可先選擇下方線路。",
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "測速不代表服務可用",
     ),
+    "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage("正在準備自動選線"),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("暫無可用線路"),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage("尚未確認可用線路"),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage("智慧分流選項"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(

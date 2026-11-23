@@ -2899,6 +2899,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Оплата готовится или проверяется. Повторите попытку чуть позже.",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("Выбрать тариф"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage(
+      "Выбрать маршрут",
+    ),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("Завершён"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage(
       "Подтверждаем оплату",
@@ -2976,6 +2979,25 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "Забыли пароль?",
+    ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage(
+      "Одновременные устройства",
+    ),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "Каждая успешная регистрация нового приглашённого пользователя пополняет бесплатный трафик до месячного лимита. Пополнения не накапливаются и не меняют дату месячного обновления. Это отдельная от кешбэка награда.",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "Пригласите друга и пополните бесплатный трафик",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "Месячный объём",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage(
+      "Следующее месячное обновление",
+    ),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("Бесплатный тариф"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage(
+      "Ограничение скорости",
     ),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("Подарочный доступ"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage(
@@ -3399,11 +3421,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Не удалось переключить маршрут. Повторите попытку.",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "Задержка не подтверждает доступ к сервису",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "Проверяем автоматические маршруты. Можно выбрать сервер ниже.",
+      "Подготовка автоматической маршрутизации",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "Нет доступного маршрута",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "Доступный маршрут пока не подтверждён",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Настройки умной маршрутизации",

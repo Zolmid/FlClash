@@ -46,3 +46,5 @@
 ## 未扫描的范围
 
 本清单没有穷尽调用图。以下部分在本次没有逐行核对：`lib/views/config/` 下的设置页面、`lib/views/dashboard/`、`lib/manager/`、`lib/providers/state/` 中的系统状态、`lib/plugins/battery.dart` 与 `lib/plugins/app.dart`、Android `ServicePlugin` 与 `ServiceController` 的全部调用者、iOS Widget 的全部系统运行情景、Windows 原生视图的设备运行路径。新增或退役任何能力前，都要先在这些区域中补充扫描。
+
+服务路由手动组保留账号授权的全部节点及 DIRECT；服务面板只展示当前 Core 手动组中仍存在的授权节点，并持久化明确选择。自动组仅使用签名资格（含 operator_allowlist 的出站指纹匹配）与当前服务探测；普通延迟测试不产生服务资格。当前线路沿 Core 的实际选择链解析，循环或缺失成员视为未知；没有当前服务探测通过的自动线路时显示未验证说明，不由普通测速推断全部失败。五平台皮肤、24 条授权/4 条 US/JP 资格形态与迟到响应由 `test/views/zolnit/bundle_routing_test.dart`、`test/common/zolnit_routing_test.dart`、`core/client_bundle_routing_test.go` 覆盖；这些是离线测试，不代表设备验收。

@@ -29,6 +29,7 @@ import kotlin.coroutines.resumeWithException
 internal class ClientBundleHttpTransport(
     private val calls: Call.Factory = newClient(),
     private val selectCalls: (suspend () -> Call.Factory)? = null,
+    private val ownedExchange: (suspend (String, String, String, Map<String, String>) -> BundleHttpResponse?)? = null,
 ) : BundleTransport {
     private val active = AtomicReference<Call?>()
     private val activeRequest = AtomicReference<Job?>()
@@ -48,6 +49,8 @@ internal class ClientBundleHttpTransport(
         val job = currentCoroutineContext()[Job]!!
         check(activeRequest.compareAndSet(null, job)) { "request_already_active" }
         try {
+            val owned = ownedExchange?.invoke(url, authorization, coreVersion, extra)
+            if (owned != null) return@withTimeout owned
             val selected = selectCalls?.invoke() ?: calls
             currentCoroutineContext().ensureActive()
             get(selected, url, authorization, coreVersion, extra)
@@ -124,7 +127,7 @@ internal class ClientBundleHttpTransport(
         fun android(context: Context, ownVpnActive: suspend () -> Boolean): ClientBundleHttpTransport {
             val client = newClient().newBuilder().retryOnConnectionFailure(true).build()
             val bound = AndroidFirstPartyCalls(context, client, ownVpnActive)
-            return ClientBundleHttpTransport(client, bound::select)
+            return ClientBundleHttpTransport(client, bound::select, AndroidClientBundleRenewal::ownedExchange)
         }
 
         fun newClient(): OkHttpClient = OkHttpClient.Builder()

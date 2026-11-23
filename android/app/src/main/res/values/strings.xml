@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="start_vpn">Starting VPN...</string>
+    <string name="vpn_start_failed">Couldn’t start the connection. Try again.</string>
     <string name="stop_vpn">Stopping VPN...</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="widget_description">Show the current profile and toggle the VPN</string>
     <string name="widget_toggle">Toggle VPN</string>
+    <string name="vpn_authorization_cancelled">VPN authorization was cancelled or not granted. If another app uses always-on VPN, turn it off in system settings, then return and try again.</string>
+    <string name="vpn_authorization_cancelled_with_vpn">VPN authorization was cancelled or not granted. A VPN network is active. If another app has always-on VPN enabled, turn it off in system settings, then return and try again.</string>
+    <string name="vpn_permission_help">The system did not allow the VPN to be established. If another app has always-on VPN enabled, turn it off in system settings, then return and try again.</string>
+    <string name="vpn_settings">VPN settings</string>
 </resources>

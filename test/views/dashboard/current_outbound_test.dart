@@ -47,7 +47,11 @@ class _RecordingSetupAction extends SetupAction {
   final requests = <bool>[];
 
   @override
-  Future<bool> setRunning(bool running, {bool initialize = false}) {
+  Future<bool> setRunning(
+    bool running, {
+    bool initialize = false,
+    bool foregroundVpnHelp = false,
+  }) {
     requests.add(running);
     ref.read(runTimeProvider.notifier).value = running ? 1 : null;
     return Future.value(true);

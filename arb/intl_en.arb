@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "Needs attention",
   "zolnitRenewalHistory": "Previous subscriptions",
   "zolnitRoutingOptions": "Smart routing options",
-  "zolnitRoutePreparing": "Checking automatic routes. You can select a server below.",
+  "zolnitRoutePreparing": "Preparing automatic routing",
   "zolnitHelpNoArticles": "No help articles are available yet.",
   "zolnitSupportTickets": "Support requests",
   "zolnitNewTicket": "New request",
@@ -1609,5 +1609,15 @@
   "zolnitGiftBalance": "Gifted balance",
   "zolnitGiftIncluded": "Included rewards",
   "zolnitGiftRandomTip": "The final reward is decided when you redeem.",
-  "zolnitGiftContinue": "Redeem another"
+  "zolnitGiftContinue": "Redeem another",
+  "zolnitFreePlan": "Free plan",
+  "zolnitFreeMonthlyAllowance": "Monthly allowance",
+  "zolnitFreeSpeedLimit": "Speed limit",
+  "zolnitFreeDeviceLimit": "Concurrent devices",
+  "zolnitFreeNextReset": "Next monthly reset",
+  "zolnitFreeInviteShort": "Invite a friend to refill free data",
+  "zolnitFreeInviteExplanation": "Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.",
+  "zolnitRouteUnverified": "No available route confirmed yet",
+  "zolnitRouteManualUnverified": "Latency does not confirm service access",
+  "zolnitChooseRoute": "Choose route"
 }

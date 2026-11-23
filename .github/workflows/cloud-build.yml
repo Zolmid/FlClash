@@ -112,6 +112,9 @@ jobs:
       ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_OFFICIAL_RELEASE: ${{ needs.select.outputs.official }}
+      ZOLNIT_CLOUD_DNS_SDK: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
+      ORG_GRADLE_PROJECT_zolnitCloudDnsSdk: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
+      ZOLNIT_OWNED_DNS: ${{ needs.select.outputs.native_ui == 'true' && '{"strict":true,"relay":"https://link.zolmid.com/api/v1/zolnit/client/httpdns","hosts":["link.zolmid.com"]}' || '' }}
     steps:
       - name: Enable Windows long paths
         if: matrix.platform == 'windows'
@@ -226,9 +229,9 @@ jobs:
         if: matrix.platform != 'android'
         run: |
           if [[ "$CLIENT_SAFE_PREVIEW" == true ]]; then
-            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+            flutter build macos --debug --dart-define=APP_ENV=dev --dart-define=SAFE_MODE=true --dart-define=ZOLNIT_DISTRIBUTION=direct --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE" --dart-define=ZOLNIT_OWNED_DNS="$ZOLNIT_OWNED_DNS"
           else
-            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV="$CLIENT_BUILD_ENV" --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+            flutter build "$TARGET_PLATFORM" --release --dart-define=APP_ENV="$CLIENT_BUILD_ENV" --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE" --dart-define=ZOLNIT_OWNED_DNS="$ZOLNIT_OWNED_DNS"
           fi
 
       - name: Compile Windows installer for validation
@@ -269,7 +272,7 @@ jobs:
         if: matrix.platform == 'android' && env.ANDROID_RELEASE != 'true'
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+        run: flutter build apk --debug --target-platform android-arm64 --dart-define=APP_ENV=dev --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE" --dart-define=ZOLNIT_OWNED_DNS="$ZOLNIT_OWNED_DNS"
 
       - name: Reject Android release without dedicated signing
         if: matrix.platform == 'android' && env.ANDROID_RELEASE != 'true'
@@ -298,7 +301,7 @@ jobs:
             echo '::error::Signing keystore not found; provision step may have failed'
             exit 1
           fi
-          flutter build apk --release --target-platform android-arm64 --dart-define=APP_ENV=stable --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE"
+          flutter build apk --release --target-platform android-arm64 --dart-define=APP_ENV=stable --dart-define=ZOLNIT_DISTRIBUTION="$ZOLNIT_DISTRIBUTION" --dart-define=ZOLNIT_NATIVE_UI="$ZOLNIT_NATIVE_UI" --dart-define=ZOLNIT_CLIENT_BUNDLE="$ZOLNIT_CLIENT_BUNDLE" --dart-define=ZOLNIT_OWNED_DNS="$ZOLNIT_OWNED_DNS"
 
       - name: Test native Android contract
         if: matrix.platform == 'android' && env.ZOLNIT_NATIVE_UI == 'true'
@@ -498,6 +501,7 @@ jobs:
             echo "client_safe_preview=$CLIENT_SAFE_PREVIEW"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
+            if [[ -n "$ZOLNIT_OWNED_DNS" ]]; then echo 'owned_dns=strict-v1'; fi
             echo "distribution_channel=$ZOLNIT_DISTRIBUTION"
             echo "client_build_env=$compiled_env"
             if [[ "$ZOLNIT_OFFICIAL_RELEASE" == true ]]; then
@@ -562,9 +566,13 @@ jobs:
       IOS_SOURCE: ${{ needs.select.outputs.ios_source }}
       IOS_OBSERVER_ACCEPTANCE: ${{ inputs.build_profile != 'zolnit' && github.ref == 'refs/heads/codex/native-client-shared' && needs.select.outputs.ios_source == 'project' }}
       IOS_ACCEPTANCE_BUNDLE_ID: com.zolmid.zolnit.debug
+      ZOLNIT_DISTRIBUTION: ${{ needs.select.outputs.native_ui == 'true' && 'direct' || '' }}
       ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_OFFICIAL_RELEASE: ${{ needs.select.outputs.official }}
+      ZOLNIT_CLOUD_DNS_SDK: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
+      ORG_GRADLE_PROJECT_zolnitCloudDnsSdk: ${{ needs.select.outputs.native_ui == 'true' && 'true' || 'false' }}
+      ZOLNIT_OWNED_DNS: ${{ needs.select.outputs.native_ui == 'true' && '{"strict":true,"relay":"https://link.zolmid.com/api/v1/zolnit/client/httpdns","hosts":["link.zolmid.com"]}' || '' }}
       FLUTTER_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '3.47.7' || '3.47.6' }}
       GO_VERSION: ${{ needs.select.outputs.ios_source == 'patched-reference' && '1.26.8' || '1.27.1' }}
       RUSTUP_TOOLCHAIN: '1.99.0'
@@ -754,6 +762,7 @@ jobs:
             echo "run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "native_ui=$ZOLNIT_NATIVE_UI"
             echo "client_bundle=$ZOLNIT_CLIENT_BUNDLE"
+            if [[ -n "$ZOLNIT_OWNED_DNS" ]]; then echo 'owned_dns=strict-v1'; fi
             echo "routing_observation=$IOS_OBSERVER_ACCEPTANCE"
             if [[ "$ZOLNIT_OFFICIAL_RELEASE" == true ]]; then
               echo 'official_release=true'

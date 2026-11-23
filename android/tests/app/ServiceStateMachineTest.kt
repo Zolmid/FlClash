@@ -92,6 +92,9 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     var storedSharedState = configuredState()
     var setupResult: Result<String> = Result.success("")
     var startSucceeds = true
+    var permissionFailure = false
+    val vpnHelp = mutableListOf<Boolean>()
+    var helpStillCurrent: (() -> Boolean)? = null
     var vpnPermissionGranted = true
     var localNetworkPermissionGranted = true
     var runsAsVpn: Boolean? = null
@@ -106,6 +109,7 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     override val sdkInt = 34
 
     val toasts = mutableListOf<String>()
+    var startFailures = 0
     val logs = mutableListOf<String>()
     val notificationParams = mutableListOf<NotificationParams>()
     var setupCalls = 0
@@ -122,6 +126,17 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     override fun showToast(message: String) {
         toasts += message
     }
+
+    override fun showStartFailure() {
+        startFailures++
+    }
+
+    override suspend fun showVpnHelp(cancelled: Boolean, isCurrent: () -> Boolean) {
+        vpnHelp += cancelled
+        helpStillCurrent = isCurrent
+    }
+
+    override fun vpnPermissionFailure(): Boolean = permissionFailure
 
     override fun updateNotificationParams(params: NotificationParams) {
         notificationParams += params
@@ -173,6 +188,50 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServiceStateMachineTest {
+    @Test
+    fun `only foreground permission failures offer help and later intent invalidates it`() = runTest {
+        val host = FakeHost(backgroundScope)
+        host.app = FakeApp(vpnGranted = false)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertEquals(listOf(true), host.vpnHelp)
+        assertTrue(host.helpStillCurrent!!())
+        machine.requestStop().await()
+        assertFalse(host.helpStillCurrent!!())
+        host.vpnHelp.clear()
+        assertFalse(machine.requestStart().await())
+        assertTrue(host.vpnHelp.isEmpty())
+    }
+
+    @Test
+    fun `a superseding stop does not show foreground VPN help`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        val app = FakeApp(vpnGranted = false)
+        app.beforeVpnPrepared = { machine.requestStop() }
+        host.app = app
+        machine.syncSharedState(configuredState())
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertTrue(host.vpnHelp.isEmpty())
+    }
+
+    @Test
+    fun `only permission related establish failures offer foreground help`() = runTest {
+        val host = FakeHost(backgroundScope)
+        host.app = FakeApp()
+        host.startSucceeds = false
+        host.permissionFailure = true
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertEquals(listOf(false), host.vpnHelp)
+        host.vpnHelp.clear()
+        host.permissionFailure = false
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertTrue(host.vpnHelp.isEmpty())
+    }
+
     @Test
     fun `notification speed preference reaches the native notification owner`() {
         assertTrue(
@@ -313,6 +372,7 @@ class ServiceStateMachineTest {
 
         assertFalse(machine.requestStart().await())
         assertEquals(0, host.startCalls)
+        assertEquals(1, host.startFailures)
     }
 
     @Test
@@ -326,6 +386,23 @@ class ServiceStateMachineTest {
         assertEquals(0, host.startCalls)
         assertEquals(RunState.STOPPED, machine.runState.value)
         assertEquals(1, host.stoppedNotifications)
+        assertTrue(host.toasts.isEmpty())
+        assertEquals(0, host.startFailures)
+    }
+
+    @Test
+    fun `a failed Flutter service start is reported but a superseded failure is silent`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        host.startSucceeds = false
+
+        assertFalse(machine.requestStart().await())
+        assertEquals(1, host.startFailures)
+
+        host.beforeStartService = { machine.requestStop() }
+        assertFalse(machine.requestStart().await())
+        assertEquals(1, host.startFailures)
     }
 
     @Test
@@ -373,6 +450,8 @@ class ServiceStateMachineTest {
         assertFalse(machine.requestStart().await())
         assertEquals(0, host.startCalls)
         assertEquals(1, host.stoppedNotifications)
+        assertTrue(host.toasts.isEmpty())
+        assertEquals(0, host.startFailures)
     }
 
     /** Flutter opened the Core's listeners before asking, and may be gone before it hears back. */
@@ -654,7 +733,7 @@ class ServiceStateMachineTest {
 
         machine.handleStartAction()
 
-        assertTrue(host.toasts.contains(START_FAILED_MESSAGE))
+        assertEquals(1, host.startFailures)
         assertFalse(machine.isRunRequested)
     }
 
@@ -686,7 +765,7 @@ class ServiceStateMachineTest {
 
             assertEquals(1, host.setupCalls)
             assertEquals(0, host.startCalls)
-            assertFalse(host.toasts.contains(START_FAILED_MESSAGE))
+            assertEquals(0, host.startFailures)
             assertFalse(machine.isRunRequested)
             assertEquals(RunState.STOPPED, machine.runState.value)
         }

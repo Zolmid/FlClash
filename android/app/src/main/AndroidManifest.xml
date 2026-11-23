@@ -36,8 +36,9 @@
         </intent>
     </queries>
 
-    <application
+    <application android:networkSecurityConfig="@xml/zolnit_loopback_security"
         android:name=".FlClashApplication"
+        android:allowBackup="false"
         android:banner="@mipmap/ic_banner"
         android:hardwareAccelerated="true"
         android:enableOnBackInvokedCallback="true"

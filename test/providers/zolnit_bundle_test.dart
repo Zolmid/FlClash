@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/zolnit_native_renewal.dart';
@@ -787,6 +788,51 @@ void main() {
       verifyNever(() => core.getProfileBase(any()));
     },
   );
+
+  for (final signed in [false, true]) {
+    test(
+      'legacy ${signed ? 'signed' : 'unsigned'} free account builds without DNS',
+      () async {
+        container.dispose();
+        fixture.dispose();
+        final signedOwner = signed ? _NativeSigned() : null;
+        final raw = clientBundleFixture();
+        final connection = raw['connection'] as Map;
+        final document = Map<String, dynamic>.from(
+          loadPlainYaml(connection['document'] as String) as Map,
+        )..remove('dns');
+        final encoded = yaml.encode(document);
+        connection['document'] = encoded;
+        connection['sha256'] = sha256.convert(utf8.encode(encoded)).toString();
+        if (signedOwner != null) {
+          signedOwner.next = Completer<Json?>()..complete(raw);
+        }
+        fixture = ClientBundleSessionFixture(
+          signedSubscriptions: signedOwner,
+          onRequest: (request) async {
+            if (!request.url.path.endsWith('/getSubscribe')) return null;
+            return clientBundleResponse({
+              'email': 'fixture@example.invalid',
+              'plan_id': 1,
+              'transfer_enable': 1024,
+              'u': 0,
+              'd': 0,
+              'free_plan': {'name': 'Free', 'allowance_bytes': 1024},
+            });
+          },
+        );
+        fixture.onBundle = (_) async => clientBundleResponse(raw);
+        await fixture.login();
+        createContainer();
+        final profile = await sync();
+        final result = await build(profile);
+        final config = loadPlainYaml(result.yaml) as Map;
+        expect(config['dns']['enable'], true);
+        expect(config['dns']['nameserver'], isNotEmpty);
+        expect(config['dns'], isNot(contains('x-zolnit-managed-doh')));
+      },
+    );
+  }
 
   test('a private bundle builds without a legacy profile YAML', () async {
     final profile = await sync();

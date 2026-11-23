@@ -29,11 +29,13 @@ internal typealias RunRequest = RunIntentArbiter.Token
 internal const val MISSING_CONFIG_MESSAGE = "No configuration found."
 internal const val INVALID_CONFIG_MESSAGE = "Invalid configuration."
 internal const val VPN_PERMISSION_MESSAGE = "VPN permission required."
-internal const val START_FAILED_MESSAGE = "Failed to start service."
 
 private enum class StartOutcome {
     STARTED,
     FAILED,
+    CANCELLED,
+    VPN_CANCELLED,
+    VPN_DENIED,
     SUPERSEDED,
 }
 
@@ -130,11 +132,11 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         handleStopAction()
     }
 
-    fun requestStart(): Deferred<Boolean> {
+    fun requestStart(foregroundVpnHelp: Boolean = false): Deferred<Boolean> {
         if (isStartedAs(sharedState.vpnOptions)) {
             return CompletableDeferred(true)
         }
-        val outcome = launchStart(createRequest(running = true))
+        val outcome = launchStart(createRequest(running = true), foregroundVpnHelp)
         return host.scope.async { outcome.await() == StartOutcome.STARTED }
     }
 
@@ -164,16 +166,16 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         }
         if (!setupCore()) {
             abandon(request)
-        } else if (launchStart(request).await() == StartOutcome.FAILED) {
-            host.showToast(START_FAILED_MESSAGE)
+        } else {
+            launchStart(request).await()
         }
     }
 
-    private fun launchStart(request: RunRequest): Deferred<StartOutcome> {
+    private fun launchStart(request: RunRequest, foregroundVpnHelp: Boolean = false): Deferred<StartOutcome> {
         val result = CompletableDeferred<StartOutcome>()
         val launch: (Boolean) -> Unit = { permitted ->
             host.scope.launch {
-                result.complete(if (permitted) start(request) else abandon(request))
+                result.complete(if (permitted) start(request, foregroundVpnHelp) else abandon(request))
             }
         }
         val app = host.app()
@@ -225,20 +227,37 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         host.showToast(message?.takeIf { it.isNotBlank() } ?: INVALID_CONFIG_MESSAGE)
     }
 
-    private suspend fun start(request: RunRequest): StartOutcome {
-        val started = try {
+    private suspend fun start(request: RunRequest, foregroundVpnHelp: Boolean): StartOutcome {
+        val attempt = try {
             startPreparationLock.withLock { runStart(request) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             host.log("Unable to process service start request: $error")
-            false
+            StartOutcome.FAILED
         }
-        return if (started) StartOutcome.STARTED else abandon(request)
+        if (attempt == StartOutcome.STARTED) return attempt
+        var settled: RunRequest? = null
+        val outcome = abandon(request) { settled = it }
+        if (foregroundVpnHelp && outcome == StartOutcome.FAILED &&
+            (attempt == StartOutcome.VPN_CANCELLED || attempt == StartOutcome.VPN_DENIED)) {
+            val stopped = settled
+            if (stopped != null) host.showVpnHelp(attempt == StartOutcome.VPN_CANCELLED) {
+                arbiter.isCurrent(stopped)
+            }
+        }
+        if ((attempt == StartOutcome.FAILED ||
+                (attempt == StartOutcome.VPN_DENIED && !foregroundVpnHelp)) &&
+            outcome == StartOutcome.FAILED && !isRunRequested) {
+            host.showStartFailure()
+        }
+        return outcome
     }
 
-    private suspend fun abandon(request: RunRequest): StartOutcome {
-        val dropped = arbiter.resetToStopped(request)
+    private suspend fun abandon(request: RunRequest, onDropped: ((RunRequest) -> Unit)? = null): StartOutcome {
+        val stopped = arbiter.resetToStoppedToken(request)
+        val dropped = stopped != null
+        if (stopped != null) onDropped?.invoke(stopped)
         reconcileStopped()
         if (!dropped) {
             return StartOutcome.SUPERSEDED
@@ -247,23 +266,32 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         return StartOutcome.FAILED
     }
 
-    private suspend fun runStart(request: RunRequest): Boolean {
+    private suspend fun runStart(request: RunRequest): StartOutcome {
         if (!isCurrent(request)) {
-            return false
+            return StartOutcome.SUPERSEDED
         }
-        val options = sharedState.vpnOptions ?: return false
+        val options = sharedState.vpnOptions ?: return StartOutcome.FAILED
         if (!prepareVpn(options)) {
             if (host.app() == null && isCurrent(request)) {
                 host.showToast(VPN_PERMISSION_MESSAGE)
             }
-            return false
+            return if (options.enable && host.app() != null && isCurrent(request))
+                StartOutcome.VPN_CANCELLED else StartOutcome.CANCELLED
         }
         return transitionLock.withLock {
             when {
-                !isCurrent(request) -> false
-                host.runtime?.vpn == options.enable -> true
+                !isCurrent(request) -> StartOutcome.SUPERSEDED
+                host.runtime?.vpn == options.enable -> StartOutcome.STARTED
                 else -> transitioning(RunState.STARTING) {
-                    host.startService(withLocalNetworkFallback(options), options) && isCurrent(request)
+                    val started = host.startService(withLocalNetworkFallback(options), options)
+                    when {
+                        !isCurrent(request) -> StartOutcome.SUPERSEDED
+                        started -> StartOutcome.STARTED
+                        else -> {
+                            if (options.enable && host.vpnPermissionFailure())
+                                StartOutcome.VPN_DENIED else StartOutcome.FAILED
+                        }
+                    }
                 }
             }
         }

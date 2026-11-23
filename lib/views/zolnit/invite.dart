@@ -160,6 +160,52 @@ class _ZolnitInviteTabState extends State<ZolnitInviteTab> {
           subtitle: text.zolnitInviteSubtitle,
         ),
         const SizedBox(height: 24),
+        ListenableBuilder(
+          listenable: widget.session,
+          builder: (context, _) {
+            final free = widget.session.usage?.freePlan;
+            if (free == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: ZolnitCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      free.name ?? text.zolnitFreePlan,
+                      style: zolnitText(context, 14, weight: FontWeight.w600),
+                    ),
+                    if (free.allowanceBytes case final allowance?)
+                      Text(
+                        '${text.zolnitFreeMonthlyAllowance}: ${zolnitBytes(allowance)}',
+                        style: zolnitText(context, 12, color: colors.muted),
+                      ),
+                    if (free.speedLimit case final speed?)
+                      Text(
+                        '${text.zolnitFreeSpeedLimit}: $speed Mbps',
+                        style: zolnitText(context, 12, color: colors.muted),
+                      ),
+                    if (free.deviceLimit case final devices?)
+                      Text(
+                        '${text.zolnitFreeDeviceLimit}: $devices',
+                        style: zolnitText(context, 12, color: colors.muted),
+                      ),
+                    if (free.nextResetAt case final reset?)
+                      Text(
+                        '${text.zolnitFreeNextReset}: ${zolnitDotDate(reset)}',
+                        style: zolnitText(context, 12, color: colors.muted),
+                      ),
+                    const SizedBox(height: 8),
+                    Text(
+                      text.zolnitFreeInviteExplanation,
+                      style: zolnitText(context, 12, color: colors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
         if (_loading && _invite == null)
           const Center(child: CommonCircleLoading(size: 22))
         else if (_failure != null && _invite == null)

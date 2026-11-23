@@ -127,6 +127,15 @@ void main() {
         lessThan(uninstall.indexOf('KillProcesses;')),
       );
       expect(content, isNot(contains('function InitializeUninstall()')));
+      final processes = content.substring(
+        content.indexOf('procedure KillProcesses;'),
+        content.indexOf('procedure UnregisterHelperService;'),
+      );
+      expect(processes, contains("AddBackslash(ExpandConstant('{app}'))"));
+      expect(processes, contains("StringChangeEx(AppDir, '''', '''''', True)"));
+      expect(processes, contains(r'$_.Path.StartsWith('));
+      expect(processes, contains('[StringComparison]::OrdinalIgnoreCase'));
+      expect(processes, isNot(contains('taskkill')));
     },
   );
 }

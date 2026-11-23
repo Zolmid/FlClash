@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:zolnit_client/src/http_client_io.dart';
+import 'package:zolnit_client/src/owned_dns.dart';
 
 class _AmbientProxyOverrides extends HttpOverrides {
   var clients = 0;
@@ -19,6 +20,15 @@ class _AmbientProxyOverrides extends HttpOverrides {
 }
 
 void main() {
+  test('bootstrap outage is a network failure, not malformed HTTP', () async {
+    await expectLater(
+      bootstrapZolnitOrigin(
+        query: (_) async => throw const SocketException('offline'),
+      ),
+      throwsA(isA<SocketException>()),
+    );
+  });
+
   test('control-plane client does not inherit the ambient proxy', () async {
     final overrides = _AmbientProxyOverrides();
 
@@ -88,6 +98,39 @@ void main() {
       client.close();
     },
   );
+
+  test('Android passes signed subscription and idempotency headers', () async {
+    Map<String, Object?>? sent;
+    final client = AndroidFirstPartyClient(
+      nativeRequest: (method, arguments) async {
+        sent = arguments;
+        return {
+          'status': 200,
+          'headers': <String, String>{},
+          'body': Uint8List(0),
+        };
+      },
+      fallback: MockClient(
+        (_) async => throw StateError('unexpected fallback'),
+      ),
+    );
+    addTearDown(client.close);
+    final result = await client.get(
+      Uri.parse('https://link.zolmid.com/api/v1/zolnit/client/bundle'),
+      headers: {
+        'X-ZolNit-Device-Id': 'fixture-device',
+        'X-ZolNit-Installation': 'fixture-installation',
+        'X-ZolNit-Subscription-Format': 'signed-v2',
+        'Idempotency-Key': 'fixture-idempotency-key',
+      },
+    );
+    expect(result.statusCode, 200);
+    final headers = sent!['headers'] as Map<String, String>;
+    expect(headers['x-zolnit-device-id'], 'fixture-device');
+    expect(headers['x-zolnit-installation'], 'fixture-installation');
+    expect(headers['x-zolnit-subscription-format'], 'signed-v2');
+    expect(headers['idempotency-key'], 'fixture-idempotency-key');
+  });
 
   test('native transport rejects non-first-party URLs and methods', () async {
     final client = AndroidFirstPartyClient(

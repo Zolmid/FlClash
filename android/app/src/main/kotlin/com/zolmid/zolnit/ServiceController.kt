@@ -14,6 +14,7 @@ import com.zolmid.zolnit.core.Core
 import com.zolmid.zolnit.service.ManagedService
 import com.zolmid.zolnit.service.ProxyService
 import com.zolmid.zolnit.service.ServiceConfig
+import com.zolmid.zolnit.service.VpnPermissionException
 import com.zolmid.zolnit.service.VpnService
 import com.zolmid.zolnit.service.models.VpnOptions
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,8 @@ import kotlin.coroutines.resume
 
 object ServiceController {
     private val lock = Mutex()
+    @Volatile internal var vpnPermissionFailure = false
+        private set
     private var binding: ManagedServiceBinding? = null
 
     @Volatile
@@ -72,6 +75,7 @@ object ServiceController {
     }
 
     suspend fun start(options: VpnOptions, requestedOptions: VpnOptions = options): Boolean = lock.withLock {
+        vpnPermissionFailure = false
         ServiceConfig.updateVpnOptions(options)
         val nextIntent = if (options.enable) {
             VpnService::class.intent
@@ -98,6 +102,7 @@ object ServiceController {
         val currentBinding = binding ?: return@withLock false
         val result = currentBinding.useService { service -> service.start() }
         if (result.isFailure) {
+            vpnPermissionFailure = options.enable && result.exceptionOrNull() is VpnPermissionException
             GlobalState.log("Unable to start background service: ${result.exceptionOrNull()}")
             currentBinding.stopIfConnected()
                 .onFailure { error ->

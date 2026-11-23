@@ -2328,6 +2328,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "決済を準備または確認しています。しばらくしてからもう一度お試しください。",
     ),
     "zolnitChoosePlan": MessageLookupByLibrary.simpleMessage("プランを選ぶ"),
+    "zolnitChooseRoute": MessageLookupByLibrary.simpleMessage("ルートを選択"),
     "zolnitCompleted": MessageLookupByLibrary.simpleMessage("完了"),
     "zolnitConfirmingPayment": MessageLookupByLibrary.simpleMessage("支払いを確認中"),
     "zolnitConnectAction": MessageLookupByLibrary.simpleMessage("接続"),
@@ -2392,6 +2393,19 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitForgotPassword": MessageLookupByLibrary.simpleMessage(
       "パスワードをお忘れですか？",
     ),
+    "zolnitFreeDeviceLimit": MessageLookupByLibrary.simpleMessage("同時接続デバイス"),
+    "zolnitFreeInviteExplanation": MessageLookupByLibrary.simpleMessage(
+      "招待した新規ユーザーが登録するたびに、無料データが月間容量まで補充されます。補充分は累積せず、月次リセット日も変わりません。キャッシュバックとは別の特典です。",
+    ),
+    "zolnitFreeInviteShort": MessageLookupByLibrary.simpleMessage(
+      "友達を招待して無料データを補充",
+    ),
+    "zolnitFreeMonthlyAllowance": MessageLookupByLibrary.simpleMessage(
+      "月間データ容量",
+    ),
+    "zolnitFreeNextReset": MessageLookupByLibrary.simpleMessage("次回の月次リセット"),
+    "zolnitFreePlan": MessageLookupByLibrary.simpleMessage("無料プラン"),
+    "zolnitFreeSpeedLimit": MessageLookupByLibrary.simpleMessage("速度上限"),
     "zolnitGift": MessageLookupByLibrary.simpleMessage("ギフト利用権"),
     "zolnitGiftActual": MessageLookupByLibrary.simpleMessage("獲得した特典"),
     "zolnitGiftBalance": MessageLookupByLibrary.simpleMessage("贈呈残高"),
@@ -2702,11 +2716,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "ルートを切り替えられませんでした。もう一度お試しください。",
     ),
     "zolnitRouteCurrent": m102,
+    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
+      "遅延測定だけではサービス利用を確認できません",
+    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
-      "自動ルートを確認中です。下のサーバーを選択できます。",
+      "自動ルーティングを準備中",
     ),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "利用できるルートがありません",
+    ),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "利用可能なルートは未確認です",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "スマートルーティング設定",

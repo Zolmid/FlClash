@@ -1561,7 +1561,7 @@
   "zolnitRenewalAttention": "확인 필요",
   "zolnitRenewalHistory": "이전 구독",
   "zolnitRoutingOptions": "스마트 라우팅 옵션",
-  "zolnitRoutePreparing": "자동 경로 확인 중입니다. 아래 서버를 선택할 수 있습니다.",
+  "zolnitRoutePreparing": "자동 경로 준비 중",
   "zolnitHelpNoArticles": "도움말 문서가 아직 없습니다.",
   "zolnitSupportTickets": "지원 요청",
   "zolnitNewTicket": "새 요청",
@@ -1609,5 +1609,15 @@
   "zolnitGiftBalance": "선물 잔액",
   "zolnitGiftIncluded": "확정 혜택",
   "zolnitGiftRandomTip": "무작위 혜택은 교환할 때 결정됩니다.",
-  "zolnitGiftContinue": "계속 교환"
+  "zolnitGiftContinue": "계속 교환",
+  "zolnitFreePlan": "무료 요금제",
+  "zolnitFreeMonthlyAllowance": "월 데이터 제공량",
+  "zolnitFreeSpeedLimit": "속도 제한",
+  "zolnitFreeDeviceLimit": "동시 접속 기기",
+  "zolnitFreeNextReset": "다음 월간 초기화",
+  "zolnitFreeInviteShort": "친구를 초대하고 무료 데이터 보충",
+  "zolnitFreeInviteExplanation": "초대한 신규 사용자가 가입할 때마다 무료 데이터가 월 제공량까지 보충됩니다. 보충량은 누적되지 않고 월간 초기화 날짜도 바뀌지 않습니다. 캐시백과는 별도입니다.",
+  "zolnitRouteUnverified": "사용 가능한 경로가 아직 확인되지 않았습니다",
+  "zolnitRouteManualUnverified": "지연 시간은 서비스 접근을 보장하지 않습니다",
+  "zolnitChooseRoute": "경로 선택"
 }

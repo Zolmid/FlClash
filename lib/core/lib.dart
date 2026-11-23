@@ -125,6 +125,7 @@ class CoreLib extends CoreHandlerInterface {
   @override
   Future<bool> startListener({
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {
@@ -140,7 +141,7 @@ class CoreLib extends CoreHandlerInterface {
     if (isCurrent?.call() == false) return false;
     await super.startListener();
     if (isCurrent?.call() == false) return false;
-    return await _service?.start() ?? false;
+    return await _service?.start(null, null, foregroundVpnHelp) ?? false;
   }
 
   @override

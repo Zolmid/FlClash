@@ -23,6 +23,10 @@ class RunIntentArbiter(initialRunning: Boolean = false) {
 
     fun isCurrent(token: Token): Boolean = latest.get() === token
 
-    fun resetToStopped(token: Token): Boolean =
-        latest.compareAndSet(token, Token(running = false))
+    fun resetToStopped(token: Token): Boolean = resetToStoppedToken(token) != null
+
+    fun resetToStoppedToken(token: Token): Token? {
+        val stopped = Token(running = false)
+        return stopped.takeIf { latest.compareAndSet(token, stopped) }
+    }
 }

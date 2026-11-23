@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import plistlib
 from pathlib import Path
 import re
 import shutil
@@ -19,6 +20,8 @@ import stat
 import subprocess
 import sys
 import zipfile
+
+from sdk_verification import SdkArtifactError, verify_android_apk, verify_ios_executable
 
 REPOSITORY = 'Zolmid/FlClash'
 REPOSITORY_ID = '1420254999'
@@ -117,6 +120,18 @@ def check_changelog(path, tag):
     require(len(entries) == 1, f'changelog.json has no single entry for {tag}; run '
             f'"dart run tool/changelog.dart release --version {tag[1:]}" and commit it before tagging')
     require(entries[0].get('prerelease') is False, f'{tag} is recorded as a prerelease')
+
+
+def check_owned_dns_release(root):
+    source = (Path(root) / 'packages/zolnit_client/lib/src/owned_dns_config.dart').read_text(encoding='utf-8')
+    match = re.fullmatch(r"const zolnitReleaseOwnedDns\s*=\s*r'([^'\n]+)';\n?", source)
+    require(match, 'release owned DNS define is not canonical')
+    policy = json.loads(match.group(1))
+    require(isinstance(policy, dict) and policy.get('strict') is True and policy == {
+        'strict': True, 'relay': 'https://link.zolmid.com/api/v1/zolnit/client/httpdns',
+        'hosts': ['link.zolmid.com'],
+    }, 'release owned DNS is not strict/scoped')
+    return policy
 
 
 class GitHub:
@@ -228,6 +243,7 @@ def check_provenance(text, context, platform, arch):
     else:
         expected.update(target=f'{platform}-{arch}', client_safe_preview='false', distribution_channel='direct',
                         client_build_env='stable', client_defines='APP_ENV=stable;ZOLNIT_DISTRIBUTION=direct')
+    expected['owned_dns'] = 'strict-v1'
     for key, value in expected.items():
         require(fields.get(key) == value, f'{platform}-{arch} provenance {key}={fields.get(key)!r}, expected {value!r}')
     core = [item for item in submodules if item[2] == 'core/Clash.Meta']
@@ -246,15 +262,31 @@ def check_android_signing(report):
                 for line in lines), 'APK lacks a v2/v3 signature')
 
 
-def check_ios(directory, listed, version):
+def check_ios(directory, listed, version, build=None):
     ipas = [name for name in listed if name.endswith('.ipa')]
     require(ipas == [f'ZolNit-{version}-ios-arm64-unsigned.ipa'], f'unexpected iOS packages {ipas}')
     require('acceptance-pair.json' not in listed, 'iOS artifact is a routing observer acceptance build')
     with zipfile.ZipFile(directory / ipas[0]) as ipa:
         entries = ipa.namelist()
-    require(any(re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', name) for name in entries), 'IPA has no app bundle')
-    require(not any(name.endswith('embedded.mobileprovision') for name in entries), 'IPA unexpectedly carries provisioning')
-    return ipas[0]
+        plists = [name for name in entries if re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', name)]
+        require(len(plists) == 1, 'IPA has no single app bundle')
+        require(not any(name.endswith('embedded.mobileprovision') for name in entries), 'IPA unexpectedly carries provisioning')
+        try:
+            info = plistlib.loads(ipa.read(plists[0]))
+            require(isinstance(info, dict), 'IPA Info.plist is not a dictionary')
+            require(info.get('CFBundleIdentifier') == APP_ID, 'IPA bundle identifier mismatch')
+            require(info.get('CFBundleShortVersionString') == version, 'IPA version mismatch')
+            if build is not None:
+                require(info.get('CFBundleVersion') == str(build), 'IPA build number mismatch')
+            executable = info.get('CFBundleExecutable')
+            require(isinstance(executable, str) and MEMBER.fullmatch(executable), 'IPA executable name invalid')
+            name = plists[0].rsplit('/', 1)[0] + '/' + executable
+            require(entries.count(name) == 1, 'IPA main executable missing or duplicated')
+            with ipa.open(name) as stream:
+                sdk = verify_ios_executable(stream, ipa.getinfo(name).file_size)
+        except (ValueError, KeyError, plistlib.InvalidFileException) as error:
+            raise ReleaseError(f'iOS SDK artifact verification failed: {error}') from error
+    return ipas[0], sdk
 
 
 def check_record(record, context, name):
@@ -344,9 +376,9 @@ def assemble(context, github, stage, env, apksigner):
         item = {'artifact_name': name, 'artifact_id': record['id'], 'artifact_sha256': outer,
                 'platform': platform, 'arch': arch}
         if platform == 'ios':
-            ipa = check_ios(directory, listed, context.version)
+            ipa, sdk = check_ios(directory, listed, context.version, context.build)
             evidence.append({**item, 'kind': 'ios-unsigned-compile', 'file': ipa, 'sha256': listed[ipa],
-                             'distributed': False})
+                             'distributed': False, 'mobile_dns_sdk': sdk})
             continue
         if platform == 'android':
             require('apk-signing-report.txt' in listed, 'Android artifact has no signing report')
@@ -355,6 +387,10 @@ def assemble(context, github, stage, env, apksigner):
             require(apk in listed, 'Android artifact has no release APK')
             if apksigner:
                 run_android_verifier(apksigner, directory / apk)
+            try:
+                item['mobile_dns_sdk'] = verify_android_apk(directory / apk)
+            except (SdkArtifactError, zipfile.BadZipFile) as error:
+                raise ReleaseError(f'Android SDK artifact verification failed: {error}') from error
         package_directory, package_listed = directory, listed
         package_record, package_outer = record, outer
         if platform == 'macos' and signing_required:
@@ -414,7 +450,7 @@ def assemble(context, github, stage, env, apksigner):
                'build': context.build, 'core_sha': CORE, 'ci_run_id': context.run_id, 'assets': receipts,
                'evidence': evidence,
                'checks': {'all_platform_builds': True, 'standard_ci': True, 'package_hashes': True,
-                          'android_production_certificate': True, 'ios_unsigned_compile': True,
+                          'android_production_certificate': True, 'ios_unsigned_compile': True, 'mobile_dns_sdk_artifacts': True,
                           'macos_notarized': signing_required}}
     (stage / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
     (stage / 'receipt.json').write_text(json.dumps(receipt, ensure_ascii=False), encoding='utf-8')
@@ -438,6 +474,7 @@ def main(argv=None, env=None, github=None):
         context = Context(env, args.root)
         if args.command == 'preflight':
             check_changelog(Path(args.root) / 'changelog.json', context.tag)
+            check_owned_dns_release(args.root)
             require(github.tag_commit(context.tag) == context.sha, f'{context.tag} no longer points at {context.sha}')
             result = {'tag': context.tag, 'version': context.version, 'build': context.build}
             if env.get('GITHUB_OUTPUT'):
