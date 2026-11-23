@@ -310,7 +310,7 @@ test('select job keeps its env expressions and only runs the checked-out selecto
     "      OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}",
     '      BUILD_PROFILE: ${{ inputs.build_profile }}',
     '    steps:',
-    '      - uses: actions/checkout@v5',
+    job.match(/^      - uses: actions\/checkout@[0-9a-f]{40} # v[0-9][.0-9]*$/m)?.[0],
     '        with:',
     '          persist-credentials: false',
     '      - id: select',
@@ -375,7 +375,7 @@ test('auto, empty and absent profiles keep every legacy byte', () => {
   }
 });
 
-test('zolnit dispatch only turns on the client product flags', () => {
+test('zolnit dispatch selects only the unprivileged product on every branch', () => {
   const tally = {accepted: 0, android: 0, profile: 0};
   for (const ref of [...PUSH_REFS, NEW_REF, TAG]) {
     const clientRef = ref === ZC || ref === NCS;
@@ -397,11 +397,11 @@ test('zolnit dispatch only turns on the client product flags', () => {
           } else {
             const parsed = parse(Buffer.from(current.output));
             assert.deepEqual(Object.keys(parsed), KEYS, name);
-            assert.deepEqual(parsed, {...parse(Buffer.from(base.output)), client_branch: 'true', native_ui: 'true'}, name);
+            const legacy = parse(Buffer.from(base.output));
+            const matrix = JSON.stringify({include: JSON.parse(legacy.matrix).include.filter(target => !target.safe_preview)});
+            assert.deepEqual(parsed, {...legacy, matrix, client_branch: 'true', native_ui: 'true'}, name);
             assert.equal(parsed.official, 'false', name);
             assert.equal(parsed.android_release, 'false', name);
-            assert.equal(JSON.parse(parsed.matrix).include.some(t => t.safe_preview),
-              clientRef && ['all', 'macos'].includes(platform), name);
             tally.accepted++;
           }
         }
@@ -423,7 +423,7 @@ test('the CLI writes zolnit candidate outputs and rejects what the profile canno
     [zolnit(NEW_REF, 'android'), bytes('android', false, [ANDROID])],
     [zolnit(NEW_REF, 'ios'), bytes('ios', false, [])],
     [zolnit('refs/heads/main', 'windows'), bytes('windows', false, [WINDOWS])],
-    [zolnit(ZC, 'macos'), bytes('macos', false, [MAC_ARM, MAC_X64, MAC_PREVIEW])],
+    [zolnit(ZC, 'macos'), bytes('macos', false, [MAC_ARM, MAC_X64])],
   ]) {
     assert.equal(run.status, 0);
     assert.equal(run.stdout, '');
@@ -477,12 +477,8 @@ test('unknown profiles are rejected before anything is written', () => {
   }
 });
 
-test('only selection and provenance read the profile while signing gates ignore it', () => {
+test('selection, provenance and candidate verification read the profile while signing gates ignore it', () => {
   const workflow = readFileSync(WORKFLOW, 'utf8');
-  assert.deepEqual(workflow.split('\n').filter(line => /build_profile/i.test(line)),
-    ['      build_profile:', '      BUILD_PROFILE: ${{ inputs.build_profile }}',
-      "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"',
-      "          BUILD_PROFILE: ${{ inputs.build_profile || 'auto' }}", '            echo "build_profile=$BUILD_PROFILE"']);
   const dispatchInputs = workflow.slice(workflow.indexOf('\n  workflow_dispatch:\n'), workflow.indexOf('\n  workflow_call:\n'));
   assert.match(dispatchInputs, /\n {6}build_profile:\n {8}description: [^\n]+\n {8}type: choice\n {8}required: false\n {8}default: auto\n {8}options: \[auto, zolnit\]$/);
   const select = workflow.slice(workflow.indexOf('\n  select:\n'), workflow.indexOf('\n  project:\n'));
@@ -491,6 +487,7 @@ test('only selection and provenance read the profile while signing gates ignore 
   assert.equal(gates.length, 8);
   for (const line of gates) assert.doesNotMatch(line, /profile/i);
   const secretSteps = workflow.slice(workflow.indexOf('\njobs:\n')).split('\n      - ').filter(step => step.includes('secrets.'));
+  for (const step of secretSteps) assert.doesNotMatch(step, /build_profile/i);
   assert.deepEqual(secretSteps.map(step => step.split('\n').slice(0, 2).join('\n')), [
     "name: Provision Android release signing\n        if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'",
     "name: Compile Android release\n        if: matrix.platform == 'android' && env.ANDROID_RELEASE == 'true'",
@@ -502,7 +499,7 @@ test('only selection and provenance read the profile while signing gates ignore 
     "  if (official && (env.OFFICIAL_TRUSTED !== 'true' || env.PLATFORM !== 'all' || env.IOS_SOURCE !== 'project')) {",
     "  if (env.ANDROID_RELEASE_REQUESTED === 'true' &&",
     "      (env.CLIENT_BRANCH !== 'true' || !['all', 'android'].includes(env.PLATFORM))) {",
-    "  if (env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(env.PLATFORM)) {",
+    "  if (!zolnitProfile && env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(env.PLATFORM)) {",
     "  const androidRelease = env.ANDROID_RELEASE === 'true' || official;",
   ];
   for (const line of legacyGates) assert.equal(lines.filter(l => l === line).length, 1, line);

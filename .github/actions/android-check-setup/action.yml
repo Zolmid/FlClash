@@ -1,0 +1,53 @@
+name: Prepare Android checks
+description: Set up the toolchains and verified Gradle distribution for JVM tests and CodeQL.
+inputs:
+  cache:
+    description: Enable toolchain and dependency caches
+    required: true
+  go-version:
+    description: Go SDK
+    default: '1.27.1'
+  flutter-version:
+    description: Flutter SDK
+    default: '3.47.6'
+  ndk-version:
+    description: Android NDK revision
+    default: r28c
+outputs:
+  ndk-path:
+    description: Installed NDK
+    value: ${{ steps.ndk.outputs.ndk-path }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: ${{ inputs.cache }}
+        cache-dependency-path: |
+          core/go.sum
+          android/core/build.gradle.kts
+    - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      with:
+        channel: stable
+        flutter-version: ${{ inputs.flutter-version }}
+        cache: ${{ inputs.cache }}
+    - shell: bash
+      run: flutter pub get --enforce-lockfile
+    - uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
+      id: ndk
+      with:
+        ndk-version: ${{ inputs.ndk-version }}
+        link-to-sdk: true
+    - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: temurin
+        java-version: '17'
+    - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+      with:
+        cache-disabled: ${{ inputs.cache != 'true' }}
+        cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev' }}
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.event_name != 'pull_request' && github.event_name != 'merge_group' && github.token || '' }}
+      run: python3 tool/ci/prefetch_gradle.py --install-kotlin-compiler-mirror

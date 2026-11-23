@@ -2,7 +2,6 @@ import copy
 import json
 import os
 from pathlib import Path
-import re
 import signal
 import subprocess
 import sys
@@ -20,7 +19,7 @@ CHECK_IDS = ('dart', 'plugins', 'go', 'android', 'rust', 'windows-helper-test')
 
 
 def workflow(name):
-    code = "require 'yaml'; require 'json'; puts JSON.generate(YAML.respond_to?(:unsafe_load_file) ? YAML.unsafe_load_file(ARGV[0]) : YAML.load_file(ARGV[0]))"
+    code = "require 'yaml'; require 'json'; puts JSON.generate(YAML.safe_load(File.read(ARGV[0]), aliases: true))"
     return json.loads(subprocess.check_output(['ruby', '-e', code, str(ROOT / '.github/workflows' / name)], text=True))
 
 
@@ -37,15 +36,11 @@ def event(tag='v1.1.9', **changes):
     return data
 
 
-def check_enabled(expression, delegated, event_name='push', private=False, official=False, cancelled=False):
-    values = {'cancelled()': cancelled, 'needs.delegation.outputs.delegated': delegated,
-              'github.event_name': event_name, 'github.event.repository.private': private,
-              'inputs.official_release': official}
-    expression = expression.removeprefix('${{').removesuffix('}}').strip()
-    for key, value in values.items():
-        expression = expression.replace(key, repr(value))
-    expression = re.sub(r'!(?!=)', ' not ', expression).replace('&&', ' and ').replace('||', ' or ')
-    return eval(expression.strip(), {'__builtins__': {}}, {})
+def check_enabled(expression, selected, delegated='', cancelled=False):
+    facts = {'!cancelled()': not cancelled, "needs.delegation.outputs.delegated != 'true'": delegated != 'true'}
+    for job in (*CHECK_IDS, 'desktop'):
+        facts[f"needs.selection.outputs.{job.replace('-', '_')} == 'true'"] = job in selected
+    return all(facts[term] for term in expression.removeprefix('${{').removesuffix('}}').strip().split(' && '))
 
 
 class Clock:
@@ -232,7 +227,7 @@ class DelegationTest(unittest.TestCase):
                 with self.assertRaisesRegex(reuse.ApiError, reason):
                     reuse.read_api('unused', 10)
 
-    def test_non_candidates_never_poll_and_preserve_the_old_check_matrix(self):
+    def test_non_candidates_never_poll(self):
         cases = [event(tag) for tag in ('vfoo', 'v01.2.3', 'v1.2', 'v1.2.3-rc.1', 'v1.2.3+meta',
                                         'v10000000000.2.3', 'v1.٢.3', 'v1.2.3\n')]
         cases += [event(**{key: value}) for key, value in (
@@ -250,18 +245,9 @@ class DelegationTest(unittest.TestCase):
         for values in cases:
             with self.subTest(values=values):
                 self.assertEqual(reuse.observe(values, forbidden).result, 'local')
+        self.assertFalse(reuse.candidate(event(GITHUB_SHA='0' * 40)))
         for tag in ('v0.0.0', 'v1.2.3', 'v9999999999.10.3'):
             self.assertTrue(reuse.candidate(event(tag)))
-        for event_name in ('push', 'workflow_dispatch', 'workflow_call', 'pull_request', 'workflow_run'):
-            for private in (False, True):
-                for official in (False, True):
-                    old = event_name == 'workflow_dispatch' or not private or official
-                    for name in CHECK_IDS:
-                        condition = self.build['jobs'][name]['if']
-                        for delegated in ('false', ''):
-                            self.assertEqual(check_enabled(condition, delegated, event_name, private, official), old)
-                        self.assertFalse(check_enabled(condition, 'true', event_name, private, official))
-                        self.assertFalse(check_enabled(condition, 'false', event_name, private, official, cancelled=True))
 
     def test_actual_yaml_cli_reports_success_failure_and_api_fallback(self):
         for scenario in ('success', 'failure', 'api_error', 'preflight_failure', 'cancelled', 'missing_job', 'attempt_drift', 'formal_call'):
@@ -311,7 +297,7 @@ class DelegationTest(unittest.TestCase):
                 summary = (root / 'summary').read_text()
                 self.assertIn('43608456827, attempt 1' if expected != 'local' else 'Original check conditions', summary)
                 for name in CHECK_IDS:
-                    self.assertEqual(check_enabled(self.build['jobs'][name]['if'], outputs['delegated']), expected == 'local')
+                    self.assertEqual(check_enabled(self.build['jobs'][name]['if'], CHECK_IDS, outputs['delegated']), expected == 'local')
                 if scenario == 'formal_call':
                     self.assertEqual(json.loads(response_path.read_text()), [])
                     self.assertNotIn('"api":', run.stdout)
@@ -356,7 +342,7 @@ class DelegationTest(unittest.TestCase):
                                       'OFFICIAL_INPUT': '${{ toJSON(inputs.official_release) }}'})
         self.assertEqual(tuple(jobs[name]['name'] for name in CHECK_IDS), reuse.CHECKS)
         for name in CHECK_IDS:
-            self.assertEqual(jobs[name]['needs'], 'delegation')
+            self.assertEqual(jobs[name]['needs'], ['delegation', 'selection'])
             self.assertIn('!cancelled()', jobs[name]['if'])
         ci = self.release['jobs']['ci']
         self.assertEqual(ci['uses'], './.github/workflows/build.yaml')
@@ -370,7 +356,7 @@ class DelegationTest(unittest.TestCase):
                        GITHUB_WORKFLOW_REF='Zolmid/FlClash/.github/workflows/client-release.yml@refs/tags/v1.1.9')
         self.assertEqual(reuse.observe(formal, mock.Mock(side_effect=AssertionError('formal call polled'))).result, 'local')
         for name in CHECK_IDS:
-            self.assertTrue(check_enabled(jobs[name]['if'], 'false', official=True, private=True))
+            self.assertTrue(check_enabled(jobs[name]['if'], CHECK_IDS, 'false'))
         dart = jobs['dart']['steps']
         for name in ('Render formal release notes', 'Upload formal release notes'):
             self.assertEqual(next(step for step in dart if step.get('name') == name)['if'], 'inputs.official_release')

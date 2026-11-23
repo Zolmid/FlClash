@@ -189,6 +189,8 @@ flutter test test/setup_test.dart
 flutter test plugins/proxy/test/proxy_test.dart
 ```
 
+For CI routing, dependency review, candidate artifacts and release recovery see [the workflow guide](../docs/maintenance/ci-workflow.md).
+
 For the whole suite, or a directory of more than a few files, use `tool/test.dart`, which is also what CI runs:
 
 ```bash

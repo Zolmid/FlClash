@@ -1,0 +1,155 @@
+name: CodeQL source review
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      languages: ${{ steps.select.outputs.languages }}
+      enabled: ${{ steps.select.outputs.enabled }}
+      base: ${{ steps.base.outputs.base }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: ${{ (github.event_name == 'pull_request' || github.ref_type == 'tag') && '0' || '1' }}
+          persist-credentials: false
+      - &load_policy
+        name: Load the trusted source review policy
+        id: policy
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          ref="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]]
+            git cat-file -e "$BASE_SHA^{commit}"
+            if [[ -n "$(git ls-tree "$BASE_SHA" -- tool/ci/security_languages.py)" ]]; then
+              ref="$BASE_SHA"
+            else
+              echo 'First adoption: exercising the proposed source review policy.'
+            fi
+          fi
+          dst=$(mktemp -d "$RUNNER_TEMP/source-policy.XXXXXXXX")
+          for file in select_checks.py security_languages.py review_base.py review_sarif.py; do
+            entry=$(git ls-tree "$ref" -- "tool/ci/$file")
+            [[ "$entry" == '100644 blob '* || "$entry" == '100755 blob '* ]]
+            git show "$ref:tool/ci/$file" > "$dst/$file"
+          done
+          echo "SOURCE_POLICY=$dst" >> "$GITHUB_ENV"
+      - id: select
+        run: env -u PYTHONPATH python3 -sB "$SOURCE_POLICY/security_languages.py"
+      - id: base
+        run: python3 -I "$SOURCE_POLICY/review_base.py" >> "$GITHUB_OUTPUT"
+
+  codeql:
+    name: CodeQL / ${{ matrix.language }}
+    needs: scope
+    if: needs.scope.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        language: ${{ fromJSON(needs.scope.outputs.languages) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ (github.event_name == 'pull_request' || needs.scope.outputs.base != '') && '0' || '1' }}
+          submodules: ${{ (matrix.language == 'go' || matrix.language == 'java-kotlin') && 'recursive' || 'false' }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: matrix.language == 'go'
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Prepare Android build inputs
+        id: android-tools
+        if: matrix.language == 'java-kotlin'
+        uses: ./.github/actions/android-check-setup
+        with:
+          cache: 'false'
+      - name: Select the Rust toolchain
+        if: matrix.language == 'rust'
+        run: rustup toolchain install 1.99.0 --profile minimal
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        env:
+          RUSTUP_TOOLCHAIN: '1.99.0'
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ (matrix.language == 'go' || matrix.language == 'java-kotlin') && 'manual' || 'none' }}
+          queries: security-extended
+      - name: Compile the Go wrapper and routing packages
+        if: matrix.language == 'go'
+        working-directory: core
+        env:
+          CGO_ENABLED: '0'
+          GOFLAGS: -mod=readonly
+          GOTOOLCHAIN: local
+        run: go build -a . ./clientbundle ./cmd/zolnit-bundle-probe
+      - name: Trace Android JVM compilation
+        if: matrix.language == 'java-kotlin'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.android-tools.outputs.ndk-path }}
+        run: bash tool/ci/android_unit.sh --no-daemon --no-build-cache --rerun-tasks
+      - name: Analyze source
+        id: analyze
+        uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        env:
+          RUSTUP_TOOLCHAIN: '1.99.0'
+        with:
+          category: /language:${{ matrix.language }}
+          output: ${{ runner.temp }}/sarif
+          upload: never
+      - name: Retain the SARIF report
+        if: "${{ !cancelled() && steps.analyze.outcome == 'success' }}"
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: codeql-${{ matrix.language }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sarif/*.sarif
+          if-no-files-found: error
+          retention-days: 14
+
+  adjudicate:
+    name: Review CodeQL findings
+    needs: [scope, codeql]
+    if: needs.scope.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ (github.event_name == 'pull_request' || needs.scope.outputs.base != '') && '0' || '1' }}
+      - *load_policy
+      - name: Download reports from this analysis attempt
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: codeql-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/codeql-reports
+      - name: Check every selected language on the clean runner
+        id: review
+        env:
+          BASE_SHA: ${{ needs.scope.outputs.base }}
+          LANGUAGES: ${{ needs.scope.outputs.languages }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -er '.[]' <<< "$LANGUAGES" > "$RUNNER_TEMP/codeql-languages"
+          status=0
+          while IFS= read -r language; do
+            [[ "$language" =~ ^[a-z][a-z-]+$ ]]
+            artifact="codeql-$language-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            echo "### $language" >> "$GITHUB_STEP_SUMMARY"
+            python3 -I "$SOURCE_POLICY/review_sarif.py" "$RUNNER_TEMP/codeql-reports/$artifact" || status=1
+          done < "$RUNNER_TEMP/codeql-languages"
+          exit "$status"

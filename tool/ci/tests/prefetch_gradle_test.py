@@ -253,6 +253,11 @@ class PrefetchGradleTest(unittest.TestCase):
         self.assertEqual(seen_requests[0][0], pg.EXPECTED_ASSET_API_URL)
         self.assertEqual(seen_requests[0][1].get('Authorization'), 'Bearer tok_test_only')
 
+        pg.stream_github_asset(self.root / 'anonymous.zip', opener=FakeOpener())
+        self.assertEqual(seen_requests[1][0], pg.PUBLIC_ASSET_URL)
+        self.assertNotIn('Authorization', seen_requests[1][1])
+        self.assertEqual((self.root / 'anonymous.zip').read_bytes(), self.valid_bytes)
+
     def test_cli_returns_nonzero_on_failure_and_zero_on_valid_fixture(self):
         missing = self.root / 'missing.zip'
         code = pg.main([
