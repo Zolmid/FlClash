@@ -611,7 +611,7 @@ jobs:
   ci-gate:
     permissions:
       contents: read
-    name: CI gate
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'CI gate' || 'Build gate' }}
     if: ${{ always() }}
     needs: [delegation, selection, review, dart, plugins, go, android, rust, windows-helper-test, desktop]
     runs-on: ubuntu-latest

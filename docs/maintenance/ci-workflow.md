@@ -7,7 +7,7 @@ flowchart TD
   PR[PR / merge queue / 分支推送] --> Select[确定范围与基线]
   Select --> Review[工作流、文档、依赖与源码审查]
   Select --> Tests[选中的语言和平台检查]
-  Review --> Gate[CI gate]
+  Review --> Gate[CI gate / Build gate]
   Tests --> Gate
   Manual[手动 ZolNit 候选构建] --> Matrix[所选平台编译、打包]
   Matrix --> Verify[核对每个 artifact 和包内身份]
@@ -24,7 +24,7 @@ flowchart TD
 | 事件或用途 | 实际工作 | 在哪里看结果 |
 |---|---|---|
 | `pull_request` | 验证 GitHub 合并结果。选择器从 PR 基线提交读取，改动用精确提交和 NUL 分隔路径比较。首次采用时基线缺少选择器，执行完整检查。 | PR 的 `CI gate` 及各作业摘要 |
-| 普通分支 push | 校验分支头。只有已知、完整且可比较的差异才缩小范围。分支头和 PR 合并提交通常不同，二者各自保留结论。 | `build` 运行 |
+| 普通分支 push | 校验分支头。只有已知、完整且可比较的差异才缩小范围。分支头和 PR 合并提交通常不同，二者各自保留结论。 | `build` 运行的 `Build gate` |
 | `merge_group/checks_requested` | 在合并队列组合提交上重新做全量质量检查。 | 合并组的 `CI gate` |
 | 手动 `build.yaml` | 全量标准检查与 CycloneDX 清单。选 `deep_review=true` 同时运行全部已配置的 CodeQL 提取器。 | 检查摘要、SARIF 与清单 artifacts |
 | 显式 ZolNit 候选 | 手动 `cloud-build.yml`，选择 `ios_source=project`、`build_profile=zolnit`、`android_release=false`。可选全平台或单个平台。 | `Verify manual ZolNit candidate` 的文件/ID/摘要表 |
@@ -33,7 +33,7 @@ flowchart TD
 
 `README.md` 和 `docs/maintenance/` 下的普通 Markdown 是经过确认的轻量路径。维护文档变化仍会执行工作流静态检查和本地链接检查，`main` 上还会验证 changelog。非 main 分支或 PR 仅改 `android/tests/{app,common,service}/…Test.kt` 时可单独运行 Android JVM 检查。其余路径按全量处理，包括 Dart 测试、跨语言接口、构建脚本、锁文件、Core、权限和平台工程。重命名按旧路径与新路径核算。新分支、非快进、超限差异、符号链接及无法可靠解析的历史均保留完整检查或使门禁失败。
 
-`CI gate` 核对计划与每个作业的真实结论。选中的检查只接受成功，取消、缺失输出、失败或意外跳过都会使门禁失败。同源正式标签的观察器最多等 900 秒，只能复用准确正式 run/attempt 上已完成的六个标准结果；来源不明、API 失败或超时会执行原检查。涉及工作流策略的 PR 应审阅其权限、凭据和选择逻辑。日后如需将 `CI gate` 设为仓库 required check，先在候选 PR 观察该名称和全部触发路径，再按仓库维护权限配置。[GitHub 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
+门禁核对计划与每个作业的真实结论。选中的检查只接受成功，取消、缺失输出、失败或意外跳过都会使门禁失败。同源正式标签的观察器最多等 900 秒，只能复用准确正式 run/attempt 上已完成的六个标准结果；来源不明、API 失败或超时会执行原检查。涉及工作流策略的 PR 应审阅其权限、凭据和选择逻辑。为主分支配置 required check 时，选择 GitHub Actions 提供的 `CI gate`。该名称专用于 PR 和合并队列。普通推送和手动运行使用 `Build gate`，因此在同一个 head SHA 上可以区分两种检查。[GitHub 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) · [必需状态检查的提交判定](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)
 
 ## 2. 审查内容与判定
 
@@ -100,6 +100,8 @@ node --test tool/client_release/tests/*_test.mjs
 ## 5. 成本与维护
 
 一次只改七份维护文档的[既有 main 运行](https://github.com/Zolmid/FlClash/actions/runs/43744468842)耗时 14 分 02 秒，成功作业的运行时间合计 45 分 34 秒。将相同 Git 差异送入新选择器会省去六项标准检查和三套桌面 Debug 编译，这九项在该运行中合计 45 分 23 秒。轻量审查、门禁和 main 的 changelog 检查仍需计时。这个对照是历史作业时长及选择器回放，不是账单或新流程的实测净节省。
+
+候选分支一次只修改本指南的推送实测耗时 22 秒。三个实际运行的作业分别是范围选择、仓库审查和门禁，运行时间合计 26 秒。这个分支样本没有 main 专属的 changelog 检查。同期该分支的 PR 仍对相对于 main 的完整变更进行审查。[纯文档推送](https://github.com/Zolmid/FlClash/actions/runs/45203151544)
 
 全量正式发布采用先检查、后签名构建的顺序，因此全绿时可能比原来的并行启动更慢。节省主要来自文档/独立测试变更缩小范围、PR 按语言选扫描、过期 PR 取消以及失败提交提前停止。请在 Actions 中按 run 与 attempt 记录墙钟耗时、各作业时长和失败阶段，分开比较文档、代码、候选、正式发布四类样本。V3 仍由用户实际使用验收，记为 `USER_WAIVED / NOT_RUN`。
 

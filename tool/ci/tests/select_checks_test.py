@@ -280,6 +280,9 @@ class GateTest(unittest.TestCase):
             self.assertIn(required, self.jobs['build']['needs'])
             self.assertIn(f"needs.{required}.result == 'success'", self.jobs['build']['if'])
         self.assertEqual(set(self.jobs['ci-gate']['needs']), {*ALL, 'selection', 'review', 'delegation'})
+        self.assertEqual(self.jobs['ci-gate']['name'],
+                         "${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') "
+                         "&& 'CI gate' || 'Build gate' }}")
         self.assertEqual(self.jobs['review']['uses'], './.github/workflows/repository-review.yml')
         self.assertIn("github.event_name == 'push'", self.jobs['delegation']['if'])
         self.assertIn("needs.selection.outputs.observe == 'true'", self.jobs['delegation']['if'])
