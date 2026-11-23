@@ -814,6 +814,7 @@ class SetupAction extends _$SetupAction {
             : lastMatchTarget(profileBase.base.matchRules),
         safeMode: ref.read(safeModeProvider),
       ),
+      managedDns: managed,
     );
     final applicationDigest = bundle == null
         ? res.md5

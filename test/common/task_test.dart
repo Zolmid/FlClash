@@ -385,6 +385,93 @@ void main() {
     expect(config['rules'], ['DOMAIN,custom.example,DIRECT']);
   });
 
+  test(
+    'managed DNS preserves source policies without appending system DNS',
+    () async {
+      const state = MakeRealProfileState(
+        profilesPath: '/profiles',
+        profileId: 13,
+        rawConfig: {
+          'dns': {
+            'enable': true,
+            'x-zolnit-managed-doh': 1,
+            'nameserver': ['https://dns.example/dns-query'],
+            'nameserver-policy': {
+              '+.lan': ['system://'],
+            },
+          },
+        },
+        realPatchConfig: PatchClashConfig(),
+        overrides: ProfileOverrides(
+          dns: Dns(
+            nameserver: ['9.9.9.9'],
+            nameserverPolicy: {'+.corp.example': '10.0.0.53'},
+          ),
+          dnsOverrideKeys: {
+            DnsOverrideKey.nameserver,
+            DnsOverrideKey.nameserverPolicy,
+          },
+        ),
+        appendSystemDns: true,
+        proxyGroups: [],
+        rules: [],
+        addedRules: [],
+        defaultUA: 'Test',
+      );
+      final managed =
+          loadYaml((await makeRealProfileTask(state, managedDns: true)).yaml)
+              as YamlMap;
+      expect(managed['dns']['nameserver'], ['https://dns.example/dns-query']);
+      expect(managed['dns']['nameserver-policy']['+.lan'], ['system://']);
+      expect(
+        managed['dns']['nameserver-policy']['+.corp.example'],
+        '10.0.0.53',
+      );
+      final generic =
+          loadYaml((await makeRealProfileTask(state)).yaml) as YamlMap;
+      expect(generic['dns']['nameserver'], contains('9.9.9.9'));
+      if (!Platform.isIOS) {
+        expect(generic['dns']['nameserver'], contains('system://'));
+      }
+    },
+  );
+
+  test(
+    'legacy managed DNS keeps previous fallback and override behavior',
+    () async {
+      for (final source in <Map<String, dynamic>>[
+        {},
+        {
+          'dns': {'enable': false},
+        },
+      ]) {
+        final result = await makeRealProfileTask(
+          MakeRealProfileState(
+            profilesPath: '/profiles',
+            profileId: 13,
+            rawConfig: source,
+            realPatchConfig: const PatchClashConfig(),
+            overrides: const ProfileOverrides(
+              dns: Dns(nameserver: ['9.9.9.9']),
+              dnsOverrideKeys: {DnsOverrideKey.nameserver},
+            ),
+            appendSystemDns: true,
+            proxyGroups: const [],
+            rules: const [],
+            addedRules: const [],
+            defaultUA: 'Test',
+          ),
+          managedDns: true,
+        );
+        final dns = (loadYaml(result.yaml) as YamlMap)['dns'];
+        expect(dns['enable'], true);
+        expect(dns['nameserver'], contains('9.9.9.9'));
+        if (!Platform.isIOS) expect(dns['nameserver'], contains('system://'));
+        expect(dns, isNot(contains('x-zolnit-managed-doh')));
+      }
+    },
+  );
+
   test('makeRealProfileTask keeps the DNS keys it cannot edit', () async {
     final rawConfig = await decodeJSONTask<Map<String, dynamic>>(
       jsonEncode({
