@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import signal
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -47,7 +48,8 @@ def candidate(env):
             and env.get('EVENT_DELETED') == 'false'
             and env.get('OFFICIAL_INPUT') == 'null'
             and TAG.fullmatch(tag) is not None
-            and re.fullmatch(r'[0-9a-f]{40}', env.get('GITHUB_SHA', '')) is not None)
+            and re.fullmatch(r'[0-9a-f]{40}', env.get('GITHUB_SHA', '')) is not None
+            and env['GITHUB_SHA'] != '0' * 40)
 
 
 def positive_integer(value):
@@ -244,4 +246,7 @@ def main():
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    if sys.argv[1:] == ['--candidate']:
+        print(f'observe={str(candidate(os.environ)).lower()}')
+    else:
+        raise SystemExit(main())

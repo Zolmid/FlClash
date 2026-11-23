@@ -18,9 +18,6 @@ on:
         required: false
         default: false
 
-permissions:
-  contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.official_release && 'official' || 'ordinary' }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
@@ -33,8 +30,85 @@ env:
   NDK_VERSION: r28c
 
 jobs:
+  selection:
+    permissions:
+      contents: read
+    name: Select CI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      observe: ${{ steps.candidate.outputs.observe || 'false' }}
+      profile: ${{ steps.select.outputs.profile }}
+      dart: ${{ steps.select.outputs.dart }}
+      plugins: ${{ steps.select.outputs.plugins }}
+      go: ${{ steps.select.outputs.go }}
+      android: ${{ steps.select.outputs.android }}
+      rust: ${{ steps.select.outputs.rust }}
+      windows_helper_test: ${{ steps.select.outputs.windows_helper_test }}
+      desktop: ${{ steps.select.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: select
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
+            exec python3 -I tool/ci/select_checks.py
+          fi
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] || {
+            echo 'Invalid pull request base SHA' >&2
+            exit 1
+          }
+          [[ "$(git -C "$GITHUB_WORKSPACE" rev-parse --verify HEAD)" == "$GITHUB_SHA" &&
+             "$(git -C "$GITHUB_WORKSPACE" rev-parse --verify HEAD^1)" == "$BASE_SHA" ]] || {
+            echo 'Checkout does not match the pull request merge and base commits' >&2
+            exit 1
+          }
+          entry=$(git -C "$GITHUB_WORKSPACE" ls-tree "$BASE_SHA^{tree}" -- tool/ci/select_checks.py)
+          if [[ -z "$entry" ]]; then
+            echo 'Base predates CI selection; running all checks.'
+            {
+              echo 'profile=full'
+              for job in dart plugins go android rust windows_helper_test desktop; do echo "$job=true"; done
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$entry" == '100644 blob '* || "$entry" == '100755 blob '* ]] || exit 1
+          selector=$(mktemp "$RUNNER_TEMP/select-checks.XXXXXXXX")
+          git -C "$GITHUB_WORKSPACE" show "$BASE_SHA:tool/ci/select_checks.py" > "$selector"
+          python3 -I "$selector"
+      - name: Set up Flutter for main changelog verification
+        if: &docs_main github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.private && steps.select.outputs.profile == 'docs'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: ${{ env.BRANCH_CACHE }}
+      - name: Verify changelog on main documentation changes
+        if: *docs_main
+        run: |
+          flutter pub get --enforce-lockfile
+          yq -i '.hooks.user_defines.setup.build_assets = false | .hooks.user_defines.rust_api.build_assets = false' pubspec.yaml
+          dart run tool/changelog.dart verify
+      - id: candidate
+        if: >-
+          github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted &&
+          github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && !inputs.official_release
+        env:
+          EVENT_DELETED: ${{ toJSON(github.event.deleted) }}
+          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
+        run: python3 -I tool/ci/standard_ci_reuse.py --candidate >> "$GITHUB_OUTPUT"
+
   delegation:
     name: Standard CI delegation
+    needs: selection
+    if: github.event_name == 'push' && github.ref_type == 'tag' && needs.selection.outputs.observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -52,30 +126,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_DELETED: ${{ toJSON(github.event.deleted) }}
           OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
-        run: python3 -u tool/ci/standard_ci_reuse.py
-
-  selection:
-    name: Select CI checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      profile: ${{ steps.select.outputs.profile }}
-      dart: ${{ steps.select.outputs.dart }}
-      plugins: ${{ steps.select.outputs.plugins }}
-      go: ${{ steps.select.outputs.go }}
-      android: ${{ steps.select.outputs.android }}
-      rust: ${{ steps.select.outputs.rust }}
-      windows_helper_test: ${{ steps.select.outputs.windows_helper_test }}
-      desktop: ${{ steps.select.outputs.desktop }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - id: select
-        env:
-          OFFICIAL_INPUT: ${{ toJSON(inputs.official_release) }}
-        run: python3 tool/ci/select_checks.py
+        run: python3 -I -u tool/ci/standard_ci_reuse.py
 
   review:
     uses: ./.github/workflows/repository-review.yml
@@ -83,6 +134,8 @@ jobs:
       contents: read
 
   dart:
+    permissions:
+      contents: read
     name: Dart
     needs: [delegation, selection]
     if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.dart == 'true' }}
@@ -126,7 +179,7 @@ jobs:
           cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Check format
         run: dart format --output=none --set-exit-if-changed lib test tool plugins setup.dart
@@ -137,6 +190,9 @@ jobs:
       - name: Skip the Go core build hook
         run: |
           yq -i '.hooks.user_defines.setup.build_assets = false' pubspec.yaml
+
+      - name: Check generated Dart sources
+        run: dart run build_runner build --only-check
 
       - name: Verify changelog
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
@@ -162,6 +218,8 @@ jobs:
         run: dart run tool/check_coverage.dart coverage/lcov.info 75
 
   plugins:
+    permissions:
+      contents: read
     needs: [delegation, selection]
     name: Plugins
     if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.plugins == 'true' }}
@@ -199,6 +257,8 @@ jobs:
           dart test
 
   desktop:
+    permissions:
+      contents: read
     name: Desktop ${{ matrix.platform }}
     needs: selection
     if: ${{ !cancelled() && needs.selection.outputs.desktop == 'true' }}
@@ -263,6 +323,19 @@ jobs:
             echo "::error::Expected macOS SDK 27.x but got $sdk_ver"
             exit 1
           fi
+
+      - name: Check iOS tunnel lifecycle
+        if: matrix.platform == 'macos' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && !inputs.official_release
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          [[ "$(xcrun --sdk iphoneos --show-sdk-version)" == 27.* ]]
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT
+          for check in race completion abandon; do
+            bash "tool/acceptance/ios_intents/run_${check}.sh"
+          done
+          bash tool/acceptance/ios_intents/check_sdk.sh
 
       - name: Enable git long paths (Windows)
         if: matrix.platform == 'windows'
@@ -358,7 +431,7 @@ jobs:
           retention-days: 14
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # Compiles the desktop runners and the native plugin code that only the
       # tagged release matrix built before; the bundle itself is discarded.
@@ -366,6 +439,8 @@ jobs:
         run: flutter build ${{ matrix.platform }} --debug
 
   go:
+    permissions:
+      contents: read
     needs: [delegation, selection]
     name: Go core
     if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.go == 'true' }}
@@ -438,6 +513,8 @@ jobs:
           GOOS=android GOARCH=arm64 go vet "-tags=$tags" . ./mobile ./tun ./platform
 
   android:
+    permissions:
+      contents: read
     needs: [delegation, selection]
     name: Android unit tests
     if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.android == 'true' }}
@@ -467,7 +544,7 @@ jobs:
           cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Setup NDK
         uses: nttld/setup-ndk@v1
@@ -490,7 +567,7 @@ jobs:
 
       - name: Prefetch pinned Gradle distribution
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.event_name != 'pull_request' && github.event_name != 'merge_group' && github.token || '' }}
         run: python3 tool/ci/prefetch_gradle.py --install-kotlin-compiler-mirror
 
       - name: Run Android unit tests
@@ -513,6 +590,8 @@ jobs:
             -x :app:compileFlutterBuildDebug -x :app:copyFlutterAssetsDebug
 
   rust:
+    permissions:
+      contents: read
     needs: [delegation, selection]
     name: Rust
     if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.rust == 'true' }}
@@ -540,10 +619,12 @@ jobs:
 
       - name: Run tests
         run: |
-          cargo test --manifest-path services/helper/Cargo.toml
-          cargo test --manifest-path plugins/rust_api/rust/Cargo.toml
+          cargo test --locked --manifest-path services/helper/Cargo.toml
+          cargo test --locked --manifest-path plugins/rust_api/rust/Cargo.toml
 
   windows-helper-test:
+    permissions:
+      contents: read
     needs: [delegation, selection]
     name: Windows helper test
     if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.windows_helper_test == 'true' }}
@@ -566,9 +647,11 @@ jobs:
         run: cargo fmt --manifest-path services/helper/Cargo.toml -- --check
 
       - name: Run Windows service tests
-        run: cargo test --manifest-path services/helper/Cargo.toml --features windows-service
+        run: cargo test --locked --manifest-path services/helper/Cargo.toml --features windows-service
 
   ci-gate:
+    permissions:
+      contents: read
     name: CI gate
     if: ${{ always() }}
     needs: [delegation, selection, review, dart, plugins, go, android, rust, windows-helper-test, desktop]
@@ -579,17 +662,22 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          python3 - <<'PY'
+          python3 -I - <<'PY'
           import json, os, sys
           needs = json.loads(os.environ['NEEDS_JSON'])
           errors = []
-          for job in ('delegation', 'selection', 'review'):
+          for job in ('selection', 'review'):
               if needs[job]['result'] != 'success':
                   errors.append(f"{job}: {needs[job]['result']}")
           outputs = needs['selection'].get('outputs', {})
-          delegated = needs['delegation'].get('outputs', {}).get('delegated')
-          if delegated not in ('true', 'false'):
-              errors.append('invalid delegation result')
+          observe = outputs.get('observe')
+          observer = needs['delegation']
+          delegated = observer.get('outputs', {}).get('delegated')
+          if observe == 'true':
+              if observer['result'] != 'success' or delegated not in ('true', 'false'):
+                  errors.append(f"formal observer: {observer['result']}, delegated={delegated}")
+          elif observe != 'false' or observer['result'] != 'skipped' or delegated:
+              errors.append('unexpected formal observer state')
           for job in ('dart', 'plugins', 'go', 'android', 'rust', 'windows-helper-test', 'desktop'):
               selected = outputs.get(job.replace('-', '_'))
               if selected not in ('true', 'false'):
@@ -606,9 +694,15 @@ jobs:
           PY
 
   build:
-    # Releases publish where the release links point: the public repository.
-    if: github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [ dart, plugins, go, android, rust, windows-helper-test ]
+    permissions:
+      contents: read
+    # A skipped observer is normal upstream. Packaging still requires six local successes.
+    if: >-
+      !cancelled() && github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.ci-gate.result == 'success' && needs.dart.result == 'success' && needs.plugins.result == 'success' &&
+      needs.go.result == 'success' && needs.android.result == 'success' && needs.rust.result == 'success' &&
+      needs.windows-helper-test.result == 'success'
+    needs: [ci-gate, dart, plugins, go, android, rust, windows-helper-test]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
@@ -730,7 +824,7 @@ jobs:
       - name: Get Flutter Dependency
         run: |
           flutter --version
-          flutter pub get
+          flutter pub get --enforce-lockfile
 
       # See .agents/flutter-upgrade.md before bumping FLUTTER_VERSION.
       - name: Disable Impeller on Intel macOS
@@ -768,9 +862,11 @@ jobs:
           overwrite: true
 
   upload:
-    permissions:
-      contents: write
-    needs: [ build, dart, plugins, go, android, rust, windows-helper-test ]
+    # The standalone upstream publisher inherits its repository permissions.
+    if: >-
+      !cancelled() && github.repository == 'chen08209/FlClash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.build.result == 'success'
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 60
     services:
@@ -803,7 +899,7 @@ jobs:
           cache: ${{ env.BRANCH_CACHE }}
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Skip native build hooks
         run: |
