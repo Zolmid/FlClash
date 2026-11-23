@@ -918,7 +918,11 @@ class _TestSetupAction extends SetupAction {
   Completer<void>? firstApplyCompleter;
 
   @override
-  Future<bool> setRunning(bool running, {bool initialize = false}) async {
+  Future<bool> setRunning(
+    bool running, {
+    bool initialize = false,
+    bool foregroundVpnHelp = false,
+  }) async {
     setRunningCount++;
     return setRunningResult;
   }
@@ -997,6 +1001,7 @@ class _RaceSetupAction extends SetupAction {
   Future<bool> setCoreRunning(
     bool running, {
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {

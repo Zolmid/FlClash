@@ -51,6 +51,7 @@ class _FakeService implements Service {
   Future<bool> start([
     SharedState? state,
     void Function(String)? onAccepted,
+    bool foregroundVpnHelp = false,
   ]) async {
     calls.add('start');
     startState = state;

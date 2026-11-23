@@ -156,6 +156,7 @@ class Service {
   Future<bool> start([
     SharedState? state,
     void Function(String)? onAccepted,
+    bool foregroundVpnHelp = false,
   ]) async {
     _startRequested = true;
     final revision = ++_commandRevision;
@@ -164,7 +165,11 @@ class Service {
     }
     final result = await methodChannel.invokeMethod<Object>(
       'start',
-      _isIOS ? json.encode(state) : revision,
+      _isIOS
+          ? json.encode(state)
+          : (foregroundVpnHelp
+                ? {'revision': revision, 'foregroundVpnHelp': true}
+                : revision),
     );
     if (!_isIOS) return (result as bool?) ?? false;
     if (result is! String || result.isEmpty) return false;

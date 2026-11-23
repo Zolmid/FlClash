@@ -716,7 +716,9 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       return false;
     }
     ref.read(currentProfileIdProvider.notifier).value = id;
-    return ref.read(setupActionProvider.notifier).setRunning(true);
+    return ref
+        .read(setupActionProvider.notifier)
+        .setRunning(true, foregroundVpnHelp: true);
   }
 
   void _select(int index) {

@@ -35,6 +35,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private val httpResults = Handler(Looper.getMainLooper())
     private val gson = Gson()
     private var commandRevision = 0
+    private var stoppedReportRevision: Int? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -216,14 +217,20 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     }
 
     private fun start(call: MethodCall, result: MethodChannel.Result) {
-        commandRevision = call.arguments as? Int ?: commandRevision
-        ServiceState.requestStart()
+        val arguments = call.arguments as? Map<*, *>
+        stoppedReportRevision = null
+        commandRevision = (arguments?.get("revision") as? Int) ?: (call.arguments as? Int) ?: commandRevision
+        ServiceState.requestStart(arguments?.get("foregroundVpnHelp") == true)
         result.success(true)
     }
 
     private fun stop(call: MethodCall, result: MethodChannel.Result) {
-        commandRevision = call.arguments as? Int ?: commandRevision
-        ServiceState.requestStop()
+        val revision = call.arguments as? Int ?: commandRevision
+        val acknowledgesStopped = stoppedReportRevision?.let { revision == it + 1 } == true &&
+            !ServiceState.isRunRequested
+        stoppedReportRevision = null
+        commandRevision = revision
+        if (!acknowledgesStopped) ServiceState.requestStop()
         result.success(true)
     }
 
@@ -231,6 +238,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     fun notifyStopped() {
         scope.launch(Dispatchers.Main) {
             if (!ServiceState.isRunRequested) {
+                stoppedReportRevision = commandRevision
                 channel.invokeMethod("stopped", commandRevision)
             }
         }

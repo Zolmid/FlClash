@@ -168,8 +168,12 @@ class VpnService : SystemVpnService(), ManagedService {
                     ),
                 )
             }
-            establish()?.detachFd()
-                ?: error("VPN establishment was rejected by the system")
+            val tunnel = try {
+                establish()
+            } catch (_: SecurityException) {
+                throw VpnPermissionException()
+            }
+            tunnel?.detachFd() ?: throw VpnPermissionException()
         }
         synchronized(tunLock) {
             tunRunning = true

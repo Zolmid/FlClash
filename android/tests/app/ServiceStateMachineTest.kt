@@ -92,6 +92,9 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     var storedSharedState = configuredState()
     var setupResult: Result<String> = Result.success("")
     var startSucceeds = true
+    var permissionFailure = false
+    val vpnHelp = mutableListOf<Boolean>()
+    var helpStillCurrent: (() -> Boolean)? = null
     var vpnPermissionGranted = true
     var localNetworkPermissionGranted = true
     var runsAsVpn: Boolean? = null
@@ -127,6 +130,13 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     override fun showStartFailure() {
         startFailures++
     }
+
+    override suspend fun showVpnHelp(cancelled: Boolean, isCurrent: () -> Boolean) {
+        vpnHelp += cancelled
+        helpStillCurrent = isCurrent
+    }
+
+    override fun vpnPermissionFailure(): Boolean = permissionFailure
 
     override fun updateNotificationParams(params: NotificationParams) {
         notificationParams += params
@@ -178,6 +188,50 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServiceStateMachineTest {
+    @Test
+    fun `only foreground permission failures offer help and later intent invalidates it`() = runTest {
+        val host = FakeHost(backgroundScope)
+        host.app = FakeApp(vpnGranted = false)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertEquals(listOf(true), host.vpnHelp)
+        assertTrue(host.helpStillCurrent!!())
+        machine.requestStop().await()
+        assertFalse(host.helpStillCurrent!!())
+        host.vpnHelp.clear()
+        assertFalse(machine.requestStart().await())
+        assertTrue(host.vpnHelp.isEmpty())
+    }
+
+    @Test
+    fun `a superseding stop does not show foreground VPN help`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        val app = FakeApp(vpnGranted = false)
+        app.beforeVpnPrepared = { machine.requestStop() }
+        host.app = app
+        machine.syncSharedState(configuredState())
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertTrue(host.vpnHelp.isEmpty())
+    }
+
+    @Test
+    fun `only permission related establish failures offer foreground help`() = runTest {
+        val host = FakeHost(backgroundScope)
+        host.app = FakeApp()
+        host.startSucceeds = false
+        host.permissionFailure = true
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertEquals(listOf(false), host.vpnHelp)
+        host.vpnHelp.clear()
+        host.permissionFailure = false
+        assertFalse(machine.requestStart(foregroundVpnHelp = true).await())
+        assertTrue(host.vpnHelp.isEmpty())
+    }
+
     @Test
     fun `notification speed preference reaches the native notification owner`() {
         assertTrue(

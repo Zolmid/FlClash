@@ -113,6 +113,17 @@ void main() {
       expect(calls.map((call) => call.method), ['start', 'stop']);
     });
 
+    test('foreground VPN help is tied to the start revision', () async {
+      mockChannel((_) async => true);
+      final service = Service();
+      expect(await service.start(null, null, true), isTrue);
+      final arguments = Map<Object?, Object?>.from(
+        calls.single.arguments as Map,
+      );
+      expect(arguments['revision'], isA<int>());
+      expect(arguments['foregroundVpnHelp'], isTrue);
+    });
+
     test('abandonStart is a plain stop off iOS', () async {
       mockChannel((_) async => true);
 

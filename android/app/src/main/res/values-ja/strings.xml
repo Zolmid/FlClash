@@ -7,4 +7,8 @@
     <string name="disconnected">切断済み</string>
     <string name="widget_description">現在のプロファイルを表示し、VPN を切り替えます</string>
     <string name="widget_toggle">VPN を切り替え</string>
+    <string name="vpn_authorization_cancelled">VPN の許可がキャンセルされたか、取得できませんでした。他のアプリで常時接続 VPN が有効な場合は、システム設定でオフにしてから再試行してください。</string>
+    <string name="vpn_authorization_cancelled_with_vpn">VPN の許可がキャンセルされたか、取得できませんでした。VPN ネットワークが有効です。他のアプリで常時接続 VPN が有効な場合は、システム設定でオフにしてから再試行してください。</string>
+    <string name="vpn_permission_help">システムが VPN の確立を許可しませんでした。他のアプリで常時接続 VPN が有効な場合は、システム設定でオフにしてから再試行してください。</string>
+    <string name="vpn_settings">VPN 設定</string>
 </resources>

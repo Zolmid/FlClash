@@ -108,6 +108,7 @@ mixin CoreInterface {
 
   Future<bool> startListener({
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   });
@@ -653,6 +654,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   @override
   Future<bool> startListener({
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {

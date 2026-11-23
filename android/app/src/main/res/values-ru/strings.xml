@@ -7,4 +7,8 @@
     <string name="disconnected">Отключено</string>
     <string name="widget_description">Показывает текущий профиль и переключает VPN</string>
     <string name="widget_toggle">Переключить VPN</string>
+    <string name="vpn_authorization_cancelled">Разрешение VPN отменено или не получено. Если в другом приложении включён постоянный VPN, отключите его в настройках и повторите попытку.</string>
+    <string name="vpn_authorization_cancelled_with_vpn">Разрешение VPN отменено или не получено. Активна сеть VPN. Если в другом приложении включён постоянный VPN, отключите его в настройках и повторите попытку.</string>
+    <string name="vpn_permission_help">Система не разрешила создать VPN. Если в другом приложении включён постоянный VPN, отключите его в настройках и повторите попытку.</string>
+    <string name="vpn_settings">Настройки VPN</string>
 </resources>

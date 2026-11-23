@@ -7,4 +7,8 @@
     <string name="disconnected">已断开</string>
     <string name="widget_description">显示当前配置并切换 VPN</string>
     <string name="widget_toggle">切换 VPN</string>
+    <string name="vpn_authorization_cancelled">VPN 授权已取消或未获得。如果其他应用启用了“始终开启的 VPN”，可在系统设置中关闭后返回重试。</string>
+    <string name="vpn_authorization_cancelled_with_vpn">VPN 授权已取消或未获得，当前有 VPN 网络处于活动状态。如果其他应用启用了“始终开启的 VPN”，可在系统设置中关闭后返回重试。</string>
+    <string name="vpn_permission_help">系统未允许建立 VPN。如果其他应用启用了“始终开启的 VPN”，可在系统设置中关闭后返回重试。</string>
+    <string name="vpn_settings">VPN 设置</string>
 </resources>

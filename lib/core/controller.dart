@@ -349,9 +349,18 @@ class CoreController {
 
   Future<bool> startListener({
     SharedState? startState,
+    bool foregroundVpnHelp = false,
     bool Function()? isCurrent,
     void Function(String)? onAccepted,
   }) async {
+    if (foregroundVpnHelp) {
+      return _interface.startListener(
+        startState: startState,
+        isCurrent: isCurrent,
+        onAccepted: onAccepted,
+        foregroundVpnHelp: true,
+      );
+    }
     if (onAccepted != null) {
       return _interface.startListener(
         startState: startState,
