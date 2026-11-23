@@ -66,7 +66,6 @@ jobs:
           persist-credentials: false
           fetch-depth: ${{ (github.event_name == 'pull_request' || needs.scope.outputs.base != '') && '0' || '1' }}
           submodules: ${{ (matrix.language == 'go' || matrix.language == 'java-kotlin') && 'recursive' || 'false' }}
-      - *load_policy
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         if: matrix.language == 'go'
         with:
@@ -96,7 +95,7 @@ jobs:
           CGO_ENABLED: '0'
           GOFLAGS: -mod=readonly
           GOTOOLCHAIN: local
-        run: go test -run '^$' . ./clientbundle ./cmd/zolnit-bundle-probe
+        run: go build -a . ./clientbundle ./cmd/zolnit-bundle-probe
       - name: Trace Android JVM compilation
         if: matrix.language == 'java-kotlin'
         env:
@@ -111,10 +110,6 @@ jobs:
           category: /language:${{ matrix.language }}
           output: ${{ runner.temp }}/sarif
           upload: never
-      - name: Review findings in the proposed change
-        env:
-          BASE_SHA: ${{ needs.scope.outputs.base }}
-        run: python3 -I "$SOURCE_POLICY/review_sarif.py" "$RUNNER_TEMP/sarif"
       - name: Retain the SARIF report
         if: "${{ !cancelled() && steps.analyze.outcome == 'success' }}"
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -123,3 +118,38 @@ jobs:
           path: ${{ runner.temp }}/sarif/*.sarif
           if-no-files-found: error
           retention-days: 14
+
+  adjudicate:
+    name: Review CodeQL findings
+    needs: [scope, codeql]
+    if: needs.scope.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ (github.event_name == 'pull_request' || needs.scope.outputs.base != '') && '0' || '1' }}
+      - *load_policy
+      - name: Download reports from this analysis attempt
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: codeql-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/codeql-reports
+      - name: Check every selected language on the clean runner
+        id: review
+        env:
+          BASE_SHA: ${{ needs.scope.outputs.base }}
+          LANGUAGES: ${{ needs.scope.outputs.languages }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -er '.[]' <<< "$LANGUAGES" > "$RUNNER_TEMP/codeql-languages"
+          status=0
+          while IFS= read -r language; do
+            [[ "$language" =~ ^[a-z][a-z-]+$ ]]
+            artifact="codeql-$language-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            echo "### $language" >> "$GITHUB_STEP_SUMMARY"
+            python3 -I "$SOURCE_POLICY/review_sarif.py" "$RUNNER_TEMP/codeql-reports/$artifact" || status=1
+          done < "$RUNNER_TEMP/codeql-languages"
+          exit "$status"
