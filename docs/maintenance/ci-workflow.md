@@ -102,3 +102,9 @@ node --test tool/client_release/tests/*_test.mjs
 一次只改七份维护文档的[既有 main 运行](https://github.com/Zolmid/FlClash/actions/runs/43744468842)耗时 14 分 02 秒，成功作业的运行时间合计 45 分 34 秒。将相同 Git 差异送入新选择器会省去六项标准检查和三套桌面 Debug 编译，这九项在该运行中合计 45 分 23 秒。轻量审查、门禁和 main 的 changelog 检查仍需计时。这个对照是历史作业时长及选择器回放，不是账单或新流程的实测净节省。
 
 全量正式发布采用先检查、后签名构建的顺序，因此全绿时可能比原来的并行启动更慢。节省主要来自文档/独立测试变更缩小范围、PR 按语言选扫描、过期 PR 取消以及失败提交提前停止。请在 Actions 中按 run 与 attempt 记录墙钟耗时、各作业时长和失败阶段，分开比较文档、代码、候选、正式发布四类样本。V3 仍由用户实际使用验收，记为 `USER_WAIVED / NOT_RUN`。
+
+## 6. 怎样判读一次托管验收
+
+首次接入的 PR 在合并结果上跑完八种 CodeQL 分析。独立 runner 收到八份报告，共计 53 条发现，其中 52 条的安全严重度达到 7，本次修改行上命中的阻断项为 0。查看单条发现及调用链时下载对应语言的 SARIF。该次 PR 的 Android、三个桌面 Debug 构建和最终门禁也均通过。[八份报告的判定记录](https://github.com/Zolmid/FlClash/actions/runs/45198323636/job/137784628717) · [PR 门禁](https://github.com/Zolmid/FlClash/actions/runs/45198323636/job/137789094497)
+
+首次五平台候选的 Android、Linux 和 Windows 已生成制品。iOS 和两个 macOS 作业的步骤列表为空，GitHub 的作业注释显示多次分配托管 runner 失败，最终包验证按预期阻断。遇到同样的现象，先查看作业的 **Annotations** 和实际 runner 名称。若作业未取得 runner，保留原 run 记录，在容量恢复后对准确的候选提交重新发起完整 dispatch。若已开始编译，则先定位首个失败步骤。恢复后检查同一次运行的六个目标是否都出现在验证摘要中。[缺少 Apple 产物的实际运行](https://github.com/Zolmid/FlClash/actions/runs/45196341849)
