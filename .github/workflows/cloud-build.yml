@@ -27,7 +27,7 @@ on:
         required: false
         default: false
       build_profile:
-        description: Build profile (zolnit compiles this ref as a ZolNit development candidate)
+        description: Build profile (zolnit compiles the project product with development signing only)
         type: choice
         required: false
         default: auto
@@ -485,7 +485,9 @@ jobs:
           {
             echo "source_repository=$GITHUB_REPOSITORY"
             echo "source_commit=$(git rev-parse HEAD)"
-            echo "package_version=$(sed -n 's/^version: *\([^ ]*\).*/\1/p' pubspec.yaml)"
+            if [[ "$BUILD_PROFILE" == zolnit ]]; then
+              echo "package_version=$(sed -n 's/^version: *\([^ ]*\).*/\1/p' pubspec.yaml)"
+            fi
             echo "build_profile=$BUILD_PROFILE"
             echo "event_sha=$GITHUB_SHA"
             echo "workflow_revision=$GITHUB_WORKFLOW_SHA"
@@ -520,6 +522,10 @@ jobs:
             flutter --version
             go version
             rustc --version
+            if [[ "$BUILD_PROFILE" == zolnit && "$TARGET_PLATFORM" == macos ]]; then
+              xcodebuild -version
+              echo "apple_sdk=$(xcrun --sdk macosx --show-sdk-version)"
+            fi
           } > dist/source-provenance.txt
           node <<'JS'
           const fs = require('fs'), crypto = require('crypto');
@@ -539,6 +545,7 @@ jobs:
         with:
           name: flclash-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.safe_preview && '-safe-debug' || '' }}-${{ github.run_number }}
           path: dist/
+          overwrite: ${{ inputs.build_profile == 'zolnit' && github.run_attempt != '1' }}
           if-no-files-found: error
           retention-days: 14
 
@@ -553,7 +560,7 @@ jobs:
         shell: bash
     env:
       IOS_SOURCE: ${{ needs.select.outputs.ios_source }}
-      IOS_OBSERVER_ACCEPTANCE: ${{ github.ref == 'refs/heads/codex/native-client-shared' && needs.select.outputs.ios_source == 'project' }}
+      IOS_OBSERVER_ACCEPTANCE: ${{ inputs.build_profile != 'zolnit' && github.ref == 'refs/heads/codex/native-client-shared' && needs.select.outputs.ios_source == 'project' }}
       IOS_ACCEPTANCE_BUNDLE_ID: com.zolmid.zolnit.debug
       ZOLNIT_NATIVE_UI: ${{ needs.select.outputs.native_ui }}
       ZOLNIT_CLIENT_BUNDLE: ${{ needs.select.outputs.native_ui }}
@@ -626,7 +633,7 @@ jobs:
 
       - name: Build and validate unsigned iOS lease observer
         timeout-minutes: 15
-        if: github.ref == 'refs/heads/codex/native-client-shared' && env.IOS_SOURCE == 'project'
+        if: env.IOS_OBSERVER_ACCEPTANCE == 'true'
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/zolnit-ios-lease-observer"
@@ -664,7 +671,7 @@ jobs:
           PYVERIFY
 
       - name: Upload unsigned iOS lease observer evidence
-        if: always() && github.ref == 'refs/heads/codex/native-client-shared' && env.IOS_SOURCE == 'project'
+        if: always() && env.IOS_OBSERVER_ACCEPTANCE == 'true'
         uses: actions/upload-artifact@v6
         with:
           name: ios-lease-observer-arm64-unsigned-${{ github.run_number }}-${{ github.run_attempt }}
@@ -736,7 +743,9 @@ jobs:
             echo "source_commit=$(git rev-parse HEAD)"
             echo "workflow_repository=$GITHUB_REPOSITORY"
             echo "workflow_commit=$GITHUB_SHA"
-            echo "package_version=$(sed -n 's/^version: *\([^ ]*\).*/\1/p' pubspec.yaml)"
+            if [[ "$BUILD_PROFILE" == zolnit ]]; then
+              echo "package_version=$(sed -n 's/^version: *\([^ ]*\).*/\1/p' pubspec.yaml)"
+            fi
             echo "build_profile=$BUILD_PROFILE"
             echo "event_sha=$GITHUB_SHA"
             echo "workflow_revision=$GITHUB_WORKFLOW_SHA"
@@ -762,6 +771,7 @@ jobs:
             go version
             rustc --version
             xcodebuild -version
+            if [[ "$BUILD_PROFILE" == zolnit ]]; then echo "apple_sdk=$(xcrun --sdk iphoneos --show-sdk-version)"; fi
           } > cloud-artifacts/source-provenance.txt
           (cd cloud-artifacts && shasum -a 256 ./* > SHA256SUMS)
 
@@ -769,13 +779,16 @@ jobs:
         with:
           name: ios-${{ env.IOS_SOURCE }}-arm64-unsigned-${{ github.run_number }}
           path: cloud-artifacts/
+          overwrite: ${{ inputs.build_profile == 'zolnit' && github.run_attempt != '1' }}
           if-no-files-found: error
           retention-days: 14
 
   verify-candidate:
     name: Verify manual ZolNit candidate
     needs: [select, project, ios]
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.build_profile == 'zolnit' && inputs.ios_source == 'project'
+    if: >-
+      !cancelled() && github.event_name == 'workflow_dispatch' &&
+      inputs.build_profile == 'zolnit' && inputs.ios_source == 'project'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -788,7 +801,11 @@ jobs:
       - name: Verify candidate artifacts
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_PLATFORM: ${{ needs.select.outputs.platform }}
+          CANDIDATE_PLATFORM: ${{ inputs.platform }}
+          SELECT_RESULT: ${{ needs.select.result }}
           PROJECT_RESULT: ${{ needs.project.result }}
           IOS_RESULT: ${{ needs.ios.result }}
-        run: python3 tool/client_release/verify_candidate.py
+        shell: bash
+        run: |
+          ulimit -f 2097152  # Bound each download to 2 GiB, including malformed responses.
+          python3 tool/client_release/verify_candidate.py

@@ -30,7 +30,7 @@ export function selectCloudBuild(env) {
   }
   const targets = TARGETS.map(t => ({...t, safe_preview: false}))
     .filter(t => env.PLATFORM === 'all' || t.platform === env.PLATFORM);
-  if (env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(env.PLATFORM)) {
+  if (!zolnitProfile && env.CLIENT_BRANCH === 'true' && ['all', 'macos'].includes(env.PLATFORM)) {
     targets.push({platform: 'macos', os: 'xcode-27', arch: 'arm64', safe_preview: true});
   }
   const clientBranch = env.CLIENT_BRANCH === 'true' || official || zolnitProfile;
