@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.13 (2026-11-24)
+
+**Bug Fixes**
+
+- **android** Open Android VPN settings when another VPN may be preventing ZolNit from connecting. (b91948d)
+- **client** See the active AI route, switch modes promptly, and choose a route manually. (f11184c)
+- Discard outdated route checks after switching networks and handle invalid proxy ports and Windows upgrades more reliably. (6487c69)
+- Refresh cached addresses after a network change and show a message if the connection cannot start. (6feaa81)
+- Keep selected apps when filtering the list and keep icons steady while they load. (d80d485)
+- **dns** Use encrypted DNS for public lookups when enabled by your subscription. (adedb10)
+- **client** See Free plan limits and invitation benefits, with clearer feedback when switching routes. (d97fa85)
+
 ## v1.1.12 (2026-11-22)
 
 **Bug Fixes**

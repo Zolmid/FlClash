@@ -2,6 +2,51 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.13",
+      "tag": "v1.1.13",
+      "date": "2026-11-24",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "b91948d",
+              "scope": "android",
+              "text": "Open Android VPN settings when another VPN may be preventing ZolNit from connecting."
+            },
+            {
+              "id": "f11184c",
+              "scope": "client",
+              "text": "See the active AI route, switch modes promptly, and choose a route manually."
+            },
+            {
+              "id": "6487c69",
+              "text": "Discard outdated route checks after switching networks and handle invalid proxy ports and Windows upgrades more reliably."
+            },
+            {
+              "id": "6feaa81",
+              "text": "Refresh cached addresses after a network change and show a message if the connection cannot start."
+            },
+            {
+              "id": "d80d485",
+              "text": "Keep selected apps when filtering the list and keep icons steady while they load."
+            },
+            {
+              "id": "adedb10",
+              "scope": "dns",
+              "text": "Use encrypted DNS for public lookups when enabled by your subscription."
+            },
+            {
+              "id": "d97fa85",
+              "scope": "client",
+              "text": "See Free plan limits and invitation benefits, with clearer feedback when switching routes."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.12",
       "tag": "v1.1.12",
       "date": "2026-11-22",
