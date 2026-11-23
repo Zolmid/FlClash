@@ -79,7 +79,7 @@ jobs:
       OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}
       BUILD_PROFILE: ${{ inputs.build_profile }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
       - id: select
@@ -117,12 +117,12 @@ jobs:
         if: matrix.platform == 'windows'
         run: git config --global core.longpaths true
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           submodules: recursive
           persist-credentials: false
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
@@ -134,7 +134,7 @@ jobs:
             rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-linux-android
           fi
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: cloud-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.safe_preview && '-safe-debug' || '' }}
           workspaces: |
@@ -142,7 +142,7 @@ jobs:
             plugins/rust_api/rust
           cache-directories: .dart_tool/hooks_runner
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -180,20 +180,20 @@ jobs:
         if: matrix.platform == 'macos' && matrix.arch == 'x64'
         run: plutil -replace FLTEnableImpeller -bool NO macos/Runner/Info.plist
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         if: matrix.platform == 'android'
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: nttld/setup-ndk@v1
+      - uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
         if: matrix.platform == 'android'
         id: ndk
         with:
           ndk-version: r28c
           link-to-sdk: true
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
         if: matrix.platform == 'android'
 
       - name: Prefetch pinned Gradle distribution
@@ -541,7 +541,7 @@ jobs:
           config=${{ matrix.safe_preview && 'Debug' || 'Release' }}
           bash tool/ci/verify_macos_arch.sh "$config" "${{ matrix.arch }}"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: flclash-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.safe_preview && '-safe-debug' || '' }}-${{ github.run_number }}
           path: dist/
@@ -572,14 +572,14 @@ jobs:
     steps:
       - name: Checkout project
         if: env.IOS_SOURCE == 'project'
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           submodules: recursive
           persist-credentials: false
 
       - name: Checkout pinned Patched reference
         if: env.IOS_SOURCE == 'patched-reference'
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: chenx-dust/FlClash-Patched
           ref: 7ea4597c9182d40cd57da9fc2f2d5cc0a5f84c2f
@@ -672,7 +672,7 @@ jobs:
 
       - name: Upload unsigned iOS lease observer evidence
         if: always() && env.IOS_OBSERVER_ACCEPTANCE == 'true'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ios-lease-observer-arm64-unsigned-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
@@ -683,7 +683,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
@@ -693,13 +693,13 @@ jobs:
           rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
           rustup target add --toolchain "$RUSTUP_TOOLCHAIN" aarch64-apple-ios
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: cloud-ios-${{ env.IOS_SOURCE }}
           workspaces: plugins/rust_api/rust
           cache-directories: .dart_tool/hooks_runner
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -775,7 +775,7 @@ jobs:
           } > cloud-artifacts/source-provenance.txt
           (cd cloud-artifacts && shasum -a 256 ./* > SHA256SUMS)
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ios-${{ env.IOS_SOURCE }}-arm64-unsigned-${{ github.run_number }}
           path: cloud-artifacts/
@@ -795,7 +795,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
       - name: Verify candidate artifacts

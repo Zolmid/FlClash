@@ -1,0 +1,99 @@
+name: CodeQL source review
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      languages: ${{ steps.select.outputs.languages }}
+      enabled: ${{ steps.select.outputs.enabled }}
+      base: ${{ steps.base.outputs.base }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: ${{ (github.event_name == 'pull_request' || github.ref_type == 'tag') && '0' || '1' }}
+          persist-credentials: false
+      - id: select
+        run: python3 tool/ci/security_languages.py
+      - id: base
+        run: python3 tool/ci/review_base.py >> "$GITHUB_OUTPUT"
+
+  codeql:
+    name: CodeQL / ${{ matrix.language }}
+    needs: scope
+    if: needs.scope.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        language: ${{ fromJSON(needs.scope.outputs.languages) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ needs.scope.outputs.base != '' && '0' || '1' }}
+          submodules: ${{ (matrix.language == 'go' || matrix.language == 'java-kotlin') && 'recursive' || 'false' }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: matrix.language == 'go'
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Prepare Android build inputs
+        id: android-tools
+        if: matrix.language == 'java-kotlin'
+        uses: ./.github/actions/android-check-setup
+        with:
+          cache: 'false'
+      - name: Select the Rust toolchain
+        if: matrix.language == 'rust'
+        run: rustup toolchain install 1.99.0 --profile minimal
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        env:
+          RUSTUP_TOOLCHAIN: '1.99.0'
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ (matrix.language == 'go' || matrix.language == 'java-kotlin') && 'manual' || 'none' }}
+          queries: security-extended
+      - name: Compile the Go wrapper and routing packages
+        if: matrix.language == 'go'
+        working-directory: core
+        env:
+          CGO_ENABLED: '0'
+          GOFLAGS: -mod=readonly
+          GOTOOLCHAIN: local
+        run: go test -run '^$' . ./clientbundle ./cmd/zolnit-bundle-probe
+      - name: Trace Android JVM compilation
+        if: matrix.language == 'java-kotlin'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.android-tools.outputs.ndk-path }}
+        run: bash tool/ci/android_unit.sh --no-daemon --no-build-cache --rerun-tasks
+      - name: Analyze source
+        id: analyze
+        uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        env:
+          RUSTUP_TOOLCHAIN: '1.99.0'
+        with:
+          category: /language:${{ matrix.language }}
+          output: ${{ runner.temp }}/sarif
+          upload: never
+      - name: Review findings in the proposed change
+        env:
+          BASE_SHA: ${{ needs.scope.outputs.base }}
+        run: python3 tool/ci/review_sarif.py "$RUNNER_TEMP/sarif"
+      - name: Retain the SARIF report
+        if: "${{ !cancelled() && steps.analyze.outcome == 'success' }}"
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: codeql-${{ matrix.language }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sarif/*.sarif
+          if-no-files-found: error
+          retention-days: 14

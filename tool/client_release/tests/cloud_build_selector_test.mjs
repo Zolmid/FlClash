@@ -310,7 +310,7 @@ test('select job keeps its env expressions and only runs the checked-out selecto
     "      OFFICIAL_TRUSTED: ${{ github.event_name == 'push' && github.repository == 'Zolmid/FlClash' && github.repository_id == '1420254999' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && github.workflow_ref == format('Zolmid/FlClash/.github/workflows/client-release.yml@{0}', github.ref) }}",
     '      BUILD_PROFILE: ${{ inputs.build_profile }}',
     '    steps:',
-    '      - uses: actions/checkout@v5',
+    job.match(/^      - uses: actions\/checkout@[0-9a-f]{40} # v[0-9][.0-9]*$/m)?.[0],
     '        with:',
     '          persist-credentials: false',
     '      - id: select',

@@ -284,8 +284,13 @@ class GateTest(unittest.TestCase):
         self.assertIn("github.event_name == 'push'", self.jobs['delegation']['if'])
         self.assertIn("needs.selection.outputs.observe == 'true'", self.jobs['delegation']['if'])
         self.assertIn("github.event_name != 'pull_request'", self.build['env']['BRANCH_CACHE'])
-        gradle = next(s for s in self.jobs['android']['steps'] if s.get('name') == 'Setup Gradle')
-        self.assertIn("github.event_name == 'pull_request'", gradle['with']['cache-disabled'])
+        setup = next(s for s in self.jobs['android']['steps'] if s.get('id') == 'android-tools')
+        self.assertEqual(setup['uses'], './.github/actions/android-check-setup')
+        self.assertEqual(setup['with']['cache'], '${{ env.BRANCH_CACHE }}')
+        composite = workflow('../actions/android-check-setup/action.yml')
+        gradle = next(s for s in composite['runs']['steps']
+                      if s.get('uses', '').startswith('gradle/actions/setup-gradle@'))
+        self.assertEqual(gradle['with']['cache-disabled'], "${{ inputs.cache != 'true' }}")
 
     def test_full_jobs_check_tracked_locks_generators_and_ios(self):
         dart = [step.get('run', '') for step in self.jobs['dart']['steps']]

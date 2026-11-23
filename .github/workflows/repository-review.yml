@@ -1,0 +1,113 @@
+name: Repository review
+
+on:
+  workflow_call:
+    inputs:
+      deep:
+        description: Run all supported CodeQL extractors
+        type: boolean
+        default: false
+      inventory:
+        description: Produce a full dependency inventory
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  source-analysis:
+    if: inputs.deep || github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    uses: ./.github/workflows/source-analysis.yml
+
+  policy:
+    name: Workflow, documentation and dependency review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: ${{ (github.event_name == 'pull_request' || github.ref_type == 'tag') && '0' || '1' }}
+          submodules: ${{ (inputs.inventory || github.event_name == 'workflow_dispatch' || github.ref_type == 'tag') && 'recursive' || 'false' }}
+      - name: Load dependency policy from the base of the pull request
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          dst="$RUNNER_TEMP/review-policy"
+          mkdir "$dst"
+          ref="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            git cat-file -e "$BASE_SHA^{commit}"
+            if [[ -n "$(git ls-tree "$BASE_SHA" -- tool/ci/dependency_review.py)" ]]; then
+              ref="$BASE_SHA"
+            else
+              echo 'First adoption: exercising the proposed dependency policy.'
+            fi
+          fi
+          for file in review_tools.py dependency_review.py review_base.py; do
+            git show "$ref:tool/ci/$file" > "$dst/$file"
+          done
+          echo "REVIEW_POLICY=$dst" >> "$GITHUB_ENV"
+      - name: Install verified review tools
+        run: |
+          python3 -I "$REVIEW_POLICY/review_tools.py" --bin-dir "$RUNNER_TEMP/review-bin" actionlint shellcheck lychee
+          echo "$RUNNER_TEMP/review-bin" >> "$GITHUB_PATH"
+      - name: Check workflow syntax, expressions and action pins
+        env:
+          SHELLCHECK_OPTS: --severity=error
+        run: |
+          actionlint -pyflakes=''
+          ruby tool/ci/check_action_pins.rb
+      - name: Check local documentation links and anchors
+        run: lychee --offline --include-fragments --no-progress docs/maintenance/*.md README.md README_zh_CN.md
+      - name: Select the comparison base
+        id: baseline
+        run: python3 -I "$REVIEW_POLICY/review_base.py" >> "$GITHUB_OUTPUT"
+      - name: Inspect dependency changes
+        id: locks
+        if: steps.baseline.outputs.base != ''
+        env:
+          BASE_SHA: ${{ steps.baseline.outputs.base }}
+        run: python3 -I "$REVIEW_POLICY/dependency_review.py" plan --base "$BASE_SHA" --head "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Read both pinned Core revisions for a submodule change
+        if: steps.locks.outputs.core_checkout != ''
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: chen08209/Clash.Meta
+          ref: ${{ steps.locks.outputs.core_checkout }}
+          path: core/Clash.Meta
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare advisory results for changed dependency files
+        if: steps.locks.outputs.changed == 'true'
+        env:
+          BASE_SHA: ${{ steps.baseline.outputs.base }}
+        run: |
+          python3 -I "$REVIEW_POLICY/review_tools.py" --bin-dir "$RUNNER_TEMP/review-bin" osv-scanner
+          python3 -I "$REVIEW_POLICY/dependency_review.py" compare --base "$BASE_SHA" --head "$GITHUB_SHA" --output "$RUNNER_TEMP/dependency-review"
+      - name: Retain dependency review results
+        if: "${{ !cancelled() && steps.locks.outputs.changed == 'true' }}"
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: dependency-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dependency-review/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Generate an inventory for the selected source
+        id: inventory
+        if: inputs.inventory || github.event_name == 'workflow_dispatch' || (github.ref_type == 'tag' && github.workflow_ref == format('{0}/.github/workflows/client-release.yml@{1}', github.repository, github.ref))
+        run: |
+          python3 -I "$REVIEW_POLICY/review_tools.py" --bin-dir "$RUNNER_TEMP/review-bin" osv-scanner
+          python3 -I "$REVIEW_POLICY/dependency_review.py" inventory --head "$GITHUB_SHA" --output "$RUNNER_TEMP/dependency-inventory"
+      - name: Retain the CycloneDX inventory
+        if: steps.inventory.outcome == 'success'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: dependency-inventory-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dependency-inventory/
+          if-no-files-found: error
+          retention-days: 30
