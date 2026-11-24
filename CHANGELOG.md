@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.14 (2026-11-24)
+
+**Bug Fixes**
+
+- **ios** Help iPhone and iPad connections recover after a network change. (87092d4)
+- **ios** Fix background renewal on iPhone and iPad when the signed subscription response is large. (e7c3815)
+
+**Performance**
+
+- **client** Connect sooner when one IP address family is slow to respond, and refresh connections after switching networks. (ec52be1)
+- **network** Reuse HTTPS connections for ZolNit requests when the network and sign-in session match. (93919fa)
+- **client** Keep browsing responsive during line tests and measure your selected lines first. (54d60b5)
+
 ## v1.1.13 (2026-11-24)
 
 **Bug Fixes**

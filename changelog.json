@@ -2,6 +2,49 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.14",
+      "tag": "v1.1.14",
+      "date": "2026-11-24",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "87092d4",
+              "scope": "ios",
+              "text": "Help iPhone and iPad connections recover after a network change."
+            },
+            {
+              "id": "e7c3815",
+              "scope": "ios",
+              "text": "Fix background renewal on iPhone and iPad when the signed subscription response is large."
+            }
+          ]
+        },
+        {
+          "type": "perf",
+          "entries": [
+            {
+              "id": "ec52be1",
+              "scope": "client",
+              "text": "Connect sooner when one IP address family is slow to respond, and refresh connections after switching networks."
+            },
+            {
+              "id": "93919fa",
+              "scope": "network",
+              "text": "Reuse HTTPS connections for ZolNit requests when the network and sign-in session match."
+            },
+            {
+              "id": "54d60b5",
+              "scope": "client",
+              "text": "Keep browsing responsive during line tests and measure your selected lines first."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.13",
       "tag": "v1.1.13",
       "date": "2026-11-24",
