@@ -34,7 +34,7 @@ func appRoutingFixture(t *testing.T) *config.Config {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"proxy", "domestic", "fallback", "ai"} {
+	for _, name := range []string{"proxy", "domestic", "fallback", "ai", "media"} {
 		cfg.Proxies[name] = cfg.Proxies["DIRECT"]
 	}
 	cfg.Rules = []C.Rule{
@@ -42,6 +42,7 @@ func appRoutingFixture(t *testing.T) *config.Config {
 		parse("DOMAIN-SUFFIX", "zolmid.com", "DIRECT"),
 		parse("DOMAIN-SUFFIX", "googleapis.cn", "proxy"),
 		parse("DOMAIN", "ai.example", "ai"),
+		parse("DOMAIN", "media.example", "media"),
 		appRoutingRuleSet{parse("DOMAIN", "foreign.example", "proxy"), "foreign"},
 		appRoutingRuleSet{parse("DOMAIN-SUFFIX", "qq.com", "domestic"), "mainland"},
 		appRoutingRuleSet{parse("IP-CIDR", "198.51.100.0/24", "domestic"), "cn-ip"},
@@ -56,7 +57,7 @@ func appRoutingTestLease() *RoutingLeaseSpec {
 
 func TestAppSmartRoutingPrecedence(t *testing.T) {
 	cfg := appRoutingFixture(t)
-	if !installSmartAppRouting(cfg, appRoutingTestLease(), "android") || len(cfg.Rules) != 10 {
+	if !installSmartAppRouting(cfg, appRoutingTestLease(), "android") || len(cfg.Rules) != 11 {
 		t.Fatal("official Android rule table was not extended")
 	}
 	if cfg.General.FindProcessMode != process.FindProcessStrict {
@@ -141,7 +142,7 @@ func TestAppSmartRoutingOnlyManagedKnownPlatforms(t *testing.T) {
 		{"linux", &RoutingLeaseSpec{AccountID: "account", BundleID: "bundle"}},
 	} {
 		cfg := appRoutingFixture(t)
-		if installSmartAppRouting(cfg, test.lease, test.platform) || len(cfg.Rules) != 8 || cfg.General.FindProcessMode != process.FindProcessOff {
+		if installSmartAppRouting(cfg, test.lease, test.platform) || len(cfg.Rules) != 9 || cfg.General.FindProcessMode != process.FindProcessOff {
 			t.Fatalf("unmanaged/unsupported setup changed on %s", test.platform)
 		}
 	}

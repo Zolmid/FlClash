@@ -3,12 +3,106 @@ package core
 import (
 	"core/clientbundle"
 	"maps"
+	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/rules"
 	"github.com/metacubex/mihomo/tunnel"
 )
+
+func TestDispatchSmartAppRulesUseManagedSelector(t *testing.T) {
+	f := newDispatchFixture(t, true)
+	// XBoard's two dispatches share the same DIRECT wrapper.
+	f.spec.ReturnRoute.Dispatches[1].LocalTarget = "cn-local"
+	f.proxies["media-dispatch"] = selectorOver(t, "media-dispatch", f.cnLocal, f.proxies["return"])
+	tunnel.UpdateProxies(f.proxies, nil)
+	cfg := appRoutingFixture(t)
+	privateLAN, err := rules.ParseRule("IP-CIDR", "192.168.0.0/16", "DIRECT", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Rules = append([]constant.Rule{privateLAN}, cfg.Rules...)
+	for i, rule := range cfg.Rules {
+		if rule.Adapter() == "domestic" {
+			wrapped := rule.(appRoutingRuleSet)
+			kind, payload := "DOMAIN-SUFFIX", "qq.com"
+			if wrapped.name == "cn-ip" {
+				kind, payload = "IP-CIDR", "198.51.100.0/24"
+			}
+			parsed, err := rules.ParseRule(kind, payload, "cn-dispatch", nil, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.Rules[i] = appRoutingRuleSet{parsed, wrapped.name}
+		}
+	}
+	cfg.Proxies["cn-dispatch"] = f.cnParent
+	if !installSmartAppRouting(cfg, appRoutingTestLease(), "android") {
+		t.Fatal("managed app rules not installed")
+	}
+	guard := f.lease.install(f.spec)
+	match := func(host, ip, owner string) string {
+		t.Helper()
+		metadata := constant.Metadata{Host: host, NetWork: constant.TCP}
+		if ip != "" {
+			metadata.DstIP = netip.MustParseAddr(ip)
+		}
+		helper := constant.RuleMatchHelper{FindProcess: func() { metadata.Process = owner }}
+		for _, rule := range cfg.Rules {
+			if ok, target := rule.Match(&metadata, helper); ok {
+				return target
+			}
+		}
+		t.Fatal("no matching rule")
+		return ""
+	}
+	for _, option := range f.spec.ReturnRoute.Options {
+		if _, err := handleSetClientReturnRoute(&SetClientReturnRouteParams{RoutingLease: guard, Enabled: boolPtr(true), OptionID: option.ID}); err != nil {
+			t.Fatal(err)
+		}
+		guard = handleGetRoutingLease()
+		for _, tc := range []struct{ host, ip, owner, want string }{
+			{"img.qpic.cn", "", "com.tencent.mm", "cn-dispatch"},
+			{"im.qq.com", "", "", "cn-dispatch"},
+			{"", "198.51.100.10", "", "cn-dispatch"},
+			{"im.qq.com", "", "org.telegram.messenger", "cn-dispatch"},
+			{"telegram.example", "", "org.telegram.messenger", "proxy"},
+			{"", "198.51.100.10", "org.thoughtcrime.securesms", "proxy"},
+			{"services.googleapis.cn", "", "com.tencent.mm", "proxy"},
+			{"ai.example", "", "com.tencent.mm", "ai"},
+			{"media.example", "", "com.tencent.mm", "media"},
+			{"printer.lan", "", "com.tencent.mm", "DIRECT"},
+			{"", "192.168.1.4", "com.tencent.mm", "DIRECT"},
+		} {
+			if got := match(tc.host, tc.ip, tc.owner); got != tc.want {
+				t.Fatalf("%s/%s: got %s want %s", tc.host, tc.owner, got, tc.want)
+			}
+		}
+		if dispatchParentNow(t, "cn-dispatch") != "return" || dispatchParentNow(t, "return") != option.Target {
+			t.Fatalf("%s bypassed managed selector", option.ID)
+		}
+	}
+	f.proxies["role-optimized"] = selectorOver(t, "role-optimized", f.lease.reject)
+	tunnel.UpdateProxies(f.proxies, nil)
+	selectMu.Lock()
+	normalizeReturnRouteLocked(tunnel.AllProxies())
+	selectMu.Unlock()
+	if dispatchParentNow(t, "cn-dispatch") != "return" || dispatchParentNow(t, "return") != "REJECT" {
+		t.Fatal("unavailable selected return silently detoured")
+	}
+	if match("services.googleapis.cn", "", "com.tencent.mm") != "proxy" || match("ai.example", "", "") != "ai" || match("printer.lan", "", "") != "DIRECT" {
+		t.Fatal("return failure altered unrelated rules")
+	}
+	guard = handleGetRoutingLease()
+	if _, err := handleSetClientReturnRoute(&SetClientReturnRouteParams{RoutingLease: guard, Enabled: boolPtr(false)}); err != nil {
+		t.Fatal(err)
+	}
+	if match("img.qpic.cn", "", "com.tencent.mm") != "cn-dispatch" || dispatchParentNow(t, "cn-dispatch") != "cn-local" {
+		t.Fatal("disable did not restore local dispatch")
+	}
+}
 
 func boolPtr(v bool) *bool { return &v }
 
