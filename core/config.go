@@ -15,6 +15,7 @@ import (
 	"github.com/metacubex/mihomo/component/age"
 	"github.com/metacubex/mihomo/component/auth"
 	"github.com/metacubex/mihomo/component/dialer"
+	"github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
@@ -29,8 +30,9 @@ import (
 )
 
 var (
-	configMu      sync.Mutex
-	currentConfig *config.Config
+	configMu              sync.Mutex
+	currentConfig         *config.Config
+	smartAppRoutingActive bool
 
 	errConfigNotApplied = errors.New("config is not applied")
 	errNotInitialized   = errors.New("not initialized")
@@ -243,6 +245,7 @@ func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError
 	if !geoUpdaterAllowed {
 		cfg.General.GeoAutoUpdate = false
 	}
+	smartAppRoutingActive = applyError == nil && installSmartAppRouting(cfg, params.RoutingLease, runtime.GOOS)
 	currentConfig = cfg
 	func() {
 		selectMu.Lock()
@@ -286,6 +289,9 @@ func updateConfig(params *UpdateParams) error {
 	}
 	if params.FindProcessMode != nil {
 		general.FindProcessMode = *params.FindProcessMode
+		if smartAppRoutingActive && general.FindProcessMode == process.FindProcessOff {
+			general.FindProcessMode = process.FindProcessStrict
+		}
 		tunnel.SetFindProcessMode(general.FindProcessMode)
 	}
 	if params.TCPConcurrent != nil {

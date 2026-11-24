@@ -7,6 +7,7 @@ import android.net.ProxyInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.zolmid.zolnit.common.AccessControlMode
@@ -44,7 +45,9 @@ class VpnService : SystemVpnService(), ManagedService {
     private val connectivity by lazy {
         getSystemService<ConnectivityManager>()
     }
-    private val uidPackageNameMap = ConcurrentHashMap<Int, String>()
+    private data class PackageIdentity(val name: String, val expiresAt: Long)
+
+    private val uidPackageNameMap = ConcurrentHashMap<Int, PackageIdentity>()
 
     private fun resolveUid(
         protocol: Int,
@@ -54,18 +57,23 @@ class VpnService : SystemVpnService(), ManagedService {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return -1
         }
-        return connectivity?.getConnectionOwnerUid(protocol, source, target) ?: -1
+        return try {
+            connectivity?.getConnectionOwnerUid(protocol, source, target) ?: -1
+        } catch (_: SecurityException) {
+            -1
+        }
     }
 
     private fun resolvePackage(uid: Int): String {
-        val cached = uidPackageNameMap[uid]
-        if (cached != null) return cached
-        val packageName = packageManager
-            .getPackagesForUid(uid)
-            ?.firstOrNull()
-            ?.takeIf { it.isNotEmpty() }
-            .orEmpty()
-        return uidPackageNameMap.putIfAbsent(uid, packageName) ?: packageName
+        val now = SystemClock.elapsedRealtime()
+        uidPackageNameMap[uid]?.takeIf { it.expiresAt > now }?.let { return it.name }
+        val packageName = try {
+            packageManager.getPackagesForUid(uid).unambiguousPackageName()
+        } catch (_: SecurityException) {
+            ""
+        }
+        uidPackageNameMap[uid] = PackageIdentity(packageName, now + 5_000)
+        return packageName
     }
 
     private val VpnOptions.tunAddress
