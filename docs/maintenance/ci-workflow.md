@@ -33,7 +33,7 @@ flowchart TD
 
 `README.md` 和 `docs/maintenance/` 下的普通 Markdown 是经过确认的轻量路径。维护文档变化仍会执行工作流静态检查和本地链接检查，`main` 上还会验证 changelog。非 main 分支或 PR 仅改 `android/tests/{app,common,service}/…Test.kt` 时可单独运行 Android JVM 检查。其余路径按全量处理，包括 Dart 测试、跨语言接口、构建脚本、锁文件、Core、权限和平台工程。重命名按旧路径与新路径核算。新分支、非快进、超限差异、符号链接及无法可靠解析的历史均保留完整检查或使门禁失败。
 
-门禁核对计划与每个作业的真实结论。选中的检查只接受成功，取消、缺失输出、失败或意外跳过都会使门禁失败。同源正式标签的观察器最多等 900 秒，只能复用准确正式 run/attempt 上已完成的六个标准结果；来源不明、API 失败或超时会执行原检查。涉及工作流策略的 PR 应审阅其权限、凭据和选择逻辑。为主分支配置 required check 时，选择 GitHub Actions 提供的 `CI gate`。该名称专用于 PR 和合并队列。普通推送和手动运行使用 `Build gate`，因此在同一个 head SHA 上可以区分两种检查。[GitHub 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) · [必需状态检查的提交判定](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)
+门禁核对计划与每个作业的真实结论。选中的检查只接受成功，取消、缺失输出、失败或意外跳过都会使门禁失败。完整 PR 与合并队列在 macOS 作业运行 iOS 续期回归，正式标签在标准 CI 的 Apple 作业运行同一检查，签名构建依赖其成功。同源正式标签的观察器最多等 900 秒，只能复用同一提交和同一次正式运行的七个标准结果，其中包括 Apple 续期。来源不明、缺少检查、API 失败或超时会执行原检查。涉及工作流策略的 PR 应审阅其权限、凭据和选择逻辑。主分支要求 GitHub Actions 的 `CI gate`，该名称用于 PR 和合并队列。普通推送和手动运行使用 `Build gate`。[GitHub 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) · [必需状态检查的提交判定](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)
 
 ## 2. 审查内容与判定
 
