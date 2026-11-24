@@ -210,27 +210,13 @@ func (s *firstPartyHTTPService) pruneCancellations() {
 }
 
 func newFirstPartyHTTPTransport() *http.Transport {
-	if owned := activeOwnedDNS.Load(); owned != nil {
-		return firstPartyHTTPTransport(func(ctx context.Context, network, address string) (net.Conn, error) {
-			ips, err := owned.lookup(ctx, "link.zolmid.com")
-			if err != nil {
-				return nil, err
-			}
-			_, port, _ := net.SplitHostPort(address)
-			return dialOwnedAddresses(ctx, network, port, ips)
-		})
-	}
+	owned := activeOwnedDNS.Load()
 	return firstPartyHTTPTransport(func(ctx context.Context, network, address string) (net.Conn, error) {
-		answer, err := publicOwnedDNSBootstrap(ctx)
-		if err != nil {
-			return nil, err
-		}
-		ips, err := validateOwnedAddresses(answer.Addresses)
-		if err != nil {
-			return nil, err
-		}
 		_, port, _ := net.SplitHostPort(address)
-		return dialOwnedAddresses(ctx, network, port, ips)
+		if owned != nil {
+			return owned.dialOrigin(ctx, network, port)
+		}
+		return dialOwnedBootstrap(ctx, network, port, queryOwnedDNSBootstrap, dialOwnedAddresses)
 	})
 }
 

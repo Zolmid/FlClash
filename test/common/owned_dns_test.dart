@@ -6,6 +6,111 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zolnit_client/src/owned_dns.dart';
 
 void main() {
+  test(
+    'production socket bootstrap allows late family to beat blackhole',
+    () async {
+      for (final first in [1, 28]) {
+        for (final blackhole in [false, true]) {
+          final later = Completer<OwnedDnsAnswer>();
+          final stalled = Completer<Socket>();
+          var cancelled = false;
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          addTearDown(() => server.close(force: true));
+          server.listen((request) {
+            request.response.write('ok');
+            unawaited(request.response.close());
+          });
+          final attempts = <InternetAddress>[];
+          final resolver = OwnedDnsResolver(
+            hosts: {'link.zolmid.com'},
+            lookup: (_) async =>
+                throw StateError('pure resolver should not run'),
+            transportLookup: (_) => bootstrapZolnitOrigin(
+              firstUsable: true,
+              query: (type) async => type == first
+                  ? OwnedDnsAnswer([
+                      type == 1 ? '192.0.2.1' : '2001:db8::1',
+                    ], 30)
+                  : later.future,
+            ),
+          );
+          final client = resolver.createHttpClient(
+            startConnect: (address, port) async {
+              attempts.add(address);
+              if (attempts.length == 1) {
+                Timer(
+                  const Duration(milliseconds: 50),
+                  () => later.complete(
+                    OwnedDnsAnswer([
+                      first == 1 ? '2001:db8::1' : '192.0.2.1',
+                    ], 30),
+                  ),
+                );
+                if (blackhole) {
+                  return ConnectionTask.fromSocket(stalled.future, () {
+                    cancelled = true;
+                    if (!stalled.isCompleted) {
+                      stalled.completeError(const SocketException('cancelled'));
+                    }
+                  });
+                }
+                throw const SocketException('first family sockets failed');
+              }
+              return Socket.startConnect(InternetAddress.loopbackIPv4, port);
+            },
+          );
+          addTearDown(() => client.close(force: true));
+          final watch = Stopwatch()..start();
+          final response = await (await client.getUrl(
+            Uri.parse('http://link.zolmid.com:${server.port}/'),
+          )).close();
+          await response.drain<void>();
+          expect(watch.elapsedMilliseconds, inInclusiveRange(40, 1500));
+          expect(attempts.length, 2);
+          expect(attempts.first.type, isNot(attempts.last.type));
+          if (blackhole) expect(cancelled, isTrue);
+        }
+      }
+    },
+  );
+
+  test(
+    'first usable bootstrap returns before a late family; pure API waits',
+    () async {
+      final late = Completer<OwnedDnsAnswer>();
+      final early = await bootstrapZolnitOrigin(
+        firstUsable: true,
+        query: (type) async =>
+            type == 28 ? OwnedDnsAnswer(['2001:db8::1'], 30) : late.future,
+      ).timeout(const Duration(milliseconds: 500));
+      expect(early.addresses.single.type, InternetAddressType.IPv6);
+      late.complete(OwnedDnsAnswer(['192.0.2.1'], 10));
+    },
+  );
+
+  test('cancelled bootstrap never applies a late socket', () async {
+    final pending = Completer<OwnedDnsAnswer>();
+    var dials = 0;
+    final resolver = OwnedDnsResolver(
+      hosts: {'link.zolmid.com'},
+      lookup: (_) => pending.future,
+      transportLookup: (_) => pending.future,
+    );
+    final client = resolver.createHttpClient(
+      startConnect: (_, _) async {
+        dials++;
+        throw const SocketException('must not dial');
+      },
+    );
+    addTearDown(() => client.close(force: true));
+    final request = client.getUrl(Uri.parse('http://link.zolmid.com/'));
+    await Future<void>.delayed(Duration.zero);
+    resolver.clear();
+    pending.complete(OwnedDnsAnswer(['192.0.2.1'], 30));
+    await expectLater(request, throwsA(isA<SocketException>()));
+    expect(dials, 0);
+  });
+
   test('dial staggers families and cancels the losing task', () async {
     for (final addresses in [
       ['192.0.2.1', '192.0.2.2', '2001:db8::1'],

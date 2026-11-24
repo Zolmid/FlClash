@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:zolnit_client/http_client.dart'
+    show FirstPartyNetworkObserver, notifyFirstPartyNetworkChanged;
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/window.dart';
 import 'package:fl_clash/bootstrap.dart';
@@ -160,9 +162,14 @@ class ApplicationState extends ConsumerState<Application>
     });
   }
 
+  final _firstPartyNetwork = FirstPartyNetworkObserver(
+    notifyFirstPartyNetworkChanged,
+  );
+
   Future<void> _handleConnectivityChanged(
     List<ConnectivityResult> results,
   ) async {
+    _firstPartyNetwork.update(results.map((result) => result.name));
     commonPrint.log('connectivityChanged ${results.toString()}');
     unawaited(systemDnsCoordinator?.resync() ?? Future.value());
     unawaited(ref.read(systemActionProvider.notifier).updateLocalIp());

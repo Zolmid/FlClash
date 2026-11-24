@@ -27,13 +27,132 @@ http.Client createClient({
   return _createDirectClient();
 }
 
-IOClient _createDirectClient() {
-  final client =
-      ownedDnsBinding?.resolver.createHttpClient() ??
-      _DirectHttpOverrides().createHttpClient(null);
-  client.badCertificateCallback = (certificate, host, port) => false;
-  client.findProxy = (_) => 'DIRECT';
-  return IOClient(client);
+final _directClients = <DirectGenerationClient>{};
+
+void notifyFirstPartyNetworkChanged() {
+  ownedDnsBinding?.invalidateNetwork();
+  for (final client in _directClients.toList()) {
+    client.rotate();
+  }
+}
+
+http.Client _createDirectClient() =>
+    DirectGenerationClient(resolver: ownedDnsBinding?.resolver);
+
+class DirectGenerationClient extends http.BaseClient {
+  DirectGenerationClient({this.resolver}) {
+    _directClients.add(this);
+    resolver?.invalidationListeners.add(rotate);
+  }
+
+  final OwnedDnsResolver? resolver;
+  _DirectGeneration? _current;
+  final _draining = <_DirectGeneration>{};
+  String? _authorization;
+  bool _closed = false;
+
+  void rotate() {
+    final previous = _current;
+    _current = null;
+    if (previous == null) return;
+    previous.retired = true;
+    _draining.add(previous);
+    _release(previous);
+  }
+
+  void _release(_DirectGeneration generation) {
+    if (generation.retired && generation.sending == 0) {
+      generation.inner.close();
+    }
+    if (generation.retired && generation.active == 0) {
+      generation.client.close();
+      _draining.remove(generation);
+    }
+  }
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (_closed) throw http.ClientException('Client is closed');
+    final authorization = request.headers.entries
+        .where((entry) => entry.key.toLowerCase() == 'authorization')
+        .map((entry) => entry.value)
+        .firstOrNull;
+    if (_authorization != authorization) {
+      rotate();
+      _authorization = authorization;
+    }
+    final generation = _current ??= _DirectGeneration(
+      (resolver?.createHttpClient() ??
+            _DirectHttpOverrides().createHttpClient(null))
+        ..badCertificateCallback = ((certificate, host, port) => false)
+        ..findProxy = ((_) => 'DIRECT'),
+    );
+    generation.active++;
+    generation.sending++;
+    var sending = true;
+    var released = false;
+    void finish() {
+      if (released) return;
+      released = true;
+      generation.active--;
+      _release(generation);
+    }
+
+    try {
+      final response = await generation.client.send(request);
+      generation.sending--;
+      sending = false;
+      _release(generation);
+      return http.StreamedResponse(
+        _drainResponse(response.stream, finish),
+        response.statusCode,
+        contentLength: response.contentLength,
+        request: response.request,
+        headers: response.headers,
+        isRedirect: response.isRedirect,
+        persistentConnection: response.persistentConnection,
+        reasonPhrase: response.reasonPhrase,
+      );
+    } catch (_) {
+      if (sending) generation.sending--;
+      finish();
+      rethrow;
+    }
+  }
+
+  @override
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    _directClients.remove(this);
+    resolver?.invalidationListeners.remove(rotate);
+    _current?.client.close();
+    _current = null;
+    for (final generation in _draining) {
+      generation.client.close();
+    }
+    _draining.clear();
+  }
+}
+
+Stream<List<int>> _drainResponse(
+  Stream<List<int>> stream,
+  void Function() finish,
+) async* {
+  try {
+    yield* stream;
+  } finally {
+    finish();
+  }
+}
+
+class _DirectGeneration {
+  _DirectGeneration(this.inner) : client = IOClient(inner);
+  final HttpClient inner;
+  final IOClient client;
+  int active = 0;
+  int sending = 0;
+  bool retired = false;
 }
 
 Future<Object?> _invokeNativeRequest(

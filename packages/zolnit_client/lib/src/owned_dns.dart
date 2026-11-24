@@ -33,6 +33,7 @@ final class OwnedDnsAnswer {
   OwnedDnsAnswer._empty(this.ttl) : addresses = const [];
   final List<InternetAddress> addresses;
   final int ttl;
+  Future<OwnedDnsAnswer?>? _remaining;
 }
 
 typedef OwnedDnsLookup = Future<OwnedDnsAnswer> Function(String host);
@@ -42,6 +43,7 @@ final class OwnedDnsResolver {
     required Set<String> hosts,
     required this.lookup,
     this.strict = true,
+    this.transportLookup,
     DateTime Function()? now,
   }) : hosts = Set.unmodifiable(hosts.map(_host)),
        _now = now ?? DateTime.now;
@@ -49,6 +51,8 @@ final class OwnedDnsResolver {
   final Set<String> hosts;
   final bool strict;
   final OwnedDnsLookup lookup;
+  final OwnedDnsLookup? transportLookup;
+  final invalidationListeners = <void Function()>{};
   final DateTime Function() _now;
   final _cache = <String, (OwnedDnsAnswer, DateTime)>{};
   final _pending = <String, Future<OwnedDnsAnswer>>{};
@@ -60,6 +64,9 @@ final class OwnedDnsResolver {
   final _connections = <void Function()>{};
   void clear() {
     _epoch++;
+    for (final listener in invalidationListeners.toList()) {
+      listener();
+    }
     for (final waiter in _waiters) {
       waiter.completeError(const SocketException('Owned DNS session changed'));
     }
@@ -131,6 +138,25 @@ final class OwnedDnsResolver {
     }
   }
 
+  Future<OwnedDnsAnswer> _resolveTransport(String host) async {
+    final cached = _cache[host];
+    if (transportLookup == null ||
+        host != 'link.zolmid.com' ||
+        cached != null && _now().isBefore(cached.$2)) {
+      return resolveAnswer(host);
+    }
+    final invalidated = Completer<OwnedDnsAnswer>();
+    _waiters.add(invalidated);
+    try {
+      return await Future.any([
+        transportLookup!(host).timeout(const Duration(seconds: 3)),
+        invalidated.future,
+      ]);
+    } finally {
+      _waiters.remove(invalidated);
+    }
+  }
+
   HttpClient createHttpClient({
     SecurityContext? context,
     Future<ConnectionTask<Socket>> Function(List<InternetAddress>, int)?
@@ -156,13 +182,20 @@ final class OwnedDnsResolver {
       }
       if (proxyHost != null) throw const SocketException('Owned DNS proxy');
       final epoch = _epoch;
-      final addresses = await resolve(uri.host);
+      final answer = await _resolveTransport(uri.host);
+      final addresses = answer.addresses;
       if (epoch != _epoch) {
         throw const SocketException('Owned DNS session changed');
       }
       final task = connect != null
           ? await _secureTask(await connect(addresses, uri.port), uri, context)
-          : await _connect(addresses, uri, context, startConnect);
+          : await _connect(
+              addresses,
+              uri,
+              context,
+              startConnect,
+              answer._remaining,
+            );
       if (epoch != _epoch) {
         task.cancel();
       }
@@ -187,6 +220,7 @@ final class OwnedDnsResolver {
     Uri uri,
     SecurityContext? context,
     Future<ConnectionTask<Socket>> Function(InternetAddress, int)? startConnect,
+    Future<OwnedDnsAnswer?>? remaining,
   ) async {
     final ordered = List<InternetAddress>.of(addresses);
     final opposite = ordered.indexWhere(
@@ -198,6 +232,8 @@ final class OwnedDnsResolver {
     var finished = false;
     var next = 0;
     var active = 0;
+    var waiting = remaining != null;
+    Object lastError = const SocketException('Owned DNS dial failed');
     Timer? stagger;
     late final Timer deadline;
     void stop() {
@@ -247,10 +283,11 @@ final class OwnedDnsResolver {
         } catch (error) {
           active--;
           if (finished) return;
+          lastError = error;
           if (active == 0) {
             if (next < ordered.length) {
               launch();
-            } else {
+            } else if (!waiting) {
               fail(error);
             }
           }
@@ -265,6 +302,36 @@ final class OwnedDnsResolver {
       const Duration(milliseconds: 250),
       (_) => launch(),
     );
+    if (remaining != null) {
+      unawaited(
+        remaining.then<void>(
+          (answer) {
+            waiting = false;
+            if (finished) return;
+            if (answer != null) {
+              for (final address in answer.addresses) {
+                if (!ordered.any(
+                  (existing) => existing.address == address.address,
+                )) {
+                  ordered.add(address);
+                }
+              }
+            }
+            if (active == 0) {
+              if (next < ordered.length) {
+                launch();
+              } else {
+                fail(lastError);
+              }
+            }
+          },
+          onError: (Object error) {
+            waiting = false;
+            if (!finished && active == 0 && next >= ordered.length) fail(error);
+          },
+        ),
+      );
+    }
     launch();
     return _secureTask(
       ConnectionTask.fromSocket(result.future, () {
@@ -337,6 +404,7 @@ final class OwnedDnsBinding {
       hosts: hosts,
       strict: config['strict'] != false,
       lookup: _fetchRaw,
+      transportLookup: (_) => bootstrapZolnitOrigin(firstUsable: true),
     );
     _loopback = OwnedDnsSdkLoopback(
       hosts: hosts,
@@ -348,6 +416,7 @@ final class OwnedDnsBinding {
       hosts: (config['hosts'] as List).cast<String>().toSet(),
       strict: config['strict'] != false,
       lookup: _lookup,
+      transportLookup: (_) => bootstrapZolnitOrigin(firstUsable: true),
     );
   }
   final Map<String, dynamic> config;
@@ -363,6 +432,10 @@ final class OwnedDnsBinding {
   void setAuthorization(String? value) {
     if (_authorization == value) return;
     _authorization = value;
+    invalidateNetwork();
+  }
+
+  void invalidateNetwork() {
     resolver.clear();
     _rawResolver.clear();
     _loopback.invalidate();
@@ -486,27 +559,59 @@ Future<OwnedDnsAnswer> lookupWithOwnedDnsSdk(
 
 Future<OwnedDnsAnswer> bootstrapZolnitOrigin({
   Future<OwnedDnsAnswer> Function(int)? query,
+  bool firstUsable = false,
 }) async {
   Future<OwnedDnsAnswer?> family(int type) async {
     try {
-      return await (query ?? _queryOwnedBootstrapFamily)(type);
+      final answer = await (query ?? _queryOwnedBootstrapFamily)(
+        type,
+      ).timeout(const Duration(seconds: 3));
+      return answer.addresses.isEmpty ? null : answer;
     } catch (_) {
       return null;
     }
   }
 
-  final answers = await Future.wait([family(1), family(28)]);
-  final addresses = <String>[];
-  var ttl = 86400;
-  for (final answer in answers) {
-    if (answer == null || answer.addresses.isEmpty) continue;
-    addresses.addAll(answer.addresses.map((ip) => ip.address));
-    if (answer.ttl < ttl) ttl = answer.ttl;
+  final families = [family(1), family(28)];
+  final ready = <OwnedDnsAnswer>[];
+  final first = Completer<void>();
+  final all = Future.wait(
+    families.map((future) async {
+      final answer = await future;
+      if (answer != null) {
+        ready.add(answer);
+        if (!first.isCompleted) first.complete();
+      }
+    }),
+  );
+  unawaited(
+    all.then((_) {
+      if (!first.isCompleted) first.complete();
+    }),
+  );
+  await first.future;
+  if (firstUsable && ready.isNotEmpty) {
+    await Future.any([
+      all,
+      Future<void>.delayed(const Duration(milliseconds: 50)),
+    ]);
+  } else {
+    await all;
   }
-  if (addresses.isEmpty) {
+  OwnedDnsAnswer? combine() {
+    if (ready.isEmpty) return null;
+    return OwnedDnsAnswer(
+      ready.expand((a) => a.addresses.map((ip) => ip.address)).toList(),
+      ready.map((a) => a.ttl).reduce((a, b) => a < b ? a : b),
+    );
+  }
+
+  final answer = combine();
+  if (answer == null) {
     throw const SocketException('Owned DNS bootstrap unavailable');
   }
-  return OwnedDnsAnswer(addresses, ttl);
+  answer._remaining = all.then((_) => combine());
+  return answer;
 }
 
 const ownedDnsBootstrapLiterals = [

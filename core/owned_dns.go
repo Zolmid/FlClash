@@ -309,16 +309,12 @@ func (r *ownedDNSResolver) relay(ctx context.Context, host string) (ownedDNSAnsw
 	}
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-	ips, err := r.lookup(ctx, "link.zolmid.com")
-	if err != nil {
-		return answer, err
-	}
 	transport := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		h, port, err := net.SplitHostPort(address)
 		if err != nil || h != "link.zolmid.com" || port != "443" {
 			return nil, errors.New("owned DNS relay origin")
 		}
-		return dialOwnedAddresses(ctx, network, port, ips)
+		return r.dialOrigin(ctx, network, port)
 	}, TLSHandshakeTimeout: 5 * time.Second}
 	enableFirstPartyECH(transport)
 	defer transport.CloseIdleConnections()
@@ -386,6 +382,120 @@ func collectOwnedDNSBootstrap(ctx context.Context, query ownedDNSBootstrapQuery)
 		return ownedDNSAnswer{}, errors.New("owned DNS bootstrap unavailable")
 	}
 	return combined, nil
+}
+
+func dialOwnedBootstrap(ctx context.Context, network, port string, query ownedDNSBootstrapQuery,
+	dial func(context.Context, string, string, []netip.Addr) (net.Conn, error)) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	type result struct {
+		answer ownedDNSAnswer
+		err    error
+	}
+	type dialResult struct {
+		conn net.Conn
+		err  error
+	}
+	results := make(chan result, 2)
+	dials := make(chan dialResult)
+	for _, family := range []uint16{D.TypeA, D.TypeAAAA} {
+		go func(family uint16) { a, err := query(ctx, family); results <- result{a, err} }(family)
+	}
+	remaining, active := 2, 0
+	var ips []netip.Addr
+	var grace <-chan time.Time
+	timer := time.NewTimer(50 * time.Millisecond)
+	timer.Stop()
+	defer timer.Stop()
+	started := false
+	failure := errors.New("owned DNS bootstrap unavailable")
+	launch := func() {
+		batch := ips
+		ips = nil
+		active++
+		started = true
+		go func() {
+			conn, err := dial(ctx, network, port, batch)
+			select {
+			case dials <- dialResult{conn, err}:
+			case <-ctx.Done():
+				if conn != nil {
+					_ = conn.Close()
+				}
+			}
+		}()
+	}
+	for remaining > 0 || active > 0 || len(ips) > 0 {
+		if len(ips) > 0 && (started || remaining == 0 || grace == nil) {
+			launch()
+		}
+		if remaining == 0 && active == 0 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-grace:
+			grace = nil
+		case value := <-dials:
+			active--
+			if value.err == nil && value.conn != nil && ctx.Err() == nil {
+				return value.conn, nil
+			}
+			if value.conn != nil {
+				_ = value.conn.Close()
+			}
+			if value.err != nil {
+				failure = value.err
+			}
+		case value := <-results:
+			remaining--
+			addresses, err := validateOwnedAddresses(value.answer.Addresses)
+			if value.err == nil && err == nil && value.answer.TTL >= 0 && value.answer.TTL <= 86400 {
+				ips = append(ips, addresses...)
+				if !started && grace == nil {
+					timer.Reset(50 * time.Millisecond)
+					grace = timer.C
+				}
+			}
+		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return nil, failure
+}
+
+func (r *ownedDNSResolver) dialOrigin(ctx context.Context, network, port string) (net.Conn, error) {
+	ctx, finish := r.track(ctx)
+	defer finish()
+	r.mu.Lock()
+	generation := r.generation
+	cached, ok := r.cache["link.zolmid.com"]
+	r.mu.Unlock()
+	var conn net.Conn
+	var err error
+	if ok && time.Now().Before(cached.until) {
+		conn, err = dialOwnedAddresses(ctx, network, port, cached.ips)
+	} else if r.query != nil {
+		var ips []netip.Addr
+		ips, err = r.lookup(ctx, "link.zolmid.com")
+		if err == nil {
+			conn, err = dialOwnedAddresses(ctx, network, port, ips)
+		}
+	} else {
+		conn, err = dialOwnedBootstrap(ctx, network, port, queryOwnedDNSBootstrap, dialOwnedAddresses)
+	}
+	r.mu.Lock()
+	current := generation == r.generation && !r.revoked.Load() && ctx.Err() == nil
+	r.mu.Unlock()
+	if !current {
+		if conn != nil {
+			_ = conn.Close()
+		}
+		return nil, context.Canceled
+	}
+	return conn, err
 }
 
 var ownedDNSBootstrapLiterals = []string{"223.5.5.5", "2400:3200::1", "223.6.6.6", "2400:3200:baba::1"}

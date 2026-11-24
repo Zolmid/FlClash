@@ -5,3 +5,5 @@ http.Client createClient({
   Object? nativeRequest,
   bool? isAndroid,
 }) => http.Client();
+
+void notifyFirstPartyNetworkChanged() {}
