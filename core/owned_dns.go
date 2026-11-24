@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/config"
 	D "github.com/miekg/dns"
+	"golang.org/x/sync/singleflight"
 )
 
 var activeOwnedDNS atomic.Pointer[ownedDNSResolver]
@@ -48,6 +50,9 @@ type ownedDNSResolver struct {
 	mu         sync.Mutex
 	cache      map[string]ownedDNSCache
 	generation uint64
+	inflight   map[context.Context]context.CancelFunc
+	flights    singleflight.Group
+	query      func(context.Context, string) (ownedDNSAnswer, error)
 }
 
 func newOwnedDNSResolver(config *OwnedDNSConfig, fallback resolver.Resolver) (*ownedDNSResolver, error) {
@@ -90,28 +95,120 @@ func validateOwnedAddresses(values []string) ([]netip.Addr, error) {
 }
 
 func dialOwnedAddresses(ctx context.Context, network, port string, ips []netip.Addr) (net.Conn, error) {
-	var failure error
+	return raceOwnedAddresses(ctx, network, port, ips, dialer.DialContext)
+}
+
+func raceOwnedAddresses(ctx context.Context, network, port string, ips []netip.Addr,
+	dial func(context.Context, string, string, ...dialer.Option) (net.Conn, error)) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	ordered := make([]netip.Addr, 0, len(ips))
 	for _, ip := range ips {
-		attempt, cancel := context.WithTimeout(ctx, 4*time.Second)
-		familyNetwork := network
-		if strings.HasPrefix(network, "tcp") {
-			if ip.Is6() {
-				familyNetwork = "tcp6"
-			} else {
-				familyNetwork = "tcp4"
+		if !ip.IsValid() || network == "tcp4" && !ip.Is4() || network == "tcp6" && !ip.Is6() {
+			continue
+		}
+		ordered = append(ordered, ip)
+	}
+	if len(ordered) == 0 {
+		return nil, errors.New("no eligible owned DNS address")
+	}
+	for i := 1; i < len(ordered); i++ {
+		if ordered[i].Is4() != ordered[0].Is4() {
+			opposite := ordered[i]
+			copy(ordered[2:i+1], ordered[1:i])
+			ordered[1] = opposite
+			break
+		}
+	}
+	type result struct {
+		conn net.Conn
+		err  error
+	}
+	results := make(chan result)
+	launch := func(ip netip.Addr) {
+		go func() {
+			family := network
+			if strings.HasPrefix(network, "tcp") {
+				family = "tcp4"
+				if ip.Is6() {
+					family = "tcp6"
+				}
+			}
+			conn, err := dial(ctx, family, net.JoinHostPort(ip.String(), port))
+			select {
+			case results <- result{conn, err}:
+			case <-ctx.Done():
+				if conn != nil {
+					_ = conn.Close()
+				}
+			}
+		}()
+	}
+	launch(ordered[0])
+	next, active := 1, 1
+	timer := time.NewTimer(250 * time.Millisecond)
+	defer timer.Stop()
+	failure := errors.New("owned DNS dial failed")
+	for active > 0 {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-timer.C:
+			if next < len(ordered) {
+				launch(ordered[next])
+				next++
+				active++
+				timer.Reset(250 * time.Millisecond)
+			}
+		case value := <-results:
+			active--
+			if value.err == nil && value.conn != nil {
+				if ctx.Err() != nil {
+					_ = value.conn.Close()
+					return nil, ctx.Err()
+				}
+				return value.conn, nil
+			}
+			if value.conn != nil {
+				_ = value.conn.Close()
+			}
+			if value.err != nil {
+				failure = value.err
+			}
+			if active == 0 && next < len(ordered) {
+				launch(ordered[next])
+				next++
+				active++
+				timer.Reset(250 * time.Millisecond)
 			}
 		}
-		conn, err := dialer.DialContext(attempt, familyNetwork, net.JoinHostPort(ip.String(), port))
-		cancel()
-		if err == nil {
-			return conn, nil
-		}
-		failure = err
 	}
 	return nil, failure
 }
 
+func (r *ownedDNSResolver) track(ctx context.Context) (context.Context, func()) {
+	ctx, cancel := context.WithCancel(ctx)
+	r.mu.Lock()
+	if r.inflight == nil {
+		r.inflight = make(map[context.Context]context.CancelFunc)
+	}
+	r.inflight[ctx] = cancel
+	if r.revoked.Load() {
+		cancel()
+	}
+	r.mu.Unlock()
+	return ctx, func() {
+		r.mu.Lock()
+		delete(r.inflight, ctx)
+		r.mu.Unlock()
+		cancel()
+	}
+}
+
 func (r *ownedDNSResolver) lookup(ctx context.Context, host string) ([]netip.Addr, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	host = strings.TrimSuffix(strings.ToLower(host), ".")
 	if r.hosts[host] && r.revoked.Load() {
 		return nil, errors.New("owned DNS session revoked")
@@ -119,22 +216,63 @@ func (r *ownedDNSResolver) lookup(ctx context.Context, host string) ([]netip.Add
 	if !r.hosts[host] {
 		return r.fallback(ctx, host)
 	}
+	ctx, finish := r.track(ctx)
+	defer finish()
 	r.mu.Lock()
 	generation := r.generation
 	cached, ok := r.cache[host]
 	r.mu.Unlock()
 	if ok && time.Now().Before(cached.until) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return append([]netip.Addr(nil), cached.ips...), nil
+	}
+	result := r.flights.DoChan(fmt.Sprintf("%d:%s", generation, host), func() (any, error) {
+		shared, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		shared, finish := r.track(shared)
+		defer finish()
+		return r.load(shared, host, generation)
+	})
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case value := <-result:
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if generation != r.generation || r.revoked.Load() || ctx.Err() != nil {
+			return nil, errors.New("owned DNS lookup superseded")
+		}
+		if value.Err != nil {
+			return nil, value.Err
+		}
+		return append([]netip.Addr(nil), value.Val.([]netip.Addr)...), nil
+	}
+}
+
+func (r *ownedDNSResolver) load(ctx context.Context, host string, generation uint64) ([]netip.Addr, error) {
+	r.mu.Lock()
+	cached, ok := r.cache[host]
+	current := generation == r.generation && !r.revoked.Load() && ctx.Err() == nil
+	r.mu.Unlock()
+	if !current {
+		return nil, errors.New("owned DNS lookup superseded")
+	}
+	if ok && time.Now().Before(cached.until) {
 		return append([]netip.Addr(nil), cached.ips...), nil
 	}
 	var answer ownedDNSAnswer
 	var err error
-	if host == "link.zolmid.com" {
+	if r.query != nil {
+		answer, err = r.query(ctx, host)
+	} else if host == "link.zolmid.com" {
 		answer, err = publicOwnedDNSBootstrap(ctx)
 	} else {
 		answer, err = r.relay(ctx, host)
 	}
 	if err != nil {
-		if !r.config.Strict {
+		if !r.config.Strict && ctx.Err() == nil {
 			return r.fallback(ctx, host)
 		}
 		return nil, err
@@ -148,7 +286,7 @@ func (r *ownedDNSResolver) lookup(ctx context.Context, host string) ([]netip.Add
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if generation != r.generation || r.revoked.Load() {
+	if generation != r.generation || r.revoked.Load() || ctx.Err() != nil {
 		return nil, errors.New("owned DNS lookup superseded")
 	}
 	if answer.TTL > 0 {
@@ -384,8 +522,12 @@ func (r *ownedDNSResolver) ExchangeContext(ctx context.Context, msg *D.Msg) (*D.
 func (r *ownedDNSResolver) invalidateCache() {
 	r.mu.Lock()
 	r.generation++
+	for _, cancel := range r.inflight {
+		cancel()
+	}
 	r.cache = map[string]ownedDNSCache{}
 	r.mu.Unlock()
+	firstPartyHTTP.resetIdle()
 }
 
 func (r *ownedDNSResolver) ClearCache() {

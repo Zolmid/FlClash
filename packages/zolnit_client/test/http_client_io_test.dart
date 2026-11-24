@@ -157,6 +157,32 @@ void main() {
     client.close();
   });
 
+  test('admitted POST network failure never falls back after commit', () async {
+    var committed = 0;
+    var fallbacks = 0;
+    final client = AndroidFirstPartyClient(
+      nativeRequest: (method, args) async {
+        if (method == 'cancelFirstPartyHttpRequest') return null;
+        committed++;
+        throw PlatformException(code: 'NETWORK');
+      },
+      fallback: MockClient((_) async {
+        fallbacks++;
+        return http.Response('{}', 200);
+      }),
+    );
+    addTearDown(client.close);
+    await expectLater(
+      client.post(
+        Uri.parse('https://link.zolmid.com/api/v1/user/order/save'),
+        body: '{}',
+      ),
+      throwsA(isA<PlatformException>()),
+    );
+    expect(committed, 1);
+    expect(fallbacks, 0);
+  });
+
   test('only MissingPlugin falls back to strict direct HTTP', () async {
     var fallbacks = 0;
     final fallback = MockClient((request) async {

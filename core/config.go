@@ -249,6 +249,7 @@ func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError
 		defer selectMu.Unlock()
 		hub.ApplyConfig(cfg)
 		activeOwnedDNS.Store(owned)
+		firstPartyHTTP.resetIdle()
 		if owned != nil {
 			owned.Resolver = resolver.ProxyServerHostResolver
 			resolver.ProxyServerHostResolver = owned

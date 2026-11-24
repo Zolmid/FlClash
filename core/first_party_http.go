@@ -49,6 +49,7 @@ type firstPartyHTTPService struct {
 	pending   map[firstPartyHTTPKey]context.CancelFunc
 	cancelled map[firstPartyHTTPKey]time.Time
 	transport func() *http.Transport
+	pools     map[firstPartyHTTPPoolKey]*firstPartyHTTPPool
 }
 
 func newFirstPartyHTTPService(transport func() *http.Transport) *firstPartyHTTPService {
@@ -123,24 +124,17 @@ func (s *firstPartyHTTPService) send(params FirstPartyHTTPParams) (result *First
 		return nil, firstPartyHTTPError("invalid_request")
 	}
 	request.GetBody = nil
+	if params.Method == http.MethodPost && len(body) == 0 {
+		request.Body = io.NopCloser(bytes.NewReader(body))
+	}
 	for name, value := range params.Headers {
 		request.Header.Set(name, value)
 	}
-	transport := s.transport()
-	if params.Addresses != nil {
-		ips, ipErr := validateOwnedAddresses(params.Addresses)
-		if ipErr != nil {
-			return nil, firstPartyHTTPError("invalid_request")
-		}
-		transport = firstPartyHTTPTransport(func(ctx context.Context, network, address string) (net.Conn, error) {
-			_, port, _ := net.SplitHostPort(address)
-			return dialOwnedAddresses(ctx, network, port, ips)
-		})
+	transport, transportErr := s.pooledTransport(params)
+	if transportErr != nil {
+		return nil, transportErr
 	}
-	if activeOwnedDNS.Load() != nil || params.Addresses != nil {
-		enableFirstPartyECH(transport)
-	}
-	defer transport.CloseIdleConnections()
+
 	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}
@@ -255,7 +249,8 @@ func firstPartyHTTPTransport(dial func(context.Context, string, string) (net.Con
 			return dial(ctx, network, address)
 		},
 		TLSClientConfig:     tlsConfig,
-		TLSHandshakeTimeout: 10 * time.Second, DisableKeepAlives: true,
+		TLSHandshakeTimeout: 10 * time.Second,
+		IdleConnTimeout:     30 * time.Second, MaxIdleConns: 16, MaxIdleConnsPerHost: 4,
 		MaxResponseHeaderBytes: 16384,
 	}
 }
@@ -274,7 +269,13 @@ func validFirstPartyHTTPHeaderValue(value string) bool {
 
 func validFirstPartyHTTPHeaders(headers map[string]string) bool {
 	total := 0
+	seen := map[string]bool{}
 	for name, value := range headers {
+		lower := strings.ToLower(name)
+		if seen[lower] {
+			return false
+		}
+		seen[lower] = true
 		total += len(name) + len(value)
 		if _, ok := firstPartyHTTPHeaders[strings.ToLower(name)]; !ok || !validFirstPartyHTTPHeaderValue(value) {
 			return false

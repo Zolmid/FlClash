@@ -158,6 +158,14 @@ class AndroidFirstPartyClient extends http.BaseClient {
   ) async {
     Object? value;
     try {
+      final binding = ownedDnsBinding;
+      final generation = binding?.resolver.generation;
+      final addresses = await binding?.resolver.resolve(request.url.host);
+      _ensureOpen();
+      if (!_pending.containsKey(requestId) ||
+          generation != binding?.resolver.generation) {
+        throw http.ClientException('Request superseded');
+      }
       value = await _nativeRequest('firstPartyHttpRequest', {
         'clientId': _clientId,
         'requestId': requestId,
@@ -165,10 +173,8 @@ class AndroidFirstPartyClient extends http.BaseClient {
         'method': request.method,
         'headers': request.headers,
         'body': Uint8List.fromList(body),
-        if (ownedDnsBinding case final binding?)
-          'addresses': (await binding.resolver.resolve(
-            request.url.host,
-          )).map((ip) => ip.address).toList(),
+        if (addresses != null)
+          'addresses': addresses.map((ip) => ip.address).toList(),
       });
     } on MissingPluginException {
       _ensureOpen();

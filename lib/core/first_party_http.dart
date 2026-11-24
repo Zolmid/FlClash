@@ -80,6 +80,13 @@ class CoreFirstPartyHttpClient extends http.BaseClient {
         throw const FormatException('GET body is not allowed');
       }
       if (!_useCore()) return _fallback.send(_copyRequest(request, body));
+      final binding = ownedDnsBinding;
+      final generation = binding?.resolver.generation;
+      final addresses = await binding?.resolver.resolve(request.url.host);
+      _ensureOpen();
+      if (cancelled.isCompleted || generation != binding?.resolver.generation) {
+        throw const ClientFailure('superseded');
+      }
       dispatched = true;
       final value = await _invoke({
         'client-id': _clientId,
@@ -89,10 +96,8 @@ class CoreFirstPartyHttpClient extends http.BaseClient {
         'headers': request.headers,
         'body': base64Encode(body),
         'timeout': requestTimeout.inMilliseconds,
-        if (ownedDnsBinding case final binding?)
-          'addresses': (await binding.resolver.resolve(
-            request.url.host,
-          )).map((ip) => ip.address).toList(),
+        if (addresses != null)
+          'addresses': addresses.map((ip) => ip.address).toList(),
       });
       _ensureOpen();
       if (value == null) throw const ClientFailure('network');

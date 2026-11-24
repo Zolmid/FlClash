@@ -67,6 +67,7 @@ func handleResetConnections() bool {
 // A connection that went out over a network the device has left hangs until
 // TCP gives up on it, and so do the DNS clients' pooled connections.
 func handleResetNetwork() {
+	firstPartyHTTP.resetIdle()
 	handleCloseConnections()
 	configMu.Lock()
 	defer configMu.Unlock()

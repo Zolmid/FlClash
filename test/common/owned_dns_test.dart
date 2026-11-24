@@ -6,6 +6,100 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zolnit_client/src/owned_dns.dart';
 
 void main() {
+  test('dial staggers families and cancels the losing task', () async {
+    for (final addresses in [
+      ['192.0.2.1', '192.0.2.2', '2001:db8::1'],
+      ['2001:db8::1', '2001:db8::2', '192.0.2.1'],
+    ]) {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) {
+        request.response.write('ok');
+        unawaited(request.response.close());
+      });
+      final resolver = OwnedDnsResolver(
+        hosts: {'owned.invalid'},
+        lookup: (_) async => OwnedDnsAnswer(addresses, 30),
+      );
+      final stalled = Completer<Socket>();
+      final attempted = <InternetAddress>[];
+      var cancelled = false;
+      final client = resolver.createHttpClient(
+        startConnect: (address, port) async {
+          attempted.add(address);
+          if (attempted.length == 1) {
+            return ConnectionTask.fromSocket(stalled.future, () {
+              cancelled = true;
+              if (!stalled.isCompleted) {
+                stalled.completeError(const SocketException('cancelled'));
+              }
+            });
+          }
+          return Socket.startConnect(InternetAddress.loopbackIPv4, port);
+        },
+      );
+      addTearDown(() => client.close(force: true));
+      final watch = Stopwatch()..start();
+      final response = await (await client.getUrl(
+        Uri.parse('http://owned.invalid:${server.port}/'),
+      )).close();
+      await response.drain<void>();
+      expect(watch.elapsedMilliseconds, inInclusiveRange(200, 2000));
+      expect(attempted.length, 2);
+      expect(attempted.first.type, isNot(attempted.last.type));
+      expect(cancelled, isTrue);
+    }
+  });
+
+  test(
+    'clear releases DNS callers before a stalled upstream completes',
+    () async {
+      final upstream = Completer<OwnedDnsAnswer>();
+      final resolver = OwnedDnsResolver(
+        hosts: {'owned.invalid'},
+        lookup: (_) => upstream.future,
+      );
+      final result = resolver.resolve('owned.invalid');
+      resolver.clear();
+      await expectLater(
+        result.timeout(const Duration(milliseconds: 100)),
+        throwsA(isA<SocketException>()),
+      );
+      upstream.complete(OwnedDnsAnswer(['192.0.2.1'], 30));
+    },
+  );
+
+  test(
+    'clear between cached resolution and connection apply rejects socket',
+    () async {
+      final resolver = OwnedDnsResolver(
+        hosts: {'owned.invalid'},
+        lookup: (_) async => OwnedDnsAnswer(['192.0.2.1'], 30),
+      );
+      await resolver.resolve('owned.invalid');
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+      final accepted = Completer<Socket>();
+      server.listen(accepted.complete);
+      final client = resolver.createHttpClient(
+        startConnect: (address, port) async {
+          final task = await Socket.startConnect(
+            InternetAddress.loopbackIPv4,
+            port,
+          );
+          resolver.clear();
+          return task;
+        },
+      );
+      addTearDown(() => client.close(force: true));
+      await expectLater(
+        client.getUrl(Uri.parse('http://owned.invalid:${server.port}/')),
+        throwsA(isA<SocketException>()),
+      );
+      if (accepted.isCompleted) (await accepted.future).destroy();
+    },
+  );
+
   test(
     'IPv6-only bootstrap selects an official IPv6 literal without waiting for IPv4',
     () async {

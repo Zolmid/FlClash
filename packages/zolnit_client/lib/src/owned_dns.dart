@@ -55,8 +55,19 @@ final class OwnedDnsResolver {
   bool owns(String host) =>
       hosts.contains(host.toLowerCase().replaceFirst(RegExp(r'\.$'), ''));
   int _epoch = 0;
+  int get generation => _epoch;
+  final _waiters = <Completer<OwnedDnsAnswer>>{};
+  final _connections = <void Function()>{};
   void clear() {
     _epoch++;
+    for (final waiter in _waiters) {
+      waiter.completeError(const SocketException('Owned DNS session changed'));
+    }
+    _waiters.clear();
+    for (final cancel in _connections.toList()) {
+      cancel();
+    }
+    _connections.clear();
     _cache.clear();
     _pending.clear();
   }
@@ -65,6 +76,7 @@ final class OwnedDnsResolver {
       (await resolveAnswer(name)).addresses;
 
   Future<OwnedDnsAnswer> resolveAnswer(String name) async {
+    final epoch = _epoch;
     final host = _host(name);
     if (!owns(host)) throw const FormatException('Unowned DNS hostname');
     final cached = _cache[host];
@@ -75,15 +87,26 @@ final class OwnedDnsResolver {
       );
     }
     _cache.remove(host);
+    final invalidated = Completer<OwnedDnsAnswer>();
+    _waiters.add(invalidated);
     try {
-      final answer = await (_pending[host] ??= _load(host));
+      final answer = await Future.any([
+        _pending[host] ??= _load(host),
+        invalidated.future,
+      ]);
+      if (epoch != _epoch) {
+        throw const SocketException('Owned DNS session changed');
+      }
       return answer;
     } catch (_) {
-      if (strict) rethrow;
-      return OwnedDnsAnswer(
-        (await InternetAddress.lookup(host)).map((ip) => ip.address).toList(),
-        0,
-      );
+      if (strict || epoch != _epoch) rethrow;
+      final addresses = await InternetAddress.lookup(host);
+      if (epoch != _epoch) {
+        throw const SocketException('Owned DNS session changed');
+      }
+      return OwnedDnsAnswer(addresses.map((ip) => ip.address).toList(), 0);
+    } finally {
+      _waiters.remove(invalidated);
     }
   }
 
@@ -112,6 +135,7 @@ final class OwnedDnsResolver {
     SecurityContext? context,
     Future<ConnectionTask<Socket>> Function(List<InternetAddress>, int)?
     connect,
+    Future<ConnectionTask<Socket>> Function(InternetAddress, int)? startConnect,
   }) {
     final client = _OwnedHttpOverrides().createHttpClient(context)
       ..connectionTimeout = const Duration(seconds: 10)
@@ -131,11 +155,29 @@ final class OwnedDnsResolver {
         );
       }
       if (proxyHost != null) throw const SocketException('Owned DNS proxy');
+      final epoch = _epoch;
       final addresses = await resolve(uri.host);
-      if (connect != null) {
-        return _secureTask(await connect(addresses, uri.port), uri, context);
+      if (epoch != _epoch) {
+        throw const SocketException('Owned DNS session changed');
       }
-      return _connect(addresses, uri, context);
+      final task = connect != null
+          ? await _secureTask(await connect(addresses, uri.port), uri, context)
+          : await _connect(addresses, uri, context, startConnect);
+      if (epoch != _epoch) {
+        task.cancel();
+      }
+      void cancel() => task.cancel();
+      _connections.add(cancel);
+      final socket = task.socket
+          .then<Socket>((socket) {
+            if (epoch != _epoch) {
+              socket.destroy();
+              throw const SocketException('Owned DNS session changed');
+            }
+            return socket;
+          })
+          .whenComplete(() => _connections.remove(cancel));
+      return ConnectionTask.fromSocket(socket, cancel);
     };
     return client;
   }
@@ -144,55 +186,93 @@ final class OwnedDnsResolver {
     List<InternetAddress> addresses,
     Uri uri,
     SecurityContext? context,
+    Future<ConnectionTask<Socket>> Function(InternetAddress, int)? startConnect,
   ) async {
+    final ordered = List<InternetAddress>.of(addresses);
+    final opposite = ordered.indexWhere(
+      (address) => address.type != ordered.first.type,
+    );
+    if (opposite > 1) ordered.insert(1, ordered.removeAt(opposite));
     final result = Completer<Socket>();
-    var cancelled = false;
-    ConnectionTask<Socket>? active;
-    Socket? activeSocket;
-    unawaited(() async {
-      Object failure = const SocketException('Owned DNS dial failed');
-      for (final address in addresses) {
-        if (cancelled) return;
+    final tasks = <ConnectionTask<Socket>>{};
+    var finished = false;
+    var next = 0;
+    var active = 0;
+    Timer? stagger;
+    late final Timer deadline;
+    void stop() {
+      finished = true;
+      stagger?.cancel();
+      deadline.cancel();
+      for (final task in tasks) {
+        task.cancel();
+      }
+    }
+
+    void fail(Object error) {
+      if (finished) return;
+      stop();
+      result.completeError(error);
+    }
+
+    void launch() {
+      if (finished || next >= ordered.length) return;
+      final address = ordered[next++];
+      active++;
+      unawaited(() async {
         try {
-          final task = await Socket.startConnect(address, uri.port);
-          active = task;
-          var socket = await task.socket.timeout(
-            const Duration(seconds: 4),
-            onTimeout: () {
-              task.cancel();
-              throw TimeoutException('Owned DNS dial');
-            },
+          final task = await (startConnect ?? Socket.startConnect)(
+            address,
+            uri.port,
           );
-          activeSocket = socket;
-          if (uri.scheme == 'https') {
-            socket = await SecureSocket.secure(
-              socket,
-              host: uri.host,
-              context: context,
-            ).timeout(const Duration(seconds: 4));
-            activeSocket = socket;
+          if (finished) {
+            task.cancel();
+            unawaited(
+              task.socket.then<void>(
+                (socket) => socket.destroy(),
+                onError: (Object _) {},
+              ),
+            );
+            return;
           }
-          if (cancelled) {
+          tasks.add(task);
+          final socket = await task.socket;
+          tasks.remove(task);
+          if (finished) {
             socket.destroy();
             return;
           }
+          stop();
           result.complete(socket);
-          return;
         } catch (error) {
-          activeSocket?.destroy();
-          failure = error;
+          active--;
+          if (finished) return;
+          if (active == 0) {
+            if (next < ordered.length) {
+              launch();
+            } else {
+              fail(error);
+            }
+          }
         }
-      }
-      if (!result.isCompleted) result.completeError(failure);
-    }());
-    return ConnectionTask.fromSocket(result.future, () {
-      cancelled = true;
-      active?.cancel();
-      activeSocket?.destroy();
-      if (!result.isCompleted) {
-        result.completeError(const SocketException('Owned DNS cancelled'));
-      }
+      }());
+    }
+
+    deadline = Timer(const Duration(seconds: 4), () {
+      fail(TimeoutException('Owned DNS dial'));
     });
+    stagger = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (_) => launch(),
+    );
+    launch();
+    return _secureTask(
+      ConnectionTask.fromSocket(result.future, () {
+        fail(const SocketException('Owned DNS cancelled'));
+      }),
+      uri,
+      context,
+    );
   }
 
   static String _host(String value) {
