@@ -17,7 +17,7 @@ WORKFLOW = '.github/workflows/client-release.yml'
 WORKFLOW_ID = 410545194
 BUILD_WORKFLOW = f'{REPOSITORY}/.github/workflows/build.yaml'
 API_ROOT = f'repos/{REPOSITORY}/actions'
-CHECKS = ('Dart', 'Plugins', 'Go core', 'Android unit tests', 'Rust', 'Windows helper test')
+CHECKS = ('Dart', 'Plugins', 'Go core', 'Android unit tests', 'Rust', 'Windows helper test', 'Apple renewal')
 PREFLIGHT = 'Formal tag preflight'
 TAG = re.compile(r'v(0|[1-9][0-9]{0,9})\.(0|[1-9][0-9]{0,9})\.(0|[1-9][0-9]{0,9})')
 MAX_WAIT_SECONDS = 900
@@ -223,7 +223,7 @@ def report(decision, env):
                           f'[{run_id}, attempt {attempt}](https://github.com/{REPOSITORY}/actions/runs/{run_id}/attempts/{attempt}).\n\n')
             for name, job_id, conclusion in decision.checks:
                 summary.write(f'- {name}: {conclusion} (job {job_id})\n')
-            summary.write('\nThe six local jobs are skipped; their completed results above were observed, not rerun.\n')
+            summary.write('\nThe seven local jobs are skipped; their completed results above were observed, not rerun.\n')
         else:
             summary.write(f'No Standard CI results reused ({decision.reason}). Original check conditions remain active.\n')
     print(json.dumps({'result': decision.result, 'reason': decision.reason, 'source': decision.source}))

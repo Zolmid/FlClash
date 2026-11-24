@@ -51,6 +51,7 @@ jobs:
       rust: ${{ steps.select.outputs.rust }}
       windows_helper_test: ${{ steps.select.outputs.windows_helper_test }}
       desktop: ${{ steps.select.outputs.desktop }}
+      apple_renewal: ${{ steps.select.outputs.apple_renewal || 'false' }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -81,6 +82,7 @@ jobs:
             {
               echo 'profile=full'
               for job in dart plugins go android rust windows_helper_test desktop; do echo "$job=true"; done
+              echo "apple_renewal=false"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -263,6 +265,28 @@ jobs:
           dart analyze
           dart test
 
+  apple-renewal:
+    permissions:
+      contents: read
+    name: Apple renewal
+    needs: [delegation, selection]
+    if: ${{ !cancelled() && needs.delegation.outputs.delegated != 'true' && needs.selection.outputs.apple_renewal == 'true' }}
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check iOS renewal transport
+        run: |
+          set -euo pipefail
+          [[ "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 1
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          [[ "$(xcrun --sdk iphoneos --show-sdk-version)" == 27.* ]] || exit 1
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          bash tool/acceptance/ios_intents/run_classifier.sh
+
   desktop:
     permissions:
       contents: read
@@ -336,10 +360,11 @@ jobs:
         timeout-minutes: 15
         run: |
           set -euo pipefail
-          [[ "$(xcrun --sdk iphoneos --show-sdk-version)" == 27.* ]]
+          [[ "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 1
+          [[ "$(xcrun --sdk iphoneos --show-sdk-version)" == 27.* ]] || exit 1
           SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           export SDKROOT
-          for check in race completion abandon; do
+          for check in race classifier completion abandon; do
             bash "tool/acceptance/ios_intents/run_${check}.sh"
           done
           bash tool/acceptance/ios_intents/check_sdk.sh
@@ -613,7 +638,7 @@ jobs:
       contents: read
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'CI gate' || 'Build gate' }}
     if: ${{ always() }}
-    needs: [delegation, selection, review, dart, plugins, go, android, rust, windows-helper-test, desktop]
+    needs: [delegation, selection, review, dart, plugins, go, android, rust, windows-helper-test, desktop, apple-renewal]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -637,7 +662,7 @@ jobs:
                   errors.append(f"formal observer: {observer['result']}, delegated={delegated}")
           elif observe != 'false' or observer['result'] != 'skipped' or delegated:
               errors.append('unexpected formal observer state')
-          for job in ('dart', 'plugins', 'go', 'android', 'rust', 'windows-helper-test', 'desktop'):
+          for job in ('dart', 'plugins', 'go', 'android', 'rust', 'windows-helper-test', 'desktop', 'apple-renewal'):
               selected = outputs.get(job.replace('-', '_'))
               if selected not in ('true', 'false'):
                   errors.append(f'{job}: invalid selection')

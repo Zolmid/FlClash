@@ -93,6 +93,7 @@ def select(event_name, ref, event, head, official, called=False):
     result = {name: (ordinary or official) and (kind == 'full' or (kind == 'android-tests' and name == 'android'))
               for name in CHECKS}
     result['desktop'] = ordinary and kind == 'full' and not (event_name == 'push' and ref.startswith('refs/tags/v'))
+    result['apple-renewal'] = kind == 'full' and event_name == 'push' and ref.startswith('refs/tags/v')
     return kind, result
 
 

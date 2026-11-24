@@ -10,7 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import select_checks as selector
 from standard_ci_delegation_test import CHECK_IDS, check_enabled, event as formal_event, workflow
 
-ALL = (*CHECK_IDS, 'desktop')
+ALL = (*CHECK_IDS, 'desktop', 'apple-renewal')
+NORMAL = (*CHECK_IDS, 'desktop')
+TAG_CHECKS = (*CHECK_IDS, 'apple-renewal')
 ZOLMID = {'private': False, 'full_name': 'Zolmid/FlClash', 'id': 1420254999}
 UPSTREAM = {'private': False, 'full_name': 'chen08209/FlClash', 'id': 1}
 FEATURE = 'refs/heads/feature'
@@ -85,18 +87,18 @@ class SelectionTest(unittest.TestCase):
         for ref in (FEATURE, MAIN):
             self.assert_jobs('docs', (), 'push', ref, self.push(head, ref), head)
         for event in ('workflow_dispatch', 'workflow_call', 'merge_group'):
-            self.assert_jobs('full', ALL, event, MAIN, self.push(head, MAIN), head)
-        self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head), head, called=True)
-        self.assert_jobs('full', CHECK_IDS, 'push', TAG, self.push(head, TAG), head)
+            self.assert_jobs('full', NORMAL, event, MAIN, self.push(head, MAIN), head)
+        self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head), head, called=True)
+        self.assert_jobs('full', TAG_CHECKS, 'push', TAG, self.push(head, TAG), head)
         private = dict(ZOLMID, private=True)
-        self.assert_jobs('full', CHECK_IDS, 'push', TAG, self.push(head, TAG, private), head, official=True)
+        self.assert_jobs('full', TAG_CHECKS, 'push', TAG, self.push(head, TAG, private), head, official=True)
         self.assert_jobs('docs', (), 'push', FEATURE, self.push(head, repository=private), head)
-        self.assert_jobs('full', ALL, 'workflow_dispatch', MAIN, self.push(head, MAIN, private), head)
-        self.assert_jobs('full', ALL, 'push', MAIN, self.push(head, MAIN, UPSTREAM), head)
-        self.assert_jobs('full', CHECK_IDS, 'push', TAG, self.push(head, TAG, UPSTREAM), head)
-        self.assert_jobs('full', ALL, 'push', MAIN, self.push(head, MAIN, dict(ZOLMID, id=2)), head)
+        self.assert_jobs('full', NORMAL, 'workflow_dispatch', MAIN, self.push(head, MAIN, private), head)
+        self.assert_jobs('full', NORMAL, 'push', MAIN, self.push(head, MAIN, UPSTREAM), head)
+        self.assert_jobs('full', TAG_CHECKS, 'push', TAG, self.push(head, TAG, UPSTREAM), head)
+        self.assert_jobs('full', NORMAL, 'push', MAIN, self.push(head, MAIN, dict(ZOLMID, id=2)), head)
         special = 'refs/heads/codex/native-client-shared'
-        self.assert_jobs('full', ALL, 'push', special, self.push(head, special), head)
+        self.assert_jobs('full', NORMAL, 'push', special, self.push(head, special), head)
         self.git('tag', 'v1.2.3', head)
         self.assert_jobs('docs', (), 'push', MAIN, self.push(head, MAIN), head)
         verify = next(s for s in self.jobs['selection']['steps'] if s.get('name') == 'Verify changelog on main documentation changes')
@@ -106,17 +108,17 @@ class SelectionTest(unittest.TestCase):
         merge, pr = self.merge_pr()
         self.assert_jobs('docs', (), 'pull_request', PR, pr, merge)
         pr['pull_request']['base']['repo'] = UPSTREAM
-        self.assert_jobs('full', ALL, 'pull_request', PR, pr, merge)
+        self.assert_jobs('full', NORMAL, 'pull_request', PR, pr, merge)
 
     def test_only_registered_android_unit_sources_narrow(self):
         self.write('android/tests/common/EnumsTest.kt')
         head = self.commit()
         self.assert_jobs('android-tests', ('android',), 'push', FEATURE, self.push(head), head)
-        self.assert_jobs('full', ALL, 'push', MAIN, self.push(head, MAIN), head)
+        self.assert_jobs('full', NORMAL, 'push', MAIN, self.push(head, MAIN), head)
         merge, pr = self.merge_pr()
         self.assert_jobs('android-tests', ('android',), 'pull_request', PR, pr, merge)
         pr['pull_request']['head']['sha'] = self.base
-        self.assert_jobs('full', ALL, 'pull_request', PR, pr, merge)
+        self.assert_jobs('full', NORMAL, 'pull_request', PR, pr, merge)
 
     def test_release_and_shared_or_unknown_paths_run_full(self):
         for path in ('CHANGELOG.md', 'pubspec.yaml', '.github/workflows/build.yaml', 'docs/release.md',
@@ -126,13 +128,13 @@ class SelectionTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.write(path)
                 head = self.commit()
-                self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head), head)
+                self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head), head)
                 self.base = head
 
     def test_modes_renames_and_history_uncertainty(self):
         Path('lib/code.dart').rename('README.md')
         head = self.commit()
-        self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head), head)
+        self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head), head)
         self.base = head
         Path(DOC).unlink()
         head = self.commit()
@@ -140,19 +142,19 @@ class SelectionTest(unittest.TestCase):
         self.base = head
         Path(DOC).symlink_to('../../README.md')
         head = self.commit()
-        self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head), head)
+        self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head), head)
         self.base = head
         Path(DOC).unlink()
         self.write(DOC)
         head = self.commit()
-        self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head), head)
+        self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head), head)
         self.base = head
         self.write('docs/maintenance/spaces and\nnewline.md')
         head = self.commit()
         self.assert_jobs('docs', (), 'push', FEATURE, self.push(head), head)
         for changes in ({'before': '0' * 40}, {'before': 'f' * 40}, {'after': self.base}, {'deleted': True},
                         {'before': '--help'}, {'before': None}, {'forced': True}, {'created': True}):
-            self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head, **changes), head)
+            self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head, **changes), head)
         self.assertIsNone(selector.changed_paths(head, self.base))
 
     def test_partial_or_oversize_comparisons(self):
@@ -160,7 +162,7 @@ class SelectionTest(unittest.TestCase):
         for n in range(selector.MAX_PATHS + 1):
             self.write(f'docs/maintenance/guide{n}.md')
         head = self.commit()
-        self.assert_jobs('full', ALL, 'push', FEATURE, self.push(head), head)
+        self.assert_jobs('full', NORMAL, 'push', FEATURE, self.push(head), head)
         self.assertIsNone(selector.raw_paths(b'x' * selector.MAX_DIFF_BYTES + b'\0'))
 
     def bootstrap_pr(self, merge, event, base):
@@ -177,7 +179,8 @@ class SelectionTest(unittest.TestCase):
         self.write(SELECTOR, "raise SystemExit('PR selector ran')\n")
         self.commit()
         merge, pr = self.merge_pr()
-        full = {job.replace('-', '_'): 'true' for job in ALL}
+        full = {job.replace('-', '_'): 'true' for job in NORMAL}
+        full['apple_renewal'] = 'false'
         self.assertEqual(self.bootstrap_pr(merge, pr, self.base), (0, dict(full, profile='full')))
         self.write(SELECTOR, Path(selector.__file__).read_text())
         self.base = self.commit()
@@ -224,31 +227,38 @@ class GateTest(unittest.TestCase):
         return jobs
 
     def test_actual_gate_for_full_docs_android_and_formal_results(self):
-        for selected, observer in ((ALL, 'skipped'), ((), 'skipped'), (('android',), 'skipped'),
-                                   (CHECK_IDS, 'success'), (CHECK_IDS, 'local')):
+        for selected, observer in ((NORMAL, 'skipped'), ((), 'skipped'), (('android',), 'skipped'),
+                                   (TAG_CHECKS, 'success'), (TAG_CHECKS, 'local')):
             self.assertTrue(self.gate(self.fixture(selected, observer)))
-        self.assertFalse(self.gate(self.fixture(CHECK_IDS, 'failure')))
-        for job in (*ALL, 'selection', 'review'):
+        self.assertFalse(self.gate(self.fixture(TAG_CHECKS, 'failure')))
+        for job in (*NORMAL, 'selection', 'review'):
             for state in ('failure', 'cancelled', 'skipped', None):
-                jobs = self.fixture(ALL)
+                jobs = self.fixture(NORMAL)
                 if state is None:
                     del jobs[job]
                 else:
                     jobs[job]['result'] = state
                 self.assertFalse(self.gate(jobs), (job, state))
+        for state in ('failure', 'cancelled', 'skipped', None):
+            jobs = self.fixture(TAG_CHECKS, 'local')
+            if state is None:
+                del jobs['apple-renewal']
+            else:
+                jobs['apple-renewal']['result'] = state
+            self.assertFalse(self.gate(jobs))
         for observer, job, state in (('success', 'dart', 'success'), ('local', 'dart', 'skipped'),
                                      ('success', 'review', 'skipped'), ('success', 'delegation', 'cancelled'),
                                      ('success', 'delegation', 'skipped'), ('skipped', 'delegation', 'success')):
-            jobs = self.fixture(CHECK_IDS, observer)
+            jobs = self.fixture(TAG_CHECKS, observer)
             jobs[job]['result'] = state
             self.assertFalse(self.gate(jobs))
         jobs = self.fixture((), 'skipped')
         jobs['dart']['result'] = 'success'
         self.assertFalse(self.gate(jobs))
-        jobs = self.fixture(CHECK_IDS, 'success')
+        jobs = self.fixture(TAG_CHECKS, 'success')
         del jobs['delegation']
         self.assertFalse(self.gate(jobs))
-        jobs = self.fixture(ALL)
+        jobs = self.fixture(NORMAL)
         del jobs['selection']['outputs']['dart']
         self.assertFalse(self.gate(jobs))
 
@@ -315,6 +325,47 @@ class GateTest(unittest.TestCase):
         self.assertIn("github.event_name == 'merge_group'", ios['if'])
         self.assertIn('!inputs.official_release', ios['if'])
         self.assertIn('tool/acceptance/ios_intents/check_sdk.sh', ios['run'])
+        self.assertIn('race classifier completion abandon', ios['run'])
+        self.assertIn('GITHUB_SHA', ios['run'])
+        apple = self.jobs['apple-renewal']
+        self.assertEqual(apple['steps'][0]['with']['ref'], '${{ github.sha }}')
+        self.assertIn('run_classifier.sh', apple['steps'][1]['run'])
+        self.assertIn('GITHUB_SHA', apple['steps'][1]['run'])
+
+    def test_apple_step_invokes_classifier_and_propagates_failure(self):
+        script = self.jobs['apple-renewal']['steps'][1]['run']
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'tool/acceptance/ios_intents').mkdir(parents=True)
+            classifier = root / 'tool/acceptance/ios_intents/run_classifier.sh'
+            classifier.write_text('echo invoked > "$GITHUB_WORKSPACE/invoked"\nexit "$RESULT"\n')
+            for name, body in {
+                'git': 'echo "${CHECKOUT_SHA:-$GITHUB_SHA}"',
+                'sudo': 'exit 0',
+                'xcrun': 'if [[ "$*" == *--show-sdk-version* ]]; then echo 27.1; else echo /sdk; fi',
+            }.items():
+                binary = root / name
+                binary.write_text('#!/bin/bash\n' + body + '\n')
+                binary.chmod(0o755)
+            for result in ('0', '7'):
+                (root / 'invoked').unlink(missing_ok=True)
+                env = {'PATH': str(root) + os.pathsep + os.environ['PATH'], 'GITHUB_WORKSPACE': str(root),
+                       'GITHUB_SHA': 'a' * 40, 'RESULT': result}
+                run = subprocess.run(['bash', '-e', '-c', script], cwd=root, env=env, capture_output=True)
+                self.assertEqual(run.returncode, int(result))
+                self.assertTrue((root / 'invoked').exists())
+            (root / 'invoked').unlink()
+            env['CHECKOUT_SHA'] = 'wrong-sha'
+            self.assertNotEqual(subprocess.run(['bash', '-e', '-c', script], cwd=root, env=env,
+                                               capture_output=True).returncode, 0)
+            self.assertFalse((root / 'invoked').exists())
+
+    def test_release_builds_and_publish_depend_on_standard_ci(self):
+        release = workflow('client-release.yml')['jobs']
+        self.assertIn('ci', release['builds']['needs'])
+        self.assertIn('ci', release['macos-sign']['needs'])
+        self.assertIn("needs.ci.result == 'success'", release['publish']['if'])
+        self.assertIs(release['ci']['with']['official_release'], True)
 
     def test_exact_observer_eligibility_step_without_token(self):
         candidate = step(self.jobs['selection'], 'candidate')

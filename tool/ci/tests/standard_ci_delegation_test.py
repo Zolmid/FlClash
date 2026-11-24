@@ -38,7 +38,7 @@ def event(tag='v1.1.9', **changes):
 
 def check_enabled(expression, selected, delegated='', cancelled=False):
     facts = {'!cancelled()': not cancelled, "needs.delegation.outputs.delegated != 'true'": delegated != 'true'}
-    for job in (*CHECK_IDS, 'desktop'):
+    for job in (*CHECK_IDS, 'desktop', 'apple-renewal'):
         facts[f"needs.selection.outputs.{job.replace('-', '_')} == 'true'"] = job in selected
     return all(facts[term] for term in expression.removeprefix('${{').removesuffix('}}').strip().split(' && '))
 
@@ -65,6 +65,10 @@ class DelegationTest(unittest.TestCase):
     def setUp(self):
         fixture = json.loads(FIXTURE.read_text())
         self.run, self.jobs = fixture['run'], fixture['jobs']
+        apple = copy.deepcopy(next(job for job in self.jobs['jobs'] if job['name'] == 'Standard CI / Dart'))
+        apple.update(name='Standard CI / Apple renewal', id=987654321)
+        self.jobs['jobs'].append(apple)
+        self.jobs['total_count'] += 1
         self.source = (self.run['id'], self.run['run_attempt'])
 
     def decision(self):
@@ -91,19 +95,24 @@ class DelegationTest(unittest.TestCase):
         return [{'total_count': 1, 'workflow_runs': [self.run]}, self.run, self.jobs,
                 self.run if final is None else final]
 
-    def test_real_record_reuses_six_completed_checks_independently_of_publisher(self):
+    def test_extended_record_reuses_seven_checks_independently_of_publisher(self):
         for overall in ('success', 'failure', None):
             with self.subTest(overall=overall):
                 self.run.update(conclusion=overall, status='in_progress' if overall is None else 'completed')
                 result = self.decision()
                 self.assertEqual(result.result, 'success')
                 self.assertEqual(result.source, (43608456827, 1))
-                self.assertEqual(len(result.checks), 6)
+                self.assertEqual(len(result.checks), 7)
         result, calls, clock, _ = self.observe(self.response_sequence())
         self.assertEqual(result.result, 'success')
         self.assertEqual(calls[2][0], 'repos/Zolmid/FlClash/actions/runs/43608456827/attempts/1/jobs?per_page=100')
         self.assertEqual(calls[1], calls[3])
         self.assertEqual(clock.sleeps, [])
+
+    def test_old_formal_run_without_apple_check_cannot_be_reused(self):
+        self.jobs['jobs'].remove(self.job('Standard CI / Apple renewal'))
+        self.jobs['total_count'] -= 1
+        self.assertEqual(self.decision().result, 'local')
 
     def test_failed_check_is_not_success(self):
         for name in reuse.CHECKS:
@@ -256,6 +265,10 @@ class DelegationTest(unittest.TestCase):
                 root = Path(temp)
                 fixture = json.loads(FIXTURE.read_text())
                 self.run, self.jobs = fixture['run'], fixture['jobs']
+                apple = copy.deepcopy(self.job('Standard CI / Dart'))
+                apple.update(name='Standard CI / Apple renewal', id=987654321)
+                self.jobs['jobs'].append(apple)
+                self.jobs['total_count'] += 1
                 values = event()
                 if scenario == 'failure':
                     self.job('Standard CI / Dart')['conclusion'] = 'failure'
@@ -340,7 +353,7 @@ class DelegationTest(unittest.TestCase):
         self.assertEqual(step['env'], {'GH_TOKEN': '${{ github.token }}',
                                       'EVENT_DELETED': '${{ toJSON(github.event.deleted) }}',
                                       'OFFICIAL_INPUT': '${{ toJSON(inputs.official_release) }}'})
-        self.assertEqual(tuple(jobs[name]['name'] for name in CHECK_IDS), reuse.CHECKS)
+        self.assertEqual(tuple(jobs[name]['name'] for name in (*CHECK_IDS, 'apple-renewal')), reuse.CHECKS)
         for name in CHECK_IDS:
             self.assertEqual(jobs[name]['needs'], ['delegation', 'selection'])
             self.assertIn('!cancelled()', jobs[name]['if'])
