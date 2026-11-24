@@ -107,6 +107,12 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	lease := activeRoutingLease
 	guarded := lease != nil && !lease.revoked && routingLeaseNow().Before(lease.deadline)
 	selectMu.Unlock()
+	isCurrent := func() bool {
+		selectMu.Lock()
+		defer selectMu.Unlock()
+		return generation == routingConfigurationGeneration &&
+			(!guarded || (activeRoutingLease == lease && !lease.revoked && routingLeaseNow().Before(lease.deadline)))
+	}
 	proxy := lookupDelayTestProxy(params.ProxyName)
 	if proxy == nil {
 		reportMissingDelayTestProxy(params.ProxyName)
@@ -118,15 +124,14 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 		return nil
 	}
 	defer delayTestSlots.release()
+	if !isCurrent() {
+		return nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	delay, err := proxy.URLTest(ctx, url, anyDelayTestStatus)
-	selectMu.Lock()
-	current := generation == routingConfigurationGeneration &&
-		(!guarded || (activeRoutingLease == lease && !lease.revoked && routingLeaseNow().Before(lease.deadline)))
-	selectMu.Unlock()
-	if !current {
+	if !isCurrent() {
 		return nil
 	}
 	if err != nil {

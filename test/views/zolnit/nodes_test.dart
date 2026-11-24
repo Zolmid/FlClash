@@ -296,13 +296,17 @@ void main() {
       expect(action.measurements, hasLength(1));
       expect(
         action.measurements.single.$1,
-        orderedEquals(
+        unorderedEquals(
           harness.container
               .read(zolnitSessionProvider)
               .nodeList
               .map((node) => node.proxyName)
               .toList(),
         ),
+      );
+      expect(
+        action.measurements.single.$1.first,
+        harness.container.read(zolnitSessionProvider).nodeList.last.proxyName,
       );
       expect(action.measurements.single.$2, defaultTestUrl);
       await tester.tap(find.text('延迟测试'));

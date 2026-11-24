@@ -690,7 +690,7 @@ func TestTestDelayUsesTheCurrentBundleWithoutApplyingItsConfig(t *testing.T) {
 	}
 	selectMu.Lock()
 	previousLease := activeRoutingLease
-	lease := &routingLeaseState{deadline: routingLeaseNow().Add(time.Minute)}
+	lease := &routingLeaseState{deadline: routingLeaseNow().Add(time.Minute), expiresAt: routingLeaseNow().Add(time.Minute).UnixMilli()}
 	activeRoutingLease = lease
 	selectMu.Unlock()
 	enteredAgain, releaseAgain := make(chan struct{}), make(chan struct{})

@@ -633,6 +633,115 @@ void main() {
   });
 
   group('delayTest', () {
+    test('collapses identical batches from concurrent entry points', () async {
+      final release = Completer<Delay?>();
+      when(
+        () => core.asyncTestDelay(_testUrl, 'HK-01'),
+      ).thenAnswer((_) => release.future);
+      final container = _delayContainer(buildContainer);
+      final action = actionOf(container);
+      final first = action.delayTest(const [_proxy]);
+      final second = action.delayTestNodes(const [_proxy], _testUrl);
+      verify(() => core.asyncTestDelay(_testUrl, 'HK-01')).called(1);
+      release.complete(const Delay(name: 'HK-01', url: _testUrl, value: 12));
+      await first;
+      expect(await second, NodeDelayBatchResult.observed);
+      expect(container.read(pendingDelayTestsProvider), isEmpty);
+    });
+
+    test(
+      'cancellation returns without waiting for transport and ignores late data',
+      () async {
+        final release = Completer<Delay?>();
+        when(
+          () => core.asyncTestDelay(_testUrl, 'HK-01'),
+        ).thenAnswer((_) => release.future);
+        final container = _delayContainer(buildContainer);
+        container
+            .read(delayDataSourceProvider.notifier)
+            .setDelay(const Delay(name: 'HK-01', url: _testUrl, value: 42));
+        final action = actionOf(container);
+        final run = action.delayTestNodes(const [_proxy], _testUrl);
+        action.cancelDelayTests();
+        expect(await run, NodeDelayBatchResult.unavailable);
+        expect(container.read(pendingDelayTestsProvider), isEmpty);
+        release.complete(const Delay(name: 'HK-01', url: _testUrl, value: 999));
+        await Future<void>.delayed(Duration.zero);
+        expect(container.read(delayDataSourceProvider)[_testUrl]?['HK-01'], 42);
+      },
+    );
+
+    testWidgets('batch deadline releases UI and stops queued dispatch', (
+      tester,
+    ) async {
+      final releases = <Completer<Delay?>>[];
+      when(() => core.asyncTestDelay(_testUrl, any())).thenAnswer((_) {
+        final release = Completer<Delay?>();
+        releases.add(release);
+        return release.future;
+      });
+      final container = _delayContainer(buildContainer);
+      final run = actionOf(container).delayTestNodes([
+        for (var i = 0; i < 50; i++) Proxy(name: 'N-$i', type: 'ss'),
+      ], _testUrl);
+      await tester.pump(delayTestBatchDuration);
+      expect(await run, NodeDelayBatchResult.unavailable);
+      expect(releases.length, maxConcurrentDelayTests);
+      expect(container.read(pendingDelayTestsProvider), isEmpty);
+      for (final release in releases) {
+        release.complete(null);
+      }
+      await tester.pump();
+      expect(releases.length, maxConcurrentDelayTests);
+    });
+
+    test('does not dispatch a batch while hidden', () async {
+      final container = _delayContainer(buildContainer);
+      container.read(appVisibleProvider.notifier).value = false;
+      expect(
+        await actionOf(container).delayTestNodes(const [_proxy], _testUrl),
+        NodeDelayBatchResult.unavailable,
+      );
+      verifyNever(() => core.asyncTestDelay(any(), any()));
+    });
+
+    test('backgrounding cancels the active batch', () async {
+      final release = Completer<Delay?>();
+      when(
+        () => core.asyncTestDelay(_testUrl, 'HK-01'),
+      ).thenAnswer((_) => release.future);
+      final container = _delayContainer(buildContainer);
+      container.read(appVisibleProvider.notifier).value = true;
+      final run = actionOf(container).delayTestNodes(const [_proxy], _testUrl);
+      container.read(appVisibleProvider.notifier).value = false;
+      expect(await run, NodeDelayBatchResult.unavailable);
+      expect(container.read(pendingDelayTestsProvider), isEmpty);
+      release.complete(null);
+      await Future<void>.delayed(Duration.zero);
+    });
+
+    test(
+      'selected proxy is dispatched before the rest of a large batch',
+      () async {
+        final called = <String>[];
+        when(() => core.asyncTestDelay(_testUrl, any())).thenAnswer((
+          call,
+        ) async {
+          final name = call.positionalArguments[1] as String;
+          called.add(name);
+          return Delay(name: name, url: _testUrl, value: 15);
+        });
+        final container = _delayContainer(
+          () => buildContainer(profile: _selectedProfile('N-49')),
+        );
+        await actionOf(container).delayTestNodes([
+          for (var i = 0; i < 50; i++) Proxy(name: 'N-$i', type: 'ss'),
+        ], _testUrl);
+        expect(called.first, 'N-49');
+        expect(called.length, 50);
+      },
+    );
+
     test('measures every proxy and bumps the sort counter', () async {
       when(() => core.asyncTestDelay(_testUrl, any())).thenAnswer(
         (invocation) async => Delay(

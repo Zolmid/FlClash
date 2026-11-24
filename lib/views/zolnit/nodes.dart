@@ -318,6 +318,7 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
 
   Future<NodeDelayBatchResult> _measureNodes() async {
     if (!mounted ||
+        !ref.read(appVisibleProvider) ||
         ref.read(safeModeProvider) ||
         ref.read(coreStatusProvider) != CoreStatus.connected ||
         !_isCurrentAccount(ref, watch: false)) {
@@ -330,8 +331,33 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
         (uri.scheme != 'http' && uri.scheme != 'https')) {
       return NodeDelayBatchResult.unavailable;
     }
+    final selector = _findSelector(ref, watch: false);
+    final active = _activeProxy(selector, watch: false);
+    final bundle = widget.session.clientBundle;
+    final metadata = bundle == null ? null : _serverHosts(bundle);
+    final visible = metadata == null
+        ? <String>{}
+        : {
+            for (final entry in _filtered(
+              _routeEntries(
+                widget.session.nodeList,
+                metadata,
+                bundle?.exitIds ?? const <String, String>{},
+              ),
+            ))
+              for (final node in entry.members) node.proxyName,
+          };
+    final ordered = [
+      ...widget.session.nodeList.where((node) => node.proxyName == active),
+      ...widget.session.nodeList.where(
+        (node) => node.proxyName != active && visible.contains(node.proxyName),
+      ),
+      ...widget.session.nodeList.where(
+        (node) => node.proxyName != active && !visible.contains(node.proxyName),
+      ),
+    ];
     final proxies = [
-      for (final node in widget.session.nodeList)
+      for (final node in ordered)
         if (node.proxyName.trim().isNotEmpty)
           Proxy(name: node.proxyName, type: 'ss'),
     ];

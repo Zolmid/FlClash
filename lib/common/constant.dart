@@ -79,7 +79,8 @@ const coreConnectionWaitDuration = Duration(seconds: 10);
 
 /// Keep at or below the Core's delay-test concurrency (`delayTestConcurrency`
 /// in core/delay.go).
-const maxConcurrentDelayTests = 32;
+const maxConcurrentDelayTests = 8;
+const delayTestBatchDuration = Duration(seconds: 20);
 const maxConcurrentImports = 4;
 const maxConcurrentIconLoads = 8;
 

@@ -21,9 +21,15 @@ class _DelayTestJob {
 
   final Set<String> held;
   final Set<String> startedOnDispatch = {};
+  final stopped = Completer<void>();
   bool cancelled = false;
   int observed = 0;
   int failed = 0;
+
+  void cancel() {
+    cancelled = true;
+    if (!stopped.isCompleted) stopped.complete();
+  }
 }
 
 @Riverpod(keepAlive: true)
@@ -33,6 +39,7 @@ class ProxiesAction extends _$ProxiesAction {
   final TaskPool _delayTestPool = TaskPool(maxConcurrentDelayTests);
 
   final List<_DelayTestJob> _delayTestJobs = [];
+  final Map<String, Future<NodeDelayBatchResult>> _delayBatches = {};
 
   final List<Delay> _bufferedDelays = [];
 
@@ -50,7 +57,16 @@ class ProxiesAction extends _$ProxiesAction {
 
   @override
   void build() {
-    ref.onDispose(() => _delayFlushTimer?.cancel());
+    ref.onDispose(() {
+      for (final job in _delayTestJobs) {
+        job.cancel();
+        job.held.clear();
+      }
+      _delayFlushTimer?.cancel();
+    });
+    ref.listen(appVisibleProvider, (_, visible) {
+      if (!visible) cancelDelayTests();
+    });
     ref.listen(currentProfileIdProvider, (_, _) {
       cancelDelayTests();
       _groupsRequest++;
@@ -67,9 +83,10 @@ class ProxiesAction extends _$ProxiesAction {
 
   void cancelDelayTests() {
     for (final job in _delayTestJobs) {
-      job.cancelled = true;
+      job.cancel();
       job.held.clear();
     }
+    _delayBatches.clear();
     _delayFlushTimer?.cancel();
     _delayFlushTimer = null;
     _bufferedDelays.clear();
@@ -444,7 +461,7 @@ class ProxiesAction extends _$ProxiesAction {
 
   Future<void> delayTest(List<Proxy> proxies, [String? testUrl]) async {
     await _runDelayTests([(proxies: proxies, testUrl: testUrl, direct: false)]);
-    ref.read(sortNumProvider.notifier).add();
+    if (ref.mounted) ref.read(sortNumProvider.notifier).add();
   }
 
   Future<NodeDelayBatchResult> delayTestNodes(
@@ -454,7 +471,7 @@ class ProxiesAction extends _$ProxiesAction {
     final result = await _runDelayTests([
       (proxies: proxies, testUrl: testUrl, direct: true),
     ]);
-    ref.read(sortNumProvider.notifier).add();
+    if (ref.mounted) ref.read(sortNumProvider.notifier).add();
     return result;
   }
 
@@ -463,7 +480,7 @@ class ProxiesAction extends _$ProxiesAction {
       for (final group in groups)
         (proxies: group.all, testUrl: group.testUrl, direct: false),
     ]);
-    ref.read(sortNumProvider.notifier).add();
+    if (ref.mounted) ref.read(sortNumProvider.notifier).add();
   }
 
   Future<void> delayTestPageGroup(
@@ -527,41 +544,73 @@ class ProxiesAction extends _$ProxiesAction {
         );
       }
     }
-    return targets;
+    final selected = selectedMap.values.toSet();
+    return [
+      ...targets.where((target) => selected.contains(target.proxyName)),
+      ...targets.where((target) => !selected.contains(target.proxyName)),
+    ];
   }
 
   Future<NodeDelayBatchResult> _runDelayTests(
     List<_DelayTestBatch> batches,
   ) async {
+    if (!ref.read(appVisibleProvider)) {
+      return NodeDelayBatchResult.unavailable;
+    }
     final targets = _resolveDelayTestTargets(batches);
     if (targets.isEmpty) {
       return NodeDelayBatchResult.unavailable;
     }
+    final keys = targets.map((target) => target.key).toList()..sort();
+    final key = jsonEncode(keys);
+    final existing = _delayBatches[key];
+    if (existing != null) return existing;
+    final run = _dispatchDelayTests(targets);
+    _delayBatches[key] = run;
+    try {
+      return await run;
+    } finally {
+      if (identical(_delayBatches[key], run)) {
+        unawaited(_delayBatches.remove(key));
+      }
+    }
+  }
+
+  Future<NodeDelayBatchResult> _dispatchDelayTests(
+    List<_DelayTestTarget> targets,
+  ) async {
     final pending = ref.read(pendingDelayTestsProvider.notifier);
     final job = _DelayTestJob(targets.map((target) => target.key));
     _delayTestJobs.add(job);
+    final deadline = Timer(delayTestBatchDuration, job.cancel);
     // TaskPool.run starts a task synchronously while it has an idle slot.
     job.startedOnDispatch.addAll(
       targets.take(_delayTestPool.idleSlots).map((target) => target.key),
     );
     pending.apply(acquired: job.held, started: job.startedOnDispatch);
     try {
-      await Future.wait(
-        targets.map(
-          (target) => _delayTestPool.run(() => _runDelayTest(job, target)),
+      await Future.any([
+        Future.wait(
+          targets.map(
+            (target) => _delayTestPool.run(() => _runDelayTest(job, target)),
+          ),
         ),
-      );
+        job.stopped.future,
+      ]);
     } finally {
+      deadline.cancel();
       _delayTestJobs.remove(job);
-      _flushDelayResults();
+      if (ref.mounted) _flushDelayResults();
       final abandoned = job.held.toList();
       job.held.clear();
-      pending.apply(
-        finished: abandoned.where(job.startedOnDispatch.contains),
-        released: abandoned.where(
-          (key) => !job.startedOnDispatch.contains(key),
-        ),
-      );
+      if (ref.mounted) {
+        pending.apply(
+          finished: abandoned.where(job.startedOnDispatch.contains),
+          released: abandoned.where(
+            (key) => !job.startedOnDispatch.contains(key),
+          ),
+        );
+      }
     }
     if (job.observed == 0) return NodeDelayBatchResult.unavailable;
     if (!job.cancelled && job.failed == targets.length) {
@@ -574,7 +623,7 @@ class ProxiesAction extends _$ProxiesAction {
     if (job.cancelled) {
       return;
     }
-    if (!job.startedOnDispatch.contains(target.key)) {
+    if (job.startedOnDispatch.add(target.key)) {
       _bufferedStarts.add(target.key);
       _scheduleDelayFlush();
     }
@@ -587,7 +636,7 @@ class ProxiesAction extends _$ProxiesAction {
       }
     } catch (error) {
       if (error is CoreMethodException && error.isCoreUnavailable) {
-        job.cancelled = true;
+        job.cancel();
       }
       commonPrint.log(
         'Delay test failed for ${target.proxyName}: $error',
