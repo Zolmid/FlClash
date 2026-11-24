@@ -2,6 +2,24 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.15",
+      "tag": "v1.1.15",
+      "date": "2026-11-24",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "67a8148",
+              "scope": "routing",
+              "text": "Update the automatic service route as soon as it is selected and simplify manual routing controls"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.14",
       "tag": "v1.1.14",
       "date": "2026-11-24",

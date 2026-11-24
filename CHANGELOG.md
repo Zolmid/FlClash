@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.15 (2026-11-24)
+
+**Bug Fixes**
+
+- **routing** Update the automatic service route as soon as it is selected and simplify manual routing controls (67a8148)
+
 ## v1.1.14 (2026-11-24)
 
 **Bug Fixes**
