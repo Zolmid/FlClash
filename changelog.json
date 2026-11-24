@@ -2,6 +2,24 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.16",
+      "tag": "v1.1.16",
+      "date": "2026-11-24",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "feat",
+          "entries": [
+            {
+              "id": "844a053",
+              "scope": "routing",
+              "text": "Use known Android and desktop apps as an additional signal in smart routing"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.15",
       "tag": "v1.1.15",
       "date": "2026-11-24",

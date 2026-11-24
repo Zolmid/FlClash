@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.16 (2026-11-24)
+
+**Features**
+
+- **routing** Use known Android and desktop apps as an additional signal in smart routing (844a053)
+
 ## v1.1.15 (2026-11-24)
 
 **Bug Fixes**
