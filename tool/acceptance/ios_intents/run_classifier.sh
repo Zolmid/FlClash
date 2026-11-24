@@ -10,3 +10,8 @@ xcrun swiftc -swift-version 5 -warnings-as-errors -module-cache-path "$out/cache
   "$root"/ios/Shared/ClientBundle*.swift \
   "$root/test/core/ios/client_bundle_http_transport.swift" -o "$out/http-transport"
 "$out/http-transport"
+
+xcrun swiftc -swift-version 5 -warnings-as-errors -module-cache-path "$out/cache" -parse-as-library \
+  "$root/ios/NECore/NETransportPathMonitor.swift" \
+  "$root/test/core/ios/native_transport_path.swift" -o "$out/native-transport-path"
+"$out/native-transport-path"

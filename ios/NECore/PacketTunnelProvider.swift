@@ -7,6 +7,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private let sharedStateStore = PacketTunnelSharedStateStore()
   private let networkConfiguration = PacketTunnelNetworkConfiguration()
   private let bundleRenewal = NEClientBundleRenewal()
+  private let transportPath = NETransportPathMonitor(reset: { NECoreBridge.resetNetwork() })
   private lazy var eventQueue = NECoreEventQueue(
     sharedStateStore: sharedStateStore
   )
@@ -36,9 +37,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public)"
     )
 
+    let lifetime = transportPath.begin()
     setTunnelNetworkSettings(
       networkConfiguration.makeSettings(for: vpnOptions)
     ) { error in
+      guard self.transportPath.isCurrent(lifetime) else {
+        completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+        return
+      }
       if let error {
         self.logger.error(
           "setTunnelNetworkSettings failed: \(error.localizedDescription, privacy: .public)"
@@ -72,6 +78,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         withInitParams: initParams,
         setupParams: setupParams
       ) { result in
+        guard self.transportPath.isCurrent(lifetime) else {
+          completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+          return
+        }
         if let result,
           !result.isEmpty
         {
@@ -99,10 +109,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
           completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
           return
         }
-        let started = NECoreBridge.startTun(
-          withFileDescriptor: tunnelFileDescriptor,
-          options: coreTunOptionsData
-        )
+        let started = self.transportPath.start(lifetime) {
+          NECoreBridge.startTun(
+            withFileDescriptor: tunnelFileDescriptor,
+            options: coreTunOptionsData
+          )
+        }
         self.logger.info(
           "NECoreBridge.startTun result=\(started, privacy: .public)"
         )
@@ -121,6 +133,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     with reason: NEProviderStopReason,
     completionHandler: @escaping () -> Void
   ) {
+    transportPath.stop()
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     Task {
       try? await bundleRenewal.stop(sessionEpoch: nil, invalidatingSession: false)

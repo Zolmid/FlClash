@@ -326,6 +326,54 @@ class FirstPartyHttpTransportTest {
         }
     }
 
+    @Test fun completedRequestsLeaveNoWarmSocketAcrossNetworkSelections() {
+        ServerSocket(0, 2, InetAddress.getByName("127.0.0.1")).use { server ->
+            server.soTimeout = 3_000
+            val closed = CountDownLatch(2)
+            val failure = java.util.concurrent.atomic.AtomicReference<Throwable>()
+            val worker = thread(isDaemon = true) {
+                try {
+                    repeat(2) {
+                        server.accept().use { socket ->
+                            socket.soTimeout = 3_000
+                            val reader = socket.getInputStream().bufferedReader()
+                            while (!reader.readLine().isNullOrEmpty()) {}
+                            socket.getOutputStream().apply {
+                                write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\n{}".toByteArray())
+                                flush()
+                            }
+                            check(reader.read() == -1)
+                            closed.countDown()
+                        }
+                    }
+                } catch (error: Throwable) {
+                    failure.set(error)
+                }
+            }
+            val client = FirstPartyHttpTransport.newClient()
+            try {
+                repeat(2) {
+                    val selected = client.newBuilder().dns(object : okhttp3.Dns {
+                        override fun lookup(hostname: String) = listOf(InetAddress.getByName("127.0.0.1"))
+                    }).build()
+                    assertSame(client.connectionPool, selected.connectionPool)
+                    val request = Request.Builder().url("http://selected.invalid:${server.localPort}/").build()
+                    selected.newCall(request).execute().use { response ->
+                        assertEquals("{}", response.body!!.string())
+                    }
+                }
+                assertTrue("completed sockets must close despite server keep-alive", closed.await(4, TimeUnit.SECONDS))
+                assertNull(failure.get())
+                assertEquals(0, client.connectionPool.idleConnectionCount())
+            } finally {
+                client.dispatcher.executorService.shutdownNow()
+                client.connectionPool.evictAll()
+                server.close()
+                worker.join(4_000)
+            }
+        }
+    }
+
     @Test fun clientUsesStrictDefaultsAndBoundedWorkers() {
         val client = FirstPartyHttpTransport.newClient()
         try {

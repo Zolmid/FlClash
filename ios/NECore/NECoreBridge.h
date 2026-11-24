@@ -27,6 +27,7 @@ struct sockaddr_ctl {
                           result:(NECoreResultHandler)result;
 + (BOOL)startTunWithFileDescriptor:(int)fileDescriptor
                            options:(NSData *)options;
++ (void)resetNetwork;
 + (void)stopTun;
 
 @end

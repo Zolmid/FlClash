@@ -180,6 +180,11 @@ static void NECoreSystemLog(const char *level, const char *message) {
   return startTUN(NULL, fileDescriptor, NECoreCopyData(options));
 }
 
++ (void)resetNetwork {
+  [self initializeBridge];
+  resetNetwork();
+}
+
 + (void)stopTun {
   [self initializeBridge];
   stopTun();

@@ -14,3 +14,5 @@ xcrun swiftc "${flags[@]}" -I "$out" -typecheck "$root"/ios/Runner/Tunnel/*.swif
 echo 'PASS: production Runner Tunnel sources and SharedStateStore typecheck against the real iOS SDK'
 xcrun swiftc -frontend -parse -target arm64-apple-ios15.0 -sdk "$sdk" "$root/ios/Runner/ServiceChannel.swift" "$root/ios/Runner/SceneDelegate.swift"
 echo 'PASS: Flutter-facing adapters parse; full Flutter host typecheck remains candidate CI validation'
+xcrun swiftc "${flags[@]}" -I "$out" -import-objc-header "$root/ios/NECore/NECore-Bridging-Header.h" -typecheck "$root"/ios/NECore/*.swift
+echo 'PASS: all production Network Extension Swift sources typecheck with the production bridge and real iOS SDK'
