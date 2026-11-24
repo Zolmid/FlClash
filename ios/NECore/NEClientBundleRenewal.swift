@@ -98,7 +98,9 @@ actor NEClientBundleRenewal {
       let core = ClientBundleCoreAdapter(binding: next, accountID: authorization.accountID,
         signedDeviceID: authorization.device?.deviceID, call: Self.invoke)
       let http = try ClientBundleHTTPTransport(origin: configuration.origin,
-        coreVersion: version, platform: "ios", distribution: configuration.distribution, coreCall: Self.invoke)
+        coreVersion: version, platform: "ios", distribution: configuration.distribution, coreCall: Self.invoke,
+        coreResponseDirectory: PacketTunnelSharedStateStore().appGroupDirectory()?
+          .appendingPathComponent("responses-ne", isDirectory: true))
       let transport: any ClientBundleRenewalTransport = authorization.device == nil
         ? http : ClientBundleSignedSource(fetcher: http, call: { request in
           guard try await authority.isCurrent(next) else { throw ClientBundleCoreError.staleOwner }

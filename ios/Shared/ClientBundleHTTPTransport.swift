@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public enum ClientBundleTransportError: Error {
   case invalidConfiguration, unavailable, tooLarge, cancelled, redirected
@@ -11,9 +12,10 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
   private let platform: String
   private let distribution: String
   private let coreCall: ClientBundleCoreAdapter.Call?
+  private let coreResponseDirectory: URL?
 
   public init(origin: URL, coreVersion: String, platform: String, distribution: String,
-    coreCall: ClientBundleCoreAdapter.Call? = nil) throws {
+    coreCall: ClientBundleCoreAdapter.Call? = nil, coreResponseDirectory: URL? = nil) throws {
     guard origin.scheme == "https", origin.host != nil, origin.user == nil, origin.password == nil,
       origin.query == nil, origin.fragment == nil, ["", "/"].contains(origin.path),
       ["ios", "macos", "android", "windows", "linux"].contains(platform),
@@ -26,6 +28,7 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
     self.platform = platform
     self.distribution = distribution
     self.coreCall = coreCall
+    self.coreResponseDirectory = coreResponseDirectory
   }
 
   public func fetch(authorization: ClientBundleAuthorization) async throws -> ClientBundleHTTPResponse {
@@ -70,10 +73,7 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
         if let data = try? JSONSerialization.data(withJSONObject: cancel) { _ = try? await call(data) }
       }
     }
-    guard let value = try JSONSerialization.jsonObject(with: response) as? [String: Any],
-      value["id"] as? String == id, value["file"] == nil || value["file"] is NSNull else {
-      throw ClientBundleTransportError.unavailable
-    }
+    let value = try ownedEnvelope(response, id: id)
     if let error = value["error"] as? [String: Any] {
       if error["code"] as? String == "owned_dns_disabled" { return nil }
       throw ClientBundleTransportError.unavailable
@@ -86,6 +86,87 @@ public struct ClientBundleHTTPTransport: ClientBundleRenewalTransport {
     let responseHeaders = result["headers"] as? [String: String]
     return ClientBundleHTTPResponse(status: status, body: body,
       retryAfter: ClientBundleHTTPRequest.retryAfter(responseHeaders?["Retry-After"]))
+  }
+
+  private static let maximumEnvelopeBytes = 12 * 1024 * 1024 + 64 * 1024
+
+  private func ownedEnvelope(_ data: Data, id: String) throws -> [String: Any] {
+    func decode(_ data: Data) throws -> [String: Any] {
+      guard data.count <= Self.maximumEnvelopeBytes,
+        let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        value["id"] as? String == id
+      else { throw ClientBundleTransportError.unavailable }
+      return value
+    }
+    func present(_ value: Any?) -> Bool { value != nil && !(value is NSNull) }
+    var value = try decode(data)
+    if present(value["file"]) {
+      guard let path = value["file"] as? String else { throw ClientBundleTransportError.unavailable }
+      let spilled = try readOwnedResponse(path)
+      guard !present(value["result"]), !present(value["error"]) else {
+        throw ClientBundleTransportError.unavailable
+      }
+      value = try decode(spilled)
+      guard !present(value["file"]) else { throw ClientBundleTransportError.unavailable }
+    }
+    guard present(value["result"]) != present(value["error"]),
+      !present(value["error"]) || value["error"] is [String: Any]
+    else { throw ClientBundleTransportError.unavailable }
+    return value
+  }
+
+  private func readOwnedResponse(_ path: String) throws -> Data {
+    guard let directory = coreResponseDirectory, directory.isFileURL,
+      !path.utf8.contains(0), path.hasPrefix("/")
+    else { throw ClientBundleTransportError.unavailable }
+    let file = URL(fileURLWithPath: path)
+    let name = file.lastPathComponent
+    let parent = file.deletingLastPathComponent().path
+    let trusted = directory.standardizedFileURL
+    let canonical = trusted.resolvingSymlinksInPath()
+    guard path == file.standardizedFileURL.path,
+      parent == trusted.path || parent == canonical.path,
+      name.hasPrefix("http-"), name.hasSuffix(".json"),
+      !name.dropFirst(5).dropLast(5).isEmpty,
+      name.dropFirst(5).dropLast(5).utf8.allSatisfy({ (48...57).contains($0) }),
+      trusted.lastPathComponent == "responses-ne"
+    else { throw ClientBundleTransportError.unavailable }
+    let root = open(trusted.deletingLastPathComponent().resolvingSymlinksInPath().path,
+      O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+    guard root >= 0 else { throw ClientBundleTransportError.unavailable }
+    defer { close(root) }
+    let folder = openat(root, "responses-ne", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+    guard folder >= 0 else { throw ClientBundleTransportError.unavailable }
+    defer { close(folder) }
+    let descriptor = openat(folder, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
+    guard descriptor >= 0 else { throw ClientBundleTransportError.unavailable }
+    defer { close(descriptor) }
+    var info = stat()
+    guard fstat(descriptor, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
+      info.st_uid == geteuid(), info.st_nlink == 1, info.st_mode & 0o022 == 0
+    else { throw ClientBundleTransportError.unavailable }
+    defer {
+      var current = stat()
+      if fstatat(folder, name, &current, AT_SYMLINK_NOFOLLOW) == 0,
+        current.st_dev == info.st_dev, current.st_ino == info.st_ino {
+        _ = unlinkat(folder, name, 0)
+      }
+    }
+    guard info.st_size > 0, info.st_size <= Self.maximumEnvelopeBytes else {
+      throw ClientBundleTransportError.unavailable
+    }
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+    while true {
+      let count = read(descriptor, &buffer, min(buffer.count, Self.maximumEnvelopeBytes + 1 - data.count))
+      if count < 0 && errno == EINTR { continue }
+      guard count >= 0 else { throw ClientBundleTransportError.unavailable }
+      if count == 0 { break }
+      data.append(contentsOf: buffer.prefix(count))
+      guard data.count <= Self.maximumEnvelopeBytes else { throw ClientBundleTransportError.unavailable }
+    }
+    guard data.count == info.st_size else { throw ClientBundleTransportError.unavailable }
+    return data
   }
 
   func makeRequest(
