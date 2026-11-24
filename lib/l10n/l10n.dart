@@ -12399,16 +12399,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Latency reflects the most recent actual test; shows — if not tested.`
-  String get zolnitNodeMeasurementHint {
-    return Intl.message(
-      'Latency reflects the most recent actual test; shows — if not tested.',
-      name: 'zolnitNodeMeasurementHint',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Your available servers update automatically with your plan.`
   String get zolnitNodeSyncHint {
     return Intl.message(
@@ -13144,10 +13134,10 @@ class AppLocalizations {
     );
   }
 
-  /// `No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.`
+  /// `No routes for automatic selection.`
   String get zolnitBundleNoCandidates {
     return Intl.message(
-      'No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.',
+      'No routes for automatic selection.',
       name: 'zolnitBundleNoCandidates',
       desc: '',
       args: [],
@@ -13994,21 +13984,11 @@ class AppLocalizations {
     );
   }
 
-  /// `No available route confirmed yet`
+  /// `No route selected. Try Manual.`
   String get zolnitRouteUnverified {
     return Intl.message(
-      'No available route confirmed yet',
+      'No route selected. Try Manual.',
       name: 'zolnitRouteUnverified',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Latency does not confirm service access`
-  String get zolnitRouteManualUnverified {
-    return Intl.message(
-      'Latency does not confirm service access',
-      name: 'zolnitRouteManualUnverified',
       desc: '',
       args: [],
     );

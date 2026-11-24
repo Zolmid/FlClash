@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "Rechercher un serveur ou une région",
   "zolnitNoMatchingNodes": "Aucun serveur correspondant.",
   "zolnitNodeMultiplier": "Données ×{rate}",
-  "zolnitNodeMeasurementHint": "La latence reflète le dernier test réel ; affiche — si aucun test n'a été fait.",
   "zolnitNodeSyncHint": "Les serveurs disponibles se mettent automatiquement à jour avec votre forfait.",
   "zolnitNodesCount": "Serveurs : {count}",
   "zolnitAccountTitle": "Mon compte",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "La validation de la configuration a échoué. La sélection automatique est suspendue.",
   "zolnitBundleInvalidWhenStopped": "La configuration VPN n’a pas pu être vérifiée. Sélectionnez « Se connecter » pour la récupérer à nouveau.",
   "zolnitBundleUnavailable": "Impossible de charger la configuration de connexion. Réessayez dans un instant.",
-  "zolnitBundleNoCandidates": "Aucun serveur n’est encore confirmé pour la sélection automatique. Choisissez un serveur vous-même ou utilisez une connexion directe.",
+  "zolnitBundleNoCandidates": "Aucune route pour la sélection automatique.",
   "zolnitAiService": "Services IA",
   "zolnitMediaService": "Streaming",
   "zolnitRouteCurrent": "Trajet actuel : {node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "Prochaine réinitialisation mensuelle",
   "zolnitFreeInviteShort": "Invitez un ami pour recharger vos données gratuites",
   "zolnitFreeInviteExplanation": "Chaque inscription réussie d’une personne invitée recharge vos données gratuites jusqu’au quota mensuel. Les recharges ne se cumulent pas et ne changent pas la date de réinitialisation mensuelle. Cet avantage est distinct du cashback.",
-  "zolnitRouteUnverified": "Aucune route disponible confirmée",
-  "zolnitRouteManualUnverified": "La latence ne confirme pas l’accès au service",
+  "zolnitRouteUnverified": "Aucune route sélectionnée. Essayez le mode manuel.",
   "zolnitChooseRoute": "Choisir une route"
 }

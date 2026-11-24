@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "サーバーや地域を検索",
   "zolnitNoMatchingNodes": "該当するサーバーはありません。",
   "zolnitNodeMultiplier": "通信量 {rate}× で計算",
-  "zolnitNodeMeasurementHint": "遅延は直近の実測値を表示します。未測定の場合は — と表示されます。",
   "zolnitNodeSyncHint": "利用可能なサーバーはプランに合わせて自動更新されます。",
   "zolnitNodesCount": "サーバー数：{count}",
   "zolnitAccountTitle": "マイアカウント",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "接続設定の検証に失敗したため、自動選択を一時停止しました。",
   "zolnitBundleInvalidWhenStopped": "VPN 設定を検証できませんでした。「接続」を選ぶと再取得します。",
   "zolnitBundleUnavailable": "接続設定を読み込めませんでした。しばらくしてからもう一度お試しください。",
-  "zolnitBundleNoCandidates": "自動選択できる確認済みのサーバーはまだありません。手動で選ぶか、直接接続を使ってください。",
+  "zolnitBundleNoCandidates": "自動選択できるルートがありません。",
   "zolnitAiService": "AI サービス",
   "zolnitMediaService": "動画配信",
   "zolnitRouteCurrent": "現在の経路：{node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "次回の月次リセット",
   "zolnitFreeInviteShort": "友達を招待して無料データを補充",
   "zolnitFreeInviteExplanation": "招待した新規ユーザーが登録するたびに、無料データが月間容量まで補充されます。補充分は累積せず、月次リセット日も変わりません。キャッシュバックとは別の特典です。",
-  "zolnitRouteUnverified": "利用可能なルートは未確認です",
-  "zolnitRouteManualUnverified": "遅延測定だけではサービス利用を確認できません",
+  "zolnitRouteUnverified": "ルートが未選択です。手動をお試しください。",
   "zolnitChooseRoute": "ルートを選択"
 }

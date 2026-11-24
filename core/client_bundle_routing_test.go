@@ -221,6 +221,28 @@ func TestClientBundleRoutingIdleBackoffAndRealTrafficReactivation(t *testing.T) 
 	}
 }
 
+func TestClientBundleRoutingReenteringAutoDoesNotWaitForIdleBackoff(t *testing.T) {
+	w, _, _, now := nativeRoutingFixture(t)
+	if w.probeActiveServices(*now, Traffic{}, nil) {
+		t.Fatal("manual mode consumed a probe cycle")
+	}
+	ai := map[string]string{"ai": "REJECT"}
+	if !w.probeActiveServices(*now, Traffic{}, ai) {
+		t.Fatal("first automatic selection did not start probing")
+	}
+	w.lastCycle = *now
+	w.idleCycles = 4
+	*now = now.Add(10 * time.Second)
+	w.probeActiveServices(*now, Traffic{}, nil)
+	if w.probeActiveServices(*now, Traffic{}, ai) {
+		t.Fatal("mode changes bypassed the existing active probe interval")
+	}
+	*now = now.Add(20 * time.Second)
+	if !w.probeActiveServices(*now, Traffic{}, ai) {
+		t.Fatal("returning to automatic mode remained stuck in idle backoff")
+	}
+}
+
 func TestClientBundleRoutingAuthorized24Qualified4(t *testing.T) {
 	body, err := os.ReadFile("../packages/zolnit_client/test/fixtures/authorized24-qualified4.json")
 	if err != nil {

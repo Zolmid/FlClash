@@ -2298,7 +2298,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN 設定を検証できませんでした。「接続」を選ぶと再取得します。",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "自動選択できる確認済みのサーバーはまだありません。手動で選ぶか、直接接続を使ってください。",
+      "自動選択できるルートがありません。",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "現在、接続情報を更新できません。",
@@ -2543,9 +2543,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("注文はまだありません"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("有効なプランはありません"),
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage("自動更新の契約はありません"),
-    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
-      "遅延は直近の実測値を表示します。未測定の場合は — と表示されます。",
-    ),
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("サーバー"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
@@ -2716,9 +2713,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "ルートを切り替えられませんでした。もう一度お試しください。",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
-      "遅延測定だけではサービス利用を確認できません",
-    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
       "自動ルーティングを準備中",
     ),
@@ -2726,7 +2720,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "利用できるルートがありません",
     ),
     "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
-      "利用可能なルートは未確認です",
+      "ルートが未選択です。手動をお試しください。",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "スマートルーティング設定",

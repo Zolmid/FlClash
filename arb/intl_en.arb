@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "Search servers or regions",
   "zolnitNoMatchingNodes": "No matching servers.",
   "zolnitNodeMultiplier": "Data counts {rate}×",
-  "zolnitNodeMeasurementHint": "Latency reflects the most recent actual test; shows — if not tested.",
   "zolnitNodeSyncHint": "Your available servers update automatically with your plan.",
   "zolnitNodesCount": "Servers: {count}",
   "zolnitAccountTitle": "My account",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "Connection configuration validation failed. Automatic selection is paused.",
   "zolnitBundleInvalidWhenStopped": "The VPN configuration could not be verified. Select Connect to fetch it again.",
   "zolnitBundleUnavailable": "Connection settings couldn't be loaded. Try again shortly.",
-  "zolnitBundleNoCandidates": "No server is confirmed for automatic selection yet. Choose a server yourself or use a direct connection.",
+  "zolnitBundleNoCandidates": "No routes for automatic selection.",
   "zolnitAiService": "AI services",
   "zolnitMediaService": "Streaming",
   "zolnitRouteCurrent": "Current route: {node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "Next monthly reset",
   "zolnitFreeInviteShort": "Invite a friend to refill free data",
   "zolnitFreeInviteExplanation": "Each successful new invited registration refills your free data up to the monthly allowance. Refills do not accumulate or change your monthly reset date. This is separate from cashback.",
-  "zolnitRouteUnverified": "No available route confirmed yet",
-  "zolnitRouteManualUnverified": "Latency does not confirm service access",
+  "zolnitRouteUnverified": "No route selected. Try Manual.",
   "zolnitChooseRoute": "Choose route"
 }

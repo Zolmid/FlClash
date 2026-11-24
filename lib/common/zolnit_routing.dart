@@ -165,13 +165,17 @@ PreparedZolnitRouting prepareZolnitRouting(
   return (config: config, manifest: manifest, engine: engine);
 }
 
-String? zolnitAppliedRoute(List<Group> groups, String groupName) {
+String? zolnitAppliedRoute(
+  List<Group> groups,
+  String groupName, {
+  Map<String, String> picks = const {},
+}) {
   var target = groupName;
   final visited = <String>{};
   while (visited.add(target)) {
     final group = groups.getGroup(target);
     if (group == null) return target;
-    final next = group.realNow;
+    final next = picks[target] ?? group.realNow;
     if (next.isEmpty || !group.all.any((proxy) => proxy.name == next)) {
       return null;
     }

@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "서버 또는 지역 검색",
   "zolnitNoMatchingNodes": "일치하는 서버가 없습니다.",
   "zolnitNodeMultiplier": "데이터 {rate}배 차감",
-  "zolnitNodeMeasurementHint": "지연 시간은 가장 최근 실제 측정값 기준이며, 측정 전에는 —로 표시됩니다.",
   "zolnitNodeSyncHint": "사용 가능한 서버는 요금제에 맞춰 자동으로 업데이트됩니다.",
   "zolnitNodesCount": "서버: {count}",
   "zolnitAccountTitle": "내 계정",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "연결 설정 검증에 실패하여 자동 선택을 일시 중지했습니다.",
   "zolnitBundleInvalidWhenStopped": "VPN 설정을 확인할 수 없습니다. 연결을 누르면 설정을 다시 가져옵니다.",
   "zolnitBundleUnavailable": "연결 설정을 불러오지 못했습니다. 잠시 후 다시 시도하세요.",
-  "zolnitBundleNoCandidates": "자동 선택할 수 있는 확인된 서버가 아직 없습니다. 서버를 직접 선택하거나 직접 연결을 사용하세요.",
+  "zolnitBundleNoCandidates": "자동으로 선택할 경로가 없습니다.",
   "zolnitAiService": "AI 서비스",
   "zolnitMediaService": "스트리밍",
   "zolnitRouteCurrent": "현재 경로: {node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "다음 월간 초기화",
   "zolnitFreeInviteShort": "친구를 초대하고 무료 데이터 보충",
   "zolnitFreeInviteExplanation": "초대한 신규 사용자가 가입할 때마다 무료 데이터가 월 제공량까지 보충됩니다. 보충량은 누적되지 않고 월간 초기화 날짜도 바뀌지 않습니다. 캐시백과는 별도입니다.",
-  "zolnitRouteUnverified": "사용 가능한 경로가 아직 확인되지 않았습니다",
-  "zolnitRouteManualUnverified": "지연 시간은 서비스 접근을 보장하지 않습니다",
+  "zolnitRouteUnverified": "선택된 경로가 없습니다. 수동 모드로 전환해 보세요.",
   "zolnitChooseRoute": "경로 선택"
 }

@@ -2944,7 +2944,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "La configuration VPN n’a pas pu être vérifiée. Sélectionnez « Se connecter » pour la récupérer à nouveau.",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "Aucun serveur n’est encore confirmé pour la sélection automatique. Choisissez un serveur vous-même ou utilisez une connexion directe.",
+      "Aucune route pour la sélection automatique.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "Impossible de mettre à jour les informations de connexion pour le moment.",
@@ -3283,9 +3283,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
       "Aucun contrat de renouvellement automatique",
     ),
-    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
-      "La latence reflète le dernier test réel ; affiche — si aucun test n\'a été fait.",
-    ),
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Serveur"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
@@ -3520,9 +3517,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Impossible de changer d’itinéraire. Réessayez.",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
-      "La latence ne confirme pas l’accès au service",
-    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
       "Préparation du routage automatique",
     ),
@@ -3530,7 +3524,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Aucun itinéraire disponible",
     ),
     "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
-      "Aucune route disponible confirmée",
+      "Aucune route sélectionnée. Essayez le mode manuel.",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Options de routage intelligent",

@@ -88,27 +88,28 @@ type nativeRoutingJob struct {
 	key, provider, proxy string
 }
 type clientBundleRoutingState struct {
-	mu            sync.Mutex
-	ctx           context.Context
-	cancel        context.CancelFunc
-	probeCancel   context.CancelFunc
-	pulse         chan struct{}
-	jobs          chan nativeRoutingJob
-	owner         *ClientBundleOwnerGuard
-	policy        nativeRoutingPolicy
-	proxies       map[string]map[string]any
-	revision      uint64
-	batch         uint64
-	samples       map[string]map[string]nativeProviderSample
-	choices       map[string]*nativeRoutingChoice
-	lastCycle     time.Time
-	lastTraffic   Traffic
-	demand        bool
-	idleCycles    uint
-	serviceCursor int
-	now           func() time.Time
-	probe         func(context.Context, *ProbeParams) *ProbeResult
-	origins       map[string]chan struct{}
+	mu             sync.Mutex
+	ctx            context.Context
+	cancel         context.CancelFunc
+	probeCancel    context.CancelFunc
+	pulse          chan struct{}
+	jobs           chan nativeRoutingJob
+	owner          *ClientBundleOwnerGuard
+	policy         nativeRoutingPolicy
+	proxies        map[string]map[string]any
+	revision       uint64
+	batch          uint64
+	samples        map[string]map[string]nativeProviderSample
+	choices        map[string]*nativeRoutingChoice
+	lastCycle      time.Time
+	lastTraffic    Traffic
+	demand         bool
+	activeServices map[string]string
+	idleCycles     uint
+	serviceCursor  int
+	now            func() time.Time
+	probe          func(context.Context, *ProbeParams) *ProbeResult
+	origins        map[string]chan struct{}
 }
 
 var clientBundleRouting *clientBundleRoutingState
@@ -282,7 +283,20 @@ func (w *clientBundleRoutingState) step() {
 		return
 	}
 	now := w.now()
-	probing := w.probeDue(now, handleGetTotalTraffic(false))
+	services := w.policy.Routing.Services
+	automatic := make(map[string]string, len(services))
+	selectMu.Lock()
+	if actual := activeRoutingLease; actual != nil && actual.matchesGuard(lease) {
+		for _, service := range services {
+			current := actual.services[service.Auto]
+			if current != nil && len(current.allowedProxies) > 0 &&
+				current.policySelector.Now() == service.Auto {
+				automatic[service.ID] = current.automaticSelector.Now()
+			}
+		}
+	}
+	selectMu.Unlock()
+	probing := w.probeActiveServices(now, handleGetTotalTraffic(false), automatic)
 	var probeContext context.Context
 	if probing {
 		if w.probeCancel != nil {
@@ -292,20 +306,11 @@ func (w *clientBundleRoutingState) step() {
 		w.lastCycle = now
 		w.batch++
 	}
-	services := w.policy.Routing.Services
 	jobs := 0
 	for index := 0; index < len(services); index++ {
 		service := services[(index+w.serviceCursor)%len(services)]
-		selectMu.Lock()
-		actual := activeRoutingLease
-		mode := actual != nil && actual.matchesGuard(lease) && actual.services[service.Auto] != nil &&
-			actual.services[service.Auto].policySelector.Now() == service.Auto
-		actualProxy := ""
-		if mode {
-			actualProxy = actual.services[service.Auto].automaticSelector.Now()
-		}
-		selectMu.Unlock()
-		if !mode {
+		actualProxy, active := automatic[service.ID]
+		if !active {
 			continue
 		}
 		choice := w.choices[service.ID]
@@ -333,10 +338,12 @@ func (w *clientBundleRoutingState) step() {
 		if best != "" {
 			target = best
 		}
-		result := handleChangeProxy(&ChangeProxyParams{GroupName: service.Auto, ProxyName: target,
-			CloseConnections: true, RoutingLease: lease})
-		if result.Message == "" && best != "" && choice.proxy != best {
-			choice.proxy, choice.switched, choice.challenger, choice.improvements = best, now, "", 0
+		if target != actualProxy {
+			result := handleChangeProxy(&ChangeProxyParams{GroupName: service.Auto, ProxyName: target,
+				CloseConnections: true, RoutingLease: lease})
+			if result.Message == "" && best != "" {
+				choice.proxy, choice.switched, choice.challenger, choice.improvements = best, now, "", 0
+			}
 		}
 		if !probing || len(candidates) == 0 || jobs >= 12 {
 			continue
@@ -379,6 +386,20 @@ func (w *clientBundleRoutingState) step() {
 	if probing && len(services) > 0 {
 		w.serviceCursor = (w.serviceCursor + 1) % len(services)
 	}
+}
+
+func (w *clientBundleRoutingState) probeActiveServices(now time.Time, traffic Traffic, automatic map[string]string) bool {
+	for id := range automatic {
+		if _, alreadyActive := w.activeServices[id]; !alreadyActive {
+			w.demand = true
+		}
+	}
+	w.activeServices = automatic
+	if len(automatic) == 0 {
+		w.lastTraffic = traffic
+		return false
+	}
+	return w.probeDue(now, traffic)
 }
 
 func (w *clientBundleRoutingState) probeDue(now time.Time, traffic Traffic) bool {

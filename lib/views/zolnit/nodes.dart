@@ -561,13 +561,6 @@ class _ZolnitNodesPageState extends ConsumerState<ZolnitNodesPage> {
               ),
             ],
           ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            l10n.zolnitNodeMeasurementHint,
-            style: zolnitText(context, 10, color: colors.muted),
-          ),
-        ),
       ],
     );
   }

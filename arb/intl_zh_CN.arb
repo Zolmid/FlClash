@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "搜索线路或地区",
   "zolnitNoMatchingNodes": "没有匹配的线路。",
   "zolnitNodeMultiplier": "流量按 {rate}× 计",
-  "zolnitNodeMeasurementHint": "延迟以最近一次实际检测为准，未检测时显示 —。",
   "zolnitNodeSyncHint": "可用线路会随套餐自动更新。",
   "zolnitNodesCount": "线路：{count}",
   "zolnitAccountTitle": "我的账户",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "连接配置校验失败，自动选择已暂停。",
   "zolnitBundleInvalidWhenStopped": "VPN 配置未通过校验，点「连接」会重新获取。",
   "zolnitBundleUnavailable": "暂时无法获取连接配置，请稍后重试。",
-  "zolnitBundleNoCandidates": "暂无可供自动选择的已确认线路，请手动选择线路或使用直连。",
+  "zolnitBundleNoCandidates": "没有可自动选择的线路。",
   "zolnitAiService": "AI 服务",
   "zolnitMediaService": "海外影音",
   "zolnitRouteCurrent": "当前线路：{node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "下次每月重置",
   "zolnitFreeInviteShort": "邀请好友补充免费流量",
   "zolnitFreeInviteExplanation": "每成功邀请一位新用户注册，免费流量补充至每月额度。补充不累积，也不改变每月重置日期；此奖励与返现分开计算。",
-  "zolnitRouteUnverified": "尚未确认可用线路",
-  "zolnitRouteManualUnverified": "测速不代表服务可用",
+  "zolnitRouteUnverified": "暂未选定线路，可切换手动。",
   "zolnitChooseRoute": "选择线路"
 }

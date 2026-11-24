@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "Buscar servidores o regiones",
   "zolnitNoMatchingNodes": "No se encontraron servidores.",
   "zolnitNodeMultiplier": "Datos ×{rate}",
-  "zolnitNodeMeasurementHint": "La latencia refleja la última prueba real; muestra — si aún no se ha probado.",
   "zolnitNodeSyncHint": "Los servidores disponibles se actualizan automáticamente con tu plan.",
   "zolnitNodesCount": "Servidores: {count}",
   "zolnitAccountTitle": "Mi cuenta",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "La validación de la configuración falló. La selección automática está en pausa.",
   "zolnitBundleInvalidWhenStopped": "No se pudo verificar la configuración de la VPN. Selecciona Conectar para obtenerla de nuevo.",
   "zolnitBundleUnavailable": "No se pudo cargar la configuración de conexión. Inténtalo de nuevo en un momento.",
-  "zolnitBundleNoCandidates": "Aún no hay servidores confirmados para la selección automática. Elige un servidor tú mismo o usa la conexión directa.",
+  "zolnitBundleNoCandidates": "No hay rutas para la selección automática.",
   "zolnitAiService": "Servicios de IA",
   "zolnitMediaService": "Streaming",
   "zolnitRouteCurrent": "Ruta actual: {node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "Próximo reinicio mensual",
   "zolnitFreeInviteShort": "Invita a un amigo para recargar datos gratis",
   "zolnitFreeInviteExplanation": "Cada nuevo registro realizado mediante tu invitación repone los datos gratuitos hasta el límite mensual. Las recargas no se acumulan ni cambian la fecha de reinicio mensual. Este beneficio es independiente del reembolso.",
-  "zolnitRouteUnverified": "Aún no se confirma una ruta disponible",
-  "zolnitRouteManualUnverified": "La latencia no confirma el acceso al servicio",
+  "zolnitRouteUnverified": "No se ha elegido una ruta. Prueba el modo manual.",
   "zolnitChooseRoute": "Elegir ruta"
 }

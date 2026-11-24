@@ -2942,7 +2942,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "No se pudo verificar la configuración de la VPN. Selecciona Conectar para obtenerla de nuevo.",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "Aún no hay servidores confirmados para la selección automática. Elige un servidor tú mismo o usa la conexión directa.",
+      "No hay rutas para la selección automática.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "No se puede actualizar la información de conexión en este momento.",
@@ -3279,9 +3279,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
       "No hay contratos de renovación automática",
     ),
-    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
-      "La latencia refleja la última prueba real; muestra — si aún no se ha probado.",
-    ),
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Servidor"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
@@ -3512,9 +3509,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "No se pudo cambiar la ruta. Inténtalo de nuevo.",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
-      "La latencia no confirma el acceso al servicio",
-    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
       "Preparando el enrutamiento automático",
     ),
@@ -3522,7 +3516,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "No hay rutas disponibles",
     ),
     "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
-      "Aún no se confirma una ruta disponible",
+      "No se ha elegido una ruta. Prueba el modo manual.",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Opciones de enrutamiento inteligente",

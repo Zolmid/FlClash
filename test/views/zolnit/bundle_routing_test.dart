@@ -85,6 +85,7 @@ void main() {
       zolnitOrigin: fixture.api.origin.origin,
     );
     core = _ReturnCore();
+    when(() => core.watchRoute(any())).thenAnswer((_) async => null);
     when(core.getClientBundleOwner).thenAnswer(
       (_) async => {
         'returnRouteGuard': {
@@ -597,27 +598,45 @@ void main() {
           tester.widget<DropdownButton<String>>(picker).value,
           sg.proxyName,
         );
-        expect(find.textContaining('Latency does not'), findsOneWidget);
+        expect(find.textContaining('Latency does not'), findsNothing);
+        expect(
+          find.byKey(const ValueKey('bundle-current-route')),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
       },
     );
   }
 
   testWidgets(
-    'qualified REJECT is unverified, not a claim that every route failed',
+    'auto shows the Core exit when its snapshot moves beyond REJECT',
     (tester) async {
-      container.read(groupsProvider.notifier).value = [
-        for (final group in container.read(groupsProvider))
+      final actualGroups = container.read(groupsProvider);
+      final groupsNotifier = container.read(groupsProvider.notifier);
+      groupsNotifier.value = [
+        for (final group in actualGroups)
           group.name == 'zn.service.ai.auto'
               ? group.copyWith(now: 'REJECT')
               : group,
       ];
       await mount(tester);
-      expect(
-        find.textContaining('No available route confirmed yet'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('No route available'), findsNothing);
+      expect(find.text('No route selected. Try Manual.'), findsOneWidget);
+      expect(find.textContaining('Current route:'), findsNothing);
+
+      container
+          .read(routeTrackerProvider.notifier)
+          .applySnapshot(
+            RouteSnapshot(
+              coreEpoch: 1,
+              picksVersion: 2,
+              picks: {
+                for (final group in actualGroups) group.name: group.realNow,
+              },
+            ),
+          );
+      await tester.pumpAndSettle();
+      expect(find.text('Current route: US · 原名'), findsOneWidget);
+      expect(find.text('No route selected. Try Manual.'), findsNothing);
     },
   );
 
@@ -835,7 +854,7 @@ void main() {
     await mount(tester);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('bundle-status'))).data,
-      contains('No server is confirmed for automatic selection'),
+      equals('No routes for automatic selection.'),
     );
     expect(
       tester
@@ -858,6 +877,16 @@ void main() {
     await mount(tester);
     expect(find.byKey(const ValueKey('bundle-routing-mode')), findsNothing);
     expect(find.byKey(const ValueKey('bundle-current-route')), findsNothing);
+  });
+
+  testWidgets('missing runtime groups do not imply no eligible candidates', (
+    tester,
+  ) async {
+    container.read(groupsProvider.notifier).value = [];
+    container.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
+    await mount(tester);
+    expect(find.text('No routes for automatic selection.'), findsNothing);
+    expect(find.text('Disconnected'), findsOneWidget);
   });
 
   testWidgets('a disconnected Core is never displayed as a live choice', (

@@ -1446,7 +1446,6 @@
   "zolnitSearchNodes": "搜尋線路或地區",
   "zolnitNoMatchingNodes": "沒有相符的線路。",
   "zolnitNodeMultiplier": "流量按 {rate}× 計",
-  "zolnitNodeMeasurementHint": "延遲以最近一次實際檢測為準，未檢測時顯示 —。",
   "zolnitNodeSyncHint": "可用線路會隨套餐自動更新。",
   "zolnitNodesCount": "線路：{count}",
   "zolnitAccountTitle": "我的帳戶",
@@ -1522,7 +1521,7 @@
   "zolnitBundleInvalid": "連線設定驗證失敗，自動選擇已暫停。",
   "zolnitBundleInvalidWhenStopped": "VPN 設定未通過驗證，點選「連線」會重新取得。",
   "zolnitBundleUnavailable": "暫時無法取得連線設定，請稍後重試。",
-  "zolnitBundleNoCandidates": "暫無可供自動選擇的已確認線路，請手動選擇線路或使用直連。",
+  "zolnitBundleNoCandidates": "沒有可自動選擇的線路。",
   "zolnitAiService": "AI 服務",
   "zolnitMediaService": "海外影音",
   "zolnitRouteCurrent": "目前線路：{node}",
@@ -1617,7 +1616,6 @@
   "zolnitFreeNextReset": "下次每月重置",
   "zolnitFreeInviteShort": "邀請好友補充免費流量",
   "zolnitFreeInviteExplanation": "每成功邀請一位新用戶註冊，免費流量補充至每月額度。補充不累積，也不改變每月重置日期；此獎勵與返現分開計算。",
-  "zolnitRouteUnverified": "尚未確認可用線路",
-  "zolnitRouteManualUnverified": "測速不代表服務可用",
+  "zolnitRouteUnverified": "暫未選定線路，可切換手動。",
   "zolnitChooseRoute": "選擇線路"
 }

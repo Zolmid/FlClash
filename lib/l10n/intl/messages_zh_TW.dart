@@ -2062,7 +2062,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN 設定未通過驗證，點選「連線」會重新取得。",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "暫無可供自動選擇的已確認線路，請手動選擇線路或使用直連。",
+      "沒有可自動選擇的線路。",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "暫時無法更新連線資訊。",
@@ -2267,9 +2267,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("暫無訂單"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("暫無有效方案"),
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage("暫無自動續訂合約"),
-    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
-      "延遲以最近一次實際檢測為準，未檢測時顯示 —。",
-    ),
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("線路"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage("可用線路會隨套餐自動更新。"),
@@ -2430,12 +2427,11 @@ class MessageLookup extends MessageLookupByLibrary {
       "線路切換未完成，請重試。",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
-      "測速不代表服務可用",
-    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage("正在準備自動選線"),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage("暫無可用線路"),
-    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage("尚未確認可用線路"),
+    "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
+      "暫未選定線路，可切換手動。",
+    ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage("智慧分流選項"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("安全模式"),
     "zolnitSafeModeConnect": MessageLookupByLibrary.simpleMessage(

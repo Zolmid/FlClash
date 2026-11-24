@@ -2252,7 +2252,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "VPN 설정을 확인할 수 없습니다. 연결을 누르면 설정을 다시 가져옵니다.",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "자동 선택할 수 있는 확인된 서버가 아직 없습니다. 서버를 직접 선택하거나 직접 연결을 사용하세요.",
+      "자동으로 선택할 경로가 없습니다.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "현재 연결 정보를 업데이트할 수 없습니다.",
@@ -2505,9 +2505,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoOrders": MessageLookupByLibrary.simpleMessage("아직 주문이 없습니다"),
     "zolnitNoPlan": MessageLookupByLibrary.simpleMessage("활성 요금제가 없습니다"),
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage("자동 갱신 계약이 없습니다"),
-    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
-      "지연 시간은 가장 최근 실제 측정값 기준이며, 측정 전에는 —로 표시됩니다.",
-    ),
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("서버"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
@@ -2676,15 +2673,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "경로를 전환하지 못했습니다. 다시 시도하세요.",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
-      "지연 시간은 서비스 접근을 보장하지 않습니다",
-    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage("자동 경로 준비 중"),
     "zolnitRouteUnavailable": MessageLookupByLibrary.simpleMessage(
       "사용 가능한 경로 없음",
     ),
     "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
-      "사용 가능한 경로가 아직 확인되지 않았습니다",
+      "선택된 경로가 없습니다. 수동 모드로 전환해 보세요.",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage("스마트 라우팅 옵션"),
     "zolnitSafeMode": MessageLookupByLibrary.simpleMessage("안전 모드"),

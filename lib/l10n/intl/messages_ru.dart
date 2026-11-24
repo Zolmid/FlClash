@@ -2865,7 +2865,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Не удалось проверить конфигурацию VPN. Нажмите «Подключиться», чтобы загрузить её снова.",
     ),
     "zolnitBundleNoCandidates": MessageLookupByLibrary.simpleMessage(
-      "Пока нет подтверждённых серверов для автовыбора. Выберите сервер вручную или используйте прямое подключение.",
+      "Нет маршрутов для автоматического выбора.",
     ),
     "zolnitBundleRefreshFailed": MessageLookupByLibrary.simpleMessage(
       "Сейчас не удаётся обновить данные подключения.",
@@ -3192,9 +3192,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitNoRenewals": MessageLookupByLibrary.simpleMessage(
       "Нет договоров автопродления",
     ),
-    "zolnitNodeMeasurementHint": MessageLookupByLibrary.simpleMessage(
-      "Задержка показывает результат последней реальной проверки; если проверки не было, отображается —.",
-    ),
     "zolnitNodeMultiplier": m98,
     "zolnitNodeName": MessageLookupByLibrary.simpleMessage("Сервер"),
     "zolnitNodeSyncHint": MessageLookupByLibrary.simpleMessage(
@@ -3421,9 +3418,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Не удалось переключить маршрут. Повторите попытку.",
     ),
     "zolnitRouteCurrent": m102,
-    "zolnitRouteManualUnverified": MessageLookupByLibrary.simpleMessage(
-      "Задержка не подтверждает доступ к сервису",
-    ),
     "zolnitRoutePreparing": MessageLookupByLibrary.simpleMessage(
       "Подготовка автоматической маршрутизации",
     ),
@@ -3431,7 +3425,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Нет доступного маршрута",
     ),
     "zolnitRouteUnverified": MessageLookupByLibrary.simpleMessage(
-      "Доступный маршрут пока не подтверждён",
+      "Маршрут не выбран. Попробуйте ручной режим.",
     ),
     "zolnitRoutingOptions": MessageLookupByLibrary.simpleMessage(
       "Настройки умной маршрутизации",

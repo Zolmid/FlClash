@@ -18,7 +18,7 @@ import 'kit.dart';
 import 'node_groups.dart';
 import 'skin.dart';
 
-class ZolnitBundleRoutingPanel extends ConsumerWidget {
+class ZolnitBundleRoutingPanel extends ConsumerStatefulWidget {
   const ZolnitBundleRoutingPanel({
     super.key,
     required this.session,
@@ -30,7 +30,31 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
   final ValueChanged<String> onServiceChanged;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ZolnitBundleRoutingPanel> createState() =>
+      _ZolnitBundleRoutingPanelState();
+}
+
+class _ZolnitBundleRoutingPanelState
+    extends ConsumerState<ZolnitBundleRoutingPanel> {
+  late final RouteTracker _routeTracker = ref.read(
+    routeTrackerProvider.notifier,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _routeTracker.attach();
+  }
+
+  @override
+  void dispose() {
+    _routeTracker.detach();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = widget.session;
     if (!ref.watch(zolnitClientBundleTransportProvider)) {
       return const SizedBox.shrink();
     }
@@ -41,7 +65,9 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
     final services =
         bundle?.routingManifest.services ?? const <ManagedRouteService>[];
     final service =
-        services.where((s) => s.route.id == selectedServiceId).firstOrNull ??
+        services
+            .where((s) => s.route.id == widget.selectedServiceId)
+            .firstOrNull ??
         services.firstOrNull;
     final groups = ref.watch(groupsProvider);
     final policy = service == null ? null : groups.getGroup(service.groupName);
@@ -65,6 +91,8 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         bundle!.routingManifest.nodes.any(
           (node) =>
               node.enabled &&
+              node.verified &&
+              node.failureDomain.isNotEmpty &&
               node.services.contains(service.route.id) &&
               service.route.allowedCountries.contains(node.countryCode) &&
               (!service.route.isAi || node.countryCode != 'HK'),
@@ -119,9 +147,28 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
         ? const <String>[]
         : [service.route.groupName, service.manualGroup, 'DIRECT'];
     final mode = values.contains(policy?.realNow) ? policy!.realNow : null;
+    final liveAutoExit =
+        available &&
+            leaseReady &&
+            service != null &&
+            mode == service.route.groupName
+        ? ref.watch(
+            routeTrackerProvider.select(
+              (route) =>
+                  route.live &&
+                      route.picks[service.groupName] == service.route.groupName
+                  ? route.picks[service.route.groupName]
+                  : null,
+            ),
+          )
+        : null;
     final target = service == null
         ? null
-        : zolnitAppliedRoute(groups, service.groupName);
+        : zolnitAppliedRoute(
+            groups,
+            service.groupName,
+            picks: {service.route.groupName: ?liveAutoExit},
+          );
     final manualGroup = service == null
         ? null
         : groups.getGroup(service.manualGroup);
@@ -134,23 +181,11 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
             .where((node) => manualMembers.contains(node.proxyName))
             .toList() ??
         const <ZolnitBundleOutbound>[];
-    final current = target == 'DIRECT'
-        ? l10n.direct
-        : target == null || target == 'REJECT'
-        ? (!leaseReady
-              ? l10n.zolnitRoutePreparing
-              : !eligible
-              ? l10n.zolnitBundleNoCandidates
-              : l10n.zolnitRouteUnverified)
-        : zolnitDisplayTitle(
-            bundle?.outbounds
-                    .where((o) => o.proxyName == target)
-                    .firstOrNull
-                    ?.displayName ??
-                l10n.unknown,
-          );
+    final outbound = bundle?.outbounds
+        .where((node) => node.proxyName == target)
+        .firstOrNull;
     Widget currentLabel(String name) => Text(
-      connected ? l10n.zolnitRouteCurrent(name) : l10n.disconnected,
+      name,
       key: const ValueKey('bundle-current-route'),
       style: zolnitText(context, 11, color: ZolnitColors.of(context).muted),
     );
@@ -204,7 +239,7 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                         ),
                     ],
                     onChanged: (value) {
-                      if (value != null) onServiceChanged(value);
+                      if (value != null) widget.onServiceChanged(value);
                     },
                   ),
                   const SizedBox(height: 8),
@@ -224,8 +259,11 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (bundle != null &&
-                  bundle.outbounds.any((node) => node.proxyName == target))
+              if (mode != service.manualGroup && !connected)
+                currentLabel(l10n.disconnected)
+              else if (mode != service.manualGroup &&
+                  bundle != null &&
+                  outbound != null)
                 FutureBuilder<ZolnitRouteMetadata>(
                   future: loadZolnitRouteMetadata(bundle),
                   initialData: cachedZolnitRouteMetadata(bundle),
@@ -239,11 +277,22 @@ class ZolnitBundleRoutingPanel extends ConsumerWidget {
                             paths: metadata.paths,
                             exitIds: bundle.exitIds,
                           ).where((row) => row.contains(target)).firstOrNull;
-                    return currentLabel(entry?.title ?? current);
+                    return currentLabel(
+                      l10n.zolnitRouteCurrent(
+                        entry?.title ??
+                            zolnitDisplayTitle(outbound.displayName),
+                      ),
+                    );
                   },
                 )
-              else
-                currentLabel(current),
+              else if (target == 'DIRECT' && mode != service.manualGroup)
+                currentLabel(l10n.zolnitRouteCurrent(l10n.direct))
+              else if (mode == service.route.groupName && message == null)
+                currentLabel(
+                  groups.getGroup(service.route.groupName) == null
+                      ? l10n.zolnitRoutePreparing
+                      : l10n.zolnitRouteUnverified,
+                ),
             ],
           ],
         ),
@@ -418,10 +467,6 @@ class _ServiceModeControlState extends ConsumerState<_ServiceModeControl> {
                       unawaited(_change(value, manual: true));
                     }
                   },
-          ),
-          Text(
-            text.zolnitRouteManualUnverified,
-            style: zolnitText(context, 12, color: colors.muted),
           ),
         ],
         AnimatedSize(
