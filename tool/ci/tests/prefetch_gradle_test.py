@@ -105,6 +105,7 @@ class PrefetchGradleTest(unittest.TestCase):
             ('org.jetbrains', 'annotations'),
             ('org.jetbrains.kotlinx', 'kotlinx-coroutines-core-jvm'),
             ('com.google.code.gson', 'gson'),
+            ('com.google.code.gson', 'gson-parent'),
             ('com.google.errorprone', 'error_prone_annotations'),
         })
         self.assertNotIn('includeGroupByRegex', init_text)

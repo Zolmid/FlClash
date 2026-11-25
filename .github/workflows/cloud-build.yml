@@ -716,6 +716,11 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
 
+      - name: Verify signed iOS startup before packaging
+        if: env.IOS_SOURCE == 'project' && inputs.official_release
+        timeout-minutes: 16
+        run: flutter test --no-pub test/providers/ios_setup_handoff_test.dart
+
       - name: Compile unsigned device IPA
         run: |
           set -euo pipefail

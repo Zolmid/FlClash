@@ -64,6 +64,7 @@ def ensureMirrorFirst = {{ RepositoryHandler repos ->
             includeModule("org.jetbrains", "annotations")
             includeModule("org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm")
             includeModule("com.google.code.gson", "gson")
+            includeModule("com.google.code.gson", "gson-parent")
             includeModule("com.google.errorprone", "error_prone_annotations")
         }}
     }}
