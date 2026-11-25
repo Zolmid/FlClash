@@ -130,7 +130,7 @@ final class WeakReference<Value: AnyObject> {
       precondition(center.count == 0)
       print("PASS: terminal notification after start dispatch completes even without a connecting sample")
     }
-    for scenario in ["silent-terminal", "delayed-connecting", "superseded"] {
+    for scenario in ["silent-terminal", "residual-stop", "delayed-connecting", "superseded"] {
       let directory = root.appendingPathComponent("bounded-" + scenario)
       let authority = TunnelIntentAuthority(directory: directory)
       let manager = NETunnelProviderManager()
@@ -141,7 +141,13 @@ final class WeakReference<Value: AnyObject> {
       check(try await owner.request(.start))
       let accepted = try token(directory)
       check(try authority.isCurrent(accepted))
-      if scenario == "delayed-connecting" {
+      if scenario == "residual-stop" {
+        post(.disconnecting, manager.connection, center)
+        post(.disconnected, manager.connection, center)
+        check(try authority.isCurrent(accepted))
+        post(.connected, manager.connection, center)
+        precondition(manager.connection.starts == 1)
+      } else if scenario == "delayed-connecting" {
         post(.connecting, manager.connection, center)
         try await Task.sleep(nanoseconds: 350_000_000)
         check(try authority.isCurrent(accepted))

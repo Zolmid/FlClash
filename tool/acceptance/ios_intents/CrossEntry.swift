@@ -209,7 +209,7 @@ extension CrossEntry {
       precondition(states.last == "disconnected")
       print("PASS: failed startup clears on recovery; a later drop is not a startup failure")
     }
-    for scenario in ["terminal", "delayed-connecting", "unnotified-connected", "superseded", "load-error"] {
+    for scenario in ["terminal", "residual-stop", "delayed-connecting", "unnotified-connected", "superseded", "load-error"] {
       let manager = NETunnelProviderManager()
       let config = NETunnelProviderProtocol()
       config.providerBundleIdentifier = NEHelper.providerBundleIdentifier
@@ -232,7 +232,18 @@ extension CrossEntry {
       } else {
         try await until { manager.connection.starts == 1 }
         precondition(states.last == "pending")
-        if scenario == "delayed-connecting" {
+        if scenario == "residual-stop" {
+          for status in [NEVPNStatus.disconnecting, .disconnected] {
+            manager.connection.status = status
+            runner.handleTunnelStatusNotification(Notification(name: .init("fixture"), object: manager.connection))
+          }
+          await Task.yield()
+          precondition(runner.hasPendingWork && !states.contains("failed"))
+          manager.connection.status = .connected
+          runner.handleTunnelStatusNotification(Notification(name: .init("fixture"), object: manager.connection))
+          try await until { !runner.hasPendingWork }
+          precondition(states.last == "connected" && !states.contains("failed") && manager.connection.starts == 1)
+        } else if scenario == "delayed-connecting" {
           try await Task.sleep(nanoseconds: 40_000_000)
           manager.connection.status = .connecting
           runner.handleTunnelStatusNotification(Notification(name: .init("fixture"), object: manager.connection))

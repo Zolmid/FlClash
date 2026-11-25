@@ -546,11 +546,8 @@ final class TunnelCoordinator {
             } catch { return }
           }
           guard self.tunnelWait === wait, self.isCurrent(request) else { return }
-          let status = manager.connection.status
-          self.recordObservedTunnelStatus(status, notifyExternal: false)
-          if self.tunnelWait === wait, !wait.hasObservedProgress, status.isTerminal {
-            self.resolveTunnelWait(wait, result: .status(status))
-          }
+          wait.acceptsTerminalStartStatus = true
+          self.recordObservedTunnelStatus(manager.connection.status, notifyExternal: false)
         }
       }
     }
@@ -568,10 +565,10 @@ final class TunnelCoordinator {
         resolveTunnelWait(wait, result: .status(status))
         return
       }
-      if status.isLifecycleActive {
-        wait.hasObservedProgress = true
+      if status == .connecting {
+        wait.acceptsTerminalStartStatus = true
       }
-      if status.isTerminal && wait.hasObservedProgress {
+      if status.isTerminal && wait.acceptsTerminalStartStatus {
         resolveTunnelWait(wait, result: .status(status))
       }
     case .stopping:

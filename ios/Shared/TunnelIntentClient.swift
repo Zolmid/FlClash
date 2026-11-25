@@ -28,6 +28,7 @@ private final class IntentCompletionObservation: @unchecked Sendable {
   private var monitor: Task<Void, Never>?
   private var target: Bool?
   private var sawProgress = false
+  private var sawResidualStop = false
   private var startIssued = false
   private var startIssuedAt: UInt64?
   private let startConfirmationDelay: UInt64
@@ -100,8 +101,9 @@ private final class IntentCompletionObservation: @unchecked Sendable {
 
   private func record(_ status: NEVPNStatus, isEvent: Bool) {
     let stopped = status == .disconnected || status == .invalid
-    if status == .connecting || (startIssued && status == .disconnecting) { sawProgress = true }
-    if status == .connected || status == .reasserting || (stopped && (sawProgress || (startIssued && isEvent))) {
+    if status == .connecting { sawProgress = true }
+    if startIssued && status == .disconnecting && !sawProgress { sawResidualStop = true }
+    if status == .connected || status == .reasserting || (stopped && (sawProgress || (startIssued && isEvent && !sawResidualStop))) {
       startCompleted = true
     }
     if stopped, startIssued, !sawProgress, let issuedAt = startIssuedAt,

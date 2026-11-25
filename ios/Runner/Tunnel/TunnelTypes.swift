@@ -43,10 +43,6 @@ extension NEVPNStatus {
     }
   }
 
-  var isLifecycleActive: Bool {
-    tunnelState != .stopped
-  }
-
   var isTerminal: Bool {
     tunnelState == .stopped
   }
@@ -98,7 +94,7 @@ final class TunnelWait {
   let purpose: TunnelWaitPurpose
   let manager: NETunnelProviderManager
   let continuation: CheckedContinuation<TunnelWaitResult, Never>
-  var hasObservedProgress = false
+  var acceptsTerminalStartStatus = false
   var confirmation: Task<Void, Never>?
 
   init(
