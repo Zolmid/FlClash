@@ -2,6 +2,29 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.17",
+      "tag": "v1.1.17",
+      "date": "2026-11-25",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "2a2404f",
+              "scope": "ios",
+              "text": "End the wait when iOS stays disconnected after a VPN start request."
+            },
+            {
+              "id": "ad2d31e",
+              "scope": "ios",
+              "text": "Show a connection error when the iPhone or iPad VPN fails to start."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.16",
       "tag": "v1.1.16",
       "date": "2026-11-24",

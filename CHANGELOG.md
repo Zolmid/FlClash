@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.17 (2026-11-25)
+
+**Bug Fixes**
+
+- **ios** End the wait when iOS stays disconnected after a VPN start request. (2a2404f)
+- **ios** Show a connection error when the iPhone or iPad VPN fails to start. (ad2d31e)
+
 ## v1.1.16 (2026-11-24)
 
 **Features**
