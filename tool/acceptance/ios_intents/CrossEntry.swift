@@ -180,6 +180,34 @@ extension CrossEntry {
 
   @MainActor static func moreRunnerTests(_ root: URL) async throws {
     do {
+      let manager = NETunnelProviderManager()
+      let config = NETunnelProviderProtocol()
+      config.providerBundleIdentifier = NEHelper.providerBundleIdentifier
+      manager.protocolConfiguration = config
+      manager.pauseSave = false
+      manager.connection.startError = NSError(domain: "fixture", code: 1)
+      NETunnelProviderManager.manager = manager
+      let store = TestManagerStore(manager)
+      var states: [String] = []
+      let runner = TunnelCoordinator(managerStore: store,
+        authority: TunnelIntentAuthority(directory: root.appendingPathComponent("startup-failure")),
+        isSafeMode: { false }, onTunnelStateChanged: { _ in },
+        onConnectionStateChanged: { states.append($0) }, onExternalStart: {}, onExternalStop: {})
+      check(await runner.submitTunnelRequest(target: .running))
+      try await until { !runner.hasPendingWork }
+      precondition(states.last == "failed")
+      manager.connection.status = .connected
+      runner.handleTunnelStatusNotification(Notification(name: .init("fixture-status"), object: manager.connection))
+      precondition(states.last == "connected")
+      manager.connection.status = .disconnected
+      runner.handleTunnelStatusNotification(Notification(name: .init("fixture-status"), object: manager.connection))
+      precondition(states.last == "disconnected")
+      check(await runner.submitTunnelRequest(target: .stopped))
+      try await until { !runner.hasPendingWork }
+      precondition(states.last == "disconnected")
+      print("PASS: failed startup clears on recovery; a later drop is not a startup failure")
+    }
+    do {
       let directory = root.appendingPathComponent("temporary-contention")
       let authority = TunnelIntentAuthority(directory: directory)
       let manager = NETunnelProviderManager()

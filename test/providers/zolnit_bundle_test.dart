@@ -922,6 +922,15 @@ void main() {
         container.read(zolnitConnectionPhaseProvider),
         ZolnitConnectionPhase.unavailable,
       );
+      tunnelState = TunnelState.failed;
+      container.invalidate(tunnelStateProvider);
+      container.read(runTimeProvider.notifier).value = null;
+      expect(
+        container.read(zolnitConnectionPhaseProvider),
+        ZolnitConnectionPhase.unavailable,
+      );
+      container.read(runTimeProvider.notifier).value = 1;
+      await container.read(zolnitStoredBundleProvider.future);
       tunnelState = TunnelState.connected;
       container.invalidate(tunnelStateProvider);
       expect(

@@ -432,7 +432,12 @@ void main() {
           states.add(iosService.tunnelState.value);
         });
 
-        for (final state in ['connected', 'pending', 'disconnected']) {
+        for (final state in [
+          'connected',
+          'pending',
+          'disconnected',
+          'failed',
+        ]) {
           await TestDefaultBinaryMessengerBinding
               .instance
               .defaultBinaryMessenger
@@ -447,6 +452,7 @@ void main() {
           TunnelState.connected,
           TunnelState.pending,
           TunnelState.disconnected,
+          TunnelState.failed,
         ]);
       },
     );

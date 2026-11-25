@@ -107,6 +107,10 @@ final zolnitConnectionPhaseProvider = Provider<ZolnitConnectionPhase>((ref) {
   if (!ref.watch(zolnitSessionProvider).authenticated) {
     return ZolnitConnectionPhase.unavailable;
   }
+  final tunnelState = ref.watch(tunnelStateProvider);
+  if (tunnelState == TunnelState.failed) {
+    return ZolnitConnectionPhase.unavailable;
+  }
   if (!ref.watch(isStartProvider)) return ZolnitConnectionPhase.disconnected;
   if (!zolnitConnectionConfigReady(ref.watch)) {
     return ref.watch(zolnitBundleStatusProvider) == ZolnitBundleStatus.loading
@@ -134,13 +138,14 @@ final zolnitConnectionPhaseProvider = Provider<ZolnitConnectionPhase>((ref) {
       break;
   }
 
-  switch (ref.watch(tunnelStateProvider)) {
+  switch (tunnelState) {
     case null:
     case TunnelState.connected:
       return ZolnitConnectionPhase.connected;
     case TunnelState.pending:
       return ZolnitConnectionPhase.connecting;
     case TunnelState.disconnected:
+    case TunnelState.failed:
       return ZolnitConnectionPhase.unavailable;
   }
 });

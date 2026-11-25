@@ -39,7 +39,7 @@ abstract mixin class ServiceListener {
   void onServiceStopped() {}
 }
 
-enum TunnelState { pending, connected, disconnected }
+enum TunnelState { pending, connected, disconnected, failed }
 
 enum StartAbandonment { stopped, notOwned, failed }
 

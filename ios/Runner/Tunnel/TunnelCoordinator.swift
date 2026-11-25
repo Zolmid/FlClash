@@ -41,6 +41,7 @@ final class TunnelCoordinator {
   private var observedTunnelStatus: NEVPNStatus?
   private var reportedTunnelState: TunnelTarget?
   private var publishedTunnelState: TunnelTarget?
+  private var startupFailed = false
 
   private var requestGeneration: UInt64 = 0
   private var tunnelRequest: TunnelRequest?
@@ -139,6 +140,7 @@ final class TunnelCoordinator {
       }
     }
     requestGeneration &+= 1
+    startupFailed = false
     let request = TunnelRequest(generation: requestGeneration, token: token, target: target)
     tunnelRequest?.cancelOperation?()
     tunnelRequest = request
@@ -178,6 +180,8 @@ final class TunnelCoordinator {
     let state: String
     if tunnelRequest != nil {
       state = "pending"
+    } else if startupFailed && observedTunnelStatus?.isTerminal == true {
+      state = "failed"
     } else {
       switch observedTunnelStatus {
       case .connected:
@@ -603,6 +607,7 @@ final class TunnelCoordinator {
       return
     }
     tunnelRequest = nil
+    startupFailed = request.target == .running && actualState != .running
     intentMonitor?.cancel()
     intentMonitor = nil
     defer { publishConnectionState() }
@@ -717,6 +722,7 @@ final class TunnelCoordinator {
   ) {
     let previousStatus = observedTunnelStatus
     observedTunnelStatus = status
+    if status == .connected { startupFailed = false }
     defer { publishConnectionState() }
     if previousStatus != status {
       log(
