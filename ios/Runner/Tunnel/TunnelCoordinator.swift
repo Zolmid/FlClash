@@ -28,6 +28,7 @@ final class TunnelCoordinator {
   private let managerStore: any TunnelManagerAccess
   private let authority: TunnelIntentAuthority
   private let isSafeMode: () -> Bool
+  private let startConfirmationDelay: UInt64
   private var intentMonitor: Task<Void, Never>?
   private let onTunnelStateChanged: (TunnelTarget) -> Void
   private let onConnectionStateChanged: (String) -> Void
@@ -59,11 +60,13 @@ final class TunnelCoordinator {
     onTunnelStateChanged: @escaping (TunnelTarget) -> Void,
     onConnectionStateChanged: @escaping (String) -> Void,
     onExternalStart: @escaping () -> Void,
-    onExternalStop: @escaping () -> Void
+    onExternalStop: @escaping () -> Void,
+    startConfirmationDelay: UInt64 = 5_000_000_000
   ) {
     self.managerStore = managerStore
     self.authority = authority
     self.isSafeMode = isSafeMode
+    self.startConfirmationDelay = startConfirmationDelay
     self.onTunnelStateChanged = onTunnelStateChanged
     self.onConnectionStateChanged = onConnectionStateChanged
     self.onExternalStart = onExternalStart
@@ -180,7 +183,7 @@ final class TunnelCoordinator {
     let state: String
     if tunnelRequest != nil {
       state = "pending"
-    } else if startupFailed && observedTunnelStatus?.isTerminal == true {
+    } else if startupFailed && (observedTunnelStatus == nil || observedTunnelStatus?.isTerminal == true) {
       state = "failed"
     } else {
       switch observedTunnelStatus {
@@ -530,6 +533,26 @@ final class TunnelCoordinator {
       )
       tunnelWait = wait
       consumeWaitStatus(manager.connection.status)
+      if purpose == .starting, tunnelWait === wait {
+        wait.confirmation = Task { [weak self, weak wait] in
+          do { try await Task.sleep(nanoseconds: self?.startConfirmationDelay ?? 0) } catch { return }
+          guard let self, let wait else { return }
+          while self.tunnelWait === wait && self.isCurrent(request) {
+            do {
+              guard try self.authority.isCurrent(request.token) else { return }
+              break
+            } catch TunnelIntentError.busy {
+              do { try await Task.sleep(nanoseconds: 50_000_000) } catch { return }
+            } catch { return }
+          }
+          guard self.tunnelWait === wait, self.isCurrent(request) else { return }
+          let status = manager.connection.status
+          self.recordObservedTunnelStatus(status, notifyExternal: false)
+          if self.tunnelWait === wait, !wait.hasObservedProgress, status.isTerminal {
+            self.resolveTunnelWait(wait, result: .status(status))
+          }
+        }
+      }
     }
   }
 
@@ -570,6 +593,8 @@ final class TunnelCoordinator {
       return
     }
     tunnelWait = nil
+    wait.confirmation?.cancel()
+    wait.confirmation = nil
     wait.continuation.resume(returning: result)
   }
 

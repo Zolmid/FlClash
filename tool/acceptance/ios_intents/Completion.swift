@@ -130,6 +130,35 @@ final class WeakReference<Value: AnyObject> {
       precondition(center.count == 0)
       print("PASS: terminal notification after start dispatch completes even without a connecting sample")
     }
+    for scenario in ["silent-terminal", "delayed-connecting", "superseded"] {
+      let directory = root.appendingPathComponent("bounded-" + scenario)
+      let authority = TunnelIntentAuthority(directory: directory)
+      let manager = NETunnelProviderManager()
+      manager.pauseSave = false
+      manager.connection.startUpdatesStatus = false
+      let owner = TunnelIntentClient(authority: authority, loadManager: { manager }, isManaged: { _ in true },
+        isSafeMode: { false }, notificationCenter: center, startConfirmationDelay: 100_000_000)
+      check(try await owner.request(.start))
+      let accepted = try token(directory)
+      check(try authority.isCurrent(accepted))
+      if scenario == "delayed-connecting" {
+        post(.connecting, manager.connection, center)
+        try await Task.sleep(nanoseconds: 350_000_000)
+        check(try authority.isCurrent(accepted))
+        post(.connected, manager.connection, center)
+      } else if scenario == "superseded" {
+        let newer = try authority.register(.stop)
+        try await until { center.count == 0 }
+        check(try authority.isCurrent(newer))
+        try authority.finish(newer)
+      } else {
+        try await until { try !authority.isCurrent(accepted) && center.count == 0 }
+        precondition(manager.connection.stops == 0)
+      }
+      try await until { center.count == 0 }
+      precondition(manager.connection.stops == 0)
+      print("PASS: Shared bounded confirmation \(scenario)")
+    }
     do {
       let directory = root.appendingPathComponent("terminal-while-busy")
       let authority = TunnelIntentAuthority(directory: directory)

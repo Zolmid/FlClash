@@ -6,9 +6,11 @@ import Shared
 
 @MainActor final class TestManagerStore {
   let manager: NETunnelProviderManager
+  var loadError: Error?
   init(_ manager: NETunnelProviderManager) { self.manager = manager }
   func loadManager(createIfNeeded: Bool = true) async throws -> NETunnelProviderManager? {
-    try await NETunnelProviderManager.loadAllFromPreferences().first
+    if let loadError { throw loadError }
+    return try await NETunnelProviderManager.loadAllFromPreferences().first
   }
   func invalidateCachedManager(forPreferenceError error: Error) -> Bool {
     let error = error as NSError
@@ -206,6 +208,58 @@ extension CrossEntry {
       try await until { !runner.hasPendingWork }
       precondition(states.last == "disconnected")
       print("PASS: failed startup clears on recovery; a later drop is not a startup failure")
+    }
+    for scenario in ["terminal", "delayed-connecting", "unnotified-connected", "superseded", "load-error"] {
+      let manager = NETunnelProviderManager()
+      let config = NETunnelProviderProtocol()
+      config.providerBundleIdentifier = NEHelper.providerBundleIdentifier
+      manager.protocolConfiguration = config
+      manager.pauseSave = false
+      manager.connection.startUpdatesStatus = false
+      NETunnelProviderManager.manager = manager
+      let store = TestManagerStore(manager)
+      if scenario == "load-error" { store.loadError = NSError(domain: "fixture", code: 1) }
+      var states: [String] = []
+      let runner = TunnelCoordinator(managerStore: store,
+        authority: TunnelIntentAuthority(directory: root.appendingPathComponent("bounded-" + scenario)),
+        isSafeMode: { false }, onTunnelStateChanged: { _ in },
+        onConnectionStateChanged: { states.append($0) }, onExternalStart: {}, onExternalStop: {},
+        startConfirmationDelay: 100_000_000)
+      check(await runner.submitTunnelRequest(target: .running))
+      if scenario == "load-error" {
+        try await until { !runner.hasPendingWork }
+        precondition(states.last == "failed" && manager.connection.starts == 0)
+      } else {
+        try await until { manager.connection.starts == 1 }
+        precondition(states.last == "pending")
+        if scenario == "delayed-connecting" {
+          try await Task.sleep(nanoseconds: 40_000_000)
+          manager.connection.status = .connecting
+          runner.handleTunnelStatusNotification(Notification(name: .init("fixture"), object: manager.connection))
+          try await Task.sleep(nanoseconds: 130_000_000)
+          precondition(runner.hasPendingWork && states.last == "pending" && manager.connection.stops == 0)
+          manager.connection.status = .connected
+          runner.handleTunnelStatusNotification(Notification(name: .init("fixture"), object: manager.connection))
+          try await until { !runner.hasPendingWork }
+          precondition(states.last == "connected")
+        } else if scenario == "unnotified-connected" {
+          manager.connection.status = .connected
+          try await until { !runner.hasPendingWork }
+          precondition(states.last == "connected" && manager.connection.stops == 0)
+        } else if scenario == "superseded" {
+          check(await runner.submitTunnelRequest(target: .stopped))
+          try await until { !runner.hasPendingWork }
+          try await Task.sleep(nanoseconds: 130_000_000)
+          precondition(states.last == "disconnected" && manager.connection.stops == 1)
+        } else {
+          try await until { !runner.hasPendingWork }
+          precondition(states.last == "failed" && manager.connection.stops == 0)
+          manager.connection.status = .connected
+          runner.handleTunnelStatusNotification(Notification(name: .init("fixture"), object: manager.connection))
+          precondition(states.last == "connected" && manager.connection.stops == 0)
+        }
+      }
+      print("PASS: bounded start confirmation \(scenario)")
     }
     do {
       let directory = root.appendingPathComponent("temporary-contention")

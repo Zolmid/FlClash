@@ -29,6 +29,8 @@ private final class IntentCompletionObservation: @unchecked Sendable {
   private var target: Bool?
   private var sawProgress = false
   private var startIssued = false
+  private var startIssuedAt: UInt64?
+  private let startConfirmationDelay: UInt64
   private var stopIssued = false
   private var startCompleted = false
   private var stopCompleted = false
@@ -38,12 +40,13 @@ private final class IntentCompletionObservation: @unchecked Sendable {
 
   init(
     connection: NEVPNConnection, authority: TunnelIntentAuthority,
-    token: TunnelIntentAuthority.Token, center: NotificationCenter
+    token: TunnelIntentAuthority.Token, center: NotificationCenter, startConfirmationDelay: UInt64
   ) {
     self.connection = connection
     self.authority = authority
     self.token = token
     self.center = center
+    self.startConfirmationDelay = startConfirmationDelay
     observer = center.addObserver(forName: .NEVPNStatusDidChange, object: connection, queue: nil) { [weak self] note in
       guard let self, let source = note.object as? NEVPNConnection, source === self.connection else { return }
       // Capture on the posting thread: a later MainActor read can miss a transient terminal state.
@@ -70,6 +73,7 @@ private final class IntentCompletionObservation: @unchecked Sendable {
   func willStart() {
     lock.lock()
     startIssued = true
+    startIssuedAt = DispatchTime.now().uptimeNanoseconds
     lock.unlock()
   }
 
@@ -98,6 +102,10 @@ private final class IntentCompletionObservation: @unchecked Sendable {
     let stopped = status == .disconnected || status == .invalid
     if status == .connecting || (startIssued && status == .disconnecting) { sawProgress = true }
     if status == .connected || status == .reasserting || (stopped && (sawProgress || (startIssued && isEvent))) {
+      startCompleted = true
+    }
+    if stopped, startIssued, !sawProgress, let issuedAt = startIssuedAt,
+      DispatchTime.now().uptimeNanoseconds &- issuedAt >= startConfirmationDelay {
       startCompleted = true
     }
     if stopIssued && stopped { stopCompleted = true }
@@ -175,19 +183,22 @@ public final class TunnelIntentClient {
   private let isManaged: (NETunnelProviderManager) -> Bool
   private let isSafeMode: () -> Bool
   private let notificationCenter: NotificationCenter
+  private let startConfirmationDelay: UInt64
 
   public init(
     authority: TunnelIntentAuthority,
     loadManager: @escaping () async throws -> NETunnelProviderManager?,
     isManaged: @escaping (NETunnelProviderManager) -> Bool,
     isSafeMode: @escaping () -> Bool,
-    notificationCenter: NotificationCenter = .default
+    notificationCenter: NotificationCenter = .default,
+    startConfirmationDelay: UInt64 = 5_000_000_000
   ) {
     self.authority = authority
     self.loadManager = loadManager
     self.isManaged = isManaged
     self.isSafeMode = isSafeMode
     self.notificationCenter = notificationCenter
+    self.startConfirmationDelay = startConfirmationDelay
   }
 
   @discardableResult
@@ -212,6 +223,7 @@ public final class TunnelIntentClient {
           let isManaged = self.isManaged
           let authority = self.authority
           let center = notificationCenter
+          let startConfirmationDelay = self.startConfirmationDelay
           let previous = observation
           let prepared: (NETunnelProviderManager, IntentCompletionObservation)? = try await awaitOperation(token) {
             guard let manager = try await loadManager() else { return nil }
@@ -219,7 +231,7 @@ public final class TunnelIntentClient {
             guard isManaged(manager) else { return nil }
             let bound = previous?.connection === manager.connection ? previous! :
               IntentCompletionObservation(connection: manager.connection,
-                authority: authority, token: token, center: center)
+                authority: authority, token: token, center: center, startConfirmationDelay: startConfirmationDelay)
             return (manager, bound)
           }
           guard let (manager, completion) = prepared else { return false }
