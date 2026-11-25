@@ -17,6 +17,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/actions/system_exit.dart';
+import 'package:fl_clash/providers/ios_setup_handoff.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';

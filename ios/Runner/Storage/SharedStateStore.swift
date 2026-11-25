@@ -64,6 +64,28 @@ final class SharedStateStore {
     return true
   }
 
+  func saveOwnedDNSHandoff(_ data: Data) {
+    let defaults = UserDefaults(suiteName: appGroupIdentifier)
+    guard let call = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let arguments = call["arguments"] as? [String: Any],
+      let lease = arguments["routing-lease"] as? [String: Any],
+      let account = lease["accountId"] as? String, !account.isEmpty
+    else {
+      defaults?.removeObject(forKey: "ownedDNSHandoff")
+      return
+    }
+    var ownedDNS = arguments["owned-dns"] as? [String: Any]
+    ownedDNS?.removeValue(forKey: "authorization")
+    let snapshot: [String: Any] = [
+      "routing-lease": arguments["routing-lease"] ?? NSNull(),
+      "base": arguments["base"] ?? NSNull(),
+      "owned-dns": ownedDNS ?? (NSNull() as Any),
+    ]
+    guard let encoded = try? JSONSerialization.data(withJSONObject: snapshot) else { return }
+    defaults?.set(encoded, forKey: "ownedDNSHandoff")
+    defaults?.synchronize()
+  }
+
   private func sharedStateJSON(from data: Data?) -> [String: Any]? {
     guard let data else {
       return nil

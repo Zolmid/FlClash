@@ -407,7 +407,7 @@ class SetupAction extends _$SetupAction {
     } else {
       startState = null;
     }
-    final answered = await setCoreRunning(
+    Future<bool> dispatch() => setCoreRunning(
       running,
       foregroundVpnHelp: request?.foregroundVpnHelp ?? false,
       startState: startState,
@@ -416,6 +416,16 @@ class SetupAction extends _$SetupAction {
           ? null
           : (handle) => request.startHandle = handle,
     );
+    final answered =
+        startState != null && ref.read(iosSetupHandoffEnabledProvider)
+        ? await ref
+              .read(iosSetupHandoffProvider.notifier)
+              .startAuthorized(
+                params: startState.setupParams,
+                isCurrent: isCurrent,
+                dispatch: dispatch,
+              )
+        : await dispatch();
     if (startState != null && !isCurrent()) return superseded();
     if (listenerManagedByService && !answered) {
       throw _unanswered(
@@ -1066,6 +1076,7 @@ class SetupAction extends _$SetupAction {
     );
     ref.read(builtProfileTunProvider.notifier).value = null;
     var completed = false;
+    SetupParams? preparedHandoff;
     try {
       SetupState? setupState;
       final realProfile = await globalState.safeRun(() async {
@@ -1103,6 +1114,14 @@ class SetupAction extends _$SetupAction {
               );
             }()
           : rawSetupParams;
+      if (system.isIOS) {
+        if (!ref
+            .read(iosSetupHandoffProvider.notifier)
+            .prepare(setupParams, profileId: profile?.id)) {
+          throw const ClientFailure('superseded');
+        }
+        preparedHandoff = setupParams;
+      }
       final inputs = switch (setupState) {
         final state? when !profileFailed => (
           state,
@@ -1193,12 +1212,18 @@ class SetupAction extends _$SetupAction {
         Error.throwWithStackTrace(handoffFailure!.$1, handoffFailure!.$2);
       }
       if (setupFailed || profileFailed) {
+        if (system.isIOS) {
+          ref.read(iosSetupHandoffProvider.notifier).clear(preparedHandoff);
+        }
         ref.read(zolnitRoutingProvider).clear();
         return _SetupTaskResult.failed;
       }
       completed = true;
       return _SetupTaskResult.completed;
     } finally {
+      if (!completed && system.isIOS) {
+        ref.read(iosSetupHandoffProvider.notifier).clear(preparedHandoff);
+      }
       if (!completed &&
           identical(
             ref.read(builtProfileTunProvider)?.generation,

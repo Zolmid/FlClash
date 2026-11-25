@@ -470,6 +470,11 @@ jobs:
       - name: Build debug bundle
         run: flutter build ${{ matrix.platform }} --debug
 
+      - name: Verify iOS startup configuration handoff
+        if: matrix.platform == 'macos'
+        timeout-minutes: 16
+        run: flutter test --no-pub test/providers/ios_setup_handoff_test.dart
+
   go:
     permissions:
       contents: read

@@ -172,6 +172,8 @@ bool shouldPatchSystemDns(Ref ref) {
 @riverpod
 SharedState sharedState(Ref ref) {
   ref.watch(loadedLocaleProvider);
+  final iosHandoff = ref.watch(iosSetupHandoffEnabledProvider);
+  final profile = ref.watch(currentProfileProvider);
   final currentProfile = ref.watch(
     currentProfileProvider.select(
       (state) => CurrentProfileSelectorState(
@@ -204,15 +206,21 @@ SharedState sharedState(Ref ref) {
     stopTip: currentAppLocalizations.stopVpn,
     startTip: currentAppLocalizations.startVpn,
     localNetworkTip: currentAppLocalizations.localNetworkDeniedTip,
-    setupParams: SetupParams(
-      routingObservation:
-          const bool.fromEnvironment('ZOLNIT_ROUTING_OBSERVATION')
-          ? true
-          : null,
-      selectedMap: selectedMap,
-      testUrl: testUrl,
-      skipCertVerify: !appSetting.checkCertificate,
-    ),
+    setupParams:
+        (iosHandoff ? ref.watch(iosSetupHandoffProvider) : null) ??
+        SetupParams(
+          routingLease:
+              iosHandoff && profile != null && isZolnitBundleProfile(profile)
+              ? const {'signedDeviceId': 'unprepared'}
+              : null,
+          routingObservation:
+              const bool.fromEnvironment('ZOLNIT_ROUTING_OBSERVATION')
+              ? true
+              : null,
+          selectedMap: selectedMap,
+          testUrl: testUrl,
+          skipCertVerify: !appSetting.checkCertificate,
+        ),
     vpnOptions: ref.watch(vpnOptionsProvider).value,
     excludeSSIDs: ref.watch(excludeSSIDsProvider),
     alwaysOn: ref.watch(alwaysOnProvider),

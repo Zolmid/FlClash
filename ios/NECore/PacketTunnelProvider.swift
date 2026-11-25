@@ -70,61 +70,73 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       )
       self.eventQueue.start()
       let initParams = self.sharedStateStore.makeInitParams()
-      let setupParams = self.sharedStateStore.loadSetupParams()
-      self.logger.info(
-        "quickSetup initParams=\(initParams, privacy: .public)"
-      )
-      NECoreBridge.quickSetup(
-        withInitParams: initParams,
-        setupParams: setupParams
-      ) { result in
+      Task {
+        let setupParams: Data
+        do {
+          setupParams = try await self.sharedStateStore.loadRuntimeSetupParams()
+        } catch {
+          completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+          return
+        }
         guard self.transportPath.isCurrent(lifetime) else {
           completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
           return
         }
-        if let result,
-          !result.isEmpty
-        {
-          let message = String(data: result, encoding: .utf8) ?? "unknown core error"
-          self.logger.error(
-            "quickSetup failed: \(message, privacy: .public)"
-          )
-          completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
-          return
-        }
-        self.logger.info("quickSetup completed")
-        let coreTunOptions = CoreTunOptions(
-          stack: vpnOptions.stack,
-          address: self.networkConfiguration.tunAddress(for: vpnOptions),
-          dns: self.networkConfiguration.tunDNS(for: vpnOptions),
-          mtu: vpnOptions.mtu,
-          disableIcmpForwarding: vpnOptions.disableIcmpForwarding,
-          endpointIndependentNat: vpnOptions.endpointIndependentNat,
-          congestionController: vpnOptions.congestionController,
-          recvMsgX: vpnOptions.recvMsgX,
-          sendMsgX: vpnOptions.sendMsgX
-        )
-        guard let coreTunOptionsData = try? JSONEncoder().encode(coreTunOptions)
-        else {
-          completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
-          return
-        }
-        let started = self.transportPath.start(lifetime) {
-          NECoreBridge.startTun(
-            withFileDescriptor: tunnelFileDescriptor,
-            options: coreTunOptionsData
-          )
-        }
         self.logger.info(
-          "NECoreBridge.startTun result=\(started, privacy: .public)"
+          "quickSetup initParams=\(initParams, privacy: .public)"
         )
-        if started {
-          self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
-          Task { await self.bundleRenewal.start() }
+        NECoreBridge.quickSetup(
+          withInitParams: initParams,
+          setupParams: setupParams
+        ) { result in
+          guard self.transportPath.isCurrent(lifetime) else {
+            completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+            return
+          }
+          if let result,
+            !result.isEmpty
+          {
+            let message = String(data: result, encoding: .utf8) ?? "unknown core error"
+            self.logger.error(
+              "quickSetup failed: \(message, privacy: .public)"
+            )
+            completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+            return
+          }
+          self.logger.info("quickSetup completed")
+          let coreTunOptions = CoreTunOptions(
+            stack: vpnOptions.stack,
+            address: self.networkConfiguration.tunAddress(for: vpnOptions),
+            dns: self.networkConfiguration.tunDNS(for: vpnOptions),
+            mtu: vpnOptions.mtu,
+            disableIcmpForwarding: vpnOptions.disableIcmpForwarding,
+            endpointIndependentNat: vpnOptions.endpointIndependentNat,
+            congestionController: vpnOptions.congestionController,
+            recvMsgX: vpnOptions.recvMsgX,
+            sendMsgX: vpnOptions.sendMsgX
+          )
+          guard let coreTunOptionsData = try? JSONEncoder().encode(coreTunOptions)
+          else {
+            completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+            return
+          }
+          let started = self.transportPath.start(lifetime) {
+            NECoreBridge.startTun(
+              withFileDescriptor: tunnelFileDescriptor,
+              options: coreTunOptionsData
+            )
+          }
+          self.logger.info(
+            "NECoreBridge.startTun result=\(started, privacy: .public)"
+          )
+          if started {
+            self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
+            Task { await self.bundleRenewal.start() }
+          }
+          completionHandler(
+            started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
+          )
         }
-        completionHandler(
-          started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
-        )
       }
     }
   }

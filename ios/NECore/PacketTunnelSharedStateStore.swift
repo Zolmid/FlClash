@@ -1,4 +1,5 @@
 import Foundation
+import Shared
 
 enum PacketTunnelEnvironment {
   static let extensionBundleIdentifier = Bundle.main.bundleIdentifier!
@@ -13,6 +14,38 @@ enum PacketTunnelEnvironment {
 
 final class PacketTunnelSharedStateStore {
   private static let emptySetupParams = Data("{}".utf8)
+
+  typealias AuthorizationSource = () async throws -> ClientBundleAuthorization
+  private let injectedDefaults: UserDefaults?
+  private let authorizationSource: AuthorizationSource
+  private let now: () -> Date
+
+  init(defaults: UserDefaults? = nil, now: @escaping () -> Date = Date.init,
+    authorization: AuthorizationSource? = nil) {
+    injectedDefaults = defaults
+    self.now = now
+    authorizationSource = authorization ?? Self.loadAuthorization
+  }
+
+  private static func loadAuthorization() async throws -> ClientBundleAuthorization {
+    guard let configuration = ClientBundleRenewalConfiguration.configured() else {
+      throw ClientBundleCoreError.unavailable
+    }
+    return try await runtimeAuthorization(authority: configuration.makeAuthority(),
+      credentials: configuration.makeCredentials())
+  }
+
+  static func runtimeAuthorization(authority: ClientBundleEpochStore,
+    credentials: any ClientBundleCredentialStore) async throws -> ClientBundleAuthorization {
+    guard let binding = try await authority.currentBinding() else {
+      throw ClientBundleCoreError.unavailable
+    }
+    let value = try await credentials.read(for: binding)
+    guard value.binding == binding, try await authority.isCurrent(binding) else {
+      throw ClientBundleCoreError.staleOwner
+    }
+    return value
+  }
 
   private let sharedStateKey = "sharedState"
   private let setupParamsKey = "setupParams"
@@ -56,6 +89,39 @@ final class PacketTunnelSharedStateStore {
     return data
   }
 
+  func loadRuntimeSetupParams() async throws -> Data {
+    let data = loadSetupParams()
+    guard var setup = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw ClientBundleCoreError.unavailable
+    }
+    guard let lease = setup["routing-lease"] as? [String: Any] else { return data }
+    if lease["signedDeviceId"] != nil {
+      guard let expires = lease["expiresAt"] as? NSNumber,
+        expires.doubleValue > now().timeIntervalSince1970 * 1000 else {
+        throw ClientBundleCoreError.unavailable
+      }
+    }
+    guard let snapshotData = userDefaults?.data(forKey: "ownedDNSHandoff"),
+      let snapshot = try JSONSerialization.jsonObject(with: snapshotData) as? [String: Any],
+      NSDictionary(dictionary: ["lease": setup["routing-lease"] ?? NSNull(), "base": setup["base"] ?? NSNull()])
+        == NSDictionary(dictionary: ["lease": snapshot["routing-lease"] ?? NSNull(), "base": snapshot["base"] ?? NSNull()])
+    else { throw ClientBundleCoreError.unavailable }
+    if snapshot["owned-dns"] is NSNull { return data }
+    guard var ownedDNS = snapshot["owned-dns"] as? [String: Any],
+      ownedDNS["strict"] as? Bool == true
+    else { throw ClientBundleCoreError.unavailable }
+    let credentials = try await authorizationSource()
+    guard lease["accountId"] as? String == credentials.accountID,
+      (lease["signedDeviceId"] as? String).map({ $0 == credentials.device?.deviceID }) ?? true,
+      credentials.value.hasPrefix("Bearer "), credentials.value.utf8.count > 7,
+      credentials.value.utf8.count <= 16384,
+      !credentials.value.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 })
+    else { throw ClientBundleCoreError.staleOwner }
+    ownedDNS["authorization"] = credentials.value
+    setup["owned-dns"] = ownedDNS
+    return try JSONSerialization.data(withJSONObject: setup)
+  }
+
   func makeInitParams() -> String {
     let homeDirectory = appGroupDirectory()?.path ?? ""
     var params: [String: Any] = ["home-dir": homeDirectory, "version": 0]
@@ -89,7 +155,7 @@ final class PacketTunnelSharedStateStore {
   }
 
   private var userDefaults: UserDefaults? {
-    UserDefaults(
+    injectedDefaults ?? UserDefaults(
       suiteName: PacketTunnelEnvironment.appGroupIdentifier
     )
   }

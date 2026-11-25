@@ -39,6 +39,7 @@ private struct CoreRoutingError: LocalizedError {
 final class CoreMessageRouter {
   typealias SendMessage = (Data, CoreRoute) async throws -> String
 
+  private let configurationAccepted: (Data) -> Void
   private let sendMessage: SendMessage
   private var currentRoute = CoreRoute.app
   private lazy var notificationCoordinator = CoreNotificationCoordinator(
@@ -58,16 +59,19 @@ final class CoreMessageRouter {
   )
 
   convenience init(tunnelController: TunnelController) {
-    self.init { data, route in
+    self.init(sendMessage: { data, route in
       try await Self.sendToCore(
         data,
         route: route,
         tunnelController: tunnelController
       )
-    }
+    }, configurationAccepted: { data in
+      SharedStateStore().saveOwnedDNSHandoff(data)
+    })
   }
 
-  init(sendMessage: @escaping SendMessage) {
+  init(sendMessage: @escaping SendMessage, configurationAccepted: @escaping (Data) -> Void = { _ in }) {
+    self.configurationAccepted = configurationAccepted
     self.sendMessage = sendMessage
   }
 
@@ -246,6 +250,9 @@ final class CoreMessageRouter {
     }
 
     let appResponse = try await sendCoreMessage(appData, route: .app)
+    if method == .setupConfig, methodResponseHasEmptyStringResult(appResponse) {
+      configurationAccepted(data)
+    }
     guard networkExtensionActive,
       currentRoute == .networkExtension,
       methodResponseHasEmptyStringResult(appResponse)
