@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.19 (2026-11-25)
+
+**Bug Fixes**
+
+- **ci** Restore VPN startup with signed subscriptions on iPhone and iPad and avoid false connection failures during startup. (84ee47f)
+
 ## v1.1.18 (2026-11-25)
 
 **Bug Fixes**
