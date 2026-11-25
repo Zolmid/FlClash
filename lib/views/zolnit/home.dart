@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/common/inbox_coordinator.dart';
+import 'package:fl_clash/enum/enum.dart' show MessageLevel;
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/providers/zolnit.dart';
 import 'package:fl_clash/providers/zolnit_bundle.dart';
@@ -687,8 +688,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
     if (mounted &&
         session.authenticated &&
         session.api.generation == generation &&
-        !applied) {
-      setState(() => _syncFailed = true);
+        !applied &&
+        !_syncFailed) {
+      context.showNotifier(
+        context.appLocalizations.zolnitConnectFailed,
+        level: MessageLevel.error,
+      );
     }
   }
 
@@ -710,9 +715,12 @@ class _ZolnitHomePageState extends ConsumerState<ZolnitHomePage>
       )?.id;
     }
     if (!mounted ||
-        id == null ||
         ref.read(zolnitSessionProvider).api.generation != generation ||
         !ref.read(zolnitSessionProvider).authenticated) {
+      return false;
+    }
+    if (id == null) {
+      setState(() => _syncFailed = true);
       return false;
     }
     ref.read(currentProfileIdProvider.notifier).value = id;
