@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.18 (2026-11-25)
+
+**Bug Fixes**
+
+- **ios** Start the iPhone or iPad VPN with your current signed subscription, including on a fresh installation. (b440ed3)
+- **client** Show a connection error when VPN startup fails after subscription settings have loaded. (fd80bf4)
+- **ios** Keep an iPhone or iPad connection attempt active while the previous VPN stop finishes. (4067d24)
+
 ## v1.1.17 (2026-11-25)
 
 **Bug Fixes**
