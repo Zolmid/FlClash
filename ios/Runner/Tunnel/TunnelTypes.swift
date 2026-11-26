@@ -52,6 +52,7 @@ final class TunnelRequest {
   let generation: UInt64
   let token: TunnelIntentAuthority.Token
   let preserveForRestart: Bool
+  var restartStopDeadline: UInt64?
   var target: TunnelTarget?
   var description: String { target?.description ?? "toggle" }
   var preferenceRetryCount = 0

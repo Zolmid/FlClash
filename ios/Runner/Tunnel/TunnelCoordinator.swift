@@ -190,7 +190,7 @@ final class TunnelCoordinator {
       }
     }
     requestGeneration &+= 1
-    if !preserveForRestart { heldRestartStop = nil }
+    heldRestartStop = nil
     startupFailed = false
     let request = TunnelRequest(generation: requestGeneration, token: token, target: target,
       preserveForRestart: preserveForRestart)
@@ -323,6 +323,10 @@ final class TunnelCoordinator {
 
   private func reconcileTunnel(_ request: TunnelRequest) async {
     while isCurrent(request) {
+      if request.restartStopDeadline != nil {
+        finishTunnelRequest(request, actualState: .stopped)
+        return
+      }
       do {
         if request.target == nil {
           let manager = try await awaitRequestOperation(request) {
@@ -529,7 +533,7 @@ final class TunnelCoordinator {
       })
     else {
       recordObservedTunnelStatus(.invalid, notifyExternal: false)
-      finishTunnelRequest(request, actualState: .stopped)
+      finishStoppedRequest(request)
       return
     }
     guard isCurrent(request) else {
@@ -546,7 +550,7 @@ final class TunnelCoordinator {
     }
     log("stop command issued to Network Extension")
     if manager.connection.status.isTerminal {
-      finishTunnelRequest(request, actualState: manager.connection.status.tunnelState)
+      finishStoppedRequest(request)
       return
     }
     let result = await waitForTunnelStatus(
@@ -558,11 +562,8 @@ final class TunnelCoordinator {
       return
     }
     switch result {
-    case .status(let status):
-      finishTunnelRequest(
-        request,
-        actualState: status.tunnelState
-      )
+    case .status:
+      finishStoppedRequest(request)
     case .superseded:
       return
     }
@@ -622,6 +623,7 @@ final class TunnelCoordinator {
       }
     case .stopping:
       if status.isTerminal {
+        if wait.request.preserveForRestart { finishStoppedRequest(wait.request) }
         resolveTunnelWait(wait, result: .status(status))
       }
     case .settleThenStart:
@@ -664,6 +666,17 @@ final class TunnelCoordinator {
     return true
   }
 
+  private func recordRestartStopDeadline(_ request: TunnelRequest) {
+    if request.preserveForRestart && request.restartStopDeadline == nil {
+      request.restartStopDeadline = authority.restartStopDeadline(after: restartHoldDuration)
+    }
+  }
+
+  private func finishStoppedRequest(_ request: TunnelRequest) {
+    recordRestartStopDeadline(request)
+    finishTunnelRequest(request, actualState: .stopped)
+  }
+
   private func finishTunnelRequest(
     _ request: TunnelRequest,
     actualState: TunnelTarget?
@@ -671,34 +684,18 @@ final class TunnelCoordinator {
     guard isCurrent(request) else {
       return
     }
-    if request.preserveForRestart && actualState == .stopped {
-      let token = request.token
-      let restartAuthority = authority
-      let holdDuration = restartHoldDuration
-      heldRestartStop = token
-      Task { @MainActor [weak self] in
-        do { try await Task.sleep(nanoseconds: holdDuration) } catch { return }
-        for _ in 0...20 {
-          do {
-            try restartAuthority.finish(token)
-            if self?.heldRestartStop == token { self?.heldRestartStop = nil }
-            return
-          } catch TunnelIntentError.busy {
-            do { try await Task.sleep(nanoseconds: 50_000_000) } catch { return }
-          } catch {
-            break
-          }
-        }
-        restartAuthority.cancel(token)
-        if self?.heldRestartStop == token { self?.heldRestartStop = nil }
+    do {
+      if let deadline = request.restartStopDeadline {
+        try authority.completeRestartStop(request.token, deadline: deadline)
+        heldRestartStop = request.token
+      } else {
+        try authority.finish(request.token)
       }
-    } else {
-      do { try authority.finish(request.token) }
-      catch TunnelIntentError.busy { return }
-      catch {
-        discard(request)
-        return
-      }
+    } catch TunnelIntentError.busy {
+      return
+    } catch {
+      discard(request)
+      return
     }
     tunnelRequest = nil
     startupFailed = request.target == .running && actualState != .running
@@ -717,7 +714,7 @@ final class TunnelCoordinator {
       "\(request.description) completed actual=\(actualState.description) generation=\(request.generation)"
     )
 
-    if request.preserveForRestart && actualState == .stopped { return }
+    if request.restartStopDeadline != nil { return }
 
     Task { @MainActor [weak self] in
       guard let self,
@@ -804,7 +801,6 @@ final class TunnelCoordinator {
         tunnelRequest == nil,
         let state = status.tunnelState
       {
-        if state == .stopped && heldRestartStop != nil { return }
         publishedTunnelState = state
         notifyExternalState(state)
       }
@@ -866,6 +862,10 @@ final class TunnelCoordinator {
       log("sync running tunnel state")
       onExternalStart()
     case .stopped:
+      if let token = heldRestartStop {
+        guard (try? authority.isLatest(token)) == false else { return }
+        heldRestartStop = nil
+      }
       log("sync stopped tunnel state")
       onExternalStop()
     }

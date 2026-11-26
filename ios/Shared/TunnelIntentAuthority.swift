@@ -36,19 +36,29 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     var inverted: Bool
     var pending = true
     var restartStop: Bool? = nil
+    var restartStopDeadline: UInt64? = nil
   }
 
   private struct RegistrationBaseline { let token: Token? }
   @MainActor private static var registrationAttempts: [String: UUID] = [:]
   private static let ownersLock = NSLock()
   private static var owners: [UUID: Int32] = [:]
+  private static let systemNow: @Sendable () -> UInt64 = { clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW) }
   private let directory: @Sendable () throws -> URL
+  private let now: @Sendable () -> UInt64
 
   public init(directory: URL) {
     self.directory = { directory }
+    now = Self.systemNow
+  }
+
+  public init(directory: URL, now: @escaping @Sendable () -> UInt64) {
+    self.directory = { directory }
+    self.now = now
   }
 
   public init(appGroup: String) {
+    now = Self.systemNow
     directory = {
       guard let container = FileManager.default.containerURL(
         forSecurityApplicationGroupIdentifier: appGroup
@@ -84,17 +94,25 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     try register(command, baseline: nil)
   }
 
-  /// Throws superseded unless the given token is still the latest record, checked under the lock.
+  /// A replacement start consumes a completed, live restart stop under the same lock.
   public func register(_ command: Command, replacing token: Token) throws -> Token {
-    try register(command, baseline: RegistrationBaseline(token: token))
+    try register(command, baseline: RegistrationBaseline(token: token), replacing: true)
   }
 
-  private func register(_ command: Command, baseline: RegistrationBaseline?) throws -> Token {
+  private func register(
+    _ command: Command, baseline: RegistrationBaseline?, replacing: Bool = false
+  ) throws -> Token {
     try locked { record, file in
       if let baseline, record?.token != baseline.token { throw TunnelIntentError.superseded }
+      let folder = file.deletingLastPathComponent()
       var previous: Record?
-      if let record, record.pending, try alive(record, in: file.deletingLastPathComponent()) {
+      if let record, record.pending, try alive(record, in: folder) {
         previous = record
+      }
+      if replacing, command == .start || record?.restartStop == true {
+        guard command == .start, previous?.restartStopDeadline != nil else {
+          throw TunnelIntentError.superseded
+        }
       }
       let target: Bool?
       let inverted: Bool
@@ -106,9 +124,10 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
         target = previous?.restartStop == true ? false : previous?.target.map { !$0 }
         inverted = target == nil ? !(previous?.inverted ?? false) : false
       }
-      let next = Record(token: Token(id: UUID()), target: target, inverted: inverted,
+      let next = Record(version: command == .restartStop ? 3 : 2,
+        token: Token(id: UUID()), target: target, inverted: inverted,
         restartStop: command == .restartStop ? true : nil)
-      let ownerURL = ownerFile(next.token, in: file.deletingLastPathComponent())
+      let ownerURL = ownerFile(next.token, in: folder)
       let descriptor = open(ownerURL.path, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
       guard descriptor >= 0 else { throw TunnelIntentError.unavailable }
       guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
@@ -128,7 +147,7 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
       Self.ownersLock.unlock()
       if let record {
         release(record.token)
-        try? FileManager.default.removeItem(at: ownerFile(record.token, in: file.deletingLastPathComponent()))
+        try? FileManager.default.removeItem(at: ownerFile(record.token, in: folder))
       }
       return next.token
     }
@@ -158,7 +177,7 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
   public func isLatest(_ token: Token) throws -> Bool {
     try locked { record, file in
       guard let record, record.token == token else { return false }
-      if !record.pending { return true }
+      if !record.pending { return record.restartStop != true }
       return try alive(record, in: file.deletingLastPathComponent())
     }
   }
@@ -167,10 +186,28 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     try locked { record, file in
       let folder = file.deletingLastPathComponent()
       let current = try require(token, record, in: folder)
-      guard current.target == running else { throw TunnelIntentError.superseded }
+      guard current.target == running, current.restartStopDeadline == nil else {
+        throw TunnelIntentError.superseded
+      }
       try write(current, to: file)
       guard try alive(current, in: folder) else { throw TunnelIntentError.expired }
       return try effect()
+    }
+  }
+
+  public func restartStopDeadline(after duration: UInt64) -> UInt64 {
+    let (deadline, overflow) = now().addingReportingOverflow(duration)
+    return overflow ? UInt64.max : deadline
+  }
+
+  public func completeRestartStop(_ token: Token, deadline: UInt64) throws {
+    try locked { record, file in
+      var current = try require(token, record, in: file.deletingLastPathComponent())
+      guard current.restartStop == true, current.restartStopDeadline == nil else {
+        throw TunnelIntentError.superseded
+      }
+      current.restartStopDeadline = deadline
+      try write(current, to: file)
     }
   }
 
@@ -205,7 +242,9 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
   }
 
   private func alive(_ record: Record, in folder: URL) throws -> Bool {
-    guard record.version == 2 else { return false }
+    // Legacy restart stops cannot distinguish an in-flight stop from an expired receipt.
+    guard record.version == (record.restartStop == true ? 3 : 2) else { return false }
+    if let deadline = record.restartStopDeadline, now() >= deadline { return false }
     Self.ownersLock.lock()
     let owned = Self.owners[record.token.id] != nil
     Self.ownersLock.unlock()
@@ -259,7 +298,7 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
       let handle = FileHandle(fileDescriptor: input, closeOnDealloc: true)
       guard let data = try handle.read(upToCount: 4097), data.count <= 4096,
         let decoded = try? JSONDecoder().decode(Record.self, from: data),
-        decoded.version == 1 || decoded.version == 2
+        (1...3).contains(decoded.version)
       else { throw TunnelIntentError.unavailable }
       record = decoded
     } else if errno != ENOENT {
