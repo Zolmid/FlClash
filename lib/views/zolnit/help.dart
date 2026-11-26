@@ -389,13 +389,16 @@ class _TicketThreadState extends State<_TicketThread> {
   Future<ZolnitTicketThread> _load() =>
       ZolnitSupportClient(widget.session.api).thread(widget.ticket.id);
 
-  void _retry() {
+  void _reload() {
     if (_retrying ||
         !widget.session.authenticated ||
         widget.session.api.generation != _generation)
       return;
     _retrying = true;
-    setState(() => _thread = _load().whenComplete(() => _retrying = false));
+    final next = _load().whenComplete(() => _retrying = false);
+    setState(() {
+      _thread = next;
+    });
   }
 
   @override
@@ -421,7 +424,7 @@ class _TicketThreadState extends State<_TicketThread> {
                   children: [
                     Text(context.appLocalizations.zolnitFailure),
                     TextButton(
-                      onPressed: _retry,
+                      onPressed: _reload,
                       child: Text(context.appLocalizations.retry),
                     ),
                   ],
@@ -450,10 +453,7 @@ class _TicketThreadState extends State<_TicketThread> {
                           generation: _generation,
                         ),
                       );
-                      if (mounted &&
-                          widget.session.api.generation == _generation) {
-                        setState(() => _thread = _load());
-                      }
+                      if (mounted) _reload();
                     },
                     child: Text(context.appLocalizations.zolnitTicketReply),
                   ),
