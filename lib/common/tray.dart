@@ -505,6 +505,7 @@ class AppTray implements TrayPort {
   Future<void> updateDelays({
     required ProviderReader read,
     Set<String>? changedTargets,
+    void Function(String)? onTargetVisited,
   }) async {
     if (_isShutDown || changedTargets?.isEmpty == true) return;
     final delays = read(delayDataSourceProvider);
@@ -513,6 +514,7 @@ class AppTray implements TrayPort {
     final presentations =
         <String, ({String? label, TrayMenuItemSublabelStyle style})>{};
     for (final changed in changedTargets ?? _delayTargets.keys) {
+      onTargetVisited?.call(changed);
       final target = _delayTargets[changed];
       if (target == null) continue;
       final delay = delays[target.testUrl]?[target.proxyName];

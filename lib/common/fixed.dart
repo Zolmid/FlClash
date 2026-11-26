@@ -1,61 +1,96 @@
-import 'iterable.dart';
+class _FixedBuffer<T> {
+  _FixedBuffer(this.capacity);
+
+  final int capacity;
+  final List<T> values = [];
+  int head = 0;
+  int version = 0;
+
+  void add(T item) {
+    if (values.length < capacity) {
+      values.add(item);
+    } else {
+      values[head] = item;
+      head = (head + 1) % capacity;
+    }
+    version++;
+  }
+
+  int physicalIndex(int index) {
+    RangeError.checkValidIndex(index, values);
+    return (head + index) % values.length;
+  }
+}
 
 class FixedList<T> {
   final int maxLength;
-  final List<T> _list;
-
+  final _FixedBuffer<T> _buffer;
   final int _revision;
   List<T>? _snapshot;
+  int _snapshotVersion = -1;
 
   FixedList(this.maxLength, {List<T>? list})
     : assert(maxLength > 0, 'FixedList without a cap grows without bound'),
-      _list = (list ?? [])..truncate(maxLength),
-      _revision = 0;
+      _buffer = _FixedBuffer<T>(maxLength),
+      _revision = 0 {
+    if (list != null) {
+      for (final item in list.skip(
+        list.length > maxLength ? list.length - maxLength : 0,
+      )) {
+        _buffer.add(item);
+      }
+    }
+  }
 
-  FixedList._(this.maxLength, this._list, this._revision);
+  FixedList._(this.maxLength, this._buffer, this._revision);
 
   int get revision => _revision;
 
-  void add(T item) {
-    _list.add(item);
-    _list.truncate(maxLength);
-    _snapshot = null;
-  }
+  void add(T item) => _buffer.add(item);
 
   void clear() {
-    _list.clear();
-    _snapshot = null;
+    _buffer.values.clear();
+    _buffer.head = 0;
+    _buffer.version++;
   }
 
   FixedList<T> append(T item) {
     add(item);
-    return FixedList._(maxLength, _list, _revision + 1);
+    return FixedList._(maxLength, _buffer, _revision + 1);
   }
 
   FixedList<T> replace(Map<int, T> items) {
-    items.forEach((index, item) => _list[index] = item);
-    _snapshot = null;
-    return FixedList._(maxLength, _list, _revision + 1);
+    items.forEach(
+      (index, item) => _buffer.values[_buffer.physicalIndex(index)] = item,
+    );
+    _buffer.version++;
+    return FixedList._(maxLength, _buffer, _revision + 1);
   }
 
-  List<T> get list => _snapshot ??= List.unmodifiable(_list);
-
-  int get length => _list.length;
-
-  T operator [](int index) => _list[index];
-
-  FixedList<T> copyWith() {
-    return FixedList(maxLength, list: List.of(_list));
+  List<T> get list {
+    if (_snapshotVersion != _buffer.version) {
+      _snapshot = List.unmodifiable(
+        List.generate(length, (index) => this[index]),
+      );
+      _snapshotVersion = _buffer.version;
+    }
+    return _snapshot!;
   }
+
+  int get length => _buffer.values.length;
+
+  T operator [](int index) => _buffer.values[_buffer.physicalIndex(index)];
+
+  FixedList<T> copyWith() => FixedList(maxLength, list: list);
 
   @override
   bool operator ==(Object other) =>
       other is FixedList<T> &&
-      identical(other._list, _list) &&
+      identical(other._buffer, _buffer) &&
       other._revision == _revision;
 
   @override
-  int get hashCode => Object.hash(identityHashCode(_list), _revision);
+  int get hashCode => Object.hash(identityHashCode(_buffer), _revision);
 }
 
 /// Restores the head that [latest] trimmed off [current] so a paused view

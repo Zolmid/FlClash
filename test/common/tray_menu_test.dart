@@ -535,6 +535,31 @@ void main() {
     },
   );
 
+  test('changed target limits actual tray update visits', () async {
+    container.read(groupsProvider.notifier).value = [_proxyGroup];
+    final url = container.read(appSettingProvider).testUrl;
+    await update(_trayState(groups: [_proxyGroup]));
+    final visitedAll = <String>[];
+    await tray.updateDelays(
+      read: container.read,
+      onTargetVisited: visitedAll.add,
+    );
+    container
+        .read(delayDataSourceProvider.notifier)
+        .setDelay(Delay(name: 'A', url: url, value: 80));
+    calls.clear();
+    final visitedChanged = <String>[];
+    await tray.updateDelays(
+      read: container.read,
+      changedTargets: {delayTestKey(url, 'A')},
+      onTargetVisited: visitedChanged.add,
+    );
+    expect(visitedAll, hasLength(3));
+    expect(visitedChanged, [delayTestKey(url, 'A')]);
+    expect(calls.single.method, 'updateMenuItems');
+    expect(((calls.single.arguments as Map)['updates'] as List), isNotEmpty);
+  });
+
   test('each proxy submenu offers a persistent delay test action', () async {
     await update(_trayState(groups: [_proxyGroup]));
     final children = (_item(showCall(), 'Proxy')['items'] as List).cast<Map>();

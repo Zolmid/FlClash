@@ -79,18 +79,21 @@ final class ZolnitInboxCoordinator {
   Future<List<ZolnitRealtimeInboxItem>> read(String scope) =>
       store.readInbox(scope);
 
-  Future<void> apply(
+  Future<
+    ({
+      ZolnitRealtimeInboxItem item,
+      String? updateVersion,
+      bool installedUpdate,
+    })?
+  >
+  _prepare(
     String id,
     String type,
     Json data,
-    String scope,
     int gen,
     DateTime at,
-    bool read, {
-    bool canonical = false,
-    bool Function()? isCurrentSnapshot,
-  }) async {
-    if (!_current(gen) || scope != this.scope) return;
+    bool read,
+  ) async {
     final String title, body;
     String? updateVersion;
     var installedUpdate = false;
@@ -104,7 +107,7 @@ final class ZolnitInboxCoordinator {
           version is! String ||
           !RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version) ||
           version.length > 32) {
-        return;
+        return null;
       }
       _installedPackage ??= PackageInfo.fromPlatform()
           .then<PackageInfo?>((info) => info)
@@ -113,14 +116,14 @@ final class ZolnitInboxCoordinator {
       final currentBuild = int.tryParse(package?.buildNumber ?? '');
       if (currentBuild == null || currentBuild <= 0 || package == null) {
         _installedPackage = null;
-        return;
+        return null;
       }
-      if (!_current(gen)) return;
+      if (!_current(gen)) return null;
       final int comparison;
       try {
         comparison = compareVersions(package.version.split('+').first, version);
       } on FormatException {
-        return;
+        return null;
       }
       installedUpdate =
           comparison > 0 || (comparison == 0 && currentBuild >= build);
@@ -134,17 +137,17 @@ final class ZolnitInboxCoordinator {
       'notice.popup',
       'account.notice',
     }.contains(type)) {
-      if (data['title'] is! String || data['body'] is! String) return;
+      if (data['title'] is! String || data['body'] is! String) return null;
       title = data['title'] as String;
       body = data['body'] as String;
     } else {
-      return;
+      return null;
     }
     if (title.trim().isEmpty ||
         body.trim().isEmpty ||
         utf8.encode(title).length > 200 ||
         utf8.encode(body).length > 2048) {
-      return;
+      return null;
     }
     final item = ZolnitRealtimeInboxItem(
       id: id,
@@ -154,6 +157,28 @@ final class ZolnitInboxCoordinator {
       popup: type == 'notice.popup',
       read: read,
     );
+    return (
+      item: item,
+      updateVersion: updateVersion,
+      installedUpdate: installedUpdate,
+    );
+  }
+
+  Future<void> apply(
+    String id,
+    String type,
+    Json data,
+    String scope,
+    int gen,
+    DateTime at,
+    bool read, {
+    bool canonical = false,
+    bool Function()? isCurrentSnapshot,
+  }) async {
+    if (!_current(gen) || scope != this.scope) return;
+    final prepared = await _prepare(id, type, data, gen, at, read);
+    if (prepared == null || !_current(gen) || scope != this.scope) return;
+    final item = prepared.item;
     final merge = canonical
         ? await store.applyCanonicalInbox(
             scope,
@@ -170,6 +195,34 @@ final class ZolnitInboxCoordinator {
               )
               ? ZolnitInboxMerge.inserted
               : ZolnitInboxMerge.unchanged);
+    await _present(
+      prepared,
+      merge,
+      scope,
+      gen,
+      canonical: canonical,
+      isCurrentSnapshot: isCurrentSnapshot,
+    );
+  }
+
+  Future<void> _present(
+    ({
+      ZolnitRealtimeInboxItem item,
+      String? updateVersion,
+      bool installedUpdate,
+    })
+    prepared,
+    ZolnitInboxMerge merge,
+    String scope,
+    int gen, {
+    required bool canonical,
+    bool Function()? isCurrentSnapshot,
+    List<ZolnitRealtimeInboxItem>? batchInbox,
+  }) async {
+    final id = prepared.item.id;
+    final read = prepared.item.read;
+    final updateVersion = prepared.updateVersion;
+    final installedUpdate = prepared.installedUpdate;
     if (!_current(gen) || scope != this.scope) return;
     if (canonical && merge != ZolnitInboxMerge.unchanged) {
       // An invalidated platform write needs presentation in a current snapshot.
@@ -184,13 +237,17 @@ final class ZolnitInboxCoordinator {
         _current(gen) &&
         _readFlights.add(automaticReadKey)) {
       try {
-        final stored = await store.readInbox(scope);
+        final stored = batchInbox ?? await store.readInbox(scope);
         final existing = stored.where((entry) => entry.id == id).firstOrNull;
         if (existing != null &&
             !existing.read &&
             _current(gen) &&
             (!canonical || (isCurrentSnapshot?.call() ?? false))) {
           final confirmed = await markRead(existing, scope, gen);
+          if (confirmed && batchInbox != null) {
+            final index = batchInbox.indexWhere((entry) => entry.id == id);
+            if (index >= 0) batchInbox[index] = batchInbox[index].asRead();
+          }
           if (!confirmed && _current(gen)) {
             _readRetry ??= Timer(const Duration(minutes: 1), () {
               _readRetry = null;
@@ -207,7 +264,7 @@ final class ZolnitInboxCoordinator {
     if (canonical && !(isCurrentSnapshot?.call() ?? false)) return;
     final presentation = canonical ? _pendingPresentation[id] ?? merge : merge;
     if (presentation == ZolnitInboxMerge.unchanged) return;
-    final inbox = await _updateUnread(scope, gen);
+    final inbox = batchInbox ?? await _updateUnread(scope, gen);
     if (!_current(gen) || scope != this.scope) return;
     if (canonical && !(isCurrentSnapshot?.call() ?? false)) return;
     if (canonical) _pendingPresentation.remove(id);
@@ -231,12 +288,16 @@ final class ZolnitInboxCoordinator {
     int gen,
   ) async {
     final inbox = await store.readInbox(scope);
+    _setUnread(inbox, scope, gen);
+    return inbox;
+  }
+
+  void _setUnread(List<ZolnitRealtimeInboxItem> inbox, String scope, int gen) {
     final count = inbox.where((item) => !item.read).length;
     if (_current(gen) && scope == this.scope && unread != count) {
       unread = count;
       onUnread();
     }
-    return inbox;
   }
 
   Future<bool> markRead(
@@ -265,28 +326,6 @@ final class ZolnitInboxCoordinator {
     }
   }
 
-  Future<void> _withdrawMessages(
-    String scope,
-    int gen,
-    List<String> ids,
-    bool Function() currentSnapshot,
-  ) async {
-    if (ids.isEmpty || !_current(gen)) return;
-    await store.withdrawInbox(
-      scope,
-      ids,
-      isCurrent: () => currentSnapshot() && scope == this.scope,
-    );
-    if (!currentSnapshot()) return;
-    withdrawn.addAll(ids);
-    for (final id in ids) {
-      _pendingPresentation.remove(id);
-    }
-    onWithdrawn(withdrawn);
-    noticeRevision.value++;
-    await _updateUnread(scope, gen);
-  }
-
   Future<void> refresh(int gen) {
     if (_flightGeneration == gen && _flight != null) {
       final activeEpoch = _flightEpoch;
@@ -310,8 +349,14 @@ final class ZolnitInboxCoordinator {
             throw StateError('account binding changed');
           }
           _subject = inbox.subject;
-          await _withdrawMessages(scope, gen, inbox.withdrawn, currentSnapshot);
-          if (!currentSnapshot()) return;
+          final prepared =
+              <
+                ({
+                  ZolnitRealtimeInboxItem item,
+                  String? updateVersion,
+                  bool installedUpdate,
+                })
+              >[];
           for (final e in inbox.events.take(100)) {
             if (!currentSnapshot()) return;
             final id = e['id'],
@@ -330,23 +375,55 @@ final class ZolnitInboxCoordinator {
                 data is! Json ||
                 seconds is! int ||
                 seconds < 0 ||
-                seconds > 253402300799) {
+                seconds > 253402300799)
               continue;
-            }
-            await apply(
+            final value = await _prepare(
               id,
               type,
               data,
-              scope,
               gen,
               DateTime.fromMillisecondsSinceEpoch(seconds * 1000),
               e['read'] == true,
-              canonical: true,
-              isCurrentSnapshot: currentSnapshot,
             );
+            if (value != null) prepared.add(value);
           }
           if (!currentSnapshot()) return;
-          await _updateUnread(scope, gen);
+          final batch = await store.mergeSnapshot(
+            scope,
+            [for (final e in prepared) e.item],
+            inbox.withdrawn,
+            isCurrent: () => currentSnapshot() && scope == this.scope,
+          );
+          if (!_current(gen) || scope != this.scope) return;
+          for (final entry in batch.merges.entries) {
+            if (_pendingPresentation[entry.key] != ZolnitInboxMerge.inserted) {
+              _pendingPresentation[entry.key] = entry.value;
+            }
+          }
+          if (!currentSnapshot()) return;
+          if (inbox.withdrawn.isNotEmpty) {
+            withdrawn.addAll(inbox.withdrawn);
+            for (final id in inbox.withdrawn) {
+              _pendingPresentation.remove(id);
+            }
+            onWithdrawn(withdrawn);
+            noticeRevision.value++;
+          }
+          _setUnread(batch.inbox, scope, gen);
+          final presented = <String>{};
+          for (final entry in prepared) {
+            if (!currentSnapshot()) return;
+            if (!presented.add(entry.item.id)) continue;
+            await _present(
+              entry,
+              batch.merges[entry.item.id] ?? ZolnitInboxMerge.unchanged,
+              scope,
+              gen,
+              canonical: true,
+              isCurrentSnapshot: currentSnapshot,
+              batchInbox: batch.inbox,
+            );
+          }
           if (currentSnapshot()) {
             _pendingPresentation.clear();
             onConnect(scope, gen);

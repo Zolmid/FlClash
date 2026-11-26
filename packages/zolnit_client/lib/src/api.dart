@@ -166,12 +166,18 @@ class XboardClient {
     final live = liveReads;
     if (live != null && live.supports(method)) {
       final generation = _generation;
-      final reply = await live.read(method, data, (v) => parse(v) != null);
+      T? parsed;
+      var parsedByValidator = false;
+      final reply = await live.read(method, data, (v) {
+        parsedByValidator = true;
+        parsed = parse(v);
+        return parsed != null;
+      });
       if (_closed || generation != _generation) {
         throw const ClientFailure('superseded');
       }
       if (reply != null) {
-        final value = parse(reply.result);
+        final value = parsedByValidator ? parsed : parse(reply.result);
         if (value != null) return value;
       }
     }

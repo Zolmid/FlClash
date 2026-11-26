@@ -88,6 +88,57 @@ void main() {
     },
   );
 
+  test(
+    'transport shares cold lookups and expires on TTL and network change',
+    () async {
+      var now = DateTime.utc(2026);
+      var calls = 0;
+      final pending = Completer<OwnedDnsAnswer>();
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) {
+        request.response.headers.set(HttpHeaders.connectionHeader, 'close');
+        unawaited(request.response.close());
+      });
+      final resolver = OwnedDnsResolver(
+        hosts: {'link.zolmid.com'},
+        now: () => now,
+        lookup: (_) async => throw StateError('unexpected lookup'),
+        transportLookup: (_) {
+          calls++;
+          return calls == 1
+              ? pending.future
+              : Future.value(OwnedDnsAnswer(['192.0.2.1'], 5));
+        },
+      );
+      final client = resolver.createHttpClient(
+        startConnect: (_, port) =>
+            Socket.startConnect(InternetAddress.loopbackIPv4, port),
+      );
+      addTearDown(() => client.close(force: true));
+      Future<void> request() async {
+        final response = await (await client.getUrl(
+          Uri.parse('http://link.zolmid.com:${server.port}/'),
+        )).close();
+        await response.drain<void>();
+      }
+
+      final first = Future.wait([request(), request()]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(calls, 1);
+      pending.complete(OwnedDnsAnswer(['192.0.2.1'], 5));
+      await first;
+      await request();
+      expect(calls, 1);
+      now = now.add(const Duration(seconds: 5));
+      await request();
+      expect(calls, 2);
+      resolver.clear();
+      await request();
+      expect(calls, 3);
+    },
+  );
+
   test('cancelled bootstrap never applies a late socket', () async {
     final pending = Completer<OwnedDnsAnswer>();
     var dials = 0;
@@ -205,30 +256,27 @@ void main() {
     },
   );
 
-  test(
-    'IPv6-only bootstrap selects an official IPv6 literal without waiting for IPv4',
-    () async {
-      for (final failedPrimary in [false, true]) {
-        String? selected;
-        final answer = await raceOwnedDnsBootstrapEndpoints(
-          stagger: Duration.zero,
-          exchange: (literal) async {
-            if (!literal.contains(':')) {
-              await Future<void>.delayed(const Duration(milliseconds: 1500));
-              throw const SocketException('no IPv4 route');
-            }
-            if (failedPrimary && literal == '2400:3200::1') {
-              throw const SocketException('primary unreachable');
-            }
-            selected = literal;
-            return OwnedDnsAnswer(['2001:db8::10'], 30);
-          },
-        ).timeout(const Duration(seconds: 1));
-        expect(selected, failedPrimary ? '2400:3200:baba::1' : '2400:3200::1');
-        expect(answer.addresses.single.address, '2001:db8::10');
-      }
-    },
-  );
+  test('IPv6-only bootstrap selects an official IPv6 literal without waiting for IPv4', () async {
+    for (final failedPrimary in [false, true]) {
+      String? selected;
+      final answer = await raceOwnedDnsBootstrapEndpoints(
+        stagger: Duration.zero,
+        exchange: (literal) async {
+          if (!literal.contains(':')) {
+            await Future<void>.delayed(const Duration(milliseconds: 1500));
+            throw const SocketException('no IPv4 route');
+          }
+          if (failedPrimary && literal == '2400:3200::1') {
+            throw const SocketException('primary unreachable');
+          }
+          selected = literal;
+          return OwnedDnsAnswer(['2001:db8::10'], 30);
+        },
+      ).timeout(const Duration(seconds: 1));
+      expect(selected, failedPrimary ? '2400:3200:baba::1' : '2400:3200::1');
+      expect(answer.addresses.single.address, '2001:db8::10');
+    }
+  });
 
   test('strict bootstrap tolerates either address family failing', () async {
     for (final failed in [1, 28]) {

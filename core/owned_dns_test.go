@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"net"
 	"net/netip"
 	"strings"
 	"sync/atomic"
@@ -201,5 +202,118 @@ func TestOwnedDNSBootstrapIPv6OnlyRoute(t *testing.T) {
 		if err != nil || len(answer.Addresses) != 1 || selected.Load() != expected {
 			t.Fatal(answer, selected.Load(), err)
 		}
+	}
+}
+
+func TestOwnedDNSBootstrapSharesColdFamiliesAndFencesReset(t *testing.T) {
+	r := ownedDNSFixture(t)
+	var calls atomic.Int32
+	started := make(chan struct{}, 4)
+	release := make(chan struct{})
+	r.bootstrapQuery = func(ctx context.Context, family uint16) (ownedDNSAnswer, error) {
+		calls.Add(1)
+		started <- struct{}{}
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return ownedDNSAnswer{}, ctx.Err()
+		}
+		if family == 1 {
+			return ownedDNSAnswer{Addresses: []string{"192.0.2.1"}, TTL: 30}, nil
+		}
+		return ownedDNSAnswer{Addresses: []string{"2001:db8::1"}, TTL: 20}, nil
+	}
+	results := make(chan error, 3)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _, err := r.lookupBootstrap(ctx, 0, 1); results <- err }()
+	<-started
+	go func() { _, err := r.lookupBootstrap(context.Background(), 0, 1); results <- err }()
+	go func() { _, err := r.lookupBootstrap(context.Background(), 0, 28); results <- err }()
+	<-started
+	cancel()
+	if err := <-results; err == nil {
+		t.Fatal("cancelled caller succeeded")
+	}
+	close(release)
+	if err := <-results; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-results; err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("cold queries = %d, want 2", calls.Load())
+	}
+	if _, err := r.lookup(context.Background(), "link.zolmid.com"); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 2 {
+		t.Fatal("normal lookup did not reuse dial answers")
+	}
+	cancelled, stop := context.WithCancel(context.Background())
+	stop()
+	if _, err := r.lookupBootstrap(cancelled, 0, 1); err == nil {
+		t.Fatal("cancelled caller received cached answer")
+	}
+	r.invalidateCache()
+	if _, err := r.lookupBootstrap(context.Background(), 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 3 {
+		t.Fatal("network change reused previous answers")
+	}
+	r.mu.Lock()
+	cached := r.bootstrapCache[1]
+	cached.until = time.Now().Add(-time.Second)
+	r.bootstrapCache[1] = cached
+	r.mu.Unlock()
+	if _, err := r.lookupBootstrap(context.Background(), 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 4 {
+		t.Fatal("expired answer reused")
+	}
+}
+
+func TestOwnedDNSColdDialKeepsLateFamilyForSharedCache(t *testing.T) {
+	r := ownedDNSFixture(t)
+	slow := make(chan struct{})
+	r.bootstrapQuery = func(ctx context.Context, family uint16) (ownedDNSAnswer, error) {
+		if family == 1 {
+			return ownedDNSAnswer{Addresses: []string{"192.0.2.1"}, TTL: 30}, nil
+		}
+		select {
+		case <-slow:
+			return ownedDNSAnswer{Addresses: []string{"2001:db8::1"}, TTL: 20}, nil
+		case <-ctx.Done():
+			return ownedDNSAnswer{}, ctx.Err()
+		}
+	}
+	peer := make(chan net.Conn, 1)
+	conn, err := dialOwnedBootstrap(context.Background(), "tcp", "443", func(ctx context.Context, family uint16) (ownedDNSAnswer, error) {
+		return r.lookupBootstrap(ctx, 0, family)
+	}, func(context.Context, string, string, []netip.Addr) (net.Conn, error) {
+		a, b := net.Pipe()
+		peer <- b
+		return a, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	(<-peer).Close()
+	close(slow)
+	deadline := time.Now().Add(time.Second)
+	for {
+		r.mu.Lock()
+		_, ok := r.bootstrapCache[28]
+		r.mu.Unlock()
+		if ok {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("late family was not cached")
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

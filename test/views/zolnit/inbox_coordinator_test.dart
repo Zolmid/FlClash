@@ -5,6 +5,7 @@ import 'package:fl_clash/common/inbox_coordinator.dart';
 import 'package:fl_clash/providers/zolnit_realtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
@@ -27,9 +28,254 @@ class _BlockingPreferences extends InMemorySharedPreferencesStore {
   }
 }
 
+class _CountingPreferences extends InMemorySharedPreferencesStore {
+  _CountingPreferences() : super.empty();
+  int inboxWrites = 0;
+  bool failInbox = false;
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    if (key.endsWith('.inbox')) {
+      inboxWrites++;
+      if (failInbox) return false;
+    }
+    return super.setValue(valueType, key, value);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'snapshot merges 100 entries once, preserves read and skips replay writes',
+    () async {
+      final prefs = _CountingPreferences();
+      SharedPreferencesStorePlatform.instance = prefs;
+      final store = ZolnitRealtimePreferencesStore();
+      const scope = 'https://panel.example:batch';
+      final now = DateTime.now();
+      final items = List.generate(
+        100,
+        (i) => ZolnitRealtimeInboxItem(
+          id: i.toRadixString(16).padLeft(32, '0'),
+          title: 'title $i',
+          body: 'x' * 1024,
+          createdAt: now.subtract(Duration(seconds: i)),
+          popup: false,
+        ),
+      );
+      await store.appendInbox(scope, items.first.asRead());
+      prefs.inboxWrites = 0;
+      final first = await store.mergeSnapshot(
+        scope,
+        items,
+        [],
+        isCurrent: () => true,
+      );
+      expect(prefs.inboxWrites, 1);
+      expect(first.inbox, hasLength(100));
+      expect(first.inbox.first.read, isTrue);
+      await store.mergeSnapshot(scope, items, [], isCurrent: () => true);
+      expect(prefs.inboxWrites, 1);
+      final other = await store.readInbox('https://panel.example:other');
+      expect(other, isEmpty);
+    },
+  );
+
+  test(
+    'queued withdrawal defeats replay and failed snapshot is retryable',
+    () async {
+      final prefs = _CountingPreferences();
+      SharedPreferencesStorePlatform.instance = prefs;
+      final store = ZolnitRealtimePreferencesStore();
+      const scope = 'https://panel.example:batch';
+      final item = ZolnitRealtimeInboxItem(
+        id: 'a' * 32,
+        title: 'Title',
+        body: 'Body',
+        createdAt: DateTime.now(),
+        popup: true,
+      );
+      prefs.failInbox = true;
+      await expectLater(
+        store.mergeSnapshot(scope, [item], [], isCurrent: () => true),
+        throwsStateError,
+      );
+      prefs.failInbox = false;
+      await store.mergeSnapshot(scope, [item], [], isCurrent: () => true);
+      await Future.wait([
+        store.withdrawInbox(scope, [item.id]),
+        store.mergeSnapshot(scope, [item], [], isCurrent: () => true),
+      ]);
+      expect(await store.readInbox(scope), isEmpty);
+    },
+  );
+
+  test(
+    'coordinator snapshot writes once and identical refresh writes zero',
+    () async {
+      final prefs = _CountingPreferences();
+      SharedPreferencesStorePlatform.instance = prefs;
+      final subject = 'b' * 64;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final events = List.generate(
+        100,
+        (i) => {
+          'id': i.toRadixString(16).padLeft(32, '0'),
+          'type': 'notice.published',
+          'data': {'title': 'Title $i', 'body': 'x' * 1024},
+          'created_at': now - i,
+        },
+      );
+      final api = XboardClient(
+        origin: Uri.parse('https://panel.example'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'data': {'subject': subject, 'events': events},
+            }),
+            200,
+          ),
+        ),
+      )..setAuthorization('Bearer fixture');
+      final coordinator = ZolnitInboxCoordinator(
+        api: () => api,
+        current: (gen) => api.generation == gen,
+        foreground: () => true,
+        liveRead: (_) async => false,
+        updateTitle: () => 'Update',
+        onConnect: (_, _) {},
+        onPopup: (_, _, _) {},
+        onUpdated: (_) {},
+        onWithdrawn: (_) {},
+        onUnread: () {},
+        onUpdateHint: (_) {},
+      );
+      addTearDown(() {
+        coordinator.dispose();
+        api.close();
+      });
+      await coordinator.refresh(api.generation);
+      expect(prefs.inboxWrites, 1);
+      expect(coordinator.unread, 100);
+      await coordinator.refresh(api.generation);
+      expect(prefs.inboxWrites, 1);
+    },
+  );
+
+  test('superseded snapshot does not report an uncommitted merge', () async {
+    final store = ZolnitRealtimePreferencesStore();
+    final item = ZolnitRealtimeInboxItem(
+      id: 'e' * 32,
+      title: 'Title',
+      body: 'Body',
+      createdAt: DateTime.now(),
+      popup: true,
+    );
+    var checks = 0;
+    final result = await store.mergeSnapshot(
+      'https://panel.example:batch',
+      [item],
+      [],
+      isCurrent: () => ++checks < 5,
+    );
+    expect(result.merges, isEmpty);
+    expect(await store.readInbox('https://panel.example:batch'), isEmpty);
+  });
+
+  test(
+    'withdrawal queued during snapshot write prevents later replay',
+    () async {
+      final prefs = _BlockingPreferences();
+      SharedPreferencesStorePlatform.instance = prefs;
+      final store = ZolnitRealtimePreferencesStore();
+      const scope = 'https://panel.example:batch';
+      final item = ZolnitRealtimeInboxItem(
+        id: 'f' * 32,
+        title: 'Title',
+        body: 'Body',
+        createdAt: DateTime.now(),
+        popup: true,
+      );
+      final snapshot = store.mergeSnapshot(
+        scope,
+        [item],
+        [],
+        isCurrent: () => true,
+      );
+      await prefs.started.future;
+      final withdrawal = store.withdrawInbox(scope, [item.id]);
+      prefs.release.complete();
+      await Future.wait([snapshot, withdrawal]);
+      await store.mergeSnapshot(scope, [item], [], isCurrent: () => true);
+      expect(await store.readInbox(scope), isEmpty);
+    },
+  );
+
+  test(
+    'installed update in a snapshot is acknowledged and remains read',
+    () async {
+      PackageInfo.setMockInitialValues(
+        appName: 'ZolNit',
+        packageName: 'test',
+        version: '1.2.3',
+        buildNumber: '10',
+        buildSignature: '',
+      );
+      final subject = 'b' * 64;
+      final id = 'a' * 32;
+      final api = XboardClient(
+        origin: Uri.parse('https://panel.example'),
+        clientPlatform: 'macos',
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'data': {
+                'subject': subject,
+                'events': [
+                  {
+                    'id': id,
+                    'type': 'client.update',
+                    'data': {'platform': 'all', 'build': 5, 'version': '1.2.3'},
+                    'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                  },
+                ],
+              },
+            }),
+            200,
+          ),
+        ),
+      )..setAuthorization('Bearer fixture');
+      var acknowledgements = 0;
+      final coordinator = ZolnitInboxCoordinator(
+        api: () => api,
+        current: (gen) => api.generation == gen,
+        foreground: () => true,
+        liveRead: (_) async {
+          acknowledgements++;
+          return true;
+        },
+        updateTitle: () => 'Update',
+        onConnect: (_, _) {},
+        onPopup: (_, _, _) {},
+        onUpdated: (_) {},
+        onWithdrawn: (_) {},
+        onUnread: () {},
+        onUpdateHint: (_) {},
+      );
+      addTearDown(() {
+        coordinator.dispose();
+        api.close();
+      });
+      await coordinator.refresh(api.generation);
+      expect(acknowledgements, 1);
+      expect(coordinator.unread, 0);
+      expect(
+        (await coordinator.read('https://panel.example:$subject')).single.read,
+        isTrue,
+      );
+    },
+  );
 
   test('queued account write is discarded after generation changes', () async {
     final preferences = _BlockingPreferences();

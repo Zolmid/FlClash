@@ -42,17 +42,25 @@ type ownedDNSCache struct {
 	until time.Time
 }
 
+type ownedDNSBootstrapCache struct {
+	answer ownedDNSAnswer
+	until  time.Time
+}
+
 type ownedDNSResolver struct {
 	revoked atomic.Bool
 	resolver.Resolver
-	config     OwnedDNSConfig
-	hosts      map[string]bool
-	mu         sync.Mutex
-	cache      map[string]ownedDNSCache
-	generation uint64
-	inflight   map[context.Context]context.CancelFunc
-	flights    singleflight.Group
-	query      func(context.Context, string) (ownedDNSAnswer, error)
+	config           OwnedDNSConfig
+	hosts            map[string]bool
+	mu               sync.Mutex
+	cache            map[string]ownedDNSCache
+	generation       uint64
+	inflight         map[context.Context]context.CancelFunc
+	flights          singleflight.Group
+	bootstrapFlights singleflight.Group
+	bootstrapCache   map[uint16]ownedDNSBootstrapCache
+	bootstrapQuery   ownedDNSBootstrapQuery
+	query            func(context.Context, string) (ownedDNSAnswer, error)
 }
 
 func newOwnedDNSResolver(config *OwnedDNSConfig, fallback resolver.Resolver) (*ownedDNSResolver, error) {
@@ -267,7 +275,9 @@ func (r *ownedDNSResolver) load(ctx context.Context, host string, generation uin
 	if r.query != nil {
 		answer, err = r.query(ctx, host)
 	} else if host == "link.zolmid.com" {
-		answer, err = publicOwnedDNSBootstrap(ctx)
+		answer, err = collectOwnedDNSBootstrap(ctx, func(ctx context.Context, family uint16) (ownedDNSAnswer, error) {
+			return r.lookupBootstrap(ctx, generation, family)
+		})
 	} else {
 		answer, err = r.relay(ctx, host)
 	}
@@ -466,6 +476,90 @@ func dialOwnedBootstrap(ctx context.Context, network, port string, query ownedDN
 	return nil, failure
 }
 
+func (r *ownedDNSResolver) lookupBootstrap(ctx context.Context, generation uint64, family uint16) (ownedDNSAnswer, error) {
+	if err := ctx.Err(); err != nil {
+		return ownedDNSAnswer{}, err
+	}
+	r.mu.Lock()
+	cached, ok := r.bootstrapCache[family]
+	current := generation == r.generation && !r.revoked.Load()
+	r.mu.Unlock()
+	if !current {
+		return ownedDNSAnswer{}, errors.New("owned DNS lookup superseded")
+	}
+	if ok && time.Now().Before(cached.until) {
+		if err := ctx.Err(); err != nil {
+			return ownedDNSAnswer{}, err
+		}
+		answer := cached.answer
+		answer.TTL = max(0, int(time.Until(cached.until)/time.Second))
+		return answer, nil
+	}
+	result := r.bootstrapFlights.DoChan(fmt.Sprintf("%d:%d", generation, family), func() (any, error) {
+		r.mu.Lock()
+		cached, ok := r.bootstrapCache[family]
+		current := generation == r.generation && !r.revoked.Load()
+		r.mu.Unlock()
+		if !current {
+			return ownedDNSAnswer{}, errors.New("owned DNS lookup superseded")
+		}
+		if ok && time.Now().Before(cached.until) {
+			answer := cached.answer
+			answer.TTL = max(0, int(time.Until(cached.until)/time.Second))
+			return answer, nil
+		}
+		shared, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
+		shared, finish := r.track(shared)
+		defer finish()
+		r.mu.Lock()
+		current = generation == r.generation && !r.revoked.Load()
+		r.mu.Unlock()
+		if !current {
+			return ownedDNSAnswer{}, errors.New("owned DNS lookup superseded")
+		}
+		query := r.bootstrapQuery
+		if query == nil {
+			query = queryOwnedDNSBootstrap
+		}
+		started := time.Now()
+		answer, err := query(shared, family)
+		if err != nil {
+			return ownedDNSAnswer{}, err
+		}
+		if _, err = validateOwnedAddresses(answer.Addresses); err != nil || answer.TTL < 0 || answer.TTL > 86400 {
+			return ownedDNSAnswer{}, errors.New("invalid owned DNS answer")
+		}
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if generation != r.generation || r.revoked.Load() || shared.Err() != nil {
+			return ownedDNSAnswer{}, errors.New("owned DNS lookup superseded")
+		}
+		if answer.TTL > 0 {
+			if r.bootstrapCache == nil {
+				r.bootstrapCache = make(map[uint16]ownedDNSBootstrapCache)
+			}
+			r.bootstrapCache[family] = ownedDNSBootstrapCache{answer: answer, until: started.Add(time.Duration(answer.TTL) * time.Second)}
+		}
+		return answer, nil
+	})
+	select {
+	case <-ctx.Done():
+		return ownedDNSAnswer{}, ctx.Err()
+	case value := <-result:
+		if value.Err != nil {
+			return ownedDNSAnswer{}, value.Err
+		}
+		r.mu.Lock()
+		current = generation == r.generation && !r.revoked.Load() && ctx.Err() == nil
+		r.mu.Unlock()
+		if !current {
+			return ownedDNSAnswer{}, errors.New("owned DNS lookup superseded")
+		}
+		return value.Val.(ownedDNSAnswer), nil
+	}
+}
+
 func (r *ownedDNSResolver) dialOrigin(ctx context.Context, network, port string) (net.Conn, error) {
 	ctx, finish := r.track(ctx)
 	defer finish()
@@ -484,7 +578,9 @@ func (r *ownedDNSResolver) dialOrigin(ctx context.Context, network, port string)
 			conn, err = dialOwnedAddresses(ctx, network, port, ips)
 		}
 	} else {
-		conn, err = dialOwnedBootstrap(ctx, network, port, queryOwnedDNSBootstrap, dialOwnedAddresses)
+		conn, err = dialOwnedBootstrap(ctx, network, port, func(ctx context.Context, family uint16) (ownedDNSAnswer, error) {
+			return r.lookupBootstrap(ctx, generation, family)
+		}, dialOwnedAddresses)
 	}
 	r.mu.Lock()
 	current := generation == r.generation && !r.revoked.Load() && ctx.Err() == nil
@@ -636,6 +732,7 @@ func (r *ownedDNSResolver) invalidateCache() {
 		cancel()
 	}
 	r.cache = map[string]ownedDNSCache{}
+	r.bootstrapCache = nil
 	r.mu.Unlock()
 	firstPartyHTTP.resetIdle()
 }

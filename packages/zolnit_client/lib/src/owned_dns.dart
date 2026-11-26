@@ -56,6 +56,7 @@ final class OwnedDnsResolver {
   final DateTime Function() _now;
   final _cache = <String, (OwnedDnsAnswer, DateTime)>{};
   final _pending = <String, Future<OwnedDnsAnswer>>{};
+  final _transportPending = <String, Future<OwnedDnsAnswer>>{};
   bool owns(String host) =>
       hosts.contains(host.toLowerCase().replaceFirst(RegExp(r'\.$'), ''));
   int _epoch = 0;
@@ -77,6 +78,7 @@ final class OwnedDnsResolver {
     _connections.clear();
     _cache.clear();
     _pending.clear();
+    _transportPending.clear();
   }
 
   Future<List<InternetAddress>> resolve(String name) async =>
@@ -149,11 +151,52 @@ final class OwnedDnsResolver {
     _waiters.add(invalidated);
     try {
       return await Future.any([
-        transportLookup!(host).timeout(const Duration(seconds: 3)),
+        _transportPending[host] ??= _loadTransport(host),
         invalidated.future,
       ]);
     } finally {
       _waiters.remove(invalidated);
+    }
+  }
+
+  Future<OwnedDnsAnswer> _loadTransport(String host) async {
+    final epoch = _epoch;
+    final started = _now();
+    try {
+      final answer = await transportLookup!(host)
+          .timeout(const Duration(seconds: 3));
+      if (epoch != _epoch) {
+        throw const SocketException('Owned DNS session changed');
+      }
+      final remaining = answer._remaining;
+      if (remaining == null) {
+        if (answer.ttl > 0) {
+          _cache[host] = (answer, started.add(Duration(seconds: answer.ttl)));
+        }
+        _transportPending.remove(host);
+      } else {
+        unawaited(
+          remaining.then<void>(
+            (complete) {
+              if (epoch != _epoch) return;
+              if (complete != null && complete.ttl > 0) {
+                _cache[host] = (
+                  complete,
+                  started.add(Duration(seconds: complete.ttl)),
+                );
+              }
+              _transportPending.remove(host);
+            },
+            onError: (Object _) {
+              if (epoch == _epoch) _transportPending.remove(host);
+            },
+          ),
+        );
+      }
+      return answer;
+    } catch (_) {
+      if (epoch == _epoch) _transportPending.remove(host);
+      rethrow;
     }
   }
 
@@ -563,9 +606,8 @@ Future<OwnedDnsAnswer> bootstrapZolnitOrigin({
 }) async {
   Future<OwnedDnsAnswer?> family(int type) async {
     try {
-      final answer = await (query ?? _queryOwnedBootstrapFamily)(
-        type,
-      ).timeout(const Duration(seconds: 3));
+      final answer = await (query ?? _queryOwnedBootstrapFamily)(type)
+          .timeout(const Duration(seconds: 3));
       return answer.addresses.isEmpty ? null : answer;
     } catch (_) {
       return null;
@@ -631,9 +673,8 @@ Future<OwnedDnsAnswer> raceOwnedDnsBootstrapEndpoints({
     await Future<void>.delayed(stagger * index);
     if (result.isCompleted) return;
     try {
-      final answer = await exchange(
-        ownedDnsBootstrapLiterals[index],
-      ).timeout(const Duration(seconds: 2));
+      final answer = await exchange(ownedDnsBootstrapLiterals[index])
+          .timeout(const Duration(seconds: 2));
       if (!result.isCompleted) result.complete(answer);
     } catch (_) {
       pending--;

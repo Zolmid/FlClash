@@ -85,6 +85,22 @@ void main() {
       expect(before, [1, 2, 3]);
     });
 
+    test('wraparound preserves snapshots, replacement and old wrappers', () {
+      final first = FixedList<int>(3, list: [1, 2, 3]);
+      final snapshot = first.list;
+      var latest = first.append(4).append(5);
+      expect(snapshot, [1, 2, 3]);
+      expect(first.list, [3, 4, 5]);
+      latest = latest.replace({0: 30, 2: 50});
+      expect(latest.list, [30, 4, 50]);
+      expect(() => latest[-1], throwsRangeError);
+      expect(() => latest[3], throwsRangeError);
+      latest.clear();
+      latest.add(6);
+      expect(latest.list, [6]);
+      expect(snapshot, [1, 2, 3]);
+    });
+
     test('append still honours maxLength', () {
       var list = FixedList<int>(2);
       for (var i = 1; i <= 4; i++) {
