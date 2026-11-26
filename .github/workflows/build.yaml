@@ -364,7 +364,7 @@ jobs:
           [[ "$(xcrun --sdk iphoneos --show-sdk-version)" == 27.* ]] || exit 1
           SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           export SDKROOT
-          for check in race classifier completion abandon; do
+          for check in race classifier completion abandon restart; do
             bash "tool/acceptance/ios_intents/run_${check}.sh"
           done
           bash tool/acceptance/ios_intents/check_sdk.sh
