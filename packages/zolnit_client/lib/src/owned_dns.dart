@@ -163,8 +163,9 @@ final class OwnedDnsResolver {
     final epoch = _epoch;
     final started = _now();
     try {
-      final answer = await transportLookup!(host)
-          .timeout(const Duration(seconds: 3));
+      final answer = await transportLookup!(
+        host,
+      ).timeout(const Duration(seconds: 3));
       if (epoch != _epoch) {
         throw const SocketException('Owned DNS session changed');
       }
@@ -606,8 +607,9 @@ Future<OwnedDnsAnswer> bootstrapZolnitOrigin({
 }) async {
   Future<OwnedDnsAnswer?> family(int type) async {
     try {
-      final answer = await (query ?? _queryOwnedBootstrapFamily)(type)
-          .timeout(const Duration(seconds: 3));
+      final answer = await (query ?? _queryOwnedBootstrapFamily)(
+        type,
+      ).timeout(const Duration(seconds: 3));
       return answer.addresses.isEmpty ? null : answer;
     } catch (_) {
       return null;
@@ -673,8 +675,9 @@ Future<OwnedDnsAnswer> raceOwnedDnsBootstrapEndpoints({
     await Future<void>.delayed(stagger * index);
     if (result.isCompleted) return;
     try {
-      final answer = await exchange(ownedDnsBootstrapLiterals[index])
-          .timeout(const Duration(seconds: 2));
+      final answer = await exchange(
+        ownedDnsBootstrapLiterals[index],
+      ).timeout(const Duration(seconds: 2));
       if (!result.isCompleted) result.complete(answer);
     } catch (_) {
       pending--;

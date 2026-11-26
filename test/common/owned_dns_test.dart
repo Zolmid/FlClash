@@ -256,27 +256,30 @@ void main() {
     },
   );
 
-  test('IPv6-only bootstrap selects an official IPv6 literal without waiting for IPv4', () async {
-    for (final failedPrimary in [false, true]) {
-      String? selected;
-      final answer = await raceOwnedDnsBootstrapEndpoints(
-        stagger: Duration.zero,
-        exchange: (literal) async {
-          if (!literal.contains(':')) {
-            await Future<void>.delayed(const Duration(milliseconds: 1500));
-            throw const SocketException('no IPv4 route');
-          }
-          if (failedPrimary && literal == '2400:3200::1') {
-            throw const SocketException('primary unreachable');
-          }
-          selected = literal;
-          return OwnedDnsAnswer(['2001:db8::10'], 30);
-        },
-      ).timeout(const Duration(seconds: 1));
-      expect(selected, failedPrimary ? '2400:3200:baba::1' : '2400:3200::1');
-      expect(answer.addresses.single.address, '2001:db8::10');
-    }
-  });
+  test(
+    'IPv6-only bootstrap selects an official IPv6 literal without waiting for IPv4',
+    () async {
+      for (final failedPrimary in [false, true]) {
+        String? selected;
+        final answer = await raceOwnedDnsBootstrapEndpoints(
+          stagger: Duration.zero,
+          exchange: (literal) async {
+            if (!literal.contains(':')) {
+              await Future<void>.delayed(const Duration(milliseconds: 1500));
+              throw const SocketException('no IPv4 route');
+            }
+            if (failedPrimary && literal == '2400:3200::1') {
+              throw const SocketException('primary unreachable');
+            }
+            selected = literal;
+            return OwnedDnsAnswer(['2001:db8::10'], 30);
+          },
+        ).timeout(const Duration(seconds: 1));
+        expect(selected, failedPrimary ? '2400:3200:baba::1' : '2400:3200::1');
+        expect(answer.addresses.single.address, '2001:db8::10');
+      }
+    },
+  );
 
   test('strict bootstrap tolerates either address family failing', () async {
     for (final failed in [1, 28]) {
