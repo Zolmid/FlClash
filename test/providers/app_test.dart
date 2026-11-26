@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/fixed.dart';
+import 'package:fl_clash/common/compute.dart';
 import 'package:fl_clash/common/system.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -421,6 +422,27 @@ void main() {
       });
     });
 
+    test('publishes touched targets and marks replacement as full', () {
+      const url = 'https://test.example';
+      final updates = <Set<String>?>[];
+      container.listen(delayDataSourceProvider, (_, next) {
+        updates.add((next as DelayChangeMap).changedTargets);
+      });
+      final delays = container.read(delayDataSourceProvider.notifier);
+      delays.setDelays(const [
+        Delay(name: 'A', url: url, value: 1),
+        Delay(name: 'B', url: url, value: 2),
+      ]);
+      delays.setDelay(const Delay(name: 'A', url: url, value: 1));
+      delays.value = delays.value;
+      delays.value = {};
+      expect(updates, [
+        {delayTestKey(url, 'A'), delayTestKey(url, 'B')},
+        null,
+      ]);
+      expect(container.read(delayDataSourceProvider), isEmpty);
+    });
+
     test('applies a batch of delays as one state change', () {
       const url = 'https://test.example';
       final changes = <DelayMap>[];
@@ -441,6 +463,29 @@ void main() {
       ]);
     });
   });
+
+  test(
+    'pending phases notify other listeners and only membership changes reach the tray',
+    () {
+      final phases = <DelayTestPhase?>[];
+      final changed = <Set<String>?>[];
+      const key = 'https://test.example\u0000A';
+      container.listen(pendingDelayTestsProvider, (_, next) {
+        phases.add(next[key]);
+        changed.add((next as DelayChangeMap).changedTargets);
+      });
+      final pending = container.read(pendingDelayTestsProvider.notifier);
+      pending.apply(acquired: [key]);
+      pending.apply(started: [key]);
+      pending.apply(finished: [key]);
+      expect(phases, [DelayTestPhase.queued, DelayTestPhase.running, null]);
+      expect(changed, [
+        {key},
+        <String>{},
+        {key},
+      ]);
+    },
+  );
 
   group('Loading provider', () {
     test('stop without start sets loading false immediately', () async {

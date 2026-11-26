@@ -9,15 +9,24 @@ import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/database.dart';
 import 'package:fl_clash/providers/state.dart';
-import 'package:flutter/foundation.dart' show mapEquals;
+import 'package:flutter/foundation.dart' show mapEquals, visibleForTesting;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tray/tray.dart';
 
 class TrayManager extends ConsumerStatefulWidget {
   final Widget child;
+  @visibleForTesting
+  final AppTray? testTray;
+  @visibleForTesting
+  final void Function(String)? onDelayTargetVisited;
 
-  const TrayManager({super.key, required this.child});
+  const TrayManager({
+    super.key,
+    required this.child,
+    this.testTray,
+    this.onDelayTargetVisited,
+  });
 
   @override
   ConsumerState<TrayManager> createState() => _TrayManagerState();
@@ -30,8 +39,7 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
   Timer? _delayTimer;
   bool _isUpdatingDelays = false;
   final _changedDelayTargets = <String>{};
-  Map<String, Map<String, int?>> _lastDelays = {};
-  Set<String> _lastPending = {};
+  bool _allDelayTargets = false;
 
   @override
   void initState() {
@@ -53,35 +61,15 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
       appSettingProvider.select((state) => state.showTrayProxySelection),
       (_, _) => _requestUpdate(),
     );
-    _lastDelays = {
-      for (final e in ref.read(delayDataSourceProvider).entries)
-        e.key: {...e.value},
-    };
-    _lastPending = ref.read(pendingDelayTestsProvider).keys.toSet();
     ref.listenManual(delayDataSourceProvider, (_, next) {
-      final urls = {..._lastDelays.keys, ...next.keys};
-      final changed = <String>{};
-      for (final url in urls) {
-        final before = _lastDelays[url] ?? const <String, int?>{};
-        final after = next[url] ?? const <String, int?>{};
-        for (final name in {...before.keys, ...after.keys}) {
-          if (before[name] != after[name]) {
-            changed.add(delayTestKey(url, name));
-          }
-        }
-      }
-      _lastDelays = {
-        for (final e in next.entries) e.key: {...e.value},
-      };
-      _requestDelayUpdate(changed);
+      _requestDelayUpdate(
+        next is DelayChangeMap ? (next as DelayChangeMap).changedTargets : null,
+      );
     });
     ref.listenManual(pendingDelayTestsProvider, (_, next) {
-      final after = next.keys.toSet();
-      _requestDelayUpdate({
-        ..._lastPending.difference(after),
-        ...after.difference(_lastPending),
-      });
-      _lastPending = after;
+      _requestDelayUpdate(
+        next is DelayChangeMap ? (next as DelayChangeMap).changedTargets : null,
+      );
     });
     ref.listenManual(trayStateProvider, (prev, next) {
       if (prev != next) {
@@ -107,9 +95,18 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
     }
   }
 
-  void _requestDelayUpdate(Set<String> changed) {
-    if (changed.isEmpty) return;
-    _changedDelayTargets.addAll(changed);
+  void _requestDelayUpdate(Set<String>? changed) {
+    if (changed == null) {
+      _allDelayTargets = true;
+      _changedDelayTargets.clear();
+    } else if (!_allDelayTargets) {
+      if (changed.isEmpty) return;
+      _changedDelayTargets.addAll(changed);
+    }
+    _scheduleDelayUpdate();
+  }
+
+  void _scheduleDelayUpdate() {
     _delayTimer ??= Timer(renderThrottleDuration, () {
       _delayTimer = null;
       _reportFailure(_drainDelayUpdates());
@@ -120,13 +117,23 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
     if (_isUpdatingDelays) return;
     _isUpdatingDelays = true;
     try {
-      while (_changedDelayTargets.isNotEmpty && mounted) {
-        final changed = Set<String>.of(_changedDelayTargets);
+      while ((_allDelayTargets || _changedDelayTargets.isNotEmpty) && mounted) {
+        final changed = _allDelayTargets
+            ? null
+            : Set<String>.of(_changedDelayTargets);
+        _allDelayTargets = false;
         _changedDelayTargets.clear();
-        await appTray?.updateDelays(read: ref.read, changedTargets: changed);
+        await (widget.testTray ?? appTray)?.updateDelays(
+          read: ref.read,
+          changedTargets: changed,
+          onTargetVisited: widget.onDelayTargetVisited,
+        );
       }
     } finally {
       _isUpdatingDelays = false;
+      if (mounted && (_allDelayTargets || _changedDelayTargets.isNotEmpty)) {
+        _scheduleDelayUpdate();
+      }
     }
   }
 

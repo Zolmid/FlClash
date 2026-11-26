@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,6 +11,7 @@ import 'package:fl_clash/common/tray.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
+import 'package:fl_clash/manager/tray_manager.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -19,6 +21,8 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show UncontrolledProviderScope;
 import 'package:intl/intl.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:tray/tray.dart';
@@ -558,6 +562,195 @@ void main() {
     expect(visitedChanged, [delayTestKey(url, 'A')]);
     expect(calls.single.method, 'updateMenuItems');
     expect(((calls.single.arguments as Map)['updates'] as List), isNotEmpty);
+  });
+
+  testWidgets('published changes reach the tray as one bounded batch', (
+    tester,
+  ) async {
+    const size = 120;
+    final group = Group(
+      name: 'Large',
+      type: GroupType.Selector,
+      now: 'P0',
+      all: List.generate(size, (i) => Proxy(name: 'P$i', type: 'Direct')),
+    );
+    container.read(groupsProvider.notifier).value = [group];
+    final url = container.read(appSettingProvider).testUrl;
+    await tester.runAsync(() => update(_trayState(groups: [group])));
+    expect(Tray.instance.isVisible, isTrue);
+    final visited = <String>[];
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: TrayManager(
+            child: const SizedBox.shrink(),
+            testTray: tray,
+            onDelayTargetVisited: visited.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    calls.clear();
+    var wholeMapIterations = 0;
+    DelayChangeMap.debugOnIteration = () => wholeMapIterations++;
+    addTearDown(() => DelayChangeMap.debugOnIteration = null);
+    final delays = container.read(delayDataSourceProvider.notifier);
+    for (var i = 0; i < size; i++) {
+      delays.setDelay(Delay(name: 'P$i', url: url, value: 10 + i));
+    }
+    expect(visited, isEmpty);
+    expect(wholeMapIterations, 0);
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    expect(wholeMapIterations, 0);
+    expect(visited.toSet(), hasLength(size));
+    expect(
+      calls.where((call) => call.method == 'updateMenuItems'),
+      hasLength(1),
+    );
+    final delayUpdates =
+        ((calls
+                        .singleWhere((call) => call.method == 'updateMenuItems')
+                        .arguments
+                    as Map)['updates']
+                as List)
+            .cast<Map>();
+    expect(
+      delayUpdates.map((item) => item['sublabel']),
+      containsAll(['10 ms', '129 ms']),
+    );
+    visited.clear();
+    calls.clear();
+    delays.setDelay(Delay(name: 'P42', url: url, value: 333));
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, [delayTestKey(url, 'P42')]);
+    expect(wholeMapIterations, 0);
+    expect(
+      calls.where((call) => call.method == 'updateMenuItems'),
+      hasLength(1),
+    );
+    visited.clear();
+    calls.clear();
+    final pending = container.read(pendingDelayTestsProvider.notifier);
+    for (var i = 0; i < size; i++) {
+      pending.apply(acquired: [delayTestKey(url, 'P$i')]);
+    }
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    expect(
+      calls.where((call) => call.method == 'updateMenuItems'),
+      hasLength(1),
+    );
+    expect(wholeMapIterations, 0);
+    final pendingUpdates =
+        ((calls
+                        .singleWhere((call) => call.method == 'updateMenuItems')
+                        .arguments
+                    as Map)['updates']
+                as List)
+            .cast<Map>();
+    expect(pendingUpdates.map((item) => item['sublabel']), everyElement('...'));
+    visited.clear();
+    pending.apply(started: [delayTestKey(url, 'P0')]);
+    await tester.pump(renderThrottleDuration);
+    expect(visited, isEmpty);
+    expect(
+      container.read(pendingDelayTestsProvider)[delayTestKey(url, 'P0')],
+      DelayTestPhase.running,
+    );
+    pending.clear();
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    visited.clear();
+    pending.value = {delayTestKey(url, 'P0'): DelayTestPhase.queued};
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    visited.clear();
+    pending.clear();
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    visited.clear();
+    delays.value = {
+      url: {'P0': 55},
+    };
+    delays.setDelay(Delay(name: 'P1', url: url, value: 77));
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    expect(container.read(delayDataSourceProvider)[url], {'P0': 55, 'P1': 77});
+    visited.clear();
+    delays.value = {};
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, hasLength(size));
+    expect(container.read(delayDataSourceProvider), isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a delay arriving during a failed update is still delivered', (
+    tester,
+  ) async {
+    container.read(groupsProvider.notifier).value = [_proxyGroup];
+    final url = container.read(appSettingProvider).testUrl;
+    await tester.runAsync(() => update(_trayState(groups: [_proxyGroup])));
+    final visited = <String>[];
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: TrayManager(
+            child: const SizedBox.shrink(),
+            testTray: tray,
+            onDelayTargetVisited: visited.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final first = Completer<bool>();
+    var updates = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (call) async {
+          if (call.method == 'updateMenuItems' && updates++ == 0)
+            return first.future;
+          return true;
+        });
+    final delays = container.read(delayDataSourceProvider.notifier);
+    delays.setDelay(Delay(name: 'A', url: url, value: 10));
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, [delayTestKey(url, 'A')]);
+    delays.setDelay(Delay(name: 'B', url: url, value: 20));
+    await tester.pump(renderThrottleDuration);
+    first.completeError(PlatformException(code: 'synthetic'));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    await tester.pump(renderThrottleDuration);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    expect(visited, [delayTestKey(url, 'A'), delayTestKey(url, 'B')]);
+    expect(updates, 2);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
   });
 
   test('each proxy submenu offers a persistent delay test action', () async {

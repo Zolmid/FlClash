@@ -10,6 +10,7 @@ import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:riverpod/riverpod.dart' show ProviderListenableSelect;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -334,6 +335,36 @@ class Groups extends _$Groups with AutoDisposeNotifierMixin {
   }
 }
 
+class DelayChangeMap<V> extends UnmodifiableMapView<String, V> {
+  DelayChangeMap(super.source, Iterable<String>? changedTargets)
+    : changedTargets = changedTargets == null
+          ? null
+          : Set.unmodifiable(changedTargets);
+
+  final Set<String>? changedTargets;
+
+  @visibleForTesting
+  static void Function()? debugOnIteration;
+
+  @override
+  Iterable<String> get keys {
+    debugOnIteration?.call();
+    return super.keys;
+  }
+
+  @override
+  Iterable<MapEntry<String, V>> get entries {
+    debugOnIteration?.call();
+    return super.entries;
+  }
+
+  @override
+  void forEach(void Function(String, V) action) {
+    debugOnIteration?.call();
+    super.forEach(action);
+  }
+}
+
 @Riverpod(keepAlive: true)
 class DelayDataSource extends _$DelayDataSource with AutoDisposeNotifierMixin {
   DelayMap? _owned;
@@ -348,19 +379,25 @@ class DelayDataSource extends _$DelayDataSource with AutoDisposeNotifierMixin {
     setDelays([delay]);
   }
 
+  @override
+  set value(DelayMap value) {
+    if (identical(state, value)) return;
+    state = DelayChangeMap(value, null);
+  }
+
   /// Publishes a live view, so a dependent that keeps the map must copy it.
   void setDelays(Iterable<Delay> delays) {
     final delayMap = _ownedDelayMap();
-    var changed = false;
+    final changed = <String>{};
     for (final delay in delays) {
       if (delayMap[delay.url]?[delay.name] == delay.value) {
         continue;
       }
       (delayMap[delay.url] ??= {})[delay.name] = delay.value;
-      changed = true;
+      changed.add(delayTestKey(delay.url, delay.name));
     }
-    if (changed) {
-      value = _published = UnmodifiableMapView(delayMap);
+    if (changed.isNotEmpty) {
+      state = _published = DelayChangeMap(delayMap, changed);
     }
   }
 
@@ -385,6 +422,12 @@ class PendingDelayTests extends _$PendingDelayTests
   @override
   Map<String, DelayTestPhase> build() {
     return const <String, DelayTestPhase>{};
+  }
+
+  @override
+  set value(Map<String, DelayTestPhase> value) {
+    if (identical(state, value)) return;
+    state = DelayChangeMap(value, null);
   }
 
   /// [finished] keys had started, so they give up their run as well as their
@@ -416,6 +459,7 @@ class PendingDelayTests extends _$PendingDelayTests
       touched.add(key);
     }
     var changed = false;
+    final membershipChanged = <String>{};
     for (final key in touched) {
       final phase = !_holds.containsKey(key)
           ? null
@@ -425,6 +469,9 @@ class PendingDelayTests extends _$PendingDelayTests
       if (_phases[key] == phase) {
         continue;
       }
+      if ((_phases[key] == null) != (phase == null)) {
+        membershipChanged.add(key);
+      }
       if (phase == null) {
         _phases.remove(key);
       } else {
@@ -433,18 +480,18 @@ class PendingDelayTests extends _$PendingDelayTests
       changed = true;
     }
     if (changed) {
-      _publish();
+      _publish(membershipChanged);
     }
   }
 
   void clear() {
-    if (_holds.isEmpty) {
+    if (_holds.isEmpty && state.isEmpty) {
       return;
     }
     _holds.clear();
     _runs.clear();
     _phases.clear();
-    _publish();
+    _publish(null);
   }
 
   void _decrement(Map<String, int> counts, String key) {
@@ -461,8 +508,8 @@ class PendingDelayTests extends _$PendingDelayTests
 
   // A copy per publish would make a run over n nodes O(n²). The view is live,
   // so a dependent selects what it needs instead of keeping the map.
-  void _publish() {
-    value = UnmodifiableMapView(_phases);
+  void _publish(Set<String>? changedTargets) {
+    state = DelayChangeMap(_phases, changedTargets);
   }
 }
 
