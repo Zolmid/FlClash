@@ -11,6 +11,11 @@
           "type": "fix",
           "entries": [
             {
+              "id": "07f2a4f",
+              "scope": "android",
+              "text": "Keep an accepted VPN restart running when Android closes the app interface."
+            },
+            {
               "id": "fe1f3ef",
               "scope": "network",
               "text": "Restore desktop proxy settings after a failed connection or Core exit. On mobile, a newer stop request takes precedence over a restart."

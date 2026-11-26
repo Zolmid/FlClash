@@ -4,6 +4,7 @@
 
 **Bug Fixes**
 
+- **android** Keep an accepted VPN restart running when Android closes the app interface. (07f2a4f)
 - **network** Restore desktop proxy settings after a failed connection or Core exit. On mobile, a newer stop request takes precedence over a restart. (fe1f3ef)
 - **support** Retry a support ticket that failed to load without leaving the page. (402f20b)
 - **account** Recover sign-in after registration and open the requested page when two in-app web links are selected. (e25bd86)
