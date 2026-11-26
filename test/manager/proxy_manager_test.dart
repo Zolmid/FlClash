@@ -1,3 +1,4 @@
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/proxy_manager.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
@@ -82,8 +83,10 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  test('a running core reports the mixed port as the proxy target', () {
+  test('a ready core reports the mixed port as the proxy target', () {
     container.read(runTimeProvider.notifier).value = 1;
+    container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    container.read(desktopListenersReadyProvider.notifier).setReady(true);
     container.read(networkSettingProvider.notifier).value = const NetworkProps()
         .copyWith(systemProxy: true);
     container.read(patchClashConfigProvider.notifier).value =

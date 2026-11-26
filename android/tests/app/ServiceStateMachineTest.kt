@@ -8,11 +8,14 @@ import com.zolmid.zolnit.service.models.NotificationParams
 import com.zolmid.zolnit.service.models.VpnOptions
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -211,6 +214,49 @@ class ServiceStateMachineTest {
     }
 
     @Test
+    fun `native toggle during restart stops instead of reviving it`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (token, stopped) = machine.requestStopForRestart()
+        machine.handleToggleAction()
+        assertFalse(machine.requestStartAfterStop(token, stopped))
+        assertFalse(machine.isRunRequested)
+        assertEquals(1, host.startCalls)
+    }
+
+    @Test
+    fun `native toggle after restart stop still means stop`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (token, stopped) = machine.requestStopForRestart()
+        assertTrue(stopped.await())
+        machine.handleToggleAction()
+        assertFalse(machine.requestStartAfterStop(token, stopped))
+        assertFalse(machine.isRunRequested)
+        assertEquals(1, host.startCalls)
+    }
+
+    @Test
+    fun `abandoned restart marker expires before a later toggle`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (_, stopped) = machine.requestStopForRestart()
+        assertTrue(stopped.await())
+        runCurrent()
+        advanceTimeBy(20_001)
+        runCurrent()
+        machine.handleToggleAction()
+        assertTrue(machine.isRunRequested)
+        assertEquals(2, host.startCalls)
+    }
+
+    @Test
     fun `restart completes when its stop remains the latest intent`() = runTest {
         val host = FakeHost(backgroundScope)
         val machine = ServiceStateMachine(host)
@@ -233,6 +279,21 @@ class ServiceStateMachineTest {
         assertFalse(machine.requestStartAfterStop(token, stopped))
         assertFalse(machine.isRunRequested)
         assertEquals(2, host.startCalls)
+        assertEquals(null, host.runtime)
+    }
+
+    @Test
+    fun `native toggle during restart start supersedes and cleans up`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (token, stopped) = machine.requestStopForRestart()
+        host.beforeStartService = {
+            host.scope.launch(start = CoroutineStart.UNDISPATCHED) { machine.handleToggleAction() }
+        }
+        assertFalse(machine.requestStartAfterStop(token, stopped))
+        assertFalse(machine.isRunRequested)
         assertEquals(null, host.runtime)
     }
 

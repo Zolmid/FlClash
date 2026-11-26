@@ -89,6 +89,7 @@ class CommonAction extends _$CommonAction {
         _readTraffic(() => _core.getTraffic(onlyStatisticsProxy)),
         _readTraffic(() => _core.getTotalTraffic(onlyStatisticsProxy)),
       ]);
+      if (!ref.mounted) return;
       if (traffic != null) {
         ref.read(trafficsProvider.notifier).addTraffic(traffic);
       }

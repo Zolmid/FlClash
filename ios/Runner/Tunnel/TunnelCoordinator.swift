@@ -29,6 +29,7 @@ final class TunnelCoordinator {
   private let authority: TunnelIntentAuthority
   private let isSafeMode: () -> Bool
   private let startConfirmationDelay: UInt64
+  private let restartHoldDuration: UInt64
   private var intentMonitor: Task<Void, Never>?
   private let onTunnelStateChanged: (TunnelTarget) -> Void
   private let onConnectionStateChanged: (String) -> Void
@@ -46,6 +47,7 @@ final class TunnelCoordinator {
 
   private var requestGeneration: UInt64 = 0
   private var tunnelRequest: TunnelRequest?
+  private var heldRestartStop: TunnelIntentAuthority.Token?
   private var tunnelWait: TunnelWait?
   private var isCoordinatorRunning = false
 
@@ -61,12 +63,14 @@ final class TunnelCoordinator {
     onConnectionStateChanged: @escaping (String) -> Void,
     onExternalStart: @escaping () -> Void,
     onExternalStop: @escaping () -> Void,
-    startConfirmationDelay: UInt64 = 5_000_000_000
+    startConfirmationDelay: UInt64 = 5_000_000_000,
+    restartHoldDuration: UInt64 = 20_000_000_000
   ) {
     self.managerStore = managerStore
     self.authority = authority
     self.isSafeMode = isSafeMode
     self.startConfirmationDelay = startConfirmationDelay
+    self.restartHoldDuration = restartHoldDuration
     self.onTunnelStateChanged = onTunnelStateChanged
     self.onConnectionStateChanged = onConnectionStateChanged
     self.onExternalStart = onExternalStart
@@ -83,7 +87,7 @@ final class TunnelCoordinator {
 
   func startForFlutter() async -> String? { await submit(.start)?.id.uuidString }
 
-  func stopForFlutterRestart() async -> String? { await submit(.stop)?.id.uuidString }
+  func stopForFlutterRestart() async -> String? { await submit(.restartStop)?.id.uuidString }
 
   func startForFlutter(afterStop handle: String, prepare: () -> Bool = { true }) async -> String? {
     guard !isSafeMode(), let id = UUID(uuidString: handle) else { return nil }
@@ -98,6 +102,7 @@ final class TunnelCoordinator {
               manager.connection.status.tunnelState == .stopped else { return nil }
           }
           let token = try authority.register(.start, replacing: stopped)
+          heldRestartStop = nil
           do {
             guard try authority.perform(token, running: true, prepare) else {
               try? authority.finish(token)
@@ -153,13 +158,15 @@ final class TunnelCoordinator {
       switch command {
       case .start: target = .running
       case .stop: target = .stopped
+      case .restartStop: target = .stopped
       case .toggle: target = nil
       }
     } catch {
       log("intent registration failed")
       return nil
     }
-    return accept(token, target: target, checkCurrent: false) ? token : nil
+    return accept(token, target: target, checkCurrent: false,
+      preserveForRestart: command == .restartStop) ? token : nil
   }
 
   @discardableResult
@@ -168,7 +175,8 @@ final class TunnelCoordinator {
   }
 
   private func accept(
-    _ token: TunnelIntentAuthority.Token, target: TunnelTarget?, checkCurrent: Bool
+    _ token: TunnelIntentAuthority.Token, target: TunnelTarget?, checkCurrent: Bool,
+    preserveForRestart: Bool = false
   ) -> Bool {
     guard !isSafeMode() else {
       do { try authority.finish(token) } catch { authority.cancel(token) }
@@ -182,8 +190,10 @@ final class TunnelCoordinator {
       }
     }
     requestGeneration &+= 1
+    if !preserveForRestart { heldRestartStop = nil }
     startupFailed = false
-    let request = TunnelRequest(generation: requestGeneration, token: token, target: target)
+    let request = TunnelRequest(generation: requestGeneration, token: token, target: target,
+      preserveForRestart: preserveForRestart)
     tunnelRequest?.cancelOperation?()
     tunnelRequest = request
     if let target { publishedTunnelState = target }
@@ -661,11 +671,34 @@ final class TunnelCoordinator {
     guard isCurrent(request) else {
       return
     }
-    do { try authority.finish(request.token) }
-    catch TunnelIntentError.busy { return }
-    catch {
-      discard(request)
-      return
+    if request.preserveForRestart && actualState == .stopped {
+      let token = request.token
+      let restartAuthority = authority
+      let holdDuration = restartHoldDuration
+      heldRestartStop = token
+      Task { @MainActor [weak self] in
+        do { try await Task.sleep(nanoseconds: holdDuration) } catch { return }
+        for _ in 0...20 {
+          do {
+            try restartAuthority.finish(token)
+            if self?.heldRestartStop == token { self?.heldRestartStop = nil }
+            return
+          } catch TunnelIntentError.busy {
+            do { try await Task.sleep(nanoseconds: 50_000_000) } catch { return }
+          } catch {
+            break
+          }
+        }
+        restartAuthority.cancel(token)
+        if self?.heldRestartStop == token { self?.heldRestartStop = nil }
+      }
+    } else {
+      do { try authority.finish(request.token) }
+      catch TunnelIntentError.busy { return }
+      catch {
+        discard(request)
+        return
+      }
     }
     tunnelRequest = nil
     startupFailed = request.target == .running && actualState != .running
@@ -683,6 +716,8 @@ final class TunnelCoordinator {
     log(
       "\(request.description) completed actual=\(actualState.description) generation=\(request.generation)"
     )
+
+    if request.preserveForRestart && actualState == .stopped { return }
 
     Task { @MainActor [weak self] in
       guard let self,
@@ -769,6 +804,7 @@ final class TunnelCoordinator {
         tunnelRequest == nil,
         let state = status.tunnelState
       {
+        if state == .stopped && heldRestartStop != nil { return }
         publishedTunnelState = state
         notifyExternalState(state)
       }

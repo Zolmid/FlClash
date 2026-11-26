@@ -12,6 +12,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -49,6 +50,8 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
     private val startPreparationLock = Mutex()
     private val mutableRunState = MutableStateFlow(RunState.STOPPED)
     private val arbiter = RunIntentArbiter()
+    private val restartIntentLock = Any()
+    @Volatile private var restartStop: RunRequest? = null
 
     @Volatile
     private var sharedState = SharedState()
@@ -65,7 +68,10 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         get() = arbiter.isRunningRequested
 
     suspend fun handleToggleAction() {
-        if (isRunRequested) {
+        val shouldStop = synchronized(restartIntentLock) {
+            isRunRequested || (restartStop?.let(arbiter::isCurrent) == true)
+        }
+        if (shouldStop) {
             handleStopAction()
         } else {
             handleStartAction()
@@ -147,13 +153,26 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
     }
 
     fun requestStopForRestart(): Pair<RunRequest, Deferred<Boolean>> {
-        val request = createRequest(running = false)
-        return request to host.scope.async { stop(request, cleanupUnbound = true) }
+        val request = synchronized(restartIntentLock) {
+            createRequest(running = false).also { restartStop = it }
+        }
+        val stopped = host.scope.async { stop(request, cleanupUnbound = true) }
+        host.scope.launch {
+            stopped.await()
+            delay(20_000)
+            synchronized(restartIntentLock) {
+                if (restartStop === request) restartStop = null
+            }
+        }
+        return request to stopped
     }
 
     suspend fun requestStartAfterStop(request: RunRequest, stopped: Deferred<Boolean>): Boolean {
         if (!stopped.await()) return false
         val next = arbiter.requestReplacing(request, running = true) ?: return false
+        synchronized(restartIntentLock) {
+            if (restartStop === request) restartStop = null
+        }
         publish()
         return launchStart(next).await() == StartOutcome.STARTED
     }

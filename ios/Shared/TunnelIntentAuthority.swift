@@ -22,7 +22,7 @@ public final class PendingTunnelIntent {
 }
 
 public final class TunnelIntentAuthority: @unchecked Sendable {
-  public enum Command { case start, stop, toggle }
+  public enum Command: Equatable { case start, stop, toggle, restartStop }
   public struct Token: Codable, Equatable, Sendable {
     public let id: UUID
 
@@ -35,6 +35,7 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
     var target: Bool?
     var inverted: Bool
     var pending = true
+    var restartStop: Bool? = nil
   }
 
   private struct RegistrationBaseline { let token: Token? }
@@ -100,11 +101,13 @@ public final class TunnelIntentAuthority: @unchecked Sendable {
       switch command {
       case .start: target = true; inverted = false
       case .stop: target = false; inverted = false
+      case .restartStop: target = false; inverted = false
       case .toggle:
-        target = previous?.target.map { !$0 }
+        target = previous?.restartStop == true ? false : previous?.target.map { !$0 }
         inverted = target == nil ? !(previous?.inverted ?? false) : false
       }
-      let next = Record(token: Token(id: UUID()), target: target, inverted: inverted)
+      let next = Record(token: Token(id: UUID()), target: target, inverted: inverted,
+        restartStop: command == .restartStop ? true : nil)
       let ownerURL = ownerFile(next.token, in: file.deletingLastPathComponent())
       let descriptor = open(ownerURL.path, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
       guard descriptor >= 0 else { throw TunnelIntentError.unavailable }

@@ -51,6 +51,7 @@ extension NEVPNStatus {
 final class TunnelRequest {
   let generation: UInt64
   let token: TunnelIntentAuthority.Token
+  let preserveForRestart: Bool
   var target: TunnelTarget?
   var description: String { target?.description ?? "toggle" }
   var preferenceRetryCount = 0
@@ -59,10 +60,12 @@ final class TunnelRequest {
   init(
     generation: UInt64,
     token: TunnelIntentAuthority.Token,
-    target: TunnelTarget?
+    target: TunnelTarget?,
+    preserveForRestart: Bool = false
   ) {
     self.generation = generation
     self.token = token
+    self.preserveForRestart = preserveForRestart
     self.target = target
   }
 }
