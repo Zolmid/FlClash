@@ -273,11 +273,11 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
         commandRevision = arguments?.get("revision") as? Int ?: commandRevision
         stoppedReportRevision = null
-        scope.launch {
+        GlobalState.launch {
             val accepted = runCatching {
                 ServiceState.requestStartAfterStop(pending.first, pending.second)
             }.getOrDefault(false)
-            launch(Dispatchers.Main) { result.success(accepted) }
+            launch(Dispatchers.Main) { runCatching { result.success(accepted) } }
         }
     }
 
