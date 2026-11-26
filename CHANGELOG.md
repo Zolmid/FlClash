@@ -4,6 +4,7 @@
 
 **Bug Fixes**
 
+- **connection** Honor the latest quick control action while Android or iOS restarts the VPN. (82356ea)
 - **android** Keep an accepted VPN restart running when Android closes the app interface. (07f2a4f)
 - **network** Restore desktop proxy settings after a failed connection or Core exit. On mobile, a newer stop request takes precedence over a restart. (fe1f3ef)
 - **support** Retry a support ticket that failed to load without leaving the page. (402f20b)

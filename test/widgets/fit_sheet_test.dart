@@ -42,6 +42,7 @@ void main() {
     WidgetBuilder builder, {
     SheetProps props = const SheetProps(),
   }) async {
+    tester.view.reset();
     tester.view.physicalSize = _view;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
