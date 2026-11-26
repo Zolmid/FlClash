@@ -26,7 +26,7 @@ class CoreAction extends _$CoreAction {
     ref.read(coreStatusProvider.notifier).value = CoreStatus.connecting;
     try {
       final result = await startLifecycle();
-      return await _applyLifecycleResult(result);
+      return await _applyLifecycleResult(result, statusFirst: true);
     } catch (error) {
       ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
       dialogs.showNotifier(error.toString(), level: MessageLevel.error);
@@ -60,7 +60,7 @@ class CoreAction extends _$CoreAction {
       await initCore();
       ref.read(coreStatusProvider.notifier).value = CoreStatus.connected;
     }
-    return true;
+    return ref.read(coreStatusProvider) == CoreStatus.connected;
   }
 
   Future<void> closeConnection(String id) async {

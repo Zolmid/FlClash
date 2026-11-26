@@ -23,6 +23,7 @@ class AppStateManager extends ConsumerStatefulWidget {
 
 class _AppStateManagerState extends ConsumerState<AppStateManager>
     with WidgetsBindingObserver {
+  ProviderSubscription<bool>? _systemDnsSubscription;
   @override
   void initState() {
     super.initState();
@@ -63,14 +64,16 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
     });
     final systemDns = systemDnsCoordinator;
     if (systemDns != null) {
-      ref.listenManual(shouldPatchSystemDnsProvider, (prev, next) {
-        unawaited(systemDns.sync(next));
-      }, fireImmediately: true);
+      _systemDnsSubscription = ProviderScope.containerOf(context, listen: false)
+          .listen(shouldPatchSystemDnsProvider, (prev, next) {
+            unawaited(systemDns.sync(next));
+          }, fireImmediately: true);
     }
   }
 
   @override
   void dispose() {
+    _systemDnsSubscription?.close();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

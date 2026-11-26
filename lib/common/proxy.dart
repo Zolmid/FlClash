@@ -18,7 +18,13 @@ class SystemProxyQueue {
 
   SystemProxyQueue(this._proxy);
 
-  Future<void> apply(ProxyState state, {void Function()? onStartFailed}) {
+  List<String> get restoreFailures => _proxy.restoreFailures;
+
+  Future<void> apply(
+    ProxyState state, {
+    void Function()? onStartFailed,
+    void Function()? onStopFailed,
+  }) {
     return _enqueue(() async {
       if (_closed) {
         return;
@@ -31,6 +37,7 @@ class SystemProxyQueue {
             : await _proxy.stopProxy();
       } catch (_) {
         if (starting && !_closed) onStartFailed?.call();
+        if (!starting && !_closed) onStopFailed?.call();
         rethrow;
       }
       if (!applied) {
@@ -39,6 +46,7 @@ class SystemProxyQueue {
           logLevel: LogLevel.warning,
         );
         if (starting && !_closed) onStartFailed?.call();
+        if (!starting && !_closed) onStopFailed?.call();
       }
     });
   }

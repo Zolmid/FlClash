@@ -14,6 +14,8 @@ final class _MockLifecycle extends Mock
 
 final class _MockRpcClient extends Mock implements CoreRpcChannel {}
 
+final class _MockLease extends Mock implements CoreProcessLease {}
+
 void main() {
   late _MockLifecycle lifecycle;
   late _MockRpcClient rpcClient;
@@ -30,6 +32,7 @@ void main() {
     rpcClient = _MockRpcClient();
     crashes = StreamController<DesktopCoreFailure>.broadcast();
     when(() => lifecycle.crashEvents).thenAnswer((_) => crashes.stream);
+    when(() => lifecycle.state).thenReturn(const DesktopCoreIdle());
     when(() => lifecycle.start()).thenAnswer((_) async => result);
     when(() => lifecycle.restart()).thenAnswer((_) async => result);
     when(() => lifecycle.stop()).thenAnswer((_) async => result);
@@ -88,6 +91,31 @@ void main() {
     await pumpEventQueue();
 
     expect(listener.messages, ['core done']);
+    coreEventManager.removeListener(listener);
+  });
+
+  test('ignores a delayed crash belonging to an older Core instance', () async {
+    final listener = _CrashListener();
+    coreEventManager.addListener(listener);
+    when(() => lifecycle.state).thenReturn(
+      DesktopCoreRunning(
+        DesktopCoreSession(
+          sessionId: 'new',
+          lease: _MockLease(),
+          connectionGeneration: 2,
+        ),
+      ),
+    );
+    crashes.add(
+      const DesktopCoreFailure(
+        code: 'unexpected_disconnect',
+        phase: DesktopCorePhase.running,
+        revision: 1,
+        sessionId: 'old',
+      ),
+    );
+    await pumpEventQueue();
+    expect(listener.messages, isEmpty);
     coreEventManager.removeListener(listener);
   });
 

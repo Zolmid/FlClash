@@ -51,7 +51,12 @@ ProxyState proxyState(Ref ref) {
     patchClashConfigProvider.select((state) => state.mixedPort),
   );
   return ProxyState(
-    isStart: suspend ? false : isStart,
+    isStart:
+        !suspend &&
+        isStart &&
+        (!system.isDesktop ||
+            (ref.watch(coreStatusProvider) == CoreStatus.connected &&
+                ref.watch(desktopListenersReadyProvider))),
     systemProxy: systemProxySelector.systemProxy,
     bassDomain: systemProxySelector.bypassDomain,
     port: mixedPort,

@@ -2009,6 +2009,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "시스템 프록시를 완전히 적용하지 못했습니다. ‘시스템 설정 → 네트워크’에서 프록시 설정을 확인하세요.",
     ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage("시스템 HTTP 프록시 설정"),
+    "systemProxyRestoreFailed": MessageLookupByLibrary.simpleMessage(
+      "일부 시스템 프록시 설정을 복원하지 못했습니다. 다시 시도하거나 네트워크 설정을 확인하세요.",
+    ),
     "tab": MessageLookupByLibrary.simpleMessage("탭"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("탭 애니메이션"),
     "tabAnimationDesc": MessageLookupByLibrary.simpleMessage("모바일 보기에서만 적용됩니다"),

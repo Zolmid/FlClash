@@ -126,6 +126,7 @@
   "show": "Afficher",
   "exit": "Quitter",
   "systemProxy": "Proxy système",
+  "systemProxyRestoreFailed": "Certains réglages du proxy système n’ont pas pu être restaurés. Réessayez ou vérifiez les réglages réseau.",
   "systemProxyApplyFailed": "Le proxy système n’a pas pu être entièrement activé. Vérifiez les réglages du proxy dans Réglages Système → Réseau.",
   "safeMode": "Mode sans échec",
   "safeModeAppTitle": "{appName} (mode sans échec)",

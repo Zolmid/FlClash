@@ -25,6 +25,9 @@ var (
 	sdkVersion atomic.Int32
 )
 
+var desktopTunConfig = listener.GetTunConf
+var recreateDesktopTun = listener.ReCreateTun
+
 func handleInitClash(params *InitParams) bool {
 	configMu.Lock()
 	defer configMu.Unlock()
@@ -53,14 +56,19 @@ func handleGetIsInit() bool {
 	return isInit.Load()
 }
 
-func handleStartListener() bool {
+func handleStartListener() (bool, error) {
 	configMu.Lock()
 	defer configMu.Unlock()
 	isRunning.Store(true)
-	updateListeners(currentConfig)
+	if err := updateListeners(currentConfig); err != nil {
+		isRunning.Store(false)
+		listener.StopListener()
+		logError("start listeners: %v", err)
+		return false, err
+	}
 	resolver.ResetConnection()
 	refreshRoute()
-	return true
+	return true, nil
 }
 
 func handleStopListener() bool {
@@ -73,9 +81,9 @@ func handleStopListener() bool {
 	return true
 }
 
-func updateListeners(cfg *config.Config) {
+func updateListeners(cfg *config.Config) error {
 	if cfg == nil || !isRunning.Load() {
-		return
+		return nil
 	}
 	general := cfg.General
 	listener.PatchInboundListeners(cfg.Listeners, tunnel.Tunnel, true)
@@ -95,8 +103,15 @@ func updateListeners(cfg *config.Config) {
 	listener.ReCreateVmess(general.VmessConfig, tunnel.Tunnel)
 	listener.ReCreateTuic(general.TuicServer, tunnel.Tunnel)
 	if !features.Android && runtime.GOOS != "ios" {
-		listener.ReCreateTun(general.Tun, tunnel.Tunnel)
+		recreateDesktopTun(general.Tun, tunnel.Tunnel)
+		if general.Tun.Enable && !desktopTunConfig().Enable {
+			return &MethodError{Code: "tun_unavailable", Message: "TUN interface could not be established"}
+		}
 	}
+	if general.MixedPort != 0 && listener.GetPorts().MixedPort != general.MixedPort {
+		return &MethodError{Code: "proxy_listener_unavailable", Message: "Mixed proxy listener could not bind"}
+	}
+	return nil
 }
 
 func handleShutdown() bool {

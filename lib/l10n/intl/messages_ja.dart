@@ -2061,6 +2061,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "システムの HTTP プロキシを設定",
     ),
+    "systemProxyRestoreFailed": MessageLookupByLibrary.simpleMessage(
+      "一部のシステムプロキシ設定を復元できませんでした。再試行するかネットワーク設定を確認してください。",
+    ),
     "tab": MessageLookupByLibrary.simpleMessage("タブ"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("タブアニメーション"),
     "tabAnimationDesc": MessageLookupByLibrary.simpleMessage("モバイル表示でのみ有効です"),

@@ -29,3 +29,16 @@ part 'state/theme.dart';
 part 'state/profile.dart';
 part 'state/custom.dart';
 part 'state/custom_import.dart';
+
+final desktopListenersReadyProvider =
+    NotifierProvider<DesktopListenersReady, bool>(DesktopListenersReady.new);
+
+class DesktopListenersReady extends Notifier<bool> {
+  @override
+  bool build() {
+    ref.listen(coreStatusProvider, (_, _) => state = false);
+    return false;
+  }
+
+  void setReady(bool ready) => state = ready;
+}

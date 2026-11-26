@@ -126,6 +126,7 @@
   "show": "表示",
   "exit": "終了",
   "systemProxy": "システムプロキシ",
+  "systemProxyRestoreFailed": "一部のシステムプロキシ設定を復元できませんでした。再試行するかネットワーク設定を確認してください。",
   "systemProxyApplyFailed": "システムプロキシを完全に適用できませんでした。「システム設定 → ネットワーク」でプロキシ設定を確認してください。",
   "safeMode": "セーフモード",
   "safeModeAppTitle": "{appName}（セーフモード）",

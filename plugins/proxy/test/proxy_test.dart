@@ -101,6 +101,7 @@ void main() {
       () async {
         final checkedExecutables = <String>[];
         final executedCommands = <String>[];
+        final values = <String, String>{};
         final proxy = LinuxProxy(
           commandRunner: ProxyCommandRunner((
             executable,
@@ -108,6 +109,19 @@ void main() {
             runInShell = false,
           }) async {
             executedCommands.add(executable);
+            if (executable == 'kreadconfig5') {
+              final key = arguments[arguments.indexOf('--key') + 1];
+              return ProcessResult(
+                1,
+                0,
+                values[key] ?? '__ZOLNIT_MISSING__',
+                '',
+              );
+            }
+            if (executable == 'kwriteconfig5') {
+              final key = arguments[arguments.indexOf('--key') + 1];
+              values[key] = arguments.last;
+            }
             return ProcessResult(1, 0, '', '');
           }),
           executableChecker: (executable) async {
@@ -129,7 +143,11 @@ void main() {
           'kwriteconfig6',
           'kwriteconfig5',
         ]);
-        expect(executedCommands.toSet(), {'kwriteconfig5', 'dbus-send'});
+        expect(executedCommands.toSet(), {
+          'kreadconfig5',
+          'kwriteconfig5',
+          'dbus-send',
+        });
       },
     );
 
@@ -419,11 +437,11 @@ USB 10/100/1000 LAN
       ]);
 
       final firstStateCommand = commands.indexWhere(
-        (command) => command.args.first.endsWith('proxystate'),
+        (command) => command.args.first == '-setwebproxystate',
       );
 
-      expect(firstStateCommand, 4);
-      expect(commands[3].args.first, '-setproxybypassdomains');
+      expect(firstStateCommand, 5);
+      expect(commands[4].args.first, '-setproxybypassdomains');
     });
 
     test('one failed service does not prevent configuring Wi-Fi', () async {
@@ -439,6 +457,8 @@ USB 10/100/1000 LAN
             return ProcessResult(0, 0, 'USB LAN\nWi-Fi\n', '');
           }
           if (arguments[1] == 'USB LAN') return ProcessResult(0, 1, '', '');
+          if (arguments.first == '-getautoproxyurl')
+            return ProcessResult(0, 0, 'Enabled: No\nURL: \n', '');
           return ProcessResult(
             0,
             0,
@@ -450,10 +470,9 @@ USB 10/100/1000 LAN
       expect(await proxy.start(7890, const []), isFalse);
       expect(commands, contains(equals(['-setwebproxystate', 'Wi-Fi', 'on'])));
       expect(commands, contains(equals(['-getsocksfirewallproxy', 'Wi-Fi'])));
-      expect(commands.any((args) => args.contains('off')), isFalse);
       expect(
-        commands.any((args) => args.contains('-setautoproxystate')),
-        isFalse,
+        commands,
+        contains(equals(['-setautoproxystate', 'Wi-Fi', 'off'])),
       );
     });
 
@@ -477,6 +496,16 @@ USB 10/100/1000 LAN
             }
             if (command.startsWith('-get')) {
               reads.add(command);
+              if (command == '-getproxybypassdomains') {
+                return ProcessResult(
+                  0,
+                  0,
+                  "There aren't any bypass domains set",
+                  '',
+                );
+              }
+              if (command == '-getautoproxyurl')
+                return ProcessResult(0, 0, 'Enabled: No\nURL: \n', '');
               return ProcessResult(0, 0, output, '');
             }
             return ProcessResult(0, 0, '', '');
@@ -485,12 +514,14 @@ USB 10/100/1000 LAN
         final matches =
             output == 'Enabled: Yes\nServer: 127.0.0.1\nPort: 7890\n';
         expect(await proxy.start(7890, const []), matches);
-        expect(
-          reads,
-          matches
-              ? ['-getwebproxy', '-getsecurewebproxy', '-getsocksfirewallproxy']
-              : ['-getwebproxy'],
-        );
+        const snapshot = [
+          '-getwebproxy',
+          '-getsecurewebproxy',
+          '-getsocksfirewallproxy',
+          '-getproxybypassdomains',
+          '-getautoproxyurl',
+        ];
+        expect(reads, [...snapshot, ...snapshot, if (!matches) ...snapshot]);
       });
     }
 

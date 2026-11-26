@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proxy/proxy.dart';
 
 class _FakeProxy implements Proxy {
+  @override
+  List<String> get restoreFailures => const [];
   final List<String> calls = [];
   Future<bool>? held;
   Error? failure;
@@ -101,4 +103,15 @@ void main() {
       expect(proxy.calls, ['start 7890', 'start 7890', 'stop']);
     },
   );
+
+  test('reports a failed restore and permits a retry', () async {
+    final proxy = _FakeProxy();
+    final queue = SystemProxyQueue(proxy);
+    var failures = 0;
+    proxy.held = Future.value(false);
+    await queue.apply(_state(isStart: false), onStopFailed: () => failures++);
+    await queue.apply(_state(isStart: false), onStopFailed: () => failures++);
+    expect(failures, 1);
+    expect(proxy.calls, ['stop', 'stop']);
+  });
 }

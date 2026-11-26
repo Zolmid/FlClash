@@ -2637,6 +2637,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "Establecer el proxy HTTP del sistema",
     ),
+    "systemProxyRestoreFailed": MessageLookupByLibrary.simpleMessage(
+      "No se pudieron restaurar algunos ajustes del proxy. Vuelve a intentarlo o revisa la configuración de red.",
+    ),
     "tab": MessageLookupByLibrary.simpleMessage("Pestaña"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage(
       "Animación de pestañas",

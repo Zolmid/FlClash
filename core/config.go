@@ -266,7 +266,9 @@ func applyParsedConfigLocked(cfg *config.Config, params *SetupParams, applyError
 		}
 		refreshRouteLocked(true)
 	}()
-	updateListeners(cfg)
+	if err := updateListeners(cfg); err != nil {
+		return err
+	}
 	reconcileGeoUpdater()
 	scheduleLoadMemoryRelease()
 	return nil
@@ -329,7 +331,9 @@ func updateConfig(params *UpdateParams) error {
 		skipCertVerify.Store(*params.SkipCertVerify)
 	}
 
-	updateListeners(currentConfig)
+	if err := updateListeners(currentConfig); err != nil {
+		return err
+	}
 	for geoType, link := range params.GeoXUrl {
 		setGeoResourceUrl(geoType, link)
 	}

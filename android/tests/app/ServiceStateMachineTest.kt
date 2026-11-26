@@ -189,6 +189,66 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServiceStateMachineTest {
     @Test
+    fun `restart stop clears an unbound core before a replacement start`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        val (_, stopped) = machine.requestStopForRestart()
+        assertTrue(stopped.await())
+        assertEquals(1, host.stopCalls)
+    }
+
+    @Test
+    fun `restart stop is superseded by later native stop`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (token, stopped) = machine.requestStopForRestart()
+        machine.handleStopAction()
+        assertFalse(machine.requestStartAfterStop(token, stopped))
+        assertFalse(machine.isRunRequested)
+        assertEquals(1, host.startCalls)
+    }
+
+    @Test
+    fun `restart completes when its stop remains the latest intent`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (token, stopped) = machine.requestStopForRestart()
+        assertTrue(machine.requestStartAfterStop(token, stopped))
+        assertTrue(machine.isRunRequested)
+        assertEquals(2, host.startCalls)
+    }
+
+    @Test
+    fun `native stop during restart start supersedes and cleans up`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (token, stopped) = machine.requestStopForRestart()
+        host.beforeStartService = { machine.requestStop() }
+        assertFalse(machine.requestStartAfterStop(token, stopped))
+        assertFalse(machine.isRunRequested)
+        assertEquals(2, host.startCalls)
+        assertEquals(null, host.runtime)
+    }
+
+    @Test
+    fun `older restart cannot consume or supersede a newer restart`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val (oldToken, oldStop) = machine.requestStopForRestart()
+        val (newToken, newStop) = machine.requestStopForRestart()
+        assertFalse(machine.requestStartAfterStop(oldToken, oldStop))
+        assertTrue(machine.requestStartAfterStop(newToken, newStop))
+        assertTrue(machine.isRunRequested)
+    }
+    @Test
     fun `only foreground permission failures offer help and later intent invalidates it`() = runTest {
         val host = FakeHost(backgroundScope)
         host.app = FakeApp(vpnGranted = false)

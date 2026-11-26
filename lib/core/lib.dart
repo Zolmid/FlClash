@@ -139,6 +139,15 @@ class CoreLib extends CoreHandlerInterface {
       return await _service?.start(state, onAccepted) ?? false;
     }
     if (isCurrent?.call() == false) return false;
+    if (vpnRestartIntentActive) {
+      final error =
+          await _service?.syncState(
+            globalState.container.read(sharedStateProvider),
+          ) ??
+          '';
+      if (error.isNotEmpty || isCurrent?.call() == false) return false;
+      return await _service?.start(null, null, foregroundVpnHelp) ?? false;
+    }
     await super.startListener();
     if (isCurrent?.call() == false) return false;
     return await _service?.start(null, null, foregroundVpnHelp) ?? false;
@@ -147,6 +156,7 @@ class CoreLib extends CoreHandlerInterface {
   @override
   Future<bool> stopListener() async {
     final serviceStopped = await _service?.stop() ?? false;
+    if (vpnRestartIntentActive) return serviceStopped;
     if (_listenerManagedByService) {
       return serviceStopped;
     }

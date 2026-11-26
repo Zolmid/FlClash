@@ -8,6 +8,7 @@ import com.zolmid.zolnit.renewal.AndroidClientBundleRenewal
 import com.zolmid.zolnit.renewal.SignedDevice
 import com.zolmid.zolnit.ServiceController
 import com.zolmid.zolnit.ServiceState
+import com.zolmid.zolnit.RunRequest
 import com.zolmid.zolnit.common.Components
 import com.zolmid.zolnit.models.SharedState
 import com.zolmid.zolnit.network.FirstPartyHttpTransport
@@ -24,6 +25,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Deferred
+
+internal class RestartReceiptStore<T> {
+    private var sequence = 0L
+    private var pending: Pair<String, T>? = null
+
+    @Synchronized fun put(value: T): String {
+        val handle = (++sequence).toString()
+        pending = handle to value
+        return handle
+    }
+
+    @Synchronized fun take(handle: String?): T? {
+        val current = pending ?: return null
+        if (current.first != handle) return null
+        pending = null
+        return current.second
+    }
+}
 
 class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var messenger: BinaryMessenger
@@ -36,6 +56,7 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private val gson = Gson()
     private var commandRevision = 0
     private var stoppedReportRevision: Int? = null
+    private val restartStops = RestartReceiptStore<Pair<RunRequest, Deferred<Boolean>>>()
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -105,6 +126,8 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             "syncState" -> syncState(call, result)
             "start" -> start(call, result)
             "stop" -> stop(call, result)
+            "stopForRestart" -> stopForRestart(call, result)
+            "startAfterStop" -> startAfterStop(call, result)
             else -> result.notImplemented()
         }
     }
@@ -232,6 +255,30 @@ class ServicePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         commandRevision = revision
         if (!acknowledgesStopped) ServiceState.requestStop()
         result.success(true)
+    }
+
+    private fun stopForRestart(call: MethodCall, result: MethodChannel.Result) {
+        commandRevision = call.arguments as? Int ?: commandRevision
+        stoppedReportRevision = null
+        val handle = restartStops.put(ServiceState.requestStopForRestart())
+        result.success(handle)
+    }
+
+    private fun startAfterStop(call: MethodCall, result: MethodChannel.Result) {
+        val arguments = call.arguments as? Map<*, *>
+        val pending = restartStops.take(arguments?.get("stopHandle") as? String)
+        if (pending == null) {
+            result.success(false)
+            return
+        }
+        commandRevision = arguments?.get("revision") as? Int ?: commandRevision
+        stoppedReportRevision = null
+        scope.launch {
+            val accepted = runCatching {
+                ServiceState.requestStartAfterStop(pending.first, pending.second)
+            }.getOrDefault(false)
+            launch(Dispatchers.Main) { result.success(accepted) }
+        }
     }
 
     // Read on the platform thread, where start and stop arrive: revision and intent are one instant.

@@ -2562,6 +2562,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "Настроить системный HTTP-прокси",
     ),
+    "systemProxyRestoreFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось восстановить некоторые настройки системного прокси. Повторите попытку или проверьте настройки сети.",
+    ),
     "tab": MessageLookupByLibrary.simpleMessage("Вкладки"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("Анимация вкладок"),
     "tabAnimationDesc": MessageLookupByLibrary.simpleMessage(

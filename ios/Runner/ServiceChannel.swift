@@ -215,6 +215,17 @@ final class ServiceChannel {
         return
       }
       Task { result(await tunnelController.stop()) }
+    case "stopForRestart":
+      guard !sharedStateStore.isSafeMode else { result(nil); return }
+      Task { result(await tunnelController.stopForRestart()) }
+    case "startAfterStop":
+      guard !sharedStateStore.isSafeMode,
+        let args = call.arguments as? [String: Any],
+        let handle = args["stopHandle"] as? String,
+        let state = args["state"] as? String,
+        let data = state.data(using: .utf8)
+      else { result(nil); return }
+      Task { result(await tunnelController.startAfterStop(handle, state: data)) }
     case "abandonStart":
       Task { result(await tunnelController.abandonStart(call.arguments as? String).rawValue) }
     case "init":

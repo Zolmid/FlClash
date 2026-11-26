@@ -83,6 +83,45 @@ final class TunnelCoordinator {
 
   func startForFlutter() async -> String? { await submit(.start)?.id.uuidString }
 
+  func stopForFlutterRestart() async -> String? { await submit(.stop)?.id.uuidString }
+
+  func startForFlutter(afterStop handle: String, prepare: () -> Bool = { true }) async -> String? {
+    guard !isSafeMode(), let id = UUID(uuidString: handle) else { return nil }
+    let stopped = TunnelIntentAuthority.Token(id: id)
+    for _ in 0..<400 {
+      do {
+        guard try authority.isLatest(stopped) else { return nil }
+        if tunnelRequest == nil {
+          let manager = try await managerStore.loadManager(createIfNeeded: false)
+          if let manager {
+            guard managerStore.isManagedConnection(manager.connection),
+              manager.connection.status.tunnelState == .stopped else { return nil }
+          }
+          let token = try authority.register(.start, replacing: stopped)
+          do {
+            guard try authority.perform(token, running: true, prepare) else {
+              try? authority.finish(token)
+              return nil
+            }
+          } catch {
+            authority.cancel(token)
+            return nil
+          }
+          guard accept(token, target: .running, checkCurrent: true) else {
+            authority.cancel(token)
+            return nil
+          }
+          return token.id.uuidString
+        }
+      } catch TunnelIntentError.busy {
+      } catch {
+        return nil
+      }
+      do { try await Task.sleep(nanoseconds: 50_000_000) } catch { return nil }
+    }
+    return nil
+  }
+
   /// A failed start's cleanup must not replace a Widget or Shortcut intent registered after it.
   func abandonStart(_ startHandle: String?) async -> StartAbandonment {
     guard !isSafeMode(), let startHandle, let id = UUID(uuidString: startHandle)

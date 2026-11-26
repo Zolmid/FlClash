@@ -126,6 +126,7 @@
   "show": "Show",
   "exit": "Exit",
   "systemProxy": "System proxy",
+  "systemProxyRestoreFailed": "Some system proxy settings could not be restored. Retry or check Network settings.",
   "systemProxyApplyFailed": "System proxy could not be fully applied. Check Proxies in System Settings → Network.",
   "safeMode": "Safe mode",
   "safeModeAppTitle": "{appName} (Safe mode)",

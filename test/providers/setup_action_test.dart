@@ -708,6 +708,23 @@ void main() {
       expect(action.coreRunningCalls, isEmpty);
       expect(container.read(isStartProvider), isFalse);
     });
+
+    test('a later stop supersedes a restart waiting for its stop', () async {
+      markInitialized();
+      final setup = container.read(setupActionProvider.notifier);
+      await setup.setRunning(true);
+      action.blockCoreCalls = true;
+      final restart = setup.restartVpn();
+      await Future<void>.delayed(Duration.zero);
+      final stop = setup.setRunning(false);
+      action.blockCoreCalls = false;
+      for (final gate in action.pendingCoreCalls) {
+        if (!gate.isCompleted) gate.complete();
+      }
+      await Future.wait([restart, stop]);
+      expect(action.coreRunningCalls, [true, false, false]);
+      expect(container.read(isStartProvider), isFalse);
+    });
   });
 
   group('latest-intent arbitration', () {

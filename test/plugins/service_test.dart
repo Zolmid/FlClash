@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:fl_clash/common/constant.dart';
+import 'package:fl_clash/common/function.dart';
 import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/core/spill.dart';
 import 'package:fl_clash/enum/enum.dart';
@@ -105,6 +106,85 @@ void main() {
   });
 
   group('lifecycle commands', () {
+    for (final isIOS in [false, true]) {
+      test(
+        'restart carries its stop receipt on ${isIOS ? 'iOS' : 'Android'}',
+        () async {
+          final service = Service.forTesting(isIOS: isIOS);
+          addTearDown(() {
+            service.dispose();
+            Service.resetInstance();
+            Service();
+          });
+          const state = SharedState(
+            stopTip: '',
+            startTip: '',
+            localNetworkTip: '',
+            currentProfileName: '',
+            stopText: '',
+            onlyStatisticsProxy: false,
+          );
+          mockChannel(
+            (call) async => switch (call.method) {
+              'stopForRestart' => 'stop-receipt',
+              'startAfterStop' => isIOS ? 'start-receipt' : true,
+              _ => null,
+            },
+          );
+          final scheduler = SerialTaskScheduler();
+          await withVpnRestartIntent(() async {
+            service.preclaimRestartStop();
+            expect(await scheduler.run(service.stop), isTrue);
+            expect(
+              await scheduler.run(() => service.start(isIOS ? state : null)),
+              isTrue,
+            );
+          });
+          expect(calls.map((call) => call.method), [
+            'stopForRestart',
+            'startAfterStop',
+          ]);
+          final arguments = Map<Object?, Object?>.from(
+            calls.last.arguments as Map,
+          );
+          expect(arguments['stopHandle'], 'stop-receipt');
+          if (isIOS) expect(arguments['state'], isA<String>());
+        },
+      );
+      test(
+        'a rejected restart receipt does not issue a normal start on ${isIOS ? 'iOS' : 'Android'}',
+        () async {
+          final service = Service.forTesting(isIOS: isIOS);
+          addTearDown(() {
+            service.dispose();
+            Service.resetInstance();
+            Service();
+          });
+          const state = SharedState(
+            stopTip: '',
+            startTip: '',
+            localNetworkTip: '',
+            currentProfileName: '',
+            stopText: '',
+            onlyStatisticsProxy: false,
+          );
+          mockChannel(
+            (call) async =>
+                call.method == 'stopForRestart' ? 'old-receipt' : null,
+          );
+          await withVpnRestartIntent(() async {
+            service.preclaimRestartStop();
+            expect(await service.stop(), isTrue);
+            expect(await service.start(isIOS ? state : null), isFalse);
+          });
+          expect(calls.map((call) => call.method), [
+            'stopForRestart',
+            'startAfterStop',
+          ]);
+        },
+      );
+    }
+
     test('start and stop report the platform result', () async {
       mockChannel((call) async => call.method == 'start');
 

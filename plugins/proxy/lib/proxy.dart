@@ -15,6 +15,12 @@ class Proxy {
   late final LinuxProxy _linuxProxy;
   late final MacosProxy _macosProxy;
 
+  List<String> get restoreFailures => switch (Platform.operatingSystem) {
+    'macos' => _macosProxy.restoreFailures,
+    'linux' => _linuxProxy.restoreFailures,
+    _ => const [],
+  };
+
   Proxy({
     ProxyProcessRunner? processRunner,
     ProxyExecutableChecker? executableChecker,

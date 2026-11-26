@@ -20,48 +20,108 @@ class LinuxProxy {
   }) : _commandRunner = commandRunner,
        _executableChecker = executableChecker ?? _hasExecutable;
 
+  final List<_LinuxChange> _changes = [];
+  List<String> get restoreFailures =>
+      _changes.map((change) => change.key).toList(growable: false);
+
   Future<bool> start(
     int port,
     List<String> bypassDomain, {
     required String? desktop,
     required String? homeDir,
   }) async {
-    if (homeDir == null || homeDir.isEmpty) {
-      return false;
-    }
+    if (homeDir == null || homeDir.isEmpty) return false;
     final selection = await _resolveBackend(desktop);
-    if (selection == null) {
-      return false;
-    }
-    return _commandRunner.run(
-      LinuxProxyCommands.buildStartForBackend(
-        port: port,
-        bypassDomain: bypassDomain,
-        homeDir: homeDir,
-        backend: selection.backend,
-        kdeConfigWriter: selection.executable,
-      ),
+    if (selection == null) return false;
+    final commands = LinuxProxyCommands.buildStartForBackend(
+      port: port,
+      bypassDomain: bypassDomain,
+      homeDir: homeDir,
+      backend: selection.backend,
+      kdeConfigWriter: selection.executable,
     );
+    for (final command in commands) {
+      if (command.optional) {
+        await _commandRunner.run([command]);
+        continue;
+      }
+      final change = _LinuxChange.fromCommand(command);
+      if (change == null) {
+        await _restore();
+        return false;
+      }
+      final previous = await _readChange(change);
+      if (previous == null) {
+        await _restore();
+        return false;
+      }
+      final existing = _changes
+          .where((item) => item.key == change.key)
+          .firstOrNull;
+      if (existing == null) {
+        change.original = previous;
+        _changes.add(change);
+      } else {
+        change.original = existing.original;
+        _changes.remove(existing);
+        _changes.add(change);
+      }
+      final succeeded = await _commandRunner.run([command]);
+      final observed = await _readChange(change);
+      change.written = observed ?? change.expectedWrite(command);
+      if (!succeeded || observed == null || !change.matchesWrite(command)) {
+        await _restore();
+        return false;
+      }
+    }
+    return true;
   }
 
-  Future<bool> stop({
-    required String? desktop,
-    required String? homeDir,
-  }) async {
-    if (homeDir == null || homeDir.isEmpty) {
-      return false;
+  Future<bool> stop({required String? desktop, required String? homeDir}) =>
+      _restore();
+
+  Future<String?> _readChange(_LinuxChange change) async {
+    try {
+      final result = await _commandRunner.process(
+        change.readExecutable,
+        change.readArgs,
+      );
+      return result.exitCode == 0 ? result.stdout.toString().trim() : null;
+    } on ProcessException {
+      return null;
     }
-    final selection = await _resolveBackend(desktop);
-    if (selection == null) {
-      return false;
+  }
+
+  Future<bool> _restore() async {
+    var ok = true;
+    var kdeChanged = false;
+    for (final change in _changes.reversed.toList()) {
+      final current = await _readChange(change);
+      if (current == null || change.written == null) {
+        ok = false;
+        continue;
+      }
+      if (!change.sameValue(current, change.written!)) {
+        _changes.remove(change);
+        continue;
+      }
+      final applied = await _commandRunner.run([change.restoreCommand]);
+      final observed = await _readChange(change);
+      if (applied &&
+          observed != null &&
+          change.sameValue(observed, change.original!)) {
+        kdeChanged =
+            kdeChanged || change.writeExecutable.startsWith('kwriteconfig');
+        _changes.remove(change);
+      } else {
+        ok = false;
+        if (observed != null) change.written = observed;
+      }
     }
-    return _commandRunner.run(
-      LinuxProxyCommands.buildStopForBackend(
-        homeDir: homeDir,
-        backend: selection.backend,
-        kdeConfigWriter: selection.executable,
-      ),
-    );
+    if (kdeChanged) {
+      await _commandRunner.run([LinuxProxyCommands._kdeReparseConfiguration]);
+    }
+    return ok;
   }
 
   Future<_LinuxBackendSelection?> _resolveBackend(String? desktop) async {
@@ -401,4 +461,89 @@ class _LinuxBackendSelection {
   final String executable;
 
   const _LinuxBackendSelection(this.backend, this.executable);
+}
+
+class _LinuxChange {
+  final String key;
+  final String readExecutable;
+  final List<String> readArgs;
+  final String writeExecutable;
+  final List<String> writeArgs;
+  String? original;
+  String? written;
+  bool sameValue(String left, String right) {
+    if (key.endsWith(':ignore-hosts')) {
+      if ((left == '[]' || left == '@as []') &&
+          (right == '[]' || right == '@as []'))
+        return true;
+    }
+    return left == right;
+  }
+
+  String expectedWrite(ProxyCommand command) {
+    final value = command.args.last;
+    if (command.executable == 'gsettings' &&
+        (command.args[2] == 'host' || command.args[2] == 'mode')) {
+      return "'${value.replaceAll(r'\', r'\\').replaceAll("'", r"\'")}'";
+    }
+    return value;
+  }
+
+  bool matchesWrite(ProxyCommand command) {
+    final actual = written;
+    if (actual == null) return false;
+    final expected = command.args.last;
+    if (command.executable != 'gsettings') return actual == expected;
+    final key = command.args[2];
+    if (key == 'host' || key == 'mode') {
+      return actual ==
+          "'${expected.replaceAll(r'\', r'\\').replaceAll("'", r"\'")}'";
+    }
+    if (key == 'ignore-hosts' && expected == '[]') {
+      return actual == '[]' || actual == '@as []';
+    }
+    return actual == expected;
+  }
+
+  _LinuxChange(
+    this.key,
+    this.readExecutable,
+    this.readArgs,
+    this.writeExecutable,
+    this.writeArgs,
+  );
+
+  static _LinuxChange? fromCommand(ProxyCommand command) {
+    final args = command.args;
+    if (command.executable == 'gsettings' &&
+        args.length == 4 &&
+        args[0] == 'set') {
+      return _LinuxChange(
+        '${args[1]}:${args[2]}',
+        'gsettings',
+        ['get', args[1], args[2]],
+        'gsettings',
+        ['set', args[1], args[2]],
+      );
+    }
+    if (command.executable.startsWith('kwriteconfig') && args.length == 7) {
+      final reader = command.executable.replaceFirst(
+        'kwriteconfig',
+        'kreadconfig',
+      );
+      return _LinuxChange(
+        '${args[1]}:${args[3]}:${args[5]}',
+        reader,
+        [...args.take(6), '--default', '__ZOLNIT_MISSING__'],
+        command.executable,
+        args.take(6).toList(),
+      );
+    }
+    return null;
+  }
+
+  ProxyCommand get restoreCommand => ProxyCommand(writeExecutable, [
+    ...writeArgs,
+    if (original == '__ZOLNIT_MISSING__') '--delete' else original!,
+  ]);
 }

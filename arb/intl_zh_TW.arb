@@ -126,6 +126,7 @@
   "show": "顯示",
   "exit": "結束",
   "systemProxy": "系統代理",
+  "systemProxyRestoreFailed": "部分系統代理設定未能還原。請重試或檢查網路設定。",
   "systemProxyApplyFailed": "系統代理未能完整啟用。請檢查「系統設定 → 網路」中的代理設定。",
   "safeMode": "安全模式",
   "safeModeAppTitle": "{appName}（安全模式）",

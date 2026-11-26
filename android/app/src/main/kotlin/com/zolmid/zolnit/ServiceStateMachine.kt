@@ -116,6 +116,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
 
     suspend fun handleStopAction() {
         if (!isRunRequested) {
+            requestStop()
             return
         }
         if (sharedState.collapseQuickSettingsPanel) {
@@ -143,6 +144,18 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
     fun requestStop(): Deferred<Boolean> {
         val request = createRequest(running = false)
         return host.scope.async { stop(request) }
+    }
+
+    fun requestStopForRestart(): Pair<RunRequest, Deferred<Boolean>> {
+        val request = createRequest(running = false)
+        return request to host.scope.async { stop(request, cleanupUnbound = true) }
+    }
+
+    suspend fun requestStartAfterStop(request: RunRequest, stopped: Deferred<Boolean>): Boolean {
+        if (!stopped.await()) return false
+        val next = arbiter.requestReplacing(request, running = true) ?: return false
+        publish()
+        return launchStart(next).await() == StartOutcome.STARTED
     }
 
     fun syncSharedState(state: SharedState) {
@@ -321,13 +334,15 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         }
     }
 
-    private suspend fun stop(request: RunRequest): Boolean = transitionLock.withLock {
+    private suspend fun stop(request: RunRequest, cleanupUnbound: Boolean = false): Boolean = transitionLock.withLock {
         if (!isCurrent(request)) {
             return@withLock false
         }
         abandonVpnPreparation()
         if (host.runtime != null) {
             stopLocked()
+        } else if (cleanupUnbound) {
+            stopService()
         }
         isCurrent(request)
     }

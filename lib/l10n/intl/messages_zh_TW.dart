@@ -1841,6 +1841,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "系統代理未能完整啟用。請檢查「系統設定 → 網路」中的代理設定。",
     ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage("設定系統的 HTTP 代理"),
+    "systemProxyRestoreFailed": MessageLookupByLibrary.simpleMessage(
+      "部分系統代理設定未能還原。請重試或檢查網路設定。",
+    ),
     "tab": MessageLookupByLibrary.simpleMessage("分頁"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("分頁動畫"),
     "tabAnimationDesc": MessageLookupByLibrary.simpleMessage("僅在行動裝置檢視中生效"),

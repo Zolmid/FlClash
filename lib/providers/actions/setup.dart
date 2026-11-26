@@ -64,6 +64,9 @@ class SetupAction extends _$SetupAction {
     ref.listen(coreStatusProvider, (_, _) {
       _coreRevision++;
       _acceptedUpdate = null;
+      if (system.isDesktop) {
+        ref.read(desktopListenersReadyProvider.notifier).setReady(false);
+      }
     });
     ref.listen(currentProfileIdProvider, (_, _) => _modeRevision++);
     ref.listen(appVisibleProvider, (_, _) => _syncRuntimeTicker());
@@ -233,6 +236,9 @@ class SetupAction extends _$SetupAction {
       previousStartTime: _startTime,
     );
     _latestRunRequest = request;
+    if (system.isDesktop) {
+      ref.read(desktopListenersReadyProvider.notifier).setReady(false);
+    }
     _setLocalRunning(running);
     if (request.initialize) {
       globalState.needInitStatus = false;
@@ -349,7 +355,22 @@ class SetupAction extends _$SetupAction {
       if (ref.read(safeModeProvider)) {
         return true;
       }
-      return _setListening(request.running, request: request);
+      final coreRevision = _coreRevision;
+      final answered = await _setListening(request.running, request: request);
+      if (system.isDesktop &&
+          _isCurrent(request) &&
+          coreRevision == _coreRevision) {
+        ref
+            .read(desktopListenersReadyProvider.notifier)
+            .setReady(
+              request.running &&
+                  answered &&
+                  !request.initialize &&
+                  _appliedInputs != null &&
+                  !_core.isApplyingConfiguration,
+            );
+      }
+      return answered;
     });
   }
 
@@ -462,8 +483,17 @@ class SetupAction extends _$SetupAction {
     if (!ref.read(isStartProvider)) {
       return;
     }
-    await setRunning(false);
-    await setRunning(true);
+    await withVpnRestartIntent(() async {
+      if (system.isMobile && !ref.read(safeModeProvider)) {
+        service?.preclaimRestartStop();
+      }
+      final stopping = setRunning(false);
+      final request = _latestRunRequest;
+      await stopping;
+      if (request != null && _isCurrent(request)) {
+        await setRunning(true);
+      }
+    });
   }
 
   void _rollbackRunning(_RunRequest request) {
@@ -535,12 +565,23 @@ class SetupAction extends _$SetupAction {
     );
     final identity = (params, core.configurationChanges.value, _coreRevision);
     if (_acceptedUpdate == identity) return;
+    final wasReady =
+        system.isDesktop && ref.read(desktopListenersReadyProvider);
+    final updateRunRequest = _latestRunRequest;
+    if (system.isDesktop) {
+      ref.read(desktopListenersReadyProvider.notifier).setReady(false);
+    }
     final message = await core.updateConfig(params);
     if (message.isNotEmpty) throw MessageException(message);
     if (ref.mounted &&
         identical(core.configurationChanges.value, identity.$2) &&
         _coreRevision == identity.$3) {
       _acceptedUpdate = identity;
+      if (wasReady &&
+          ref.read(isStartProvider) &&
+          identical(updateRunRequest, _latestRunRequest)) {
+        ref.read(desktopListenersReadyProvider.notifier).setReady(true);
+      }
     }
   }
 
@@ -1181,6 +1222,11 @@ class SetupAction extends _$SetupAction {
               await appPath.ensureProviderDirs(profileId);
             }
 
+            final setupCoreRevision = _coreRevision;
+            final setupRunRequest = _latestRunRequest;
+            if (system.isDesktop) {
+              ref.read(desktopListenersReadyProvider.notifier).setReady(false);
+            }
             final message = await _core.setupConfig(
               params: setupParams,
               preloadInvoke: listenerManagedByService ? null : preloadInvoke,
@@ -1189,6 +1235,13 @@ class SetupAction extends _$SetupAction {
               globalState.lastConfigCounts = configCountsOf(const {});
               await globalState.safeRun(() => onUpdated?.call());
               throw MessageException(message);
+            }
+            if (system.isDesktop &&
+                ref.mounted &&
+                ref.read(isStartProvider) &&
+                identical(setupRunRequest, _latestRunRequest) &&
+                setupCoreRevision == _coreRevision) {
+              ref.read(desktopListenersReadyProvider.notifier).setReady(true);
             }
             if (listenerManagedByService) {
               await preloadInvoke?.call();

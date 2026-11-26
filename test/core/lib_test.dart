@@ -370,6 +370,30 @@ void main() {
       expect(await lib.stopListener(), isTrue);
       expect(service.calls, ['stop', 'invokeMethod:stopListener']);
     });
+
+    test(
+      'restart delegates Android listener ownership to the native intent',
+      () async {
+        await lib.start();
+        service.onInvokeMethod = (_) =>
+            const CoreMethodResponse(id: '1', result: true);
+        service.calls.clear();
+        service.invokedCalls.clear();
+        await withVpnRestartIntent(() async {
+          expect(await lib.stopListener(), isTrue);
+          expect(await lib.startListener(), isTrue);
+        });
+        expect(service.calls, ['stop', 'syncState', 'start']);
+        expect(
+          service.invokedCalls.where(
+            (call) =>
+                call.method == CoreMethod.startListener ||
+                call.method == CoreMethod.stopListener,
+          ),
+          isEmpty,
+        );
+      },
+    );
   });
 
   group('invokeMethod', () {

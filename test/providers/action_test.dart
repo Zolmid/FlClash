@@ -458,6 +458,18 @@ void main() {
       expect(container.read(coreStatusProvider), CoreStatus.connected);
     });
 
+    test('startCore does not revive a crash during initialization', () async {
+      final container = ProviderContainer(
+        overrides: [coreActionProvider.overrideWith(_TestCoreAction.new)],
+      );
+      addTearDown(container.dispose);
+      final coreAction =
+          container.read(coreActionProvider.notifier) as _TestCoreAction;
+      coreAction.disconnectDuringInit = true;
+      expect(await coreAction.startCore(), isFalse);
+      expect(container.read(coreStatusProvider), CoreStatus.disconnected);
+    });
+
     test(
       'restartCore leaves status and initCore to the superseding operation',
       () async {
@@ -870,6 +882,7 @@ void main() {
 class _TestCoreAction extends CoreAction {
   int lifecycleRestartCount = 0;
   int initCoreCount = 0;
+  bool disconnectDuringInit = false;
   Completer<CoreLifecycleResult>? restartCompleter;
   Completer<CoreLifecycleResult>? startCompleter;
   CoreLifecycleResult startResult = _restartResult;
@@ -877,6 +890,9 @@ class _TestCoreAction extends CoreAction {
   @override
   Future<void> initCore() async {
     initCoreCount++;
+    if (disconnectDuringInit) {
+      ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
+    }
   }
 
   @override

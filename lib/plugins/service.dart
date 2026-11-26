@@ -12,6 +12,18 @@ import 'package:flutter/services.dart';
 
 final _utf8JsonDecoder = utf8.decoder.fuse(json.decoder);
 
+final _vpnRestartIntentKey = Object();
+
+class _VpnRestartIntent {
+  String? stopHandle;
+  Future<String?>? stopClaim;
+}
+
+bool get vpnRestartIntentActive => Zone.current[_vpnRestartIntentKey] != null;
+
+Future<T> withVpnRestartIntent<T>(Future<T> Function() action) =>
+    runZoned(action, zoneValues: {_vpnRestartIntentKey: _VpnRestartIntent()});
+
 Object? _decodeUtf8Json(Uint8List data) => _utf8JsonDecoder.convert(data);
 
 Map<String, Object?> _decodeResponseOf((Object, CoreMethod) request) {
@@ -163,28 +175,62 @@ class Service {
     if (_isIOS && state == null) {
       throw ArgumentError.notNull('state');
     }
+    final restart = Zone.current[_vpnRestartIntentKey] as _VpnRestartIntent?;
+    if (restart != null && restart.stopHandle == null) {
+      _startRequested = false;
+      return false;
+    }
     final result = await methodChannel.invokeMethod<Object>(
-      'start',
-      _isIOS
+      restart == null ? 'start' : 'startAfterStop',
+      restart != null
+          ? {
+              'stopHandle': restart.stopHandle,
+              'revision': revision,
+              if (_isIOS) 'state': json.encode(state),
+            }
+          : _isIOS
           ? json.encode(state)
           : (foregroundVpnHelp
                 ? {'revision': revision, 'foregroundVpnHelp': true}
                 : revision),
     );
-    if (!_isIOS) return (result as bool?) ?? false;
-    if (result is! String || result.isEmpty) return false;
+    if (!_isIOS) {
+      final accepted = (result as bool?) ?? false;
+      if (!accepted && revision == _commandRevision) _startRequested = false;
+      return accepted;
+    }
+    if (result is! String || result.isEmpty) {
+      if (revision == _commandRevision) _startRequested = false;
+      return false;
+    }
     onAccepted?.call(result);
     return true;
   }
 
   Future<bool> stop() async {
     _startRequested = false;
+    final restart = Zone.current[_vpnRestartIntentKey] as _VpnRestartIntent?;
+    if (restart != null) {
+      preclaimRestartStop();
+      restart.stopHandle = await restart.stopClaim;
+      return restart.stopHandle?.isNotEmpty ?? false;
+    }
     final revision = ++_commandRevision;
     return await methodChannel.invokeMethod<bool>(
           'stop',
           _isIOS ? null : revision,
         ) ??
         false;
+  }
+
+  void preclaimRestartStop() {
+    final restart = Zone.current[_vpnRestartIntentKey] as _VpnRestartIntent?;
+    if (restart == null || restart.stopClaim != null) return;
+    _startRequested = false;
+    final revision = ++_commandRevision;
+    restart.stopClaim = methodChannel
+        .invokeMethod<String>('stopForRestart', _isIOS ? null : revision)
+        .catchError((Object _) => null);
   }
 
   /// Cleanup may only replace the accepted token returned to this start attempt.

@@ -126,6 +126,7 @@
   "show": "Mostrar",
   "exit": "Salir",
   "systemProxy": "Proxy del sistema",
+  "systemProxyRestoreFailed": "No se pudieron restaurar algunos ajustes del proxy. Vuelve a intentarlo o revisa la configuración de red.",
   "systemProxyApplyFailed": "No se pudo aplicar por completo el proxy del sistema. Revisa los ajustes de proxy en Configuración del Sistema → Red.",
   "safeMode": "Modo seguro",
   "safeModeAppTitle": "{appName} (Modo seguro)",

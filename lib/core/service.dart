@@ -65,6 +65,11 @@ class CoreService extends CoreHandlerInterface {
   }) : _lifecycle = lifecycle,
        _rpcClient = rpcClient {
     _crashSubscription = _lifecycle.crashEvents.listen((failure) {
+      final current = _lifecycle.state;
+      if (current is DesktopCoreRunning &&
+          current.session.sessionId != failure.sessionId) {
+        return;
+      }
       coreEventManager.sendEvent(
         CoreEvent(
           type: CoreEventType.crash,

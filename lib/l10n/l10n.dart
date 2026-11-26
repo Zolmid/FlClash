@@ -1010,6 +1010,16 @@ class AppLocalizations {
     );
   }
 
+  /// `Some system proxy settings could not be restored. Retry or check Network settings.`
+  String get systemProxyRestoreFailed {
+    return Intl.message(
+      'Some system proxy settings could not be restored. Retry or check Network settings.',
+      name: 'systemProxyRestoreFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `System proxy could not be fully applied. Check Proxies in System Settings → Network.`
   String get systemProxyApplyFailed {
     return Intl.message(

@@ -2426,6 +2426,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "Set the system HTTP proxy",
     ),
+    "systemProxyRestoreFailed": MessageLookupByLibrary.simpleMessage(
+      "Some system proxy settings could not be restored. Retry or check Network settings.",
+    ),
     "tab": MessageLookupByLibrary.simpleMessage("Tab"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("Tab animation"),
     "tabAnimationDesc": MessageLookupByLibrary.simpleMessage(

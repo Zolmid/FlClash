@@ -575,6 +575,13 @@ void main() {
         .read(authorizedTunEnableProvider.notifier)
         .update((_) => TunAuthorizationState.authorized);
 
+    if (system.isDesktop) {
+      expect(container.read(proxyStateProvider).isStart, isFalse);
+      expect(container.read(shouldPatchSystemDnsProvider), isFalse);
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+      container.read(desktopListenersReadyProvider.notifier).setReady(true);
+    }
+
     final proxy = container.read(proxyStateProvider);
     expect(proxy.isStart, isTrue);
     expect(proxy.systemProxy, isFalse);
@@ -594,6 +601,14 @@ void main() {
     expect(vpn.bypassDomain, ['localhost']);
 
     expect(container.read(shouldPatchSystemDnsProvider), isTrue);
+
+    if (system.isDesktop) {
+      container.read(coreStatusProvider.notifier).value =
+          CoreStatus.disconnected;
+      expect(container.read(proxyStateProvider).isStart, isFalse);
+      expect(container.read(shouldPatchSystemDnsProvider), isFalse);
+      container.read(coreStatusProvider.notifier).value = CoreStatus.connected;
+    }
 
     container
         .read(networkSettingProvider.notifier)

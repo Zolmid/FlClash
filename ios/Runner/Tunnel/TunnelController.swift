@@ -95,6 +95,14 @@ final class TunnelController {
   @discardableResult
   func stop() async -> Bool { await coordinator.submitTunnelRequest(target: .stopped) }
 
+  func stopForRestart() async -> String? { await coordinator.stopForFlutterRestart() }
+
+  func startAfterStop(_ handle: String, state: Data) async -> String? {
+    await coordinator.startForFlutter(afterStop: handle) {
+      self.sharedStateStore.saveSharedState(state)
+    }
+  }
+
   func abandonStart(_ startHandle: String?) async -> StartAbandonment {
     await coordinator.abandonStart(startHandle)
   }

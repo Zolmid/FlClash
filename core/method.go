@@ -194,7 +194,7 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	getIsInitMethod:                      withoutArguments(handleGetIsInit),
 	forceGcMethod:                        acknowledged(handleForceGC),
 	shutdownMethod:                       withoutArguments(handleShutdown),
-	startListenerMethod:                  withoutArguments(handleStartListener),
+	startListenerMethod:                  fallibleWithoutArguments(handleStartListener),
 	stopListenerMethod:                   withoutArguments(handleStopListener),
 	getMemoryStatsMethod:                 withoutArguments(handleGetMemoryStats),
 	getMemoryMethod:                      withoutArguments(handleGetMemoryStats),

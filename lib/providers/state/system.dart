@@ -129,6 +129,9 @@ bool shouldPatchSystemDns(Ref ref) {
   final authorizationState = ref.watch(authorizedTunEnableProvider);
   return isStart &&
       tunEnable &&
+      (!system.isDesktop ||
+          (ref.watch(coreStatusProvider) == CoreStatus.connected &&
+              ref.watch(desktopListenersReadyProvider))) &&
       authorizationState == TunAuthorizationState.authorized;
 }
 
