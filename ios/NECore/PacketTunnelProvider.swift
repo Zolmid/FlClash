@@ -27,7 +27,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     sharedStateStore.clearRunTime()
     reloadWidgets()
-    guard let snapshot = sharedStateStore.loadVPNOptionsSnapshot() else {
+    guard let snapshot = sharedStateStore.loadStartSnapshot() else {
       logger.error("startTunnel failed: missing vpn options")
       completionHandler(PacketTunnelProviderError.missingVPNOptions)
       return
@@ -69,11 +69,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         "startTunnel fileDescriptor=\(tunnelFileDescriptor, privacy: .public)"
       )
       self.eventQueue.start()
-      let initParams = self.sharedStateStore.makeInitParams()
+      let initParams = self.sharedStateStore.makeInitParams(setupParams: snapshot.setup)
       Task {
         let setupParams: Data
         do {
-          setupParams = try await self.sharedStateStore.loadRuntimeSetupParams()
+          setupParams = try await self.sharedStateStore.loadRuntimeSetupParams(snapshot: snapshot)
         } catch {
           completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
           return

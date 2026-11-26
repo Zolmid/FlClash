@@ -35,6 +35,9 @@ final class SharedStateStore {
     guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
       return false
     }
+    if userDefaults.object(forKey: "extensionStartSnapshot") == nil {
+      commitStartSnapshot(userDefaults)
+    }
     let previousData = userDefaults.data(forKey: sharedStateKey)
     let previousControlDisplayState = controlDisplayState(from: previousData)
     let previousStatusDisplayState = statusDisplayState(from: previousData)
@@ -48,6 +51,7 @@ final class SharedStateStore {
       userDefaults.set(setupData, forKey: setupParamsKey)
     }
     userDefaults.set(data, forKey: sharedStateKey)
+    commitStartSnapshot(userDefaults)
     userDefaults.synchronize()
     if previousControlDisplayState != controlDisplayState(from: data),
       #available(iOS 18.0, *)
@@ -66,12 +70,31 @@ final class SharedStateStore {
 
   func saveOwnedDNSHandoff(_ data: Data) {
     let defaults = UserDefaults(suiteName: appGroupIdentifier)
+    if let defaults, defaults.object(forKey: "extensionStartSnapshot") == nil {
+      commitStartSnapshot(defaults)
+    }
+    guard let defaults else { return }
     guard let call = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-      let arguments = call["arguments"] as? [String: Any],
-      let lease = arguments["routing-lease"] as? [String: Any],
+      let arguments = call["arguments"] as? [String: Any]
+    else {
+      defaults.removeObject(forKey: "ownedDNSHandoff")
+      defaults.set(Data("null".utf8), forKey: "extensionStartSnapshot")
+      defaults.synchronize()
+      return
+    }
+    guard let lease = arguments["routing-lease"] as? [String: Any],
       let account = lease["accountId"] as? String, !account.isEmpty
     else {
-      defaults?.removeObject(forKey: "ownedDNSHandoff")
+      defaults.removeObject(forKey: "ownedDNSHandoff")
+      let staged = stagedSetup(defaults)
+      let acceptedLegacy = arguments["routing-lease"] == nil || arguments["routing-lease"] is NSNull
+      if acceptedLegacy, let staged,
+        staged["routing-lease"] == nil || staged["routing-lease"] is NSNull {
+        commitStartSnapshot(defaults)
+      } else {
+        defaults.set(Data("null".utf8), forKey: "extensionStartSnapshot")
+      }
+      defaults.synchronize()
       return
     }
     var ownedDNS = arguments["owned-dns"] as? [String: Any]
@@ -82,8 +105,66 @@ final class SharedStateStore {
       "owned-dns": ownedDNS ?? (NSNull() as Any),
     ]
     guard let encoded = try? JSONSerialization.data(withJSONObject: snapshot) else { return }
-    defaults?.set(encoded, forKey: "ownedDNSHandoff")
-    defaults?.synchronize()
+    defaults.set(encoded, forKey: "ownedDNSHandoff")
+    let staged = stagedSetup(defaults)
+    if let staged, ownerIdentity(staged["routing-lease"] as? [String: Any]) == ownerIdentity(lease) {
+      commitStartSnapshot(defaults)
+    } else {
+      defaults.set(Data("null".utf8), forKey: "extensionStartSnapshot")
+    }
+    defaults.synchronize()
+  }
+
+  private func stagedSetup(_ defaults: UserDefaults) -> [String: Any]? {
+    let embedded = sharedStateJSON(from: defaults.data(forKey: sharedStateKey))?[setupParamsKey] as? [String: Any]
+    guard let stored = sharedStateJSON(from: defaults.data(forKey: setupParamsKey)) else { return embedded }
+    if let embedded, !NSDictionary(dictionary: embedded).isEqual(to: stored) { return nil }
+    return stored
+  }
+
+  private func ownerIdentity(_ lease: [String: Any]?) -> NSDictionary {
+    NSDictionary(dictionary: ["accountId", "accountGeneration", "signedDeviceId", "signedIntent"]
+      .reduce(into: [String: Any]()) { $0[$1] = lease?[$1] ?? NSNull() })
+  }
+
+  private func commitStartSnapshot(_ defaults: UserDefaults) {
+    func object(_ key: String) -> [String: Any]? {
+      sharedStateJSON(from: defaults.data(forKey: key))
+    }
+    guard let setup = stagedSetup(defaults) else { return }
+    let lease = setup["routing-lease"] as? [String: Any]
+    let previous = object("extensionStartSnapshot")
+    let oldSetup = previous?["setupParams"] as? [String: Any]
+    let oldLease = oldSetup?["routing-lease"] as? [String: Any]
+    let sameOwner = ownerIdentity(lease) == ownerIdentity(oldLease)
+    if !sameOwner || (lease != nil && (lease?["accountId"] as? String ?? "").isEmpty) {
+      defaults.set(Data("null".utf8), forKey: "extensionStartSnapshot")
+      let dnsLease = object("ownedDNSHandoff")?["routing-lease"] as? [String: Any]
+      if lease == nil || (lease?["accountId"] as? String ?? "").isEmpty
+        || ownerIdentity(lease) != ownerIdentity(dnsLease) {
+        defaults.removeObject(forKey: "ownedDNSHandoff")
+      }
+    }
+    guard lease == nil || !(lease?["accountId"] as? String ?? "").isEmpty,
+      let options = object(sharedStateKey)?["vpnOptions"] as? [String: Any],
+      options["port"] is Int, options["ipv6"] is Bool,
+      options["systemProxy"] is Bool, options["stack"] is String,
+      (options["captureDns"] is Bool || options["dnsHijacking"] is Bool)
+    else { return }
+    let dns = object("ownedDNSHandoff")
+    if lease != nil {
+      guard let dns,
+        NSDictionary(dictionary: ["lease": lease!, "base": setup["base"] ?? NSNull()])
+          == NSDictionary(dictionary: ["lease": dns["routing-lease"] ?? NSNull(), "base": dns["base"] ?? NSNull()])
+      else { return }
+    }
+    var cleanSetup = setup
+    if !(cleanSetup["owned-dns"] is NSNull) { cleanSetup.removeValue(forKey: "owned-dns") }
+    let snapshot: [String: Any] = ["vpnOptions": options, "setupParams": cleanSetup,
+      "ownedDNSHandoff": dns ?? [:]]
+    if let data = try? JSONSerialization.data(withJSONObject: snapshot) {
+      defaults.set(data, forKey: "extensionStartSnapshot")
+    }
   }
 
   private func sharedStateJSON(from data: Data?) -> [String: Any]? {

@@ -13,17 +13,13 @@ enum PacketTunnelEnvironment {
 }
 
 final class PacketTunnelSharedStateStore {
-  private static let emptySetupParams = Data("{}".utf8)
-
   typealias AuthorizationSource = () async throws -> ClientBundleAuthorization
   private let injectedDefaults: UserDefaults?
   private let authorizationSource: AuthorizationSource
-  private let now: () -> Date
 
-  init(defaults: UserDefaults? = nil, now: @escaping () -> Date = Date.init,
+  init(defaults: UserDefaults? = nil,
     authorization: AuthorizationSource? = nil) {
     injectedDefaults = defaults
-    self.now = now
     authorizationSource = authorization ?? Self.loadAuthorization
   }
 
@@ -56,64 +52,87 @@ final class PacketTunnelSharedStateStore {
     userDefaults?.bool(forKey: "safeMode") ?? false
   }
 
-  func loadVPNOptionsSnapshot() -> (options: PacketTunnelVPNOptions, data: Data)? {
-    guard let sharedData = userDefaults?.data(forKey: sharedStateKey),
-      let shared = try? JSONSerialization.jsonObject(with: sharedData) as? [String: Any],
-      let rawOptions = shared["vpnOptions"] as? [String: Any],
-      let data = try? JSONSerialization.data(withJSONObject: rawOptions),
-      let options = try? JSONDecoder().decode(PacketTunnelVPNOptions.self, from: data)
-    else {
-      return nil
-    }
-    return (options, data)
+  struct StartSnapshot {
+    let options: PacketTunnelVPNOptions
+    let data: Data
+    let setup: Data
+    let handoff: [String: Any]
   }
 
-  func loadSetupParams() -> Data {
-    guard let userDefaults else {
-      return Self.emptySetupParams
+  func loadStartSnapshot() -> StartSnapshot? {
+    guard let defaults = userDefaults else { return nil }
+    let object: [String: Any]?
+    if let data = defaults.data(forKey: "extensionStartSnapshot") {
+      object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    } else {
+      // Only pre-snapshot installs may migrate; a tombstone never falls back.
+      guard let sharedData = defaults.data(forKey: sharedStateKey),
+        let shared = try? JSONSerialization.jsonObject(with: sharedData) as? [String: Any],
+        let setup = defaults.data(forKey: setupParamsKey).flatMap({
+          try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+        }) ?? shared["setupParams"] as? [String: Any]
+      else { return nil }
+      if let embedded = shared["setupParams"] as? [String: Any],
+        !NSDictionary(dictionary: embedded).isEqual(to: setup) { return nil }
+      let handoff = defaults.data(forKey: "ownedDNSHandoff").flatMap {
+        try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+      } ?? [:]
+      if setup["routing-lease"] != nil && !(setup["routing-lease"] is NSNull) {
+        guard NSDictionary(dictionary: ["lease": setup["routing-lease"]!, "base": setup["base"] ?? NSNull()])
+          == NSDictionary(dictionary: ["lease": handoff["routing-lease"] ?? NSNull(), "base": handoff["base"] ?? NSNull()])
+        else { return nil }
+      }
+      object = ["vpnOptions": shared["vpnOptions"] ?? NSNull(), "setupParams": setup,
+        "ownedDNSHandoff": handoff]
     }
-    if let data = userDefaults.data(forKey: setupParamsKey) {
-      return data
-    }
-    guard let sharedStateData = userDefaults.data(forKey: sharedStateKey),
-      let json = try? JSONSerialization.jsonObject(with: sharedStateData)
-        as? [String: Any],
-      let setupParams = json[setupParamsKey],
-      !(setupParams is NSNull),
-      JSONSerialization.isValidJSONObject(setupParams),
-      let data = try? JSONSerialization.data(withJSONObject: setupParams)
-    else {
-      return Self.emptySetupParams
-    }
-    userDefaults.set(data, forKey: setupParamsKey)
-    return data
+    guard let object, let raw = object["vpnOptions"] as? [String: Any],
+      let data = try? JSONSerialization.data(withJSONObject: raw),
+      let options = try? JSONDecoder().decode(PacketTunnelVPNOptions.self, from: data),
+      let setup = object["setupParams"] as? [String: Any],
+      let setupData = try? JSONSerialization.data(withJSONObject: setup),
+      let handoff = object["ownedDNSHandoff"] as? [String: Any]
+    else { return nil }
+    return StartSnapshot(options: options, data: data, setup: setupData, handoff: handoff)
   }
 
   func loadRuntimeSetupParams() async throws -> Data {
-    let data = loadSetupParams()
-    guard var setup = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-      throw ClientBundleCoreError.unavailable
+    guard let snapshot = loadStartSnapshot() else { throw ClientBundleCoreError.unavailable }
+    return try await loadRuntimeSetupParams(snapshot: snapshot)
+  }
+
+  private func isCurrentOwner(of setup: [String: Any]) -> Bool {
+    guard let current = loadStartSnapshot(),
+      let currentSetup = try? JSONSerialization.jsonObject(with: current.setup) as? [String: Any]
+    else { return false }
+    let lease = setup["routing-lease"] as? [String: Any]
+    let currentLease = currentSetup["routing-lease"] as? [String: Any]
+    return ["accountId", "accountGeneration", "signedDeviceId", "signedIntent"].allSatisfy {
+      NSDictionary(dictionary: ["value": lease?[$0] ?? NSNull()])
+        == NSDictionary(dictionary: ["value": currentLease?[$0] ?? NSNull()])
     }
-    guard let lease = setup["routing-lease"] as? [String: Any] else { return data }
-    if lease["signedDeviceId"] != nil {
-      guard let expires = lease["expiresAt"] as? NSNumber,
-        expires.doubleValue > now().timeIntervalSince1970 * 1000 else {
-        throw ClientBundleCoreError.unavailable
-      }
-    }
-    guard let snapshotData = userDefaults?.data(forKey: "ownedDNSHandoff"),
-      let snapshot = try JSONSerialization.jsonObject(with: snapshotData) as? [String: Any],
-      NSDictionary(dictionary: ["lease": setup["routing-lease"] ?? NSNull(), "base": setup["base"] ?? NSNull()])
-        == NSDictionary(dictionary: ["lease": snapshot["routing-lease"] ?? NSNull(), "base": snapshot["base"] ?? NSNull()])
+  }
+
+  func loadRuntimeSetupParams(snapshot: StartSnapshot) async throws -> Data {
+    let data = snapshot.setup
+    guard var setup = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+      isCurrentOwner(of: setup)
     else { throw ClientBundleCoreError.unavailable }
-    if snapshot["owned-dns"] is NSNull { return data }
-    guard var ownedDNS = snapshot["owned-dns"] as? [String: Any],
+    guard let lease = setup["routing-lease"] as? [String: Any] else { return data }
+    // Core reprojects the durable signed store; this lease expiry is only a past projection.
+    guard NSDictionary(dictionary: ["lease": lease, "base": setup["base"] ?? NSNull()])
+      == NSDictionary(dictionary: ["lease": snapshot.handoff["routing-lease"] ?? NSNull(),
+        "base": snapshot.handoff["base"] ?? NSNull()])
+    else { throw ClientBundleCoreError.unavailable }
+    if snapshot.handoff["owned-dns"] is NSNull { return data }
+    guard var ownedDNS = snapshot.handoff["owned-dns"] as? [String: Any],
       ownedDNS["strict"] as? Bool == true
     else { throw ClientBundleCoreError.unavailable }
     let credentials = try await authorizationSource()
+    guard isCurrentOwner(of: setup) else { throw ClientBundleCoreError.staleOwner }
     guard lease["accountId"] as? String == credentials.accountID,
-      (lease["signedDeviceId"] as? String).map({ $0 == credentials.device?.deviceID }) ?? true,
-      credentials.value.hasPrefix("Bearer "), credentials.value.utf8.count > 7,
+      (lease["signedDeviceId"] as? String).map({ $0 == credentials.device?.deviceID }) ?? true
+    else { throw ClientBundleCoreError.staleOwner }
+    guard credentials.value.hasPrefix("Bearer "), credentials.value.utf8.count > 7,
       credentials.value.utf8.count <= 16384,
       !credentials.value.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 })
     else { throw ClientBundleCoreError.staleOwner }
@@ -122,10 +141,10 @@ final class PacketTunnelSharedStateStore {
     return try JSONSerialization.data(withJSONObject: setup)
   }
 
-  func makeInitParams() -> String {
+  func makeInitParams(setupParams: Data) -> String {
     let homeDirectory = appGroupDirectory()?.path ?? ""
     var params: [String: Any] = ["home-dir": homeDirectory, "version": 0]
-    if let setup = try? JSONSerialization.jsonObject(with: loadSetupParams()) as? [String: Any],
+    if let setup = try? JSONSerialization.jsonObject(with: setupParams) as? [String: Any],
       setup["routing-observation"] as? Bool == true
     {
       params["routing-observation"] = true
