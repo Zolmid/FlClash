@@ -28,6 +28,27 @@ import '../helpers/app_paths.dart';
 
 const _channel = MethodChannel('tray');
 
+class _RecordingProxiesAction extends ProxiesAction {
+  List<Group>? testedGroups;
+  (String, String)? selection;
+
+  @override
+  void build() {}
+
+  @override
+  Future<void> delayTestGroups(List<Group> groups) async {
+    testedGroups = groups;
+  }
+
+  @override
+  Future<void> changeProxy({
+    required String groupName,
+    required String proxyName,
+  }) async {
+    selection = (groupName, proxyName);
+  }
+}
+
 const _proxyGroup = Group(
   name: 'Proxy',
   type: GroupType.Selector,
@@ -119,7 +140,10 @@ void main() {
     calls = [];
     tray = AppTray.forPlatform(isMacOS: true, isWindows: false);
     container = ProviderContainer(
-      overrides: [profilesProvider.overrideWith(TestProfiles.new)],
+      overrides: [
+        profilesProvider.overrideWith(TestProfiles.new),
+        proxiesActionProvider.overrideWith(_RecordingProxiesAction.new),
+      ],
     );
     Tray.instance.resetForTesting();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -285,6 +309,85 @@ void main() {
     expect(submenu['label'], 'Proxy');
     final children = (submenu['items'] as List).cast<Map<Object?, Object?>>();
     expect(children.map((item) => item['label']), contains('A'));
+  });
+
+  test('managed macOS menu hides the entire internal group tree', () async {
+    final managed = Profile.normal(
+      label: 'ZolNit',
+    ).copyWith(zolnitAccountId: 'account', zolnitBundleId: 'bundle');
+    final ordinary = Profile.normal(label: 'Other');
+    container.read(profilesProvider.notifier).put(managed);
+    container.read(profilesProvider.notifier).put(ordinary);
+    container.read(currentProfileIdProvider.notifier).value = managed.id;
+    const groups = [
+      Group(
+        name: 'zn.group.hash',
+        type: GroupType.Selector,
+        now: 'zn.service.ai',
+        all: [
+          Proxy(name: 'zn.service.ai', type: 'Selector'),
+          Proxy(name: 'zn.node.vless.7', type: 'Vless'),
+          Proxy(name: 'REJECT', type: 'Reject'),
+        ],
+      ),
+      Group(
+        name: 'zn.service.ai',
+        type: GroupType.Selector,
+        now: 'zn.service.ai.auto',
+        all: [Proxy(name: 'zn.service.ai.auto', type: 'Selector')],
+      ),
+    ];
+    await update(_trayState(isStart: true, groups: groups));
+    final serialized = jsonEncode(_items(showCall()));
+    expect(serialized, isNot(contains('zn.group.')));
+    expect(serialized, isNot(contains('zn.service.')));
+    expect(serialized, isNot(contains('zn.node.')));
+    expect(serialized, isNot(contains('REJECT')));
+    expect(_labels(showCall()), contains(HotAction.delayTest.label));
+    expect(_labels(showCall()), contains(currentAppLocalizations.tun));
+
+    final delayAction = _item(showCall(), HotAction.delayTest.label);
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          _channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('onMenuItemSelected', {'id': delayAction['id']}),
+          ),
+          (_) {},
+        );
+    final proxyActions =
+        container.read(proxiesActionProvider.notifier)
+            as _RecordingProxiesAction;
+    expect(proxyActions.testedGroups, groups);
+
+    final profileMenu = _item(showCall(), currentAppLocalizations.profile);
+    final choices = (profileMenu['items'] as List).cast<Map>();
+    final other = choices.singleWhere((item) => item['label'] == 'Other');
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          _channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('onMenuItemSelected', {'id': other['id']}),
+          ),
+          (_) {},
+        );
+    expect(container.read(currentProfileIdProvider), ordinary.id);
+
+    await update(_trayState(groups: groups));
+    expect(_item(showCall(), 'zn.group.hash')['sublabel'], 'zn.service.ai');
+    final children = (_item(showCall(), 'zn.group.hash')['items'] as List)
+        .cast<Map>();
+    expect(children.map((item) => item['label']), contains('REJECT'));
+    final reject = children.singleWhere((item) => item['label'] == 'REJECT');
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          _channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('onMenuItemSelected', {'id': reject['id']}),
+          ),
+          (_) {},
+        );
+    expect(proxyActions.selection, ('zn.group.hash', 'REJECT'));
   });
 
   test('shows each bound hotkey dimmed beside its entry', () async {

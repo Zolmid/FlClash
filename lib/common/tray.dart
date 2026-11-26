@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/providers/zolnit_bundle.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:tray/tray.dart';
@@ -391,14 +392,18 @@ class AppTray implements TrayPort {
         !read(appSettingProvider).showTrayProxySelection) {
       return const [];
     }
-    final delays = _TrayDelaySnapshot(read);
+    final profile = isMacOS ? read(currentProfileProvider) : null;
+    final visibleGroups = profile != null && isZolnitBundleProfile(profile)
+        ? const <Group>[]
+        : trayState.groups;
+    late final delays = _TrayDelaySnapshot(read);
     final selectedNames = {
-      for (final group in trayState.groups)
+      for (final group in visibleGroups)
         group.name: delays.selectedNameFor(group),
     };
     final proxiesAction = read(proxiesActionProvider.notifier);
     return [
-      for (final group in trayState.groups)
+      for (final group in visibleGroups)
         TrayMenuSubmenu(
           key: 'group:${Uri.encodeComponent(group.name)}',
           label: group.name,
