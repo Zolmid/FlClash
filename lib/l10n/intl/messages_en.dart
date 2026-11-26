@@ -1309,9 +1309,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Enter the rule content",
     ),
-    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
-      "The app list permission was denied, so installed apps cannot be listed. Please grant it manually in system settings.",
-    ),
+    "installedAppsPermissionDeniedMessage":
+        MessageLookupByLibrary.simpleMessage(
+          "The app list permission was denied, so installed apps cannot be listed. Please grant it manually in system settings.",
+        ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "This system hides the installed app list until the permission is granted. Authorize it to configure the per-app proxy.",
     ),
@@ -3167,7 +3168,7 @@ class MessageLookup extends MessageLookupByLibrary {
           "The registration page could not open. Please try again.",
         ),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "Your account was created, but automatic sign-in expired. You can now sign in.",
+      "Your account was created, but automatic sign-in could not be confirmed. Please sign in with your new account.",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "Register on the website in the app. You’ll be signed in automatically when you finish.",

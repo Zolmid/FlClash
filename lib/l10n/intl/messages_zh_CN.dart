@@ -2372,7 +2372,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRegistrationBrowserUnavailable":
         MessageLookupByLibrary.simpleMessage("无法打开注册页，请重试。"),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "账号已创建，但自动登录链接已失效。请使用新账号登录。",
+      "账号已创建，但无法确认自动登录结果。请使用新账号登录。",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "在应用内完成官网注册后，将自动登录 ZolNit。",

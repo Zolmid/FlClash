@@ -10,7 +10,7 @@
   "zolnitPaymentCancelled": "已取消付款。请查看订单状态，或重新选择付款方式。",
   "zolnitSettlementTotal": "结算金额",
   "zolnitRegistrationBrowserUnavailable": "无法打开注册页，请重试。",
-  "zolnitRegistrationReturnExpired": "账号已创建，但自动登录链接已失效。请使用新账号登录。",
+  "zolnitRegistrationReturnExpired": "账号已创建，但无法确认自动登录结果。请使用新账号登录。",
   "rule": "规则",
   "rules": "规则",
   "global": "全局",

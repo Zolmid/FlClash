@@ -1412,9 +1412,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Saisissez le contenu de la règle",
     ),
-    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
-      "L’autorisation de la liste des apps a été refusée ; les apps installées ne peuvent donc pas être listées. Veuillez l’accorder manuellement dans les réglages du système.",
-    ),
+    "installedAppsPermissionDeniedMessage":
+        MessageLookupByLibrary.simpleMessage(
+          "L’autorisation de la liste des apps a été refusée ; les apps installées ne peuvent donc pas être listées. Veuillez l’accorder manuellement dans les réglages du système.",
+        ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "Ce système masque la liste des apps installées tant que l’autorisation n’est pas accordée. Accordez-la pour configurer le proxy par app.",
     ),
@@ -3448,7 +3449,7 @@ class MessageLookup extends MessageLookupByLibrary {
           "Impossible d’ouvrir la page d’inscription. Réessayez.",
         ),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "Votre compte a été créé, mais le lien de connexion automatique a expiré. Vous pouvez vous connecter.",
+      "Votre compte a été créé, mais la connexion automatique n’a pas pu être confirmée. Connectez-vous avec votre nouveau compte.",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "Inscrivez-vous sur le site depuis l’application. Vous serez ensuite connecté automatiquement.",

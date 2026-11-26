@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'owned_dns.dart';
+import 'request_failure.dart';
 
 import 'dart:io';
 import 'dart:typed_data' show BytesBuilder;
@@ -203,7 +204,7 @@ class AndroidFirstPartyClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     _ensureOpen();
-    if (_pending.length >= 32) throw StateError('Too many pending requests');
+    if (_pending.length >= 32) throw const RequestNotSent();
     if (!_allowedMethods.contains(request.method) ||
         request.url.scheme != 'https' ||
         request.url.host != 'link.zolmid.com' ||

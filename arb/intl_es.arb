@@ -10,7 +10,7 @@
   "zolnitPaymentCancelled": "El pago se canceló. Comprueba el estado del pedido o vuelve a elegir un método de pago.",
   "zolnitSettlementTotal": "Importe del cargo",
   "zolnitRegistrationBrowserUnavailable": "No se pudo abrir la página de registro. Inténtalo de nuevo.",
-  "zolnitRegistrationReturnExpired": "Tu cuenta se ha creado, pero el enlace de acceso automático ha caducado. Ya puedes iniciar sesión.",
+  "zolnitRegistrationReturnExpired": "Tu cuenta se ha creado, pero no se pudo confirmar el acceso automático. Inicia sesión con tu nueva cuenta.",
   "rule": "Regla",
   "rules": "Reglas",
   "global": "Global",

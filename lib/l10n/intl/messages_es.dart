@@ -1402,9 +1402,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Introduce el contenido de la regla",
     ),
-    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
-      "Se denegó el permiso de lista de apps, por lo que no se pueden mostrar las apps instaladas. Concédelo manualmente en los ajustes del sistema.",
-    ),
+    "installedAppsPermissionDeniedMessage":
+        MessageLookupByLibrary.simpleMessage(
+          "Se denegó el permiso de lista de apps, por lo que no se pueden mostrar las apps instaladas. Concédelo manualmente en los ajustes del sistema.",
+        ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "Este sistema oculta la lista de apps instaladas hasta que se concede el permiso. Autorízalo para configurar el proxy por app.",
     ),
@@ -3442,7 +3443,7 @@ class MessageLookup extends MessageLookupByLibrary {
           "No se pudo abrir la página de registro. Inténtalo de nuevo.",
         ),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "Tu cuenta se ha creado, pero el enlace de acceso automático ha caducado. Ya puedes iniciar sesión.",
+      "Tu cuenta se ha creado, pero no se pudo confirmar el acceso automático. Inicia sesión con tu nueva cuenta.",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "Regístrate en el sitio web desde la aplicación. Al terminar, se iniciará sesión automáticamente.",

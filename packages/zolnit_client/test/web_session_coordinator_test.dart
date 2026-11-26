@@ -51,6 +51,85 @@ class TestBrowser implements ZolnitWebSessionBrowser {
 }
 
 void main() {
+  test('different destinations open separately in request order', () async {
+    final api = XboardClient(
+      origin: Uri.parse(zolnitWebOrigin),
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'data': {'code': code},
+          }),
+          200,
+        ),
+      ),
+    )..setAuthorization('Bearer current');
+    final session = TestSession(api, true);
+    final browser = TestBrowser()
+      ..openResult = Completer<bool>()
+      ..openStarted = Completer<void>();
+    final controller = ZolnitWebSessionCoordinator(
+      session: session,
+      browser: browser,
+      fallback: (_) async => false,
+    );
+    final first = controller.open(Uri.parse('$zolnitWebOrigin/#/dashboard'));
+    await browser.openStarted!.future;
+    final second = controller.open(
+      Uri.parse('$zolnitWebOrigin/theme/ZolNit/downloads.html'),
+    );
+    browser.openStarted = null;
+    browser.openResult!.complete(true);
+    expect(await first, isTrue);
+    expect(await second, isTrue);
+    expect(browser.opens, 2);
+    expect(browser.destination, '/theme/ZolNit/downloads.html');
+    controller.dispose();
+    session.dispose();
+    api.close();
+  });
+
+  test('account switch cancels a queued destination', () async {
+    final response = Completer<http.Response>();
+    final started = Completer<void>();
+    var calls = 0;
+    final api = XboardClient(
+      origin: Uri.parse(zolnitWebOrigin),
+      client: MockClient((_) {
+        calls++;
+        started.complete();
+        return response.future;
+      }),
+    )..setAuthorization('Bearer current');
+    final session = TestSession(api, true);
+    final browser = TestBrowser();
+    final coordinator = ZolnitWebSessionCoordinator(
+      session: session,
+      browser: browser,
+      fallback: (_) async => true,
+    );
+    final first = coordinator.open(Uri.parse('$zolnitWebOrigin/'));
+    await started.future;
+    final second = coordinator.open(
+      Uri.parse('$zolnitWebOrigin/theme/ZolNit/downloads.html'),
+    );
+    session.switchAccount();
+    response.complete(
+      http.Response(
+        jsonEncode({
+          'data': {'code': code},
+        }),
+        200,
+      ),
+    );
+    expect(await first, isFalse);
+    expect(await second, isFalse);
+    expect(calls, 1);
+    expect(browser.opens, 0);
+    coordinator.dispose();
+    session.dispose();
+    api.close();
+  });
+
   test('opens a grant for the canonical first party destination', () async {
     var calls = 0;
     final api = XboardClient(

@@ -2676,7 +2676,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRegistrationBrowserUnavailable":
         MessageLookupByLibrary.simpleMessage("登録ページを開けませんでした。再度お試しください。"),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "アカウントは作成されましたが、自動ログインの期限が切れました。新しいアカウントでログインしてください。",
+      "アカウントは作成されましたが、自動ログインの結果を確認できません。新しいアカウントでログインしてください。",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "アプリ内の公式サイトで登録を完了すると、自動的にログインします。",

@@ -34,7 +34,8 @@ class ZolnitWebSessionCoordinator {
   int _accountGeneration;
   int _epoch = 0;
   bool _disposed = false;
-  Future<bool>? _flight;
+  final Map<Uri, Future<bool>> _flights = {};
+  Future<void> _queue = Future.value();
   bool _browserActive = false;
   Future<void>? _closing;
 
@@ -59,17 +60,23 @@ class ZolnitWebSessionCoordinator {
     _generation = session.api.generation;
     _accountGeneration = session.accountGeneration;
     _epoch++;
+    _flights.clear();
     unawaited(_closeBrowser().catchError((Object _) {}));
   }
 
   Future<bool> open(Uri target) {
     if (_disposed) return Future.value(false);
-    final pending = _flight;
+    final pending = _flights[target];
     if (pending != null) return pending;
-    final operation = _open(target);
-    _flight = operation;
+    final epoch = _epoch;
+    final operation = _queue.then<bool>((_) {
+      if (_disposed || epoch != _epoch) return Future.value(false);
+      return _open(target);
+    });
+    _queue = operation.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    _flights[target] = operation;
     return operation.whenComplete(() {
-      if (identical(_flight, operation)) _flight = null;
+      if (identical(_flights[target], operation)) _flights.remove(target);
     });
   }
 
@@ -122,6 +129,7 @@ class ZolnitWebSessionCoordinator {
 
   void cancel() {
     _epoch++;
+    _flights.clear();
     unawaited(_closeBrowser().catchError((Object _) {}));
   }
 

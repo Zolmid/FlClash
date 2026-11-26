@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:zolnit_client/src/http_client_io.dart';
 import 'package:zolnit_client/src/owned_dns.dart';
+import 'package:zolnit_client/src/request_failure.dart';
 
 class _AmbientProxyOverrides extends HttpOverrides {
   var clients = 0;
@@ -20,6 +21,33 @@ class _AmbientProxyOverrides extends HttpOverrides {
 }
 
 void main() {
+  test('Android queue saturation rejects before native dispatch', () async {
+    final pending = <Completer<Object?>>[];
+    final client = AndroidFirstPartyClient(
+      nativeRequest: (method, _) {
+        if (method == 'cancelFirstPartyHttpRequest') return Future.value();
+        final item = Completer<Object?>();
+        pending.add(item);
+        return item.future;
+      },
+      fallback: MockClient((_) async => http.Response('{}', 200)),
+    );
+    final uri = Uri.parse('https://link.zolmid.com/api/v1/user/info');
+    final requests = List.generate(32, (_) => client.get(uri));
+    await Future<void>.delayed(Duration.zero);
+    await expectLater(client.get(uri), throwsA(isA<RequestNotSent>()));
+    expect(pending, hasLength(32));
+    for (final item in pending) {
+      item.complete({
+        'status': 200,
+        'headers': <String, String>{},
+        'body': Uint8List(0),
+      });
+    }
+    await Future.wait(requests);
+    client.close();
+  });
+
   test('bootstrap outage is a network failure, not malformed HTTP', () async {
     await expectLater(
       bootstrapZolnitOrigin(

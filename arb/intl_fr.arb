@@ -10,7 +10,7 @@
   "zolnitPaymentCancelled": "Le paiement a été annulé. Vérifiez l’état de la commande ou choisissez à nouveau un moyen de paiement.",
   "zolnitSettlementTotal": "Montant débité",
   "zolnitRegistrationBrowserUnavailable": "Impossible d’ouvrir la page d’inscription. Réessayez.",
-  "zolnitRegistrationReturnExpired": "Votre compte a été créé, mais le lien de connexion automatique a expiré. Vous pouvez vous connecter.",
+  "zolnitRegistrationReturnExpired": "Votre compte a été créé, mais la connexion automatique n’a pas pu être confirmée. Connectez-vous avec votre nouveau compte.",
   "rule": "Règle",
   "rules": "Règles",
   "global": "Global",

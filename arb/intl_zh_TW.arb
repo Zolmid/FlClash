@@ -10,7 +10,7 @@
   "zolnitPaymentCancelled": "已取消付款。請查看訂單狀態，或重新選擇付款方式。",
   "zolnitSettlementTotal": "結算金額",
   "zolnitRegistrationBrowserUnavailable": "無法開啟註冊頁，請重試。",
-  "zolnitRegistrationReturnExpired": "帳號已建立，但自動登入連結已失效。請使用新帳號登入。",
+  "zolnitRegistrationReturnExpired": "帳號已建立，但無法確認自動登入結果。請使用新帳號登入。",
   "rule": "規則",
   "rules": "規則",
   "global": "全域",

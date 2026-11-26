@@ -385,8 +385,18 @@ class _TicketThread extends StatefulWidget {
 class _TicketThreadState extends State<_TicketThread> {
   int get _generation => widget.generation;
   late Future<ZolnitTicketThread> _thread = _load();
+  bool _retrying = false;
   Future<ZolnitTicketThread> _load() =>
       ZolnitSupportClient(widget.session.api).thread(widget.ticket.id);
+
+  void _retry() {
+    if (_retrying ||
+        !widget.session.authenticated ||
+        widget.session.api.generation != _generation)
+      return;
+    _retrying = true;
+    setState(() => _thread = _load().whenComplete(() => _retrying = false));
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -406,7 +416,16 @@ class _TicketThreadState extends State<_TicketThread> {
             final thread = snapshot.data;
             if (snapshot.hasError) {
               return Center(
-                child: Text(context.appLocalizations.zolnitFailure),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(context.appLocalizations.zolnitFailure),
+                    TextButton(
+                      onPressed: _retry,
+                      child: Text(context.appLocalizations.retry),
+                    ),
+                  ],
+                ),
               );
             }
             if (thread == null) {

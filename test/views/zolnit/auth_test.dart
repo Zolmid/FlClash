@@ -10,6 +10,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
+import 'package:zolnit_client/zolnit_client.dart';
 
 import 'harness.dart';
 
@@ -237,6 +238,174 @@ void main() {
       ),
       isFalse,
     );
+    coordinator.dispose();
+  });
+
+  test('registration distinguishes unsent from an ambiguous exchange', () async {
+    await harness.session.logout();
+    var attempts = 0;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-registration/exchange')) {
+        attempts++;
+        if (attempts <= 2) throw const ClientFailure('request_not_sent');
+        throw const ClientFailure('network');
+      }
+      return zolnitPanelFixture(request);
+    };
+    final store = _RegistrationAttemptStore();
+    final browser = _RegistrationBrowser();
+    final coordinator = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: browser,
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    final registration = await coordinator.begin();
+    final state = Uri.parse(
+      'https://link.zolmid.com${registration.fragment}',
+    ).queryParameters['sso_state'];
+    final callback = Uri.parse(
+      'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+    );
+    expect(await coordinator.accept(callback), isFalse);
+    expect(store.value, isNotNull);
+    expect(await coordinator.accept(callback), isFalse);
+    expect(store.value, isNull);
+    expect(harness.session.failure, 'registration_return_expired');
+    expect(await coordinator.accept(callback), isFalse);
+    expect(attempts, 3);
+    coordinator.dispose();
+  });
+
+  test('interrupted registration exchange requires account sign-in', () async {
+    await harness.session.logout();
+    final store = _RegistrationAttemptStore();
+    final first = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    await first.begin();
+    store.value = store.value!.withExchangeStarted();
+    first.dispose();
+    final restored = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+    );
+    await restored.restore();
+    expect(store.value, isNull);
+    expect(harness.session.failure, 'registration_return_expired');
+    restored.dispose();
+  });
+
+  test('expired registration state cannot be exchanged', () async {
+    await harness.session.logout();
+    final store = _RegistrationAttemptStore();
+    final first = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    final registration = await first.begin();
+    final original = store.value!;
+    store.value = ZolnitRegistrationAttempt(
+      registration: original.registration,
+      state: original.state,
+      verifier: original.verifier,
+      expiresAt: DateTime.now().subtract(const Duration(seconds: 1)),
+    );
+    first.dispose();
+    final restored = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+    );
+    final state = Uri.parse(
+      'https://link.zolmid.com${registration.fragment}',
+    ).queryParameters['sso_state'];
+    final callback = Uri.parse(
+      'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+    );
+    harness.requests.clear();
+    expect(await restored.accept(callback), isFalse);
+    expect(store.value, isNull);
+    expect(
+      harness.requests.where(
+        (r) => r.url.path.endsWith('/zolnit-registration/exchange'),
+      ),
+      isEmpty,
+    );
+    restored.dispose();
+  });
+
+  test('registration retries a proven unsent exchange once', () async {
+    await harness.session.logout();
+    var calls = 0;
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-registration/exchange')) {
+        calls++;
+        if (calls == 1) throw const ClientFailure('request_not_sent');
+        return zolnitJson({'auth_data': 'Bearer exchanged'});
+      }
+      return zolnitPanelFixture(request);
+    };
+    final store = _RegistrationAttemptStore();
+    final coordinator = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    final registration = await coordinator.begin();
+    final state = Uri.parse(
+      'https://link.zolmid.com${registration.fragment}',
+    ).queryParameters['sso_state'];
+    final callback = Uri.parse(
+      'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+    );
+    expect(await coordinator.accept(callback), isTrue);
+    expect(calls, 2);
+    expect(store.value, isNull);
+    coordinator.dispose();
+  });
+
+  test('late registration response cannot sign in after logout', () async {
+    await harness.session.logout();
+    final response = Completer<http.Response>();
+    final started = Completer<void>();
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/zolnit-registration/exchange')) {
+        started.complete();
+        return response.future;
+      }
+      return zolnitPanelFixture(request);
+    };
+    final store = _RegistrationAttemptStore();
+    final coordinator = ZolnitRegistrationCoordinator(
+      session: harness.session,
+      browser: _RegistrationBrowser(),
+      store: store,
+      randomBytes: (length) => List<int>.filled(length, 0),
+    );
+    final registration = await coordinator.begin();
+    final state = Uri.parse(
+      'https://link.zolmid.com${registration.fragment}',
+    ).queryParameters['sso_state'];
+    final callback = Uri.parse(
+      'zolnit://auth/register#code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&state=$state',
+    );
+    final pending = coordinator.accept(callback);
+    await started.future;
+    await coordinator.cancel(registration);
+    expect(store.value?.exchangeStarted, isTrue);
+    await harness.session.logout();
+    response.complete(zolnitJson({'auth_data': 'Bearer exchanged'}));
+    expect(await pending, isFalse);
+    expect(harness.session.authenticated, isFalse);
+    expect(store.value, isNull);
     coordinator.dispose();
   });
 

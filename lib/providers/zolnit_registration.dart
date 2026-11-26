@@ -155,11 +155,26 @@ class ZolnitRegistrationCoordinator extends ChangeNotifier {
       }
       return;
     }
+    if (attempt.exchangeStarted) {
+      try {
+        await _storage(store.clear());
+        if (!_disposed && session.accountGeneration == generation) {
+          session.reportSignInFailure('registration_return_expired');
+        }
+      } catch (_) {
+        session.reportSignInFailure('storage_unavailable');
+      }
+      return;
+    }
     _setActive(attempt);
   }
 
   Future<bool> start() async {
-    if (_opening || _disposed || session.authenticated) return false;
+    if (_opening ||
+        _disposed ||
+        session.authenticated ||
+        (_active != null && _active!.state == _claimedState))
+      return false;
     _opening = true;
     try {
       if (_active != null) {
@@ -210,13 +225,79 @@ class ZolnitRegistrationCoordinator extends ChangeNotifier {
       return false;
     }
     _claimedState = result.state;
-    await _clearActive();
-    if (_disposed ||
-        session.authenticated ||
-        session.accountGeneration != _accountGeneration) {
+    try {
+      await _storage(store.write(attempt.withExchangeStarted()));
+    } catch (_) {
+      _claimedState = null;
+      session.reportSignInFailure('storage_unavailable');
       return false;
     }
-    await session.exchangeRegistration(result.code, attempt.verifier);
+    if (_disposed ||
+        session.authenticated ||
+        session.accountGeneration != generation) {
+      await _clearActive();
+      return false;
+    }
+    Object? exchangeError;
+    for (var count = 0; count < 2; count++) {
+      final exchange = session.exchangeRegistration(
+        result.code,
+        attempt.verifier,
+      );
+      _accountGeneration = session.accountGeneration;
+      try {
+        await exchange;
+        exchangeError = null;
+      } catch (error) {
+        exchangeError = error;
+      }
+      final unsent =
+          (exchangeError is ClientFailure &&
+              exchangeError.code == 'request_not_sent') ||
+          session.failure == 'request_not_sent';
+      if (!unsent ||
+          count != 0 ||
+          _disposed ||
+          session.accountGeneration != _accountGeneration)
+        break;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (_disposed || session.accountGeneration != _accountGeneration) break;
+    }
+    if (!session.authenticated) {
+      if (!_disposed && session.accountGeneration == _accountGeneration) {
+        if ((exchangeError is ClientFailure &&
+                exchangeError.code == 'request_not_sent') ||
+            session.failure == 'request_not_sent') {
+          try {
+            await _storage(store.write(attempt));
+          } catch (_) {
+            await _clearActive();
+            if (!_disposed && session.accountGeneration == _accountGeneration) {
+              session.reportSignInFailure('storage_unavailable');
+            }
+            return false;
+          }
+          if (_disposed || session.accountGeneration != _accountGeneration) {
+            await _clearActive();
+            return false;
+          }
+          _claimedState = null;
+          session.reportSignInFailure('network');
+          return false;
+        }
+        await _clearActive();
+        if (!_disposed && session.accountGeneration == _accountGeneration) {
+          session.reportSignInFailure('registration_return_expired');
+        }
+      }
+      try {
+        await _browser.close();
+      } catch (_) {}
+      return false;
+    }
+    if (!_disposed && session.accountGeneration == _accountGeneration) {
+      await _clearActive();
+    }
     try {
       await _browser.close();
     } catch (_) {
@@ -228,6 +309,7 @@ class ZolnitRegistrationCoordinator extends ChangeNotifier {
   Future<void> cancel([Uri? registration]) async {
     final active = _active;
     if (active == null ||
+        active.state == _claimedState ||
         (registration != null && registration != active.registration)) {
       return;
     }
@@ -263,7 +345,7 @@ class ZolnitRegistrationCoordinator extends ChangeNotifier {
 
   void _sessionChanged() {
     if (_active != null && session.accountGeneration != _accountGeneration) {
-      unawaited(cancel());
+      unawaited(_clearActive());
     }
   }
 
@@ -285,12 +367,22 @@ class ZolnitRegistrationAttempt {
     required this.state,
     required this.verifier,
     required this.expiresAt,
+    this.exchangeStarted = false,
   });
 
   final Uri registration;
   final String state;
   final String verifier;
   final DateTime expiresAt;
+  final bool exchangeStarted;
+
+  ZolnitRegistrationAttempt withExchangeStarted() => ZolnitRegistrationAttempt(
+    registration: registration,
+    state: state,
+    verifier: verifier,
+    expiresAt: expiresAt,
+    exchangeStarted: true,
+  );
 
   bool get isValid =>
       RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(state) &&
@@ -305,6 +397,7 @@ class ZolnitRegistrationAttempt {
     'state': state,
     'verifier': verifier,
     'expires_at': expiresAt.millisecondsSinceEpoch,
+    'exchange_started': exchangeStarted,
   };
 
   static ZolnitRegistrationAttempt? fromJson(Map<String, dynamic> json) {
@@ -325,6 +418,7 @@ class ZolnitRegistrationAttempt {
       state: state,
       verifier: verifier,
       expiresAt: DateTime.fromMillisecondsSinceEpoch(expiresAt),
+      exchangeStarted: json['exchange_started'] == true,
     );
   }
 }

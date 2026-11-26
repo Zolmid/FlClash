@@ -2638,7 +2638,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "zolnitRegistrationBrowserUnavailable":
         MessageLookupByLibrary.simpleMessage("가입 페이지를 열 수 없습니다. 다시 시도해 주세요."),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "계정이 생성되었으나 자동 로그인 링크가 만료되었습니다. 새 계정으로 로그인해 주세요.",
+      "계정이 생성되었지만 자동 로그인 결과를 확인할 수 없습니다. 새 계정으로 로그인해 주세요.",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "앱에서 공식 웹사이트 가입을 마치면 자동으로 로그인됩니다.",

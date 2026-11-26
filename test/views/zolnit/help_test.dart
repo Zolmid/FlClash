@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fl_clash/views/zolnit/help.dart';
 import 'package:fl_clash/views/zolnit/skin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:http/http.dart' as http;
 
 import 'harness.dart';
 
@@ -97,5 +100,51 @@ void main() {
     );
     expect(find.text('请帮我检查线路'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('ticket detail retries in place after a failed load', (
+    tester,
+  ) async {
+    var detailCalls = 0;
+    final retry = Completer<http.Response>();
+    harness.panel = (request) {
+      if (request.url.path.endsWith('/ticket/fetch')) {
+        if (request.url.queryParameters['id'] == '5') {
+          detailCalls++;
+          if (detailCalls == 1) return http.Response('{}', 503);
+          return retry.future;
+        }
+        return zolnitJson([
+          {'id': 5, 'subject': '线路问题', 'status': 0, 'level': 0},
+        ]);
+      }
+      if (request.url.path.endsWith('/knowledge/fetch')) return zolnitJson([]);
+      return zolnitPanelFixture(request);
+    };
+    await harness.mount(
+      tester,
+      ZolnitSkin.android,
+      child: ZolnitHelpPage(session: harness.session),
+      settle: false,
+    );
+    await waitFor(tester, find.text('线路问题'));
+    await tester.tap(find.text('线路问题'));
+    await waitFor(tester, find.text('重试'));
+    await tester.tap(find.text('重试'));
+    await tester.tap(find.text('重试'), warnIfMissed: false);
+    expect(detailCalls, 2);
+    retry.complete(
+      zolnitJson({
+        'id': 5,
+        'subject': '线路问题',
+        'status': 0,
+        'level': 0,
+        'message': [
+          {'id': 1, 'message': '已恢复'},
+        ],
+      }),
+    );
+    await waitFor(tester, find.text('已恢复'));
+    expect(detailCalls, 2);
   });
 }

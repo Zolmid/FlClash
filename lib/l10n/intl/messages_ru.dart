@@ -1369,9 +1369,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Введите содержимое правила",
     ),
-    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
-      "Разрешение на список приложений отклонено, поэтому установленные приложения недоступны. Предоставьте его вручную в системных настройках.",
-    ),
+    "installedAppsPermissionDeniedMessage":
+        MessageLookupByLibrary.simpleMessage(
+          "Разрешение на список приложений отклонено, поэтому установленные приложения недоступны. Предоставьте его вручную в системных настройках.",
+        ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "Эта система не выдаёт список установленных приложений без разрешения. Предоставьте его, чтобы настроить прокси для отдельных приложений.",
     ),
@@ -3349,7 +3350,7 @@ class MessageLookup extends MessageLookupByLibrary {
           "Не удалось открыть страницу регистрации. Попробуйте ещё раз.",
         ),
     "zolnitRegistrationReturnExpired": MessageLookupByLibrary.simpleMessage(
-      "Аккаунт создан, но ссылка для автоматического входа истекла. Войдите в новый аккаунт.",
+      "Аккаунт создан, но подтвердить автоматический вход не удалось. Войдите в новый аккаунт.",
     ),
     "zolnitRegistrationWebsiteHint": MessageLookupByLibrary.simpleMessage(
       "Зарегистрируйтесь на сайте внутри приложения. После регистрации вход произойдёт автоматически.",

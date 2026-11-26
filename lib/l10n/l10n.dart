@@ -165,10 +165,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Your account was created, but automatic sign-in expired. You can now sign in.`
+  /// `Your account was created, but automatic sign-in could not be confirmed. Please sign in with your new account.`
   String get zolnitRegistrationReturnExpired {
     return Intl.message(
-      'Your account was created, but automatic sign-in expired. You can now sign in.',
+      'Your account was created, but automatic sign-in could not be confirmed. Please sign in with your new account.',
       name: 'zolnitRegistrationReturnExpired',
       desc: '',
       args: [],
@@ -7937,8 +7937,7 @@ class AppLocalizations {
   String customImportDroppedSubRules(num count, Object label) {
     return Intl.plural(
       count,
-      one:
-          '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
+      one: '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
       other:
           '$label SUB-RULE rules were dropped, since custom profiles do not support sub-rules',
       name: 'customImportDroppedSubRules',

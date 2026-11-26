@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import 'http_client.dart';
 import 'owned_dns.dart';
+import 'request_failure.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -294,6 +295,8 @@ class XboardClient {
         throw const ClientFailure('superseded');
       }
       if (error is ClientFailure) rethrow;
+      if (error is RequestNotSent)
+        throw const ClientFailure('request_not_sent');
       if (error is TimeoutException) throw const ClientFailure('timeout');
       if (error is FormatException) {
         throw ClientFailure('invalid_response', statusCode: statusCode);

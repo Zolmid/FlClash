@@ -10,7 +10,7 @@
   "zolnitPaymentCancelled": "Payment was cancelled. Check the order status or choose a payment method again.",
   "zolnitSettlementTotal": "Settlement total",
   "zolnitRegistrationBrowserUnavailable": "The registration page could not open. Please try again.",
-  "zolnitRegistrationReturnExpired": "Your account was created, but automatic sign-in expired. You can now sign in.",
+  "zolnitRegistrationReturnExpired": "Your account was created, but automatic sign-in could not be confirmed. Please sign in with your new account.",
   "rule": "Rule",
   "rules": "Rules",
   "global": "Global",
