@@ -2,6 +2,24 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.21",
+      "tag": "v1.1.21",
+      "date": "2026-11-26",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "b5c58ea",
+              "scope": "macos",
+              "text": "Simplify the macOS menu bar by hiding internal routing groups for ZolNit subscriptions."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.20",
       "tag": "v1.1.20",
       "date": "2026-11-26",

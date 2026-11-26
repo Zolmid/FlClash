@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.21 (2026-11-26)
+
+**Bug Fixes**
+
+- **macos** Simplify the macOS menu bar by hiding internal routing groups for ZolNit subscriptions. (b5c58ea)
+
 ## v1.1.20 (2026-11-26)
 
 **Bug Fixes**
