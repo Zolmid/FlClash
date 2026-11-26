@@ -1013,13 +1013,15 @@ class SetupAction extends _$SetupAction {
       case AuthorizeCode.none:
         authorizationNotifier.value = TunAuthorizationState.authorized;
         return true;
-      case AuthorizeCode.error:
+      case AuthorizeCode.error || AuthorizeCode.installLocation:
         authorizationNotifier.value = TunAuthorizationState.none;
         ref
             .read(patchClashConfigProvider.notifier)
             .update((state) => state.copyWith.tun(enable: false));
         dialogs.showNotifier(
-          currentAppLocalizations.tunAuthorizationFailed,
+          code == AuthorizeCode.installLocation
+              ? currentAppLocalizations.tunRequiresInstalledApp
+              : currentAppLocalizations.tunAuthorizationFailed,
           level: MessageLevel.error,
         );
         return true;

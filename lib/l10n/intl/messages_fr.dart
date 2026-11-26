@@ -2633,6 +2633,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("Système"),
     "systemApp": MessageLookupByLibrary.simpleMessage("Apps système"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("Proxy système"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "Le proxy système n’a pas pu être entièrement activé. Vérifiez les réglages du proxy dans Réglages Système → Réseau.",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "Définir le proxy HTTP du système",
     ),
@@ -2738,6 +2741,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("Natif"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "Les entrées ajoutées ici remplacent les réglages TUN de tous les profils ; tout ce qui n’est pas ajouté garde le réglage du profil. Les entrées qu’un profil personnalisé ajoute lui-même priment.",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "Déplacez ZolNit dans Applications et rouvrez-le avant d’activer la carte réseau virtuelle.",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("Désactiver"),
     "turnOn": MessageLookupByLibrary.simpleMessage("Activer"),

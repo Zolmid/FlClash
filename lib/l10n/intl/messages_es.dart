@@ -2631,6 +2631,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("Sistema"),
     "systemApp": MessageLookupByLibrary.simpleMessage("Apps del sistema"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("Proxy del sistema"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "No se pudo aplicar por completo el proxy del sistema. Revisa los ajustes de proxy en Configuración del Sistema → Red.",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "Establecer el proxy HTTP del sistema",
     ),
@@ -2738,6 +2741,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("Nativo"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "Las entradas añadidas aquí sustituyen los ajustes de TUN de todos los perfiles; lo que no añadas conserva el ajuste del propio perfil. Las entradas que añade un perfil personalizado tienen prioridad.",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "Mueve ZolNit a Aplicaciones y vuelve a abrirlo antes de activar el adaptador de red virtual.",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("Desactivar"),
     "turnOn": MessageLookupByLibrary.simpleMessage("Activar"),

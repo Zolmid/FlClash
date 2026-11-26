@@ -460,7 +460,7 @@ enum EditorLineHeight {
   const EditorLineHeight(this.value);
 }
 
-enum AuthorizeCode { none, success, error }
+enum AuthorizeCode { none, success, installLocation, error }
 
 enum TunAuthorizationState { none, authorized, unauthorized }
 

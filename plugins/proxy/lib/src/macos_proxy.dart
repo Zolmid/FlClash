@@ -10,11 +10,49 @@ class MacosProxy {
 
   Future<bool> start(int port, List<String> bypassDomain) async {
     final services = await _networkServices();
-    return _commandRunner.run(
-      services.expand(
-        (service) => MacosProxyCommands.buildStart(service, port, bypassDomain),
-      ),
-    );
+    var applied = services.isNotEmpty;
+    for (final service in services) {
+      if (!await _startService(service, port, bypassDomain)) applied = false;
+    }
+    return applied;
+  }
+
+  Future<bool> _startService(
+    String service,
+    int port,
+    List<String> bypassDomain,
+  ) async {
+    if (!await _commandRunner.run(
+      MacosProxyCommands.buildStart(service, port, bypassDomain),
+    )) {
+      return false;
+    }
+    for (final kind in ['web', 'secureweb', 'socksfirewall']) {
+      try {
+        final result = await _commandRunner.process('/usr/sbin/networksetup', [
+          '-get${kind}proxy',
+          service,
+        ]);
+        final fields = <String, String>{};
+        for (final line in result.stdout.toString().split('\n')) {
+          final separator = line.indexOf(':');
+          if (separator >= 0) {
+            fields[line.substring(0, separator).trim()] = line
+                .substring(separator + 1)
+                .trim();
+          }
+        }
+        if (result.exitCode != 0 ||
+            fields['Enabled'] != 'Yes' ||
+            fields['Server'] != proxyHost ||
+            fields['Port'] != '$port') {
+          return false;
+        }
+      } on ProcessException {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<bool> stop() async {

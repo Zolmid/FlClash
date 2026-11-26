@@ -1,4 +1,8 @@
+import 'package:fl_clash/common/app_localizations.dart';
+import 'package:fl_clash/common/dialog.dart';
 import 'package:fl_clash/common/proxy.dart';
+import 'package:fl_clash/common/system.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/state.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +22,18 @@ class _ProxyManagerState extends ConsumerState<ProxyManager> {
     super.initState();
     ref.listenManual(proxyStateProvider, (prev, next) {
       if (prev != next) {
-        systemProxyQueue?.apply(next);
+        systemProxyQueue?.apply(
+          next,
+          onStartFailed: system.isMacOS
+              ? () {
+                  if (!mounted || ref.read(proxyStateProvider) != next) return;
+                  dialogs.showNotifier(
+                    currentAppLocalizations.systemProxyApplyFailed,
+                    level: MessageLevel.warning,
+                  );
+                }
+              : null,
+        );
       }
     }, fireImmediately: true);
   }

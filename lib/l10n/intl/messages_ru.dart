@@ -2556,6 +2556,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("Система"),
     "systemApp": MessageLookupByLibrary.simpleMessage("Системные приложения"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("Системный прокси"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось полностью применить системный прокси. Проверьте настройки прокси в разделе «Системные настройки → Сеть».",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "Настроить системный HTTP-прокси",
     ),
@@ -2661,6 +2664,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("Нативный"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "Добавленные здесь параметры заменяют настройки TUN всех профилей; остальные остаются такими, как в профиле. Параметры, добавленные в самом пользовательском профиле, имеют приоритет.",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "Переместите ZolNit в папку «Программы» и откройте его снова, прежде чем включать виртуальный сетевой адаптер.",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("Выключить"),
     "turnOn": MessageLookupByLibrary.simpleMessage("Включить"),

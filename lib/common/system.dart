@@ -115,6 +115,41 @@ class System {
   }
 
   @visibleForTesting
+  static String macOSAppleScriptString(String value) {
+    return value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+  }
+
+  @visibleForTesting
+  static bool macOSMountPreventsElevation(String output, String mountPath) {
+    final pattern = RegExp(r'^.+? on (.+) \(([^()]*)\)$');
+    for (final line in output.split('\n')) {
+      final match = pattern.firstMatch(line);
+      if (match == null || match[1] != mountPath) continue;
+      final options = match[2]!.split(',').map((value) => value.trim());
+      return options.any(
+        (option) =>
+            option == 'read-only' || option == 'nosuid' || option == 'noowners',
+      );
+    }
+    return false;
+  }
+
+  Future<bool> _macOSInstallPreventsElevation() async {
+    try {
+      final disk = await runProcess('/bin/df', ['-P', appPath.corePath]);
+      if (disk.exitCode != 0) return false;
+      final line = disk.stdout.toString().trimRight().split('\n').last;
+      final mountPath = RegExp(r'\s+\d+%\s+(.+)$').firstMatch(line)?[1];
+      if (mountPath == null) return false;
+      final result = await runProcess('/sbin/mount', const []);
+      return result.exitCode == 0 &&
+          macOSMountPreventsElevation(result.stdout.toString(), mountPath);
+    } on ProcessException {
+      return false;
+    }
+  }
+
+  @visibleForTesting
   static String linuxElevationShell(String corePath) {
     final path = _shellEscape(corePath);
     return 'group=\$(id -g "\${PKEXEC_UID:-\$SUDO_UID}") && '
@@ -155,10 +190,11 @@ class System {
         'stat',
         statArguments(appPath.corePath, isMacOS: true),
       );
-      return isPrivilegedStatOutput(
-        result.stdout.toString(),
-        ownerPrefix: 'root:admin',
-      );
+      return result.exitCode == 0 &&
+          isPrivilegedStatOutput(
+            result.stdout.toString(),
+            ownerPrefix: 'root:admin',
+          );
     }
     if (system.isLinux) {
       final result = await runProcess(
@@ -237,6 +273,9 @@ class System {
       );
       return AuthorizeCode.error;
     }
+    if (system.isMacOS && await _macOSInstallPreventsElevation()) {
+      return AuthorizeCode.installLocation;
+    }
     final isAdmin = await checkIsAdmin();
     if (isAdmin) {
       return AuthorizeCode.none;
@@ -252,15 +291,24 @@ class System {
         return AuthorizeCode.error;
       }
       final shell = macOSElevationShell(appPath.corePath);
-      final arguments = [
-        '-e',
-        'do shell script "$shell" with administrator privileges',
-      ];
-      final result = await runProcess('osascript', arguments);
-      if (result.exitCode != 0) {
+      try {
+        final result = await runProcess('osascript', [
+          '-e',
+          'do shell script "${macOSAppleScriptString(shell)}" with administrator privileges',
+        ]);
+        if (result.exitCode != 0) {
+          if (result.stderr.toString().contains('Read-only file system')) {
+            return AuthorizeCode.installLocation;
+          }
+          return AuthorizeCode.error;
+        }
+        if (!await checkIsAdmin()) {
+          return AuthorizeCode.error;
+        }
+        return AuthorizeCode.success;
+      } on ProcessException {
         return AuthorizeCode.error;
       }
-      return AuthorizeCode.success;
     } else if (system.isLinux) {
       final elevated = await linuxElevation.elevate([
         '/bin/sh',

@@ -1837,6 +1837,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("系統"),
     "systemApp": MessageLookupByLibrary.simpleMessage("系統應用程式"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("系統代理"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "系統代理未能完整啟用。請檢查「系統設定 → 網路」中的代理設定。",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage("設定系統的 HTTP 代理"),
     "tab": MessageLookupByLibrary.simpleMessage("分頁"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("分頁動畫"),
@@ -1906,6 +1909,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("原生"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "此處新增的項目會覆寫所有設定檔的 TUN 設定；未新增的項目保留設定檔原值。自訂設定檔自行新增的項目優先。",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "請將 ZolNit 移到「應用程式」，重新打開後再啟用虛擬網卡。",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("關閉"),
     "turnOn": MessageLookupByLibrary.simpleMessage("開啟"),

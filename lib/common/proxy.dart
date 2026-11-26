@@ -18,19 +18,27 @@ class SystemProxyQueue {
 
   SystemProxyQueue(this._proxy);
 
-  Future<void> apply(ProxyState state) {
+  Future<void> apply(ProxyState state, {void Function()? onStartFailed}) {
     return _enqueue(() async {
       if (_closed) {
         return;
       }
-      final applied = state.isStart && state.systemProxy
-          ? await _proxy.startProxy(state.port, state.bassDomain)
-          : await _proxy.stopProxy();
+      final starting = state.isStart && state.systemProxy;
+      final bool applied;
+      try {
+        applied = starting
+            ? await _proxy.startProxy(state.port, state.bassDomain)
+            : await _proxy.stopProxy();
+      } catch (_) {
+        if (starting && !_closed) onStartFailed?.call();
+        rethrow;
+      }
       if (!applied) {
         commonPrint.log(
           'update system proxy failed',
           logLevel: LogLevel.warning,
         );
+        if (starting && !_closed) onStartFailed?.call();
       }
     });
   }

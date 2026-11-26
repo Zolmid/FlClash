@@ -2005,6 +2005,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("시스템"),
     "systemApp": MessageLookupByLibrary.simpleMessage("시스템 앱"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("시스템 프록시"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "시스템 프록시를 완전히 적용하지 못했습니다. ‘시스템 설정 → 네트워크’에서 프록시 설정을 확인하세요.",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage("시스템 HTTP 프록시 설정"),
     "tab": MessageLookupByLibrary.simpleMessage("탭"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("탭 애니메이션"),
@@ -2080,6 +2083,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("네이티브"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "여기에 추가한 항목은 모든 프로필의 TUN 설정을 대체합니다. 추가하지 않은 항목은 프로필 자체 설정을 유지합니다. 사용자 지정 프로필이 직접 추가한 항목이 우선합니다.",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "ZolNit을 ‘응용 프로그램’으로 옮긴 후 다시 열고 가상 네트워크 어댑터를 활성화하세요.",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("끄기"),
     "turnOn": MessageLookupByLibrary.simpleMessage("켜기"),

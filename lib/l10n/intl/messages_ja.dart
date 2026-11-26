@@ -2055,6 +2055,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("システム"),
     "systemApp": MessageLookupByLibrary.simpleMessage("システムアプリ"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("システムプロキシ"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "システムプロキシを完全に適用できませんでした。「システム設定 → ネットワーク」でプロキシ設定を確認してください。",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage(
       "システムの HTTP プロキシを設定",
     ),
@@ -2132,6 +2135,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("ネイティブ"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "ここで追加した項目は、すべてのプロファイルの TUN 設定を上書きします。追加していない項目はプロファイル自身の設定のままです。カスタムプロファイル自身が追加した項目が優先されます。",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "ZolNit を「アプリケーション」に移動して開き直してから、仮想ネットワークアダプタを有効にしてください。",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("オフにする"),
     "turnOn": MessageLookupByLibrary.simpleMessage("オンにする"),

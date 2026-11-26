@@ -1010,6 +1010,16 @@ class AppLocalizations {
     );
   }
 
+  /// `System proxy could not be fully applied. Check Proxies in System Settings → Network.`
+  String get systemProxyApplyFailed {
+    return Intl.message(
+      'System proxy could not be fully applied. Check Proxies in System Settings → Network.',
+      name: 'systemProxyApplyFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Safe mode`
   String get safeMode {
     return Intl.message('Safe mode', name: 'safeMode', desc: '', args: []);
@@ -4895,6 +4905,16 @@ class AppLocalizations {
     return Intl.message(
       'TUN could not be authorized, so it was turned off.',
       name: 'tunAuthorizationFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Move ZolNit to Applications and reopen it before enabling the virtual network adapter.`
+  String get tunRequiresInstalledApp {
+    return Intl.message(
+      'Move ZolNit to Applications and reopen it before enabling the virtual network adapter.',
+      name: 'tunRequiresInstalledApp',
       desc: '',
       args: [],
     );

@@ -1819,6 +1819,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "system": MessageLookupByLibrary.simpleMessage("系统"),
     "systemApp": MessageLookupByLibrary.simpleMessage("系统应用"),
     "systemProxy": MessageLookupByLibrary.simpleMessage("系统代理"),
+    "systemProxyApplyFailed": MessageLookupByLibrary.simpleMessage(
+      "系统代理未能完整启用。请检查「系统设置 → 网络」中的代理设置。",
+    ),
     "systemProxyDesc": MessageLookupByLibrary.simpleMessage("设置系统的 HTTP 代理"),
     "tab": MessageLookupByLibrary.simpleMessage("标签页"),
     "tabAnimation": MessageLookupByLibrary.simpleMessage("选项卡动画"),
@@ -1888,6 +1891,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("原生"),
     "tunOverrideDesc": MessageLookupByLibrary.simpleMessage(
       "添加的项会覆写所有配置的虚拟网卡设置，未添加的项沿用配置自身的设置。自定义配置自己添加的项优先。",
+    ),
+    "tunRequiresInstalledApp": MessageLookupByLibrary.simpleMessage(
+      "请将 ZolNit 移到「应用程序」，重新打开后再启用虚拟网卡。",
     ),
     "turnOff": MessageLookupByLibrary.simpleMessage("关闭"),
     "turnOn": MessageLookupByLibrary.simpleMessage("开启"),

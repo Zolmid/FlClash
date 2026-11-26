@@ -426,6 +426,74 @@ USB 10/100/1000 LAN
       expect(commands[3].args.first, '-setproxybypassdomains');
     });
 
+    test('one failed service does not prevent configuring Wi-Fi', () async {
+      final commands = <List<String>>[];
+      final proxy = MacosProxy(
+        commandRunner: ProxyCommandRunner((
+          executable,
+          arguments, {
+          runInShell = false,
+        }) async {
+          commands.add(arguments);
+          if (arguments.first == '-listallnetworkservices') {
+            return ProcessResult(0, 0, 'USB LAN\nWi-Fi\n', '');
+          }
+          if (arguments[1] == 'USB LAN') return ProcessResult(0, 1, '', '');
+          return ProcessResult(
+            0,
+            0,
+            'Enabled: Yes\nServer: 127.0.0.1\nPort: 7890\n',
+            '',
+          );
+        }),
+      );
+      expect(await proxy.start(7890, const []), isFalse);
+      expect(commands, contains(equals(['-setwebproxystate', 'Wi-Fi', 'on'])));
+      expect(commands, contains(equals(['-getsocksfirewallproxy', 'Wi-Fi'])));
+      expect(commands.any((args) => args.contains('off')), isFalse);
+      expect(
+        commands.any((args) => args.contains('-setautoproxystate')),
+        isFalse,
+      );
+    });
+
+    for (final output in [
+      'Enabled: No\nServer: 127.0.0.1\nPort: 7890\n',
+      'Enabled: Yes\nServer: 127.0.0.1\nPort: 7891\n',
+      'Enabled: Yes\nServer: other\nPort: 7890\n',
+      'Enabled: Yes\nServer: 127.0.0.1\nPort: 7890\n',
+    ]) {
+      test('checks every configured proxy endpoint: $output', () async {
+        final reads = <String>[];
+        final proxy = MacosProxy(
+          commandRunner: ProxyCommandRunner((
+            executable,
+            arguments, {
+            runInShell = false,
+          }) async {
+            final command = arguments.first;
+            if (command == '-listallnetworkservices') {
+              return ProcessResult(0, 0, 'Wi-Fi\n', '');
+            }
+            if (command.startsWith('-get')) {
+              reads.add(command);
+              return ProcessResult(0, 0, output, '');
+            }
+            return ProcessResult(0, 0, '', '');
+          }),
+        );
+        final matches =
+            output == 'Enabled: Yes\nServer: 127.0.0.1\nPort: 7890\n';
+        expect(await proxy.start(7890, const []), matches);
+        expect(
+          reads,
+          matches
+              ? ['-getwebproxy', '-getsecurewebproxy', '-getsocksfirewallproxy']
+              : ['-getwebproxy'],
+        );
+      });
+    }
+
     test('reports failure when no active network service is found', () async {
       var callCount = 0;
       final proxy = MacosProxy(

@@ -35,6 +35,8 @@ class _FakeProcesses {
     _failures.add(key);
   }
 
+  void Function()? onAuthorize;
+
   final List<String> inputs = [];
 
   Future<ProcessResult> runWithInput(
@@ -49,6 +51,7 @@ class _FakeProcesses {
   Future<ProcessResult> run(String executable, List<String> arguments) async {
     final recorded = _RecordedRun(executable, arguments);
     runs.add(recorded);
+    if (executable == 'osascript') onAuthorize?.call();
     if (_failures.contains(recorded.key) || _failures.contains(executable)) {
       throw ProcessException(executable, arguments);
     }
@@ -361,6 +364,22 @@ void main() {
       );
     });
 
+    test(
+      'round trips shell quoting through AppleScript without elevation',
+      () async {
+        const path =
+            '/Applications/A "quoted" O\'Brien\\Tools.app/Contents/MacOS/FlClashCore';
+        final shell = System.macOSElevationShell(path);
+        final result = await Process.run('/usr/bin/osascript', [
+          '-e',
+          'return "${System.macOSAppleScriptString(shell)}"',
+        ]);
+        expect(result.exitCode, 0);
+        expect(result.stdout.toString().trim(), shell);
+      },
+      skip: !Platform.isMacOS,
+    );
+
     test('Linux hands the Core to the requesting user\'s group', () {
       final shell = System.linuxElevationShell('/opt/FlClash/FlClashCore');
 
@@ -384,6 +403,41 @@ void main() {
   });
 
   group('authorizeCore on macOS', () {
+    const mountOutput = '''
+/dev/disk5s2s1 on / (apfs, sealed, local, read-only, journaled)
+/dev/disk5s1 on /System/Volumes/Data (apfs, local, journaled)
+/dev/disk25s1 on /Volumes/ZolNit Disk (apfs, local, nosuid, read-only, noowners)
+''';
+
+    test(
+      'uses the installed Core volume, not the sealed system root',
+      () async {
+        processes.stub('/bin/df', '''
+Filesystem Blocks Used Available Capacity Mounted on
+/dev/disk5s1 1000 200 800 20% /System/Volumes/Data
+''');
+        processes.stub('/sbin/mount', mountOutput);
+        processes.stub('stat', 'root:admin -rwsr-x---');
+
+        expect(await system.authorizeCore(), AuthorizeCode.none);
+        expect(processes.ran('osascript'), isFalse);
+      },
+    );
+
+    test(
+      'reports a DMG installation before opening a password prompt',
+      () async {
+        processes.stub('/bin/df', '''
+Filesystem Blocks Used Available Capacity Mounted on
+/dev/disk25s1 1000 1000 0 100% /Volumes/ZolNit Disk
+''');
+        processes.stub('/sbin/mount', mountOutput);
+
+        expect(await system.authorizeCore(), AuthorizeCode.installLocation);
+        expect(processes.ran('osascript'), isFalse);
+      },
+    );
+
     test('refuses an account outside the admin group', () async {
       processes.stub('id', 'alice staff everyone');
 
@@ -391,8 +445,30 @@ void main() {
       expect(processes.ran('osascript'), isFalse);
     });
 
+    test(
+      'does not accept a successful prompt without elevated metadata',
+      () async {
+        processes.stub('id', 'alice staff admin');
+        processes.stub('stat', 'alice:staff -rwxr-xr-x');
+
+        expect(await system.authorizeCore(), AuthorizeCode.error);
+      },
+    );
+
+    test(
+      'routes a missing authorization executable to the existing error',
+      () async {
+        processes.stub('id', 'alice staff admin');
+        processes.stubThrow('osascript');
+
+        expect(await system.authorizeCore(), AuthorizeCode.error);
+      },
+    );
+
     test('elevates the Core for an admin account', () async {
       processes.stub('id', 'alice staff admin');
+      processes.onAuthorize = () =>
+          processes.stub('stat', 'root:admin -rwsr-x---');
 
       expect(await system.authorizeCore(), AuthorizeCode.success);
       expect(processes.argumentsFor('osascript').last, contains('chmod 4750'));

@@ -81,4 +81,24 @@ void main() {
 
     expect(proxy.calls, ['start 7890', 'stop']);
   });
+
+  test(
+    'reports both rejected and thrown starts without warning on stop',
+    () async {
+      final proxy = _FakeProxy();
+      final queue = SystemProxyQueue(proxy);
+      var failures = 0;
+      void report() => failures++;
+
+      proxy.held = Future.value(false);
+      await queue.apply(_state(isStart: true), onStartFailed: report);
+      proxy.failure = StateError('command interrupted');
+      await queue.apply(_state(isStart: true), onStartFailed: report);
+      proxy.held = Future.value(false);
+      await queue.apply(_state(isStart: false), onStartFailed: report);
+
+      expect(failures, 2);
+      expect(proxy.calls, ['start 7890', 'start 7890', 'stop']);
+    },
+  );
 }
