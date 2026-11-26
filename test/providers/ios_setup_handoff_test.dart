@@ -155,12 +155,25 @@ void main() {
         () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(service.methodChannel, null),
       );
+      const options = VpnOptions(
+        enable: true,
+        port: 7890,
+        ipv6: false,
+        dnsHijacking: true,
+        accessControlProps: AccessControlProps(),
+        allowBypass: false,
+        systemProxy: false,
+        bypassDomain: [],
+        stack: 'mips',
+      );
       final start = container
           .read(iosSetupHandoffProvider.notifier)
           .startAuthorized(
             params: prepared,
             isCurrent: () => true,
-            dispatch: () => service.start(container.read(sharedStateProvider)),
+            dispatch: () => service.start(
+              container.read(sharedStateProvider).copyWith(vpnOptions: options),
+            ),
           );
       await entered.future;
       expect(calls, isEmpty);
@@ -186,22 +199,18 @@ void main() {
         );
         try {
           final wire = File('${directory.path}/shared.json');
-          await wire.writeAsString(jsonEncode(calls.last));
+          expect(calls.first['vpnOptions'], isA<Map>());
+          await wire.writeAsString(jsonEncode(calls.first));
           final native = await Process.run('bash', [
             'tool/acceptance/ios_intents/run_setup_handoff.sh',
             wire.path,
           ]);
           expect(
-            native.stdout,
-            contains(
-              'PASS production QuickSetup consumes fresh strict authorized signed runtime',
-            ),
-          );
-          expect(
             native.exitCode,
             0,
             reason: '${native.stdout}\n${native.stderr}',
           );
+          expect(native.stdout, contains('PASS widget cold start reprojects'));
         } finally {
           await directory.delete(recursive: true);
         }
