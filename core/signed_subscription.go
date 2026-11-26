@@ -375,7 +375,8 @@ func withSignedSetupLocked(params *SetupParams, apply func(*clientbundle.Prepare
 		if code != "" {
 			return false, signedMethodError(clientbundle.SubscriptionError(code))
 		}
-		if currentConfig == nil && lease.SignedSerial > 0 && pkg.Serial > lease.SignedSerial {
+		// QuickSetup can restart a tunnel in a process that still holds its previous config.
+		if (currentConfig == nil || params.tunnelStartup) && lease.SignedSerial > 0 && pkg.Serial > lease.SignedSerial {
 			applied, err := clientBundleApply(prepared, signedSetupParams(params, pkg))
 			if err == nil && !applied {
 				err = signedMethodError(clientbundle.ErrSignedRequired)

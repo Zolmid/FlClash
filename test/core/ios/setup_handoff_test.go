@@ -56,10 +56,15 @@ func TestIOSSerializedHandoffQuickSetup(t *testing.T) {
 	}
 	oldSetup, oldApply := setupConfig, clientBundleApply
 	defer func() { setupConfig, clientBundleApply = oldSetup, oldApply }()
+	previousConfig := currentConfig
+	t.Cleanup(func() { currentConfig = previousConfig })
 	validated := 0
 	validate := func(fromStore *clientbundle.Prepared, params *SetupParams) error {
 		if fromStore == nil {
 			return errors.New("signed handoff reached legacy YAML")
+		}
+		if fromStore.Bundle.Expires <= routingLeaseNow().Unix() || fromStore.Bundle.ID == prepared.Bundle.ID {
+			return errors.New("cold start reused the expired projection")
 		}
 		raw, err := unmarshalRawConfig(fromStore.Document)
 		if err != nil {
@@ -82,6 +87,7 @@ func TestIOSSerializedHandoffQuickSetup(t *testing.T) {
 		if params.RoutingLease.SignedSerial != int64(validated+1) {
 			return errors.New("effective signed serial was not renewed")
 		}
+		currentConfig = cfg
 		validated++
 		return nil
 	}
@@ -106,17 +112,40 @@ func TestIOSSerializedHandoffQuickSetup(t *testing.T) {
 			return "timeout"
 		}
 	}
+	// The widget may start long after the foreground's routing projection expired.
+	routingLeaseNow = func() time.Time { return time.Unix(prepared.Bundle.Expires+1, 0) }
 	if result := run(runtimeWire); result != "" || validated != 1 {
 		t.Fatalf("positive QuickSetup: %q validations=%d", result, validated)
 	}
 	if _, err = os.Stat(filepath.Join(C.Path.HomeDir(), "config.yaml")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("legacy YAML unexpectedly created")
 	}
-	if _, err = applySigned(t, fixtures["bundle2"]); err != nil {
+	state, err := applySigned(t, fixtures["bundle2"])
+	if err != nil {
 		t.Fatal(err)
+	}
+	var liveUpdate SetupParams
+	if err := json.Unmarshal(runtimeWire, &liveUpdate); err != nil {
+		t.Fatal(err)
+	}
+	if err := setupConfig(&liveUpdate); methodCode(err) != "subscription_replay" {
+		t.Fatalf("running Core accepted old serial: %v", err)
 	}
 	if result := run(runtimeWire); result != "" || validated != 2 {
 		t.Fatalf("same-device serial renewal: %q validations=%d", result, validated)
 	}
-	t.Log("PASS production QuickSetup consumes fresh strict authorized signed runtime without config.yaml; newer durable serial accepted")
+	if state.SubscriptionExpiresAt == nil {
+		t.Fatal("fixture requires a bounded signed subscription")
+	}
+	routingLeaseNow = func() time.Time { return time.Unix(*state.SubscriptionExpiresAt, 0) }
+	if result := run(runtimeWire); result != string(clientbundle.ErrExpired) || validated != 2 {
+		t.Fatalf("expired subscription: %q validations=%d", result, validated)
+	}
+	if _, err := applySigned(t, fixtures["revoked3"]); err != nil {
+		t.Fatal(err)
+	}
+	if result := run(runtimeWire); result != string(clientbundle.ErrTombstone) || validated != 2 {
+		t.Fatalf("revoked subscription: %q validations=%d", result, validated)
+	}
+	t.Log("PASS widget cold start reprojects a valid subscription; expired and revoked subscriptions rejected")
 }

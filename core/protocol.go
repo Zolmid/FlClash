@@ -144,6 +144,7 @@ type DecryptConfigParams struct {
 }
 
 type SetupParams struct {
+	tunnelStartup  bool
 	OwnedDNS       *OwnedDNSConfig   `json:"owned-dns,omitempty"`
 	SelectedMap    map[string]string `json:"selected-map"`
 	TestURL        string            `json:"test-url"`

@@ -275,6 +275,7 @@ func QuickSetup(initParamsString, setupParamsString string, answer func(string))
 			answer(err.Error())
 			return
 		}
+		setupParams.tunnelStartup = true
 		isRunning.Store(true)
 		if err := handleSetupConfig(setupParams); err != nil {
 			answer(err.Error())
