@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.22 (2026-11-27)
+
+**Bug Fixes**
+
+- **network** Restore desktop proxy settings after a failed connection or Core exit. On mobile, a newer stop request takes precedence over a restart. (fe1f3ef)
+- **support** Retry a support ticket that failed to load without leaving the page. (402f20b)
+- **account** Recover sign-in after registration and open the requested page when two in-app web links are selected. (e25bd86)
+- **macos** Explain when the virtual network adapter requires an installed app and verify system proxy settings across network services. (718338b)
+
+**Performance**
+
+- **tray** Update only affected menu items as latency results arrive. (212b0f0)
+- **client** Reduce repeated DNS lookups, inbox writes, and copying when connection history is full. (38f1b06)
+
 ## v1.1.21 (2026-11-26)
 
 **Bug Fixes**
