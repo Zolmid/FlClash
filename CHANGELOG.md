@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.23 (2026-11-27)
+
+**Bug Fixes**
+
+- **ios** Start the VPN from Control Center or a widget after a restart expires, even while ZolNit is suspended. (449bc8d)
+- **client** Restore desktop proxy settings after a failed connection. Retry support tickets in place and open the requested in-app link. Reduce repeated work in DNS lookups, inbox sync, connection history, and tray updates. (ba92c3f)
+
 ## v1.1.22 (2026-11-27)
 
 **Bug Fixes**

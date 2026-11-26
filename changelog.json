@@ -2,6 +2,29 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.23",
+      "tag": "v1.1.23",
+      "date": "2026-11-27",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "449bc8d",
+              "scope": "ios",
+              "text": "Start the VPN from Control Center or a widget after a restart expires, even while ZolNit is suspended."
+            },
+            {
+              "id": "ba92c3f",
+              "scope": "client",
+              "text": "Restore desktop proxy settings after a failed connection. Retry support tickets in place and open the requested in-app link. Reduce repeated work in DNS lookups, inbox sync, connection history, and tray updates."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.22",
       "tag": "v1.1.22",
       "date": "2026-11-27",
