@@ -339,7 +339,7 @@ final class ShouldPatchSystemDnsProvider
 }
 
 String _$shouldPatchSystemDnsHash() =>
-    r'f74bcdbae504e9528b2e960b8620d097c27f3ca9';
+    r'a38deb96f852f651e1a213df0c2b30c1a66db84e';
 
 @ProviderFor(sharedState)
 final sharedStateProvider = SharedStateProvider._();
@@ -1830,7 +1830,7 @@ final class ProxyStateProvider
   }
 }
 
-String _$proxyStateHash() => r'850f3bf06d9e442e422553d3a1170a70f5368f38';
+String _$proxyStateHash() => r'8983dbed72db2e9a21eb573c5cbd779a34f439f1';
 
 /// Watching the delay map instead would drop nodes one probe at a time, and
 /// reading it on any other rebuild would drop them whenever something
