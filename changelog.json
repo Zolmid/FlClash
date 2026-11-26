@@ -2,6 +2,29 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.20",
+      "tag": "v1.1.20",
+      "date": "2026-11-26",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "c508017",
+              "scope": "ios",
+              "text": "Start reliably from the widget or Control Center after the app has been idle or while settings refresh."
+            },
+            {
+              "id": "4479187",
+              "scope": "core",
+              "text": "Use the latest valid signed subscription when restarting the VPN from a widget or Control Center."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.19",
       "tag": "v1.1.19",
       "date": "2026-11-25",

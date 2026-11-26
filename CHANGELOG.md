@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.20 (2026-11-26)
+
+**Bug Fixes**
+
+- **ios** Start reliably from the widget or Control Center after the app has been idle or while settings refresh. (c508017)
+- **core** Use the latest valid signed subscription when restarting the VPN from a widget or Control Center. (4479187)
+
 ## v1.1.19 (2026-11-25)
 
 **Bug Fixes**
