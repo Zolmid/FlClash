@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.24 (2026-11-28)
+
+**Bug Fixes**
+
+- **client** Improve Windows Core cleanup and Android VPN restart handling; refresh routing caches after configuration changes. Make backups and rule-set updates more reliable, protect build outputs on replacement failure, and prevent stale editor suggestions. Improve accessibility for node selection, password fields, error messages, invitations, and Android widgets. (bdc7863)
+
 ## v1.1.23 (2026-11-27)
 
 **Bug Fixes**

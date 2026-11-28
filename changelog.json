@@ -2,6 +2,24 @@
   "schemaVersion": 2,
   "versions": [
     {
+      "version": "1.1.24",
+      "tag": "v1.1.24",
+      "date": "2026-11-28",
+      "prerelease": false,
+      "groups": [
+        {
+          "type": "fix",
+          "entries": [
+            {
+              "id": "bdc7863",
+              "scope": "client",
+              "text": "Improve Windows Core cleanup and Android VPN restart handling; refresh routing caches after configuration changes. Make backups and rule-set updates more reliable, protect build outputs on replacement failure, and prevent stale editor suggestions. Improve accessibility for node selection, password fields, error messages, invitations, and Android widgets."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.23",
       "tag": "v1.1.23",
       "date": "2026-11-27",
