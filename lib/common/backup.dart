@@ -7,6 +7,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/migration.dart';
 import 'package:fl_clash/database/database.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -58,6 +59,32 @@ abstract final class BackupEntries {
   }
 }
 
+typedef BackupManifest = ({Set<String> entries, Set<String> requiredEntries});
+
+BackupManifest backupManifest(
+  Iterable<Profile> profiles,
+  Iterable<Script> scripts,
+  Iterable<ClashProvider> providers,
+) {
+  final requiredEntries = <String>{
+    for (final profile in profiles)
+      if (profile.type == ProfileType.file) BackupEntries.profile(profile.id),
+    for (final script in scripts)
+      if (script.url == null || script.url!.isEmpty)
+        BackupEntries.script(script.id),
+    for (final provider in providers)
+      if (!provider.isRemote) BackupEntries.provider(provider),
+  };
+  return (
+    entries: {
+      ...requiredEntries,
+      for (final profile in profiles) BackupEntries.profile(profile.id),
+      for (final script in scripts) BackupEntries.script(script.id),
+    },
+    requiredEntries: requiredEntries,
+  );
+}
+
 typedef BackupArchiveRequest = ({
   String archivePath,
   Map<String, Object?> configMap,
@@ -79,6 +106,7 @@ Future<void> _backupTask(BackupArchiveRequest request) {
     databaseSnapshotPath: request.databaseSnapshotPath,
     homeDirPath: request.homeDirPath,
     entries: request.entries,
+    requireEntries: true,
   );
 }
 
@@ -93,6 +121,29 @@ Future<MigrationData> _restoreTask(RestoreArchiveRequest request) {
   );
 }
 
+Future<BackupManifest> backupSnapshotEntries(String snapshotPath) async {
+  final directory = dirname(snapshotPath);
+  final snapshot = Database(
+    driftDatabase(
+      name: basenameWithoutExtension(snapshotPath),
+      native: DriftNativeOptions(
+        databasePath: () async => snapshotPath,
+        tempDirectoryPath: () async => directory,
+      ),
+    ),
+  );
+  try {
+    final (profiles, scripts, providers) = await (
+      snapshot.profilesDao.query().get(),
+      snapshot.scriptsDao.query().get(),
+      snapshot.clashProvidersDao.query().get(),
+    ).wait;
+    return backupManifest(profiles, scripts, providers);
+  } finally {
+    await snapshot.close();
+  }
+}
+
 @visibleForTesting
 Future<void> writeBackupArchive({
   required String archivePath,
@@ -100,6 +151,7 @@ Future<void> writeBackupArchive({
   required String databaseSnapshotPath,
   required String homeDirPath,
   required Iterable<String> entries,
+  bool requireEntries = false,
 }) async {
   final encoder = ZipFileEncoder()..create(archivePath);
   try {
@@ -109,9 +161,16 @@ Future<void> writeBackupArchive({
     await encoder.addFile(File(databaseSnapshotPath), backupDatabaseName);
     for (final entry in entries) {
       final file = File(BackupEntries.resolve(homeDirPath, entry));
-      if (await file.exists()) {
-        await encoder.addFile(file, entry);
+      if (!await file.exists()) {
+        if (requireEntries) {
+          throw FileSystemException(
+            'Required backup file is missing',
+            file.path,
+          );
+        }
+        continue;
       }
+      await encoder.addFile(file, entry);
     }
   } finally {
     await encoder.close();

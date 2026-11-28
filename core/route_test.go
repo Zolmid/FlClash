@@ -2,6 +2,7 @@ package core
 
 import (
 	"maps"
+	"net"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -164,6 +165,44 @@ func TestRouteEpochFollowsStructuralChanges(t *testing.T) {
 	}
 	if got := routeState().CoreEpoch; got != before+2 {
 		t.Errorf("epoch = %d after an unchanged mode, want it left at %d", got, before+2)
+	}
+}
+
+func TestFailedListenerUpdateStillAdvancesRouteEpoch(t *testing.T) {
+	recordRoutes(t)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	port := listener.Addr().(*net.TCPAddr).Port
+	previous := isRunning.Load()
+	isRunning.Store(true)
+	t.Cleanup(func() { isRunning.Store(previous) })
+	withCurrentConfig(t, &config.Config{General: &config.General{Mode: tunnel.Rule}, Controller: &config.Controller{}})
+	mode := tunnel.Global
+	before := routeState().CoreEpoch
+	if err := updateConfig(&UpdateParams{Mode: &mode, MixedPort: &port}); err == nil {
+		t.Fatal("expected listener failure")
+	}
+	if got := routeState().CoreEpoch; got != before+1 {
+		t.Fatalf("epoch after failure = %d, want %d", got, before+1)
+	}
+	if err := updateConfig(&UpdateParams{Mode: &mode, MixedPort: &port}); err == nil {
+		t.Fatal("expected listener failure on retry")
+	}
+	if got := routeState().CoreEpoch; got != before+1 {
+		t.Fatalf("epoch after unchanged retry = %d", got)
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { handleStopListener() })
+	if err := updateConfig(&UpdateParams{Mode: &mode, MixedPort: &port}); err != nil {
+		t.Fatalf("retry after releasing port: %v", err)
+	}
+	if got := routeState().CoreEpoch; got != before+1 {
+		t.Fatalf("epoch after successful unchanged retry = %d", got)
 	}
 }
 

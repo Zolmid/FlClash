@@ -139,6 +139,10 @@ class CodeForgeController implements DeltaTextInputClient {
   UndoRedoController? _undoController;
   Set<String> _wordCache = {};
   int _wordCacheVersion = -1;
+  @visibleForTesting
+  Future<Set<String>> Function()? wordExtractorForTesting;
+  @visibleForTesting
+  Set<String> get cachedWordsForTesting => Set.unmodifiable(_wordCache);
   int _completionStart = 0;
 
   CodeForgeController() {
@@ -151,8 +155,12 @@ class CodeForgeController implements DeltaTextInputClient {
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(milliseconds: 200), () async {
         if (enableLocalSuggestions && _wordCacheVersion != _currentVersion) {
-          _wordCacheVersion = _currentVersion;
-          _wordCache = await _extractWords();
+          final version = _currentVersion;
+          final words =
+              await (wordExtractorForTesting?.call() ?? _extractWords());
+          if (_isDisposed || version != _currentVersion) return;
+          _wordCacheVersion = version;
+          _wordCache = words;
         }
         if (_isDisposed) return;
         final typing = _isTyping && (focusNode?.hasFocus ?? true);

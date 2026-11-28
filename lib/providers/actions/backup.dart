@@ -11,6 +11,11 @@ class BackupAction extends _$BackupAction {
   @override
   void build() {}
 
+  @visibleForTesting
+  Future<void> Function()? afterSnapshotForTesting;
+  @visibleForTesting
+  Future<void> Function()? afterStagingForTesting;
+
   Future<bool> backup(BackupDelivery deliver) {
     return _withWorkDir((workDir) async {
       return deliver(await _createArchive(workDir));
@@ -62,13 +67,65 @@ class BackupAction extends _$BackupAction {
   }
 
   Future<String> _createArchive(String workDir) async {
-    final databaseSnapshotPath = join(workDir, backupDatabaseName);
-    await database.customStatement('VACUUM INTO ?', [databaseSnapshotPath]);
-    final (profileIds, scriptIds, providers) = await (
-      database.profilesDao.query().map((item) => item.id).get(),
-      database.scriptsDao.query().map((item) => item.id).get(),
+    final homeDirPath = await appPath.homeDirPath;
+    final (profiles, scripts, providers) = await (
+      database.profilesDao.query().get(),
+      database.scriptsDao.query().get(),
       database.clashProvidersDao.query().get(),
     ).wait;
+    final original = backupManifest(profiles, scripts, providers);
+    final initialStats = <String, FileStat>{};
+    for (final entry in original.entries) {
+      final source = File(BackupEntries.resolve(homeDirPath, entry));
+      final stat = await source.stat();
+      if (stat.type != FileSystemEntityType.file &&
+          original.requiredEntries.contains(entry)) {
+        throw FileSystemException(
+          'Required backup file is missing',
+          source.path,
+        );
+      }
+      initialStats[entry] = stat;
+    }
+    final databaseSnapshotPath = join(workDir, backupDatabaseName);
+    await database.customStatement('VACUUM INTO ?', [databaseSnapshotPath]);
+    final snapshot = await backupSnapshotEntries(databaseSnapshotPath);
+    await afterSnapshotForTesting?.call();
+    if (snapshot.entries.length != original.entries.length ||
+        !original.entries.containsAll(snapshot.entries) ||
+        snapshot.requiredEntries.length != original.requiredEntries.length ||
+        !original.requiredEntries.containsAll(snapshot.requiredEntries)) {
+      throw const FileSystemException(
+        'Backup references changed during snapshot',
+      );
+    }
+    final entries = snapshot.entries
+        .where(
+          (entry) => initialStats[entry]!.type == FileSystemEntityType.file,
+        )
+        .toList();
+    final stagedPath = join(workDir, 'files');
+    for (final entry in entries) {
+      final source = File(BackupEntries.resolve(homeDirPath, entry));
+      final target = File(BackupEntries.resolve(stagedPath, entry));
+      await target.parent.create(recursive: true);
+      await source.copy(target.path);
+    }
+    await afterStagingForTesting?.call();
+    for (final entry in entries) {
+      final source = File(BackupEntries.resolve(homeDirPath, entry));
+      final before = initialStats[entry]!;
+      final after = await source.stat();
+      if (after.type != FileSystemEntityType.file ||
+          before.size != after.size ||
+          before.modified != after.modified ||
+          before.changed != after.changed) {
+        throw FileSystemException(
+          'Backup file changed while copying',
+          source.path,
+        );
+      }
+    }
     final configMap = ref.read(configProvider).toJson();
     configMap['version'] = await preferences.getVersion();
     final archivePath = join(workDir, 'backup.zip');
@@ -76,12 +133,8 @@ class BackupAction extends _$BackupAction {
       archivePath: archivePath,
       configMap: configMap,
       databaseSnapshotPath: databaseSnapshotPath,
-      homeDirPath: await appPath.homeDirPath,
-      entries: BackupEntries.of(
-        profileIds: profileIds,
-        scriptIds: scriptIds,
-        providers: providers,
-      ),
+      homeDirPath: stagedPath,
+      entries: entries,
     ));
     return archivePath;
   }

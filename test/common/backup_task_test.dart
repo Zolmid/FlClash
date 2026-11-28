@@ -569,6 +569,21 @@ void main() {
       });
     });
 
+    test('strict archiving rejects a missing staged file', () async {
+      await seedDatabase();
+      await expectLater(
+        writeBackupArchive(
+          archivePath: join(root.path, 'archive', '$uniqueId.zip'),
+          configMap: const {'version': 1},
+          databaseSnapshotPath: databasePath,
+          homeDirPath: home.path,
+          entries: const ['profiles/1.yaml'],
+          requireEntries: true,
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+
     test('restoring returns the rows and stages the files', () async {
       await seedDatabase();
       writeFile(join(home.path, 'profiles', '1.yaml'), 'proxies: []');

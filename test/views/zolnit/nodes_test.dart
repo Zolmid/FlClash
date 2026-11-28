@@ -233,7 +233,11 @@ void main() {
         expect(
           tester
               .widgetList<Semantics>(find.byType(Semantics))
-              .where((widget) => widget.properties.selected == true),
+              .where(
+                (widget) =>
+                    widget.properties.selected == true &&
+                    widget.properties.button == true,
+              ),
           hasLength(1),
         );
         await tester.tap(find.text('HK · Lite A'));
@@ -701,8 +705,16 @@ void main() {
     await tester.tap(find.text('全部线路').first);
     await tester.pumpAndSettle();
     expect(find.text('线路：3'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('zolnit-region-HK')));
+    final region = find.byKey(const ValueKey('zolnit-region-HK'));
+    bool selected() => tester
+        .widgetList<Semantics>(
+          find.descendant(of: region, matching: find.byType(Semantics)),
+        )
+        .any((item) => item.properties.selected == true);
+    expect(selected(), isFalse);
+    await tester.tap(region);
     await tester.pumpAndSettle();
+    expect(selected(), isTrue);
     expect(find.text('线路：1'), findsOneWidget);
     expect(find.text('HK · 轻风 01'), findsWidgets);
     expect(find.text('JP · 东京 01'), findsNothing);

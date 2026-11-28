@@ -710,31 +710,34 @@ class _RegionChip extends StatelessWidget {
       borderRadius: AppRadius.all(corner),
       side: active ? BorderSide.none : BorderSide(color: colors.line()),
     );
-    return Material(
-      color: active ? colors.accent : Colors.transparent,
-      shape: shape,
-      child: InkWell(
-        customBorder: shape,
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: skin.desktop ? 12 : 14,
-            vertical: skin.desktop ? 6 : 10,
-          ),
-          child: Center(
-            widthFactor: 1,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: zolnitText(
-                context,
-                skin.desktop ? 12 : 13,
-                weight: active ? FontWeight.w600 : FontWeight.w400,
-                color: active
-                    ? (Theme.of(context).brightness == Brightness.dark
-                          ? colors.paper
-                          : Colors.white)
-                    : colors.ink,
+    return Semantics(
+      selected: active,
+      child: Material(
+        color: active ? colors.accent : Colors.transparent,
+        shape: shape,
+        child: InkWell(
+          customBorder: shape,
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: skin.desktop ? 12 : 14,
+              vertical: skin.desktop ? 6 : 10,
+            ),
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: zolnitText(
+                  context,
+                  skin.desktop ? 12 : 13,
+                  weight: active ? FontWeight.w600 : FontWeight.w400,
+                  color: active
+                      ? (Theme.of(context).brightness == Brightness.dark
+                            ? colors.paper
+                            : Colors.white)
+                      : colors.ink,
+                ),
               ),
             ),
           ),

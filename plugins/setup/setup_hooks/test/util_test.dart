@@ -114,4 +114,87 @@ void main() {
       );
     });
   });
+  test(
+    'replacement with a missing staged file preserves the prior outputs',
+    () {
+      final dir = Directory.systemTemp.createTempSync('setup_replace_');
+      try {
+        final old = File('${dir.path}/old')..writeAsStringSync('previous');
+        final staged = File('${dir.path}/staged')..writeAsStringSync('new');
+        expect(
+          () => replaceFiles({
+            staged.path: old.path,
+            '${dir.path}/missing': '${dir.path}/header',
+          }),
+          throwsA(isA<BuildException>()),
+        );
+        expect(old.readAsStringSync(), 'previous');
+        expect(staged.readAsStringSync(), 'new');
+      } finally {
+        dir.deleteSync(recursive: true);
+      }
+    },
+  );
+  test('a failed second replacement restores the first output', () {
+    final dir = Directory.systemTemp.createTempSync('setup_replace_');
+    try {
+      final old = File('${dir.path}/old')..writeAsStringSync('previous');
+      old.setLastModifiedSync(DateTime.utc(2020));
+      final before = old.statSync();
+      final first = File('${dir.path}/first')..writeAsStringSync('new');
+      final second = File('${dir.path}/second')..writeAsStringSync('header');
+      final blocked = Directory('${dir.path}/blocked')..createSync();
+      expect(
+        () => replaceFiles({first.path: old.path, second.path: blocked.path}),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(old.readAsStringSync(), 'previous');
+      expect(old.statSync().modified, before.modified);
+      expect(old.statSync().mode, before.mode);
+    } finally {
+      dir.deleteSync(recursive: true);
+    }
+  });
+  test('a complete output group replaces both files', () {
+    final dir = Directory.systemTemp.createTempSync('setup_replace_');
+    try {
+      final library = File('${dir.path}/library')
+        ..writeAsStringSync('old library');
+      final header = File('${dir.path}/header')
+        ..writeAsStringSync('old header');
+      final newLibrary = File('${dir.path}/new-library')
+        ..writeAsStringSync('new library');
+      final newHeader = File('${dir.path}/new-header')
+        ..writeAsStringSync('new header');
+      replaceFiles({
+        newLibrary.path: library.path,
+        newHeader.path: header.path,
+      });
+      expect(library.readAsStringSync(), 'new library');
+      expect(header.readAsStringSync(), 'new header');
+      expect(dir.listSync().whereType<Directory>(), isEmpty);
+    } finally {
+      dir.deleteSync(recursive: true);
+    }
+  });
+  test('a destination permission error preserves the old output', () {
+    final dir = Directory.systemTemp.createTempSync(
+      'setup_replace_permissions_',
+    );
+    final protected = Directory('${dir.path}/protected')..createSync();
+    try {
+      final old = File('${protected.path}/library')
+        ..writeAsStringSync('previous');
+      final staged = File('${dir.path}/staged')..writeAsStringSync('new');
+      expect(Process.runSync('chmod', ['500', protected.path]).exitCode, 0);
+      expect(
+        () => replaceFiles({staged.path: old.path}),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(old.readAsStringSync(), 'previous');
+    } finally {
+      Process.runSync('chmod', ['700', protected.path]);
+      dir.deleteSync(recursive: true);
+    }
+  }, skip: Platform.isWindows ? 'POSIX permission test' : false);
 }

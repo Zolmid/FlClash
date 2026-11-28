@@ -112,23 +112,43 @@ struct ErrorResponse {
     details: Option<ErrorDetails>,
 }
 
+#[derive(Debug)]
 struct ManagedCore {
     session_id: String,
     child: Child,
     #[cfg(windows)]
-    _job: CoreJob,
+    _job: Option<CoreJob>,
 }
 
 impl ManagedCore {
-    fn adopt(session_id: String, child: Child) -> Result<Self, Error> {
-        #[cfg(windows)]
-        let job = CoreJob::bind(&child)?;
-        Ok(Self {
+    fn adopt(session_id: String, child: Child) -> Result<Self, (Error, Option<Self>)> {
+        #[allow(unused_mut)]
+        let mut core = Self {
             session_id,
             child,
             #[cfg(windows)]
-            _job: job,
-        })
+            _job: None,
+        };
+        #[cfg(windows)]
+        match CoreJob::bind(&core.child) {
+            Ok(job) => core._job = Some(job),
+            Err(error) => {
+                return Err(core.confinement_failed(error, |core| core.terminate()));
+            }
+        }
+        Ok(core)
+    }
+
+    #[cfg(any(windows, test))]
+    fn confinement_failed(
+        mut self,
+        error: Error,
+        terminate: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> (Error, Option<Self>) {
+        match terminate(&mut self) {
+            Ok(()) => (error, None),
+            Err(_) => (error, Some(self)),
+        }
     }
 
     fn terminate(&mut self) -> Result<(), Error> {
@@ -172,7 +192,24 @@ impl ManagedCore {
 /// Windows has no cgroup to take the Core down with a crashed Helper, so the
 /// Core lives in a job that the kernel kills when the Helper's handle closes.
 #[cfg(windows)]
+#[derive(Debug)]
 struct CoreJob(HANDLE);
+
+#[cfg(all(windows, test))]
+thread_local! {
+    static JOB_FAILURE_STAGE: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(all(windows, test))]
+fn fail_job_stage(stage: u8) -> Result<(), Error> {
+    JOB_FAILURE_STAGE.with(|value| {
+        if value.get() == stage {
+            Err(Error::other("injected job failure"))
+        } else {
+            Ok(())
+        }
+    })
+}
 
 #[cfg(windows)]
 impl CoreJob {
@@ -180,6 +217,8 @@ impl CoreJob {
         // SAFETY: plain kernel32 calls on handles this process owns; the job
         // handle is closed by Drop and the process handle stays with `child`.
         unsafe {
+            #[cfg(test)]
+            fail_job_stage(1)?;
             let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
             if job == 0 {
                 return Err(Error::last_os_error());
@@ -187,6 +226,8 @@ impl CoreJob {
             let job = Self(job);
             let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
             limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            #[cfg(test)]
+            fail_job_stage(2)?;
             if SetInformationJobObject(
                 job.0,
                 JobObjectExtendedLimitInformation,
@@ -196,6 +237,8 @@ impl CoreJob {
             {
                 return Err(Error::last_os_error());
             }
+            #[cfg(test)]
+            fail_job_stage(3)?;
             if AssignProcessToJobObject(job.0, child.as_raw_handle() as HANDLE) == 0 {
                 return Err(Error::last_os_error());
             }
@@ -503,10 +546,16 @@ fn launch(start_params: StartParams) -> warp::reply::Response {
             }
             *managed = match ManagedCore::adopt(start_params.session_id.clone(), child) {
                 Ok(core) => Some(core),
-                Err(error) => {
+                Err((error, retained)) => {
+                    let unconfirmed = retained.is_some();
+                    *managed = retained;
                     log_message(format!("Helper could not confine the Core: {error}"));
                     return error_response(
-                        "internalError",
+                        if unconfirmed {
+                            "coreStopFailed"
+                        } else {
+                            "internalError"
+                        },
                         format!("Core confinement failed: {error}"),
                         StatusCode::INTERNAL_SERVER_ERROR,
                     );
@@ -918,6 +967,40 @@ mod tests {
     fn adopt_core(session_id: &str) {
         *lock_surviving_poison(&MANAGED_CORE) =
             Some(ManagedCore::adopt(session_id.to_string(), spawn_running_core()).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn each_job_failure_reaps_the_spawned_core() {
+        for stage in 1..=3 {
+            JOB_FAILURE_STAGE.with(|value| value.set(stage));
+            let result = ManagedCore::adopt(format!("stage-{stage}"), spawn_running_core());
+            JOB_FAILURE_STAGE.with(|value| value.set(0));
+            let (error, retained) = result.expect_err("job binding should fail");
+            assert_eq!(error.to_string(), "injected job failure");
+            assert!(
+                retained.is_none(),
+                "Core exit was not confirmed at stage {stage}"
+            );
+        }
+    }
+
+    #[test]
+    fn confinement_failures_reap_the_child_and_keep_unconfirmed_ownership() {
+        for stage in ["create", "configure", "assign"] {
+            let core = ManagedCore::adopt(stage.to_string(), spawn_running_core()).unwrap();
+            let (error, retained) =
+                core.confinement_failed(Error::other(stage), |core| core.terminate());
+            assert_eq!(error.to_string(), stage);
+            assert!(retained.is_none());
+        }
+        let core = ManagedCore::adopt("unconfirmed".to_string(), spawn_running_core()).unwrap();
+        let (_, retained) =
+            core.confinement_failed(Error::other("assign"), |_| Err(Error::other("wait failed")));
+        let mut managed = retained;
+        assert!(managed.is_some());
+        release_managed_core(&mut managed).unwrap();
+        assert!(managed.is_none());
     }
 
     #[test]

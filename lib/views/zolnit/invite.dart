@@ -4,6 +4,7 @@ import 'package:fl_clash/common/context.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/semantics.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zolnit_client/zolnit_client.dart';
@@ -124,13 +125,21 @@ class _ZolnitInviteTabState extends State<ZolnitInviteTab> {
             ).toString()
           : code;
       await Clipboard.setData(ClipboardData(text: value));
-      if (_current(generation, session)) {
+      if (mounted && _current(generation, session)) {
+        final message = link
+            ? text.zolnitInviteCopied
+            : text.zolnitInviteCodeCopied;
         setState(() {
           _failure = null;
-          _copied = link
-              ? text.zolnitInviteCopied
-              : text.zolnitInviteCodeCopied;
+          _copied = message;
         });
+        unawaited(
+          SemanticsService.sendAnnouncement(
+            View.of(context),
+            message,
+            Directionality.of(context),
+          ),
+        );
       }
     } catch (error) {
       if (_current(generation, session)) {

@@ -61,6 +61,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
 
     @Volatile
     private var transition: RunState? = null
+    private var stopUnconfirmed = false
 
     val runState = mutableRunState.asStateFlow()
 
@@ -128,8 +129,9 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         if (sharedState.collapseQuickSettingsPanel) {
             host.showToast(sharedState.stopTip)
         }
-        requestStop().await()
-        host.notifyStopped()
+        if (requestStop().await()) {
+            host.notifyStopped()
+        }
     }
 
     suspend fun handleVpnRevokeAction() {
@@ -313,6 +315,8 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
         return transitionLock.withLock {
             when {
                 !isCurrent(request) -> StartOutcome.SUPERSEDED
+                stopUnconfirmed && !stopService() -> StartOutcome.FAILED
+                !isCurrent(request) -> StartOutcome.SUPERSEDED
                 host.runtime?.vpn == options.enable -> StartOutcome.STARTED
                 else -> transitioning(RunState.STARTING) {
                     val started = host.startService(withLocalNetworkFallback(options), options)
@@ -358,23 +362,31 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
             return@withLock false
         }
         abandonVpnPreparation()
-        if (host.runtime != null) {
+        val stopped = if (host.runtime != null) {
             stopLocked()
-        } else if (cleanupUnbound) {
+        } else if (cleanupUnbound || stopUnconfirmed) {
             stopService()
+        } else {
+            true
         }
-        isCurrent(request)
+        stopped && isCurrent(request)
     }
 
     private suspend fun stopLocked() = transitioning(RunState.STOPPING) { stopService() }
 
-    private suspend fun stopService() {
-        try {
+    private suspend fun stopService(): Boolean {
+        return try {
             host.stopService()
+            stopUnconfirmed = false
+            publish()
+            true
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             host.log("Unable to stop service: $error")
+            stopUnconfirmed = true
+            publish()
+            false
         }
     }
 
@@ -392,6 +404,7 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
     @Synchronized
     private fun publish() {
         mutableRunState.value = transition ?: when {
+            stopUnconfirmed -> RunState.STOPPING
             host.runtime == null -> RunState.STOPPED
             isRunRequested -> RunState.STARTED
             else -> RunState.STOPPING

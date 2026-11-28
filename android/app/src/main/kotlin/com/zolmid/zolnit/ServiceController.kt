@@ -131,25 +131,34 @@ object ServiceController {
     private suspend fun tearDownServices() {
         runCatching { AndroidClientBundleRenewal.stop() }
             .onFailure { GlobalState.log("Bundle renewal drain failed") }
-        binding?.useService { service -> service.stop() }
-            ?.onFailure { error ->
-                GlobalState.log("Unable to stop background service: $error")
-            }
+        val currentBinding = binding
+        val boundStop = currentBinding?.useService { service -> service.stop() }
+        boundStop?.onFailure { error ->
+            GlobalState.log("Unable to stop background service: $error")
+        }
+        val systemStops = stopServices()
+        if (!serviceStopConfirmed(
+                boundStop?.isSuccess,
+                systemStops[currentBinding?.component],
+                systemStops.filterKeys { it != currentBinding?.component }.values,
+            )
+        ) {
+            throw IllegalStateException("Unable to confirm background service stopped", boundStop?.exceptionOrNull())
+        }
         clearBinding()
-        stopServices()
     }
 
     // A service the system started itself — always-on VPN, or the sticky restart
     // after the process was killed — outlives every binding this process holds, so
     // unbinding alone leaves the tunnel up while the app reports it stopped.
-    private fun stopServices() {
-        listOf(VpnService::class.intent, ProxyService::class.intent).forEach { intent ->
-            runCatching { GlobalState.application.stopService(intent) }
+    private fun stopServices(): Map<ComponentName?, Boolean?> =
+        listOf(VpnService::class.intent, ProxyService::class.intent).associate { intent ->
+            val result = runCatching { GlobalState.application.stopService(intent) }
                 .onFailure { error ->
                     GlobalState.log("Unable to stop ${intent.component?.className}: $error")
                 }
+            intent.component to result.getOrNull()
         }
-    }
 
     private fun handleServiceDisconnected(
         disconnectedBinding: ManagedServiceBinding,
@@ -259,4 +268,15 @@ private class ManagedServiceBinding(
         serviceState.value = Result.failure(IllegalStateException(message))
         onDisconnected(message)
     }
+}
+
+internal fun serviceStopConfirmed(
+    boundStopped: Boolean?,
+    boundSystemStopped: Boolean?,
+    otherSystemStops: Collection<Boolean?>,
+): Boolean {
+    if (otherSystemStops.any { it == null }) return false
+    if (boundStopped == true) return true
+    if (boundStopped == false) return boundSystemStopped == true
+    return true
 }

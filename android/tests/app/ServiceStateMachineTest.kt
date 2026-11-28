@@ -118,6 +118,7 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     var setupCalls = 0
     var startCalls = 0
     var stopCalls = 0
+    var stopFails = false
     var stoppedNotifications = 0
     var lastInitParams: String? = null
     var lastSetupParams: String? = null
@@ -185,12 +186,36 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 
     override suspend fun stopService() {
         stopCalls++
+        if (stopFails) error("stop failed")
         runtime = null
     }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServiceStateMachineTest {
+    @Test
+    fun `stop confirmation combines bound and system outcomes`() {
+        assertTrue(serviceStopConfirmed(false, true, listOf(true, false)))
+        assertTrue(serviceStopConfirmed(true, null, listOf(false)))
+        assertFalse(serviceStopConfirmed(true, null, listOf(null)))
+        assertFalse(serviceStopConfirmed(false, null, listOf(false)))
+        assertFalse(serviceStopConfirmed(false, false, listOf(false)))
+        assertFalse(serviceStopConfirmed(null, null, listOf(null, false)))
+    }
+
+    @Test
+    fun `failed restart stop prevents replacement start and remains retryable`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        host.stopFails = true
+        val (request, stopped) = machine.requestStopForRestart()
+        assertFalse(machine.requestStartAfterStop(request, stopped))
+        assertEquals(0, host.startCalls)
+        host.stopFails = false
+        val (_, retry) = machine.requestStopForRestart()
+        assertTrue(retry.await())
+    }
+
     @Test
     fun `restart stop clears an unbound core before a replacement start`() = runTest {
         val host = FakeHost(backgroundScope)

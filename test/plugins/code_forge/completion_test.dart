@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:code_forge/code_forge.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +37,38 @@ void main() {
     await settle(tester, 2);
     return (controller, popups);
   }
+
+  testWidgets(
+    'late extraction cannot replace a newer document or survive disposal',
+    (tester) async {
+      final pending = <Completer<Set<String>>>[];
+      final controller = CodeForgeController()
+        ..enableLocalSuggestions = true
+        ..wordExtractorForTesting = () {
+          final result = Completer<Set<String>>();
+          pending.add(result);
+          return result.future;
+        };
+      controller.text = 'old';
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(pending, hasLength(1));
+      controller.text = 'new';
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(pending, hasLength(2));
+      pending[1].complete({'newer'});
+      await tester.pump();
+      pending[0].complete({'older'});
+      await tester.pump();
+      expect(controller.cachedWordsForTesting, {'newer'});
+      controller.text = 'third';
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(pending, hasLength(3));
+      controller.dispose();
+      pending[2].complete({'disposed'});
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('typing a known prefix opens the popup with document words', (
     tester,

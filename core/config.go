@@ -331,6 +331,9 @@ func updateConfig(params *UpdateParams) error {
 		skipCertVerify.Store(*params.SkipCertVerify)
 	}
 
+	if routeChanged {
+		bumpRouteEpoch()
+	}
 	if err := updateListeners(currentConfig); err != nil {
 		return err
 	}
@@ -338,9 +341,6 @@ func updateConfig(params *UpdateParams) error {
 		setGeoResourceUrl(geoType, link)
 	}
 	syncGeoUpdater(params.GeoAutoUpdate, params.GeoUpdateInterval)
-	if routeChanged {
-		bumpRouteEpoch()
-	}
 	return nil
 }
 

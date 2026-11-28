@@ -70,6 +70,7 @@ class GoBuilder {
             environment: env,
           );
           final outputs = [outFile];
+          final replacements = <String, String>{staged: outFile};
           if (target.goos == 'ios') {
             final headerName = '${p.basenameWithoutExtension(fileName)}.h';
             final stagedHeader = p.join(stagingDir.path, headerName);
@@ -77,10 +78,10 @@ class GoBuilder {
               throw BuildException('Go did not produce $headerName');
             }
             final header = p.join(outDir, headerName);
-            replaceFile(stagedHeader, header);
+            replacements[stagedHeader] = header;
             outputs.add(header);
           }
-          replaceFile(staged, outFile);
+          replaceFiles(replacements);
 
           _log.info('Built: $outFile');
           return outputs;

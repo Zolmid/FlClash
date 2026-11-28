@@ -104,6 +104,7 @@ class _ZolnitPasswordFormState extends State<ZolnitPasswordForm> {
                 title: text.zolnitOldPassword,
                 trailing: FormRowSecretTextField(
                   key: const ValueKey('zolnit-old-password'),
+                  semanticsLabel: text.zolnitOldPassword,
                   controller: _old,
                   textInputAction: TextInputAction.next,
                 ),
@@ -112,6 +113,7 @@ class _ZolnitPasswordFormState extends State<ZolnitPasswordForm> {
                 title: text.zolnitNewPassword,
                 trailing: FormRowSecretTextField(
                   key: const ValueKey('zolnit-new-password'),
+                  semanticsLabel: text.zolnitNewPassword,
                   controller: _fresh,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _submit(),

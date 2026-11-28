@@ -120,11 +120,14 @@ class ErrorBanner extends StatelessWidget {
       alignment: Alignment.topCenter,
       child: message == null
           ? const SizedBox(width: double.infinity)
-          : _Banner(
-              glyph: AppGlyphs.error,
-              message: message,
-              color: colorScheme.errorContainer,
-              foregroundColor: colorScheme.onErrorContainer,
+          : Semantics(
+              liveRegion: true,
+              child: _Banner(
+                glyph: AppGlyphs.error,
+                message: message,
+                color: colorScheme.errorContainer,
+                foregroundColor: colorScheme.onErrorContainer,
+              ),
             ),
     );
   }

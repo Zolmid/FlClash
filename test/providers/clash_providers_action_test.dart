@@ -537,6 +537,96 @@ void main() {
     });
   });
 
+  for (final change in ['delete', 'rename', 'url']) {
+    test('syncRemote keeps a concurrent $change', () async {
+      const remote = ClashProvider(
+        id: 42,
+        label: 'Remote',
+        url: 'https://example.com/r.list',
+      );
+      await testDatabase.clashProvidersDao.putAll([remote.toCompanion()]);
+      compileGate = Completer();
+      final pending = action().syncRemote(remote);
+      await pumpEventQueue();
+      if (change == 'delete') {
+        await testDatabase.clashProviders.remove(
+          (row) => row.id.equals(remote.id),
+        );
+      } else {
+        await testDatabase.clashProvidersDao.putAll([
+          remote
+              .copyWith(
+                label: change == 'rename' ? 'Renamed' : remote.label,
+                url: change == 'url'
+                    ? 'https://example.com/new.list'
+                    : remote.url,
+              )
+              .toCompanion(),
+        ]);
+      }
+      final newProvider = remote.copyWith(url: 'https://example.com/new.list');
+      if (change == 'url') {
+        File(await newProvider.path)
+          ..createSync(recursive: true)
+          ..writeAsStringSync('new url content');
+      }
+      compileGate!.complete();
+      await pending;
+      if (change == 'url') {
+        expect(await read(newProvider.path), 'new url content');
+        expect(File(await remote.path).existsSync(), isFalse);
+      }
+      final rows = await testDatabase.clashProvidersDao.query().get();
+      if (change == 'delete') {
+        expect(rows, isEmpty);
+      } else {
+        expect(rows.single.label, change == 'rename' ? 'Renamed' : 'Remote');
+        expect(
+          rows.single.url,
+          change == 'url' ? 'https://example.com/new.list' : remote.url,
+        );
+      }
+    });
+  }
+
+  for (final failureStep in [0, 2]) {
+    test(
+      'syncRemote restores files and metadata after failure at step $failureStep',
+      () async {
+        const remote = ClashProvider(
+          id: 43,
+          label: 'Remote',
+          url: 'https://example.com/old.list',
+          behavior: RuleProviderBehavior.classical,
+          format: RuleProviderFormat.yaml,
+        );
+        await testDatabase.clashProvidersDao.putAll([remote.toCompanion()]);
+        final source = File(await remote.path)
+          ..createSync(recursive: true)
+          ..writeAsStringSync('old source');
+        final compiledFile = File(await remote.compiledPath)
+          ..writeAsStringSync('old compiled');
+        action().syncPublishHook = (step) async {
+          if (step == 0) {
+            expect(source.readAsStringSync(), 'downloaded');
+            expect(compiledFile.readAsStringSync(), 'old compiled');
+          }
+          if (step == failureStep) throw StateError('injected failure');
+        };
+
+        await expectLater(action().syncRemote(remote), throwsStateError);
+
+        expect(source.readAsStringSync(), 'old source');
+        expect(compiledFile.readAsStringSync(), 'old compiled');
+        final row = await stored(remote.id);
+        expect(row.behavior, remote.behavior);
+        expect(row.format, remote.format);
+        expect(row.url, remote.url);
+        expect(setup.forced, isEmpty);
+      },
+    );
+  }
+
   test('prepare builds a missing mrs and keeps what the Core found', () async {
     await testDatabase.clashProvidersDao.putAll([rules.toCompanion()]);
     File(await rules.path)

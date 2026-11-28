@@ -230,6 +230,24 @@ void main() {
     await openAccount(tester, ZolnitSkin.macos);
     await tester.tap(find.text('修改密码'));
     await tester.pumpAndSettle();
+    final semantics = tester.ensureSemantics();
+    final fields = tester.widgetList<Semantics>(find.byType(Semantics));
+    expect(fields.any((item) => item.properties.label == '当前密码'), isTrue);
+    expect(fields.any((item) => item.properties.label == '新密码'), isTrue);
+    for (final (key, label) in [
+      ('zolnit-old-password', '当前密码'),
+      ('zolnit-new-password', '新密码'),
+    ]) {
+      final field = find.descendant(
+        of: find.byKey(ValueKey(key)),
+        matching: find.byType(TextField),
+      );
+      expect(
+        tester.getSemantics(field).getSemanticsData().label,
+        contains(label),
+      );
+    }
+    semantics.dispose();
     await password(tester, 'oldpass12', 'short');
     await tester.tap(find.byTooltip('保存'));
     await tester.pumpAndSettle();

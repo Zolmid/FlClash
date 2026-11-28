@@ -174,6 +174,15 @@ class StatusWidgetProvider : AppWidgetProvider() {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         .toPendingIntent,
                 )
+                val status = application.getString(
+                    when (runState) {
+                        RunState.STARTED -> R.string.connected
+                        RunState.STARTING -> R.string.start_vpn
+                        RunState.STOPPING -> R.string.stop_vpn
+                        RunState.STOPPED -> R.string.disconnected
+                    },
+                )
+                setContentDescription(R.id.toggle, "${application.getString(R.string.widget_toggle)}: $status")
                 setOnClickPendingIntent(R.id.toggle, QuickAction.TOGGLE.quickIntent.toPendingIntent)
             }
 

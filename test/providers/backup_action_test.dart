@@ -87,6 +87,77 @@ void main() {
       return keptPath;
     }
 
+    test('the manifest reads the actual VACUUM snapshot', () async {
+      await testDatabase.profilesDao.putAll([
+        _profile(71, 'Snapshot row').toCompanion(0),
+      ]);
+      final snapshot = join(kept.path, 'snapshot-with-other-name.sqlite');
+      await testDatabase.customStatement('VACUUM INTO ?', [snapshot]);
+      await testDatabase.profiles.remove((row) => row.id.equals(71));
+      final manifest = await backupSnapshotEntries(snapshot);
+      expect(manifest.requiredEntries, contains(BackupEntries.profile(71)));
+      expect(File(snapshot).existsSync(), isTrue);
+    });
+
+    test('missing optional profile caches do not prevent backup', () async {
+      await testDatabase.profilesDao.putAll([
+        _profile(
+          81,
+          'Custom',
+        ).copyWith(type: ProfileType.custom).toCompanion(0),
+        _profile(82, 'Remote')
+            .copyWith(type: ProfileType.url, url: 'https://example.com/config')
+            .toCompanion(1),
+      ]);
+      final source = buildContainer()..listen(configProvider, (_, _) {});
+      final path = await backupToKept(actionOf(source));
+      expect(File(path).existsSync(), isTrue);
+    });
+
+    for (final change in ['delete after snapshot', 'modify after staging']) {
+      test('$change aborts delivery', () async {
+        await testDatabase.profilesDao.putAll([
+          _profile(91, 'Local').toCompanion(0),
+        ]);
+        final file = File(await appPath.getProfilePath('91'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('original');
+        final source = buildContainer()..listen(configProvider, (_, _) {});
+        final action = actionOf(source);
+        if (change == 'delete after snapshot') {
+          action.afterSnapshotForTesting = () async => file.deleteSync();
+        } else {
+          action.afterStagingForTesting = () async =>
+              file.writeAsStringSync('changed content');
+        }
+        var delivered = false;
+        await expectLater(
+          action.backup((_) async {
+            delivered = true;
+            return true;
+          }),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(delivered, isFalse);
+      });
+    }
+
+    test('a missing referenced file aborts delivery', () async {
+      await testDatabase.profilesDao.putAll([
+        _profile(987654, 'Missing file').toCompanion(0),
+      ]);
+      var delivered = false;
+      final source = buildContainer()..listen(configProvider, (_, _) {});
+      await expectLater(
+        actionOf(source).backup((_) async {
+          delivered = true;
+          return true;
+        }),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(delivered, isFalse);
+    });
+
     test('restores the rows, files and settings a backup carries', () async {
       await testDatabase.profilesDao.putAll([
         _profile(1, 'Backed up').toCompanion(0),

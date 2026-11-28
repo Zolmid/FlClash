@@ -7,6 +7,9 @@ class ClashProvidersAction extends _$ClashProvidersAction {
 
   CoreController get _core => ref.read(coreHandlerProvider);
 
+  @visibleForTesting
+  Future<void> Function(int step)? syncPublishHook;
+
   Future<ClashProvider> putProvider(
     ClashProvider provider, {
     ClashProvider? previous,
@@ -117,13 +120,76 @@ class ClashProvidersAction extends _$ClashProvidersAction {
 
   /// Returns false when the set changed shape, which only a reapply loads.
   Future<bool> syncRemote(ClashProvider provider) async {
-    final next = await _compile(provider, download: true);
-    if (next == provider) {
-      return true;
+    final stagedName = '${provider.fileName}.$uniqueId.sync';
+    final staged = File(await appPath.getProviderCachePath(stagedName));
+    final stagedCompiled = File('${staged.path}.mrs');
+    try {
+      await staged.parent.create(recursive: true);
+      final info = await _core.compileRuleSet(stagedName, url: provider.url);
+      final next = provider.withInfo(info);
+      if (!staged.existsSync() ||
+          (next.isCompiled && !stagedCompiled.existsSync())) {
+        throw FileSystemException(
+          'Compiled rule set is incomplete',
+          staged.path,
+        );
+      }
+      final destination = await provider.path;
+      final compiledDestination = await provider.compiledPath;
+      String? reapplyLabel;
+      _RuleSetPublication? publication;
+      final bool unchanged;
+      try {
+        unchanged = await database.transaction(() async {
+          final latest = await database.clashProviders
+              .readable(
+                (row) => row.toClashProvider(),
+                where: (row) => row.id.equals(provider.id),
+              )
+              .getSingleOrNull();
+          if (latest == null ||
+              latest.url != provider.url ||
+              latest.behavior != provider.behavior ||
+              latest.format != provider.format) {
+            return true;
+          }
+          publication = await _RuleSetPublication.prepare([
+            (staged: staged, target: File(destination)),
+            (
+              staged: next.isCompiled ? stagedCompiled : null,
+              target: File(compiledDestination),
+            ),
+          ]);
+          await publication!.publish(syncPublishHook);
+          if (next.behavior == latest.behavior &&
+              next.format == latest.format) {
+            return true;
+          }
+          await (database.update(
+            database.clashProviders,
+          )..where((row) => row.id.equals(provider.id))).write(
+            ClashProvidersCompanion(
+              behavior: Value(next.behavior),
+              format: Value(next.format),
+            ),
+          );
+          await syncPublishHook?.call(2);
+          reapplyLabel = latest.label;
+          return false;
+        });
+      } catch (_) {
+        await publication?.rollback();
+        rethrow;
+      }
+      await publication?.discardBackups();
+      if (reapplyLabel case final label?) {
+        unawaited(applyIfReferenced(ProviderKind.rule, {label}, force: true));
+      }
+      return unchanged;
+    } finally {
+      await staged.safeDelete();
+      await stagedCompiled.safeDelete();
     }
-    await database.clashProviders.put(next.toCompanion());
-    unawaited(applyIfReferenced(ProviderKind.rule, {next.label}, force: true));
-    return false;
   }
 
   /// Backups leave remote sets out and older sets have no mrs yet.
@@ -237,5 +303,92 @@ class ClashProvidersAction extends _$ClashProvidersAction {
     ref
         .read(setupActionProvider.notifier)
         .applyProfileDebounce(silence: true, force: force);
+  }
+}
+
+class _RuleSetPublication {
+  _RuleSetPublication(this.entries, this.backupDirectory);
+
+  final List<({File? staged, File target, File? backup})> entries;
+  final Directory backupDirectory;
+  int _published = 0;
+
+  static Future<_RuleSetPublication> prepare(
+    List<({File? staged, File target})> files,
+  ) async {
+    final entries = <({File? staged, File target, File? backup})>[];
+    final backupDirectory = await files.first.target.parent.createTemp(
+      '.rules-backup-',
+    );
+    try {
+      for (final file in files) {
+        File? backup;
+        if (await file.target.exists()) {
+          backup = File(join(backupDirectory.path, basename(file.target.path)));
+        }
+        entries.add((staged: file.staged, target: file.target, backup: backup));
+        if (backup != null) {
+          await file.target.copy(backup.path);
+        }
+      }
+      return _RuleSetPublication(entries, backupDirectory);
+    } catch (_) {
+      for (final entry in entries) {
+        await entry.backup?.safeDelete();
+      }
+      await backupDirectory.safeDelete();
+      rethrow;
+    }
+  }
+
+  Future<void> publish(Future<void> Function(int)? hook) async {
+    for (final entry in entries) {
+      _published++;
+      if (entry.staged case final staged?) {
+        await _renameRuleSetFile(staged, entry.target);
+      } else if (await entry.target.exists()) {
+        await entry.target.delete();
+      }
+      await hook?.call(_published - 1);
+    }
+  }
+
+  Future<void> rollback() async {
+    for (final entry in entries.take(_published).toList().reversed) {
+      if (entry.backup case final backup?) {
+        await _renameRuleSetFile(backup, entry.target);
+      } else if (await entry.target.exists()) {
+        await entry.target.delete();
+      }
+    }
+    await discardBackups();
+  }
+
+  Future<void> discardBackups() async {
+    for (final entry in entries) {
+      await entry.backup?.safeDelete();
+    }
+    await backupDirectory.safeDelete();
+  }
+}
+
+Future<void> _renameRuleSetFile(File source, File target) async {
+  try {
+    await source.rename(target.path);
+  } on FileSystemException catch (error) {
+    if (!Platform.isWindows ||
+        !{80, 183}.contains(error.osError?.errorCode) ||
+        !await target.exists()) {
+      rethrow;
+    }
+    final displaced = File('${target.path}.$uniqueId.displaced');
+    await target.rename(displaced.path);
+    try {
+      await source.rename(target.path);
+    } catch (_) {
+      await displaced.rename(target.path);
+      rethrow;
+    }
+    await displaced.safeDelete();
   }
 }

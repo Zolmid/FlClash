@@ -162,12 +162,73 @@ void replaceFile(String source, String destination) {
   _renameOver(File(source), dest);
 }
 
+void replaceFiles(Map<String, String> replacements) {
+  for (final entry in replacements.entries) {
+    if (!File(entry.key).existsSync()) {
+      throw BuildException('Source file not found: ${entry.key}');
+    }
+    ensureDir(File(entry.value).parent.path);
+  }
+  final backups = <String, File?>{};
+  final backupDirs = <Directory>[];
+  final installed = <String>[];
+  try {
+    for (final entry in replacements.entries) {
+      final dest = File(entry.value);
+      if (dest.existsSync()) {
+        final dir = dest.parent.createTempSync('.setup-backup-');
+        backupDirs.add(dir);
+        final backup = File(p.join(dir.path, p.basename(dest.path)));
+        dest.renameSync(backup.path);
+        backups[dest.path] = backup;
+      } else {
+        backups[dest.path] = null;
+      }
+      File(entry.key).renameSync(dest.path);
+      installed.add(dest.path);
+    }
+  } catch (_) {
+    for (final destination in backups.keys.toList().reversed) {
+      final file = File(destination);
+      if (installed.contains(destination) && file.existsSync()) {
+        file.deleteSync();
+      }
+      backups[destination]?.renameSync(destination);
+    }
+    rethrow;
+  } finally {
+    for (final dir in backupDirs) {
+      if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
+    }
+  }
+  for (final backup in backups.values.nonNulls) {
+    backup.deleteSync();
+  }
+  for (final dir in backupDirs) {
+    dir.deleteSync();
+  }
+}
+
 void _renameOver(File from, File to) {
+  if (!from.existsSync()) {
+    throw BuildException('Source file not found: ${from.path}');
+  }
   try {
     from.renameSync(to.path);
-  } on FileSystemException {
-    // Windows refuses to rename over an existing file.
-    if (to.existsSync()) to.deleteSync();
-    from.renameSync(to.path);
+  } on FileSystemException catch (error) {
+    if (!Platform.isWindows ||
+        !{80, 183}.contains(error.osError?.errorCode) ||
+        !to.existsSync()) {
+      rethrow;
+    }
+    final backup = File('${to.path}.$pid.previous');
+    to.renameSync(backup.path);
+    try {
+      from.renameSync(to.path);
+    } catch (_) {
+      backup.renameSync(to.path);
+      rethrow;
+    }
+    backup.deleteSync();
   }
 }

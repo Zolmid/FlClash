@@ -235,6 +235,7 @@ class FormRowSecretTextField extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
   final String? hintText;
+  final String? semanticsLabel;
   final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
@@ -245,6 +246,7 @@ class FormRowSecretTextField extends StatefulWidget {
     required this.controller,
     this.focusNode,
     this.hintText,
+    this.semanticsLabel,
     this.textInputAction,
     this.inputFormatters,
     this.onChanged,
@@ -265,17 +267,20 @@ class _FormRowSecretTextFieldState extends State<FormRowSecretTextField> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
-          child: FormRowTextField(
-            controller: widget.controller,
-            focusNode: widget.focusNode,
-            hintText: widget.hintText,
-            obscureText: _obscure,
-            textInputAction: widget.textInputAction,
-            autocorrect: false,
-            enableSuggestions: false,
-            inputFormatters: widget.inputFormatters,
-            onChanged: widget.onChanged,
-            onFieldSubmitted: widget.onFieldSubmitted,
+          child: Semantics(
+            label: widget.semanticsLabel,
+            child: FormRowTextField(
+              controller: widget.controller,
+              focusNode: widget.focusNode,
+              hintText: widget.hintText,
+              obscureText: _obscure,
+              textInputAction: widget.textInputAction,
+              autocorrect: false,
+              enableSuggestions: false,
+              inputFormatters: widget.inputFormatters,
+              onChanged: widget.onChanged,
+              onFieldSubmitted: widget.onFieldSubmitted,
+            ),
           ),
         ),
         CommonMinIconButtonTheme(
