@@ -1,0 +1,28 @@
+name: Temporary Windows guide capture
+on:
+  push:
+    branches: [codex/windows-guide-1124]
+    paths:
+      - .github/workflows/windows-guide-1124.yml
+      - .github/scripts/windows-guide-1124.ps1
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify installer and capture real wizard
+        shell: powershell
+        run: ./.github/scripts/windows-guide-1124.ps1
+      - name: Upload capture and verification
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: windows-guide-verified
+          path: ${{ runner.temp }}/windows-guide-output/
+          if-no-files-found: error
+          retention-days: 3

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - '**'
+      - '!codex/windows-guide-1124'
     tags:
       - 'v*'
   pull_request:
